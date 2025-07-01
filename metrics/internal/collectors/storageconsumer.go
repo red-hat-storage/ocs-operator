@@ -26,6 +26,7 @@ type StorageConsumerCollector struct {
 	ProviderOperatorVersion      *prometheus.Desc
 	ClientOperatorVersion        *prometheus.Desc
 	AllowedNamespace             string
+	ClientID                     *prometheus.Desc
 }
 
 func NewStorageConsumerCollector(opts *options.Options) *StorageConsumerCollector {
@@ -59,6 +60,12 @@ func NewStorageConsumerCollector(opts *options.Options) *StorageConsumerCollecto
 			prometheus.BuildFQName("ocs", "storage_client", "operator_version"),
 			`OCS StorageClient encoded Operator Version`,
 			[]string{"storage_consumer_name"},
+			nil,
+		),
+		ClientID: prometheus.NewDesc(
+			prometheus.BuildFQName("ocs", "storage_client_id", "operator_version"),
+			`OCS StorageClient encoded Operator Version`,
+			[]string{"client_name", "client_id"},
 			nil,
 		),
 		StorageQuotaUtilizationRatio: prometheus.NewDesc(
@@ -150,6 +157,10 @@ func (c *StorageConsumerCollector) collectStorageConsumersMetadata(storageConsum
 			ch <- prometheus.MustNewConstMetric(c.StorageQuotaUtilizationRatio,
 				prometheus.GaugeValue, storageConsumer.Status.Client.StorageQuotaUtilizationRatio,
 				storageConsumer.Status.Client.Name, storageConsumer.Status.Client.ClusterName)
+
+			ch <- prometheus.MustNewConstMetric(c.ClientID,
+				prometheus.GaugeValue, storageConsumer.Status.Client.StorageQuotaUtilizationRatio,
+				storageConsumer.GetName(), storageConsumer.Status.Client.ID)
 		}
 	}
 }

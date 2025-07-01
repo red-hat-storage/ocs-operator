@@ -127,3 +127,9 @@ func RegisterCephBlocklistCollector(registry *prometheus.Registry, opts *options
 	blocklistCollector := NewCephBlocklistCollector(cephBlocklistStore, pvStore, opts)
 	registry.MustRegister(blocklistCollector)
 }
+
+func RegisterCephRBDChildrenCollector(registry *prometheus.Registry, opts *options.Options) {
+	enablePVStore(opts)
+	childrenCollector := NewCephRBDChildrenCollector(pvStore, opts)
+	registry.MustRegister(childrenCollector)
+}
