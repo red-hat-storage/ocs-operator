@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -33,14 +34,16 @@ type PersistentVolumeStore struct {
 	Store map[types.UID]PersistentVolumeAttributes
 	// RBDClientMap is a map of RBD client addresses to the names of the nodes whose images had this client as a watcher
 	RBDClientMap         map[string][]string
+	RBDChildrenMap       map[string]int
 	monitorConfig        cephMonitorConfig
 	kubeClient           clientset.Interface
 	cephClusterNamespace string
 	cephAuthNamespace    string
 
 	// Functions to make testing easier
-	initCephFn         func(kubeclient clientset.Interface, cephClusterNamespace, cephAuthNamespace string) (cephMonitorConfig, error)
-	runCephRBDStatusFn func(config *cephMonitorConfig, pool, image string) (Clients, error)
+	initCephFn                func(kubeclient clientset.Interface, cephClusterNamespace, cephAuthNamespace string) (cephMonitorConfig, error)
+	runCephRBDStatusFn        func(config *cephMonitorConfig, pool, image string) (Clients, error)
+	runCephRBDChildrenCountFn func(config *cephMonitorConfig, pool, image string) (int, error)
 	// TODO: Use fake k8s client instead
 	getNodeNameForPVFn func(pv *corev1.PersistentVolume, kubeClient clientset.Interface) (string, error)
 }
@@ -65,15 +68,17 @@ type PersistentVolumeAttributes struct {
 
 func NewPersistentVolumeStore(opts *options.Options) *PersistentVolumeStore {
 	return &PersistentVolumeStore{
-		Store:                map[types.UID]PersistentVolumeAttributes{},
-		RBDClientMap:         map[string][]string{},
-		kubeClient:           clientset.NewForConfigOrDie(opts.Kubeconfig),
-		monitorConfig:        cephMonitorConfig{},
-		cephClusterNamespace: opts.AllowedNamespaces[0],
-		cephAuthNamespace:    opts.CephAuthNamespace,
-		initCephFn:           initCeph,
-		runCephRBDStatusFn:   runCephRBDStatus,
-		getNodeNameForPVFn:   getNodeNameForPV,
+		Store:                     map[types.UID]PersistentVolumeAttributes{},
+		RBDClientMap:              map[string][]string{},
+		RBDChildrenMap:            make(map[string]int),
+		kubeClient:                clientset.NewForConfigOrDie(opts.Kubeconfig),
+		monitorConfig:             cephMonitorConfig{},
+		cephClusterNamespace:      opts.AllowedNamespaces[0],
+		cephAuthNamespace:         opts.CephAuthNamespace,
+		initCephFn:                initCeph,
+		runCephRBDStatusFn:        runCephRBDStatus,
+		runCephRBDChildrenCountFn: runCephRBDChildrenCount,
+		getNodeNameForPVFn:        getNodeNameForPV,
 	}
 }
 
@@ -92,6 +97,27 @@ func runCephRBDStatus(config *cephMonitorConfig, pool, image string) (Clients, e
 
 	err = json.Unmarshal(cmd, &clients)
 	return clients, err
+}
+
+func runCephRBDChildrenCount(config *cephMonitorConfig, pool, image string) (int, error) {
+
+	if config.monitor == "" && config.id == "" && config.key == "" {
+		return 0, errors.New("unable to get status data. monitor config missing")
+	}
+	imageSpec := fmt.Sprintf("%s/%s", pool, image)
+	args := []string{"children", imageSpec, "|", "wc", "-l", "-m", config.monitor, "--id", config.id, "--key", config.key}
+	cmd, err := execCommand("rbd", args, 30)
+	if err != nil {
+		return 0, fmt.Errorf("failed with output : %v, err: %v", string(cmd), err)
+	}
+
+	count, err := strconv.Atoi(string(cmd))
+	if err != nil {
+		fmt.Errorf("Error converting count to int: %v", err)
+		return count, err
+	}
+
+	return count, nil
 }
 
 func appendIfNotExists(slice []string, value string) []string {
@@ -170,6 +196,12 @@ func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 	if err != nil {
 		return fmt.Errorf("failed to get node name for pod: %v", err)
 	}
+
+	childrenCount, err := p.runCephRBDChildrenCountFn(&p.monitorConfig, pv.Spec.CSI.VolumeAttributes["pool"], pv.Spec.CSI.VolumeAttributes["imageName"])
+	if err != nil {
+		return fmt.Errorf("failed to get children count for image %v: %v", pv.Spec.CSI.VolumeAttributes["imageName"], err)
+	}
+	p.RBDChildrenMap[pv.Spec.CSI.VolumeAttributes["imageName"]] = childrenCount
 
 	if nodeName == "" {
 		return nil
