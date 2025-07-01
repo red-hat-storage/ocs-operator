@@ -32,7 +32,7 @@ var _ = Describe("PersistentVolume Cache", func() {
 		pvStore.initCephFn = func(kubeclient kubernetes.Interface, cephClusterNamespace, cephAuthNamespace string) (cephMonitorConfig, error) {
 			return cephMonitorConfig{}, nil
 		}
-		pvStore.runCephRBDStatusFn = func(config *cephMonitorConfig, pool, image string) (Clients, error) {
+		pvStore.runCephRBDStatusFn = func(config *cephMonitorConfig, pool, image, namespace string) (Clients, error) {
 			return Clients{
 				Watchers: []Watcher{
 					{

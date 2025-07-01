@@ -81,6 +81,9 @@ func main() {
 	// Add blocklist collector to the registry
 	collectors.RegisterCephBlocklistCollector(customResourceRegistry, opts)
 
+	// Add rbd children collector to the registry
+	collectors.RegisterCephRBDChildrenCollector(customResourceRegistry, opts)
+
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
 	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry, promHandlerOpts(customResourceRegistry))
