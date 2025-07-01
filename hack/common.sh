@@ -20,7 +20,7 @@ LDFLAGS="-X github.com/red-hat-storage/ocs-operator/v4/version.Version=${CSV_VER
 
 # Tools & binaries versions and locations
 LOCALBIN="$(pwd)/bin"
-OPERATOR_SDK_VERSION="v1.25.4"
+OPERATOR_SDK_VERSION="v1.30.0"
 OPERATOR_SDK="${LOCALBIN}/operator-sdk-${OPERATOR_SDK_VERSION}"
 OPM_VERSION="v1.28.0"
 OPM="${LOCALBIN}/opm-${OPM_VERSION}"
@@ -93,7 +93,7 @@ CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:main-0a
 OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:72027"
 NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20250326"
 ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-5d3a5a849"
-KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0"
+KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1"
 
 OCS_OPERATOR_INSTALL="${OCS_OPERATOR_INSTALL:-false}"
 OCS_CLUSTER_UNINSTALL="${OCS_CLUSTER_UNINSTALL:-false}"
