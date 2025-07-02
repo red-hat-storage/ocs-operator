@@ -19,9 +19,6 @@ package controllers
 import (
 	"cmp"
 	"context"
-	"crypto/md5"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strconv"
@@ -32,6 +29,7 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/version"
 
 	"github.com/go-logr/logr"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -42,7 +40,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -63,6 +60,7 @@ const (
 	StorageConsumerNameLabel      = "ocs.openshift.io/storageconsumer-name"
 	storageConsumerFinalizer      = "ocs.openshift.io/storageconsumer-protection"
 	primaryConsumerUIDAnnotation  = "ocs.openshift.io/primary-consumer-uid"
+	csiCephUserCurrGen            = 1
 )
 
 // StorageConsumerReconciler reconciles a StorageConsumer object
@@ -140,6 +138,18 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 	if _, notAdjusted := r.storageConsumer.GetAnnotations()[util.TicketAnnotation]; notAdjusted {
 		r.Log.Info("waiting for StorageConsumer to be adjusted for 4.19")
 		return reconcile.Result{}, nil
+	}
+
+	if _, exist := r.storageConsumer.GetLabels()[util.CreatedAtDfVersionLabelKey]; !exist {
+		majorAndMinorVersion, err := version.GetMajorAndMinorVersion()
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		if util.AddLabel(r.storageConsumer, util.CreatedAtDfVersionLabelKey, majorAndMinorVersion) {
+			if err := r.Update(r.ctx, r.storageConsumer); err != nil {
+				return reconcile.Result{}, nil
+			}
+		}
 	}
 
 	r.storageConsumer.Status.CephResources = []*ocsv1alpha1.CephResourcesSpec{}
@@ -222,16 +232,18 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 					return reconcile.Result{}, err
 				}
 				if err := r.reconcileCephClientRBDProvisioner(
-					consumerResources.GetCsiRbdProvisionerCephUserName(),
+					util.GenerateCsiRbdProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
 					consumerResources.GetRbdRadosNamespaceName(),
 					consumerConfigMap,
+					csiCephUserCurrGen,
 				); err != nil {
 					return reconcile.Result{}, err
 				}
 				if err := r.reconcileCephClientRBDNode(
-					consumerResources.GetCsiRbdNodeCephUserName(),
+					util.GenerateCsiRbdNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
 					consumerResources.GetRbdRadosNamespaceName(),
 					consumerConfigMap,
+					csiCephUserCurrGen,
 				); err != nil {
 					return reconcile.Result{}, err
 				}
@@ -246,17 +258,19 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 					return reconcile.Result{}, err
 				}
 				if err := r.reconcileCephClientCephFSProvisioner(
-					consumerResources.GetCsiCephFsProvisionerCephUserName(),
+					util.GenerateCsiCephFsProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
+					csiCephUserCurrGen,
 				); err != nil {
 					return reconcile.Result{}, err
 				}
 
 				if err := r.reconcileCephClientCephFSNode(
-					consumerResources.GetCsiCephFsNodeCephUserName(),
+					util.GenerateCsiCephFsNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
+					csiCephUserCurrGen,
 				); err != nil {
 					return reconcile.Result{}, err
 				}
@@ -264,16 +278,18 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 
 			if availableServices.Nfs {
 				if err := r.reconcileCephClientNfsProvisioner(
-					consumerResources.GetCsiNfsProvisionerCephUserName(),
+					util.GenerateCsiNfsProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
+					csiCephUserCurrGen,
 				); err != nil {
 					return reconcile.Result{}, err
 				}
 				if err := r.reconcileCephClientNfsNode(
-					consumerResources.GetCsiNfsNodeCephUserName(),
+					util.GenerateCsiNfsNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
+					csiCephUserCurrGen,
 				); err != nil {
 					return reconcile.Result{}, err
 				}
@@ -596,6 +612,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDProvisioner(
 	cephClientName string,
 	radosNamespaceName string,
 	additionalOwner client.Object,
+	csiCephUserGeneration int64,
 ) error {
 	cephClient := &rookCephv1.CephClient{}
 	cephClient.Name = cephClientName
@@ -607,15 +624,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDProvisioner(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
 			radosNamespaceName = "''"
 		}
-		cephClient.Spec = rookCephv1.ClientSpec{
-			Caps: map[string]string{
-				"mon": "profile rbd, allow command 'osd blocklist'",
-				"mgr": "allow rw",
-				"osd": fmt.Sprintf("profile rbd namespace=%s", radosNamespaceName),
-			},
+		cephClient.Spec.SecretName = cephClientName
+		cephClient.Spec.Caps = map[string]string{
+			"mon": "profile rbd, allow command 'osd blocklist'",
+			"mgr": "allow rw",
+			"osd": fmt.Sprintf("profile rbd namespace=%s", radosNamespaceName),
 		}
 		return nil
 	}); err != nil {
@@ -628,6 +645,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDNode(
 	cephClientName string,
 	radosNamespaceName string,
 	additionalOwner client.Object,
+	csiCephUserGeneration int64,
 ) error {
 	cephClient := &rookCephv1.CephClient{}
 	cephClient.Name = cephClientName
@@ -639,15 +657,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDNode(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
 			radosNamespaceName = "''"
 		}
-		cephClient.Spec = rookCephv1.ClientSpec{
-			Caps: map[string]string{
-				"mon": "profile rbd",
-				"mgr": "allow rw",
-				"osd": fmt.Sprintf("profile rbd namespace=%s", radosNamespaceName),
-			},
+		cephClient.Spec.SecretName = cephClientName
+		cephClient.Spec.Caps = map[string]string{
+			"mon": "profile rbd",
+			"mgr": "allow rw",
+			"osd": fmt.Sprintf("profile rbd namespace=%s", radosNamespaceName),
 		}
 		return nil
 	}); err != nil {
@@ -660,6 +678,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
 	cephClientName string,
 	subVolumeGroupName string,
 	additionalOwner client.Object,
+	csiCephUserGeneration int64,
 ) error {
 	cephClient := &rookCephv1.CephClient{}
 	cephClient.Name = cephClientName
@@ -671,13 +690,13 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
-		cephClient.Spec = rookCephv1.ClientSpec{
-			Caps: map[string]string{
-				"mon": "allow r, allow command 'osd blocklist'",
-				"mgr": "allow rw",
-				"osd": "allow rw tag cephfs metadata=*",
-				"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
-			},
+		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
+		cephClient.Spec.SecretName = cephClientName
+		cephClient.Spec.Caps = map[string]string{
+			"mon": "allow r, allow command 'osd blocklist'",
+			"mgr": "allow rw",
+			"osd": "allow rw tag cephfs metadata=*",
+			"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
 		}
 		return nil
 	}); err != nil {
@@ -690,6 +709,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode(
 	cephClientName string,
 	subVolumeGroupName string,
 	additionalOwner client.Object,
+	csiCephUserGeneration int64,
 ) error {
 	cephClient := &rookCephv1.CephClient{}
 	cephClient.Name = cephClientName
@@ -701,13 +721,13 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
-		cephClient.Spec = rookCephv1.ClientSpec{
-			Caps: map[string]string{
-				"mon": "allow r",
-				"mgr": "allow rw",
-				"osd": "allow rw tag cephfs *=*",
-				"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
-			},
+		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
+		cephClient.Spec.SecretName = cephClientName
+		cephClient.Spec.Caps = map[string]string{
+			"mon": "allow r",
+			"mgr": "allow rw",
+			"osd": "allow rw tag cephfs *=*",
+			"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
 		}
 		return nil
 	}); err != nil {
@@ -720,6 +740,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientNfsProvisioner(
 	cephClientName string,
 	subVolumeGroupName string,
 	additionalOwner client.Object,
+	csiCephUserGeneration int64,
 ) error {
 	cephClient := &rookCephv1.CephClient{}
 	cephClient.Name = cephClientName
@@ -731,13 +752,13 @@ func (r *StorageConsumerReconciler) reconcileCephClientNfsProvisioner(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
-		cephClient.Spec = rookCephv1.ClientSpec{
-			Caps: map[string]string{
-				"mon": "allow r, allow command 'osd blocklist'",
-				"mgr": "allow rw",
-				"osd": "allow rw tag cephfs metadata=*",
-				"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
-			},
+		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
+		cephClient.Spec.SecretName = cephClientName
+		cephClient.Spec.Caps = map[string]string{
+			"mon": "allow r, allow command 'osd blocklist'",
+			"mgr": "allow rw",
+			"osd": "allow rw tag cephfs metadata=*",
+			"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
 		}
 		return nil
 	}); err != nil {
@@ -750,6 +771,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientNfsNode(
 	cephClientName string,
 	subVolumeGroupName string,
 	additionalOwner client.Object,
+	csiCephUserGeneration int64,
 ) error {
 	cephClient := &rookCephv1.CephClient{}
 	cephClient.Name = cephClientName
@@ -761,13 +783,13 @@ func (r *StorageConsumerReconciler) reconcileCephClientNfsNode(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
-		cephClient.Spec = rookCephv1.ClientSpec{
-			Caps: map[string]string{
-				"mon": "allow r",
-				"mgr": "allow rw",
-				"osd": "allow rw tag cephfs *=*",
-				"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
-			},
+		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
+		cephClient.Spec.SecretName = cephClientName
+		cephClient.Spec.Caps = map[string]string{
+			"mon": "allow r",
+			"mgr": "allow rw",
+			"osd": "allow rw tag cephfs *=*",
+			"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
 		}
 		return nil
 	}); err != nil {
@@ -855,6 +877,9 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			oldClient := objOld.Status.Client
 			newClient := objNew.Status.Client
+			if oldClient == nil && newClient == nil {
+				return false
+			}
 			return oldClient == nil && newClient != nil || oldClient != nil && newClient == nil || oldClient.ID != newClient.ID
 		},
 	}
@@ -892,22 +917,4 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&rookCephv1.CephFilesystem{}, enqueueForAllStorageConsumers).
 		Watches(&rookCephv1.CephNFS{}, enqueueForAllStorageConsumers).
 		Complete(r)
-}
-
-func GenerateHashForCephClient(storageConsumerName, cephUserType string) string {
-	var c struct {
-		StorageConsumerName string `json:"id"`
-		CephUserType        string `json:"cephUserType"`
-	}
-
-	c.StorageConsumerName = storageConsumerName
-	c.CephUserType = cephUserType
-
-	cephClient, err := json.Marshal(c)
-	if err != nil {
-		klog.Errorf("failed to marshal ceph client name for consumer %s. %v", storageConsumerName, err)
-		panic("failed to marshal")
-	}
-	name := md5.Sum([]byte(cephClient))
-	return hex.EncodeToString(name[:16])
 }
