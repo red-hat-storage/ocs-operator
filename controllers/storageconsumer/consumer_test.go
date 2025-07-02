@@ -65,6 +65,7 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 //TODO: add more unit-tests related to consumer reconcile
 
 func TestNoobaaAccount(t *testing.T) {
+	t.Skip("Skipping as we are disabling Noobaa with clients")
 	var r StorageConsumerReconciler
 	ctx := context.TODO()
 	scheme := createFakeScheme(t)

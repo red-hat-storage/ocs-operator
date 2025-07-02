@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -306,6 +307,30 @@ func GetStorageConsumerDefaultResourceNames(
 		resourceNamesMap.SetCsiNfsProvisionerCephUserName(fmt.Sprintf("csi-nfs-provisioner-%s", storageConsumerUid))
 	}
 	return defaults
+}
+
+func GenerateCsiRbdProvisionerCephClientName(generation int64, uid types.UID) string {
+	return fmt.Sprintf("%s-g%d-%v", csiRbdProvisionerCephUserKey, generation, uid)
+}
+
+func GenerateCsiRbdNodeCephClientName(generation int64, uid types.UID) string {
+	return fmt.Sprintf("%s-g%d-%v", csiRbdNodeCephUserKey, generation, uid)
+}
+
+func GenerateCsiCephFsProvisionerCephClientName(generation int64, uid types.UID) string {
+	return fmt.Sprintf("%s-g%d-%v", csiCephFsProvisionerCephUserKey, generation, uid)
+}
+
+func GenerateCsiCephFsNodeCephClientName(generation int64, uid types.UID) string {
+	return fmt.Sprintf("%s-g%d-%v", csiCephFsNodeCephUserKey, generation, uid)
+}
+
+func GenerateCsiNfsProvisionerCephClientName(generation int64, uid types.UID) string {
+	return fmt.Sprintf("%s-g%d-%v", csiNfsProvisionerCephUserKey, generation, uid)
+}
+
+func GenerateCsiNfsNodeCephClientName(generation int64, uid types.UID) string {
+	return fmt.Sprintf("%s-g%d-%v", csiNfsNodeCephUserKey, generation, uid)
 }
 
 // These methods are for backward compatibility for provider mode upgraded cluster
