@@ -57,7 +57,7 @@ metadata:
     capabilities: Deep Insights
     categories: Storage
     containerImage: quay.io/ocs-dev/ocs-operator:latest
-    createdAt: "2025-07-01T11:59:29Z"
+    createdAt: "2025-06-30T18:04:40Z"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     external.features.ocs.openshift.io/supported-platforms: '["BareMetal", "None",
@@ -641,9 +641,9 @@ spec:
                 - name: ROOK_CEPH_IMAGE
                   value: quay.io/ocs-dev/rook-ceph:vmaster-068aaaedb
                 - name: CEPH_IMAGE
-                  value: quay.io/ceph/ceph:v19.2.1
+                  value: quay.io/ceph/ceph:v19.2.2
                 - name: NOOBAA_CORE_IMAGE
-                  value: quay.io/noobaa/noobaa-core:master-20250326
+                  value: quay.io/noobaa/noobaa-core:master-20250630
                 - name: NOOBAA_DB_IMAGE
                   value: quay.io/sclorg/postgresql-15-c9s
                 - name: PROVIDER_API_SERVER_IMAGE
@@ -743,7 +743,7 @@ spec:
                 - -openshift-service-account=ux-backend-server
                 - -openshift-delegate-urls={"/":{"group":"ocs.openshift.io","resource":"storageclusters","namespace":"openshift-storage","verb":"create"}}
                 - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-                image: quay.io/openshift/origin-oauth-proxy:4.19.0
+                image: quay.io/openshift/origin-oauth-proxy:4.20.0
                 imagePullPolicy: IfNotPresent
                 name: oauth-proxy
                 ports:
@@ -805,13 +805,13 @@ spec:
   relatedImages:
   - image: quay.io/ocs-dev/rook-ceph:vmaster-068aaaedb
     name: rook-container
-  - image: quay.io/ceph/ceph:v19.2.1
+  - image: quay.io/ceph/ceph:v19.2.2
     name: ceph-container
   - image: quay.io/ocs-dev/ocs-must-gather:latest
     name: ocs-must-gather
   - image: quay.io/ocs-dev/ocs-metrics-exporter:latest
     name: ocs-metrics-exporter
-  - image: quay.io/openshift/origin-oauth-proxy:4.19.0
+  - image: quay.io/openshift/origin-oauth-proxy:4.20.0
     name: ux-backend-oauth-image
   - image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
     name: kube-rbac-proxy
