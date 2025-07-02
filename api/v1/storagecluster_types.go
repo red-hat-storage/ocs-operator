@@ -211,6 +211,10 @@ type ManageCephCluster struct {
 
 	// Ceph Config options
 	CephConfig map[string]map[string]string `json:"cephConfig,omitempty"`
+
+	// CleanupPolicy defines the cleanup policy for the Rook Ceph cluster.
+	// +optional
+	CleanupPolicy *rookCephv1.CleanupPolicySpec `json:"cleanupPolicy,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
