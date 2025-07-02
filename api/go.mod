@@ -8,7 +8,7 @@ require (
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20250415145404-9b448831a834
 	github.com/openshift/api v0.0.0-20250303104811-f587fb60f627
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
-	github.com/rook/rook/pkg/apis v0.0.0-20250331180736-9ac31019683c
+	github.com/rook/rook/pkg/apis v0.0.0-20250627200304-5094b1f5e6a6
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
 )
@@ -82,7 +82,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/net v0.37.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.28.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
