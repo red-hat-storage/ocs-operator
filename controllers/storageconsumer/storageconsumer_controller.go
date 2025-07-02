@@ -877,6 +877,9 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			oldClient := objOld.Status.Client
 			newClient := objNew.Status.Client
+			if oldClient == nil && newClient == nil {
+				return false
+			}
 			return oldClient == nil && newClient != nil || oldClient != nil && newClient == nil || oldClient.ID != newClient.ID
 		},
 	}
