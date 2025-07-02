@@ -134,7 +134,7 @@ func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, reques
 			return reconcile.Result{}, err
 		}
 
-		if err = r.reconcileStorageRequest(ctx, storageCluster, storageConsumer); err != nil {
+		if err = r.reconcileStorageRequest(ctx, storageCluster, storageConsumer, storageConsumer.UID); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -146,14 +146,14 @@ func (r *StorageConsumerUpgradeReconciler) Reconcile(ctx context.Context, reques
 			return reconcile.Result{}, err
 		}
 
-		if err = r.reconcileStorageRequest(ctx, storageCluster, storageConsumer); err != nil {
-			return reconcile.Result{}, err
-		}
-
 		newStorageConsumer := storageConsumer.DeepCopy()
 		newStorageConsumer.Name = defaults.LocalStorageConsumerName
 		newStorageConsumer.SetResourceVersion("")
 		if err = r.reconcileStorageConsumer(ctx, storageCluster, newStorageConsumer, defaults.LocalStorageConsumerConfigMapName); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		if err = r.reconcileStorageRequest(ctx, storageCluster, newStorageConsumer, storageConsumer.UID); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -213,10 +213,11 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 	ctx context.Context,
 	storageCluster *ocsv1.StorageCluster,
 	storageConsumer *ocsv1alpha1.StorageConsumer,
+	storageConsumerUid types.UID,
 ) error {
 
 	rbdClaimName := util.GenerateNameForCephBlockPoolStorageClass(storageCluster)
-	rbdStorageRequestName := util.GetStorageRequestName(string(storageConsumer.UID), rbdClaimName)
+	rbdStorageRequestName := util.GetStorageRequestName(string(storageConsumerUid), rbdClaimName)
 	cephClientName := generateHashForCephClient(rbdStorageRequestName, "provisioner")
 	if err := r.reconcilePre4_19CephClient(
 		ctx,
@@ -255,7 +256,7 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 
 	}
 	cephFsClaimName := util.GenerateNameForCephFilesystemStorageClass(storageCluster)
-	cephFsStorageRequestName := util.GetStorageRequestName(string(storageConsumer.UID), cephFsClaimName)
+	cephFsStorageRequestName := util.GetStorageRequestName(string(storageConsumerUid), cephFsClaimName)
 	cephFsStorageRequestMd5Sum := md5.Sum([]byte(cephFsStorageRequestName))
 	svgName := fmt.Sprintf("cephfilesystemsubvolumegroup-%s", hex.EncodeToString(cephFsStorageRequestMd5Sum[:16]))
 
