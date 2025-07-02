@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"slices"
 
@@ -53,6 +52,15 @@ type StorageConsumerUpgradeReconciler struct {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *StorageConsumerUpgradeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
+	ctx := context.Background()
+	if err := mgr.GetCache().IndexField(
+		ctx, &rookCephv1.CephClient{},
+		util.OwnerUIDIndexName,
+		util.OwnersIndexFieldFunc,
+	); err != nil {
+		return fmt.Errorf("failed to set up FieldIndexer on CephClients for owner: %v", err)
+	}
 	operatorVersionPredicate := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			_, ok := e.Object.GetAnnotations()[util.TicketAnnotation]
@@ -218,24 +226,6 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 
 	rbdClaimName := util.GenerateNameForCephBlockPoolStorageClass(storageCluster)
 	rbdStorageRequestName := util.GetStorageRequestName(string(storageConsumerUid), rbdClaimName)
-	cephClientName := generateHashForCephClient(rbdStorageRequestName, "provisioner")
-	if err := r.reconcilePre4_19CephClient(
-		ctx,
-		cephClientName,
-		storageConsumer.Namespace,
-		storageConsumer,
-	); err != nil {
-		return err
-	}
-	cephClientName = generateHashForCephClient(rbdStorageRequestName, "node")
-	if err := r.reconcilePre4_19CephClient(
-		ctx,
-		cephClientName,
-		storageConsumer.Namespace,
-		storageConsumer,
-	); err != nil {
-		return err
-	}
 
 	rbdStorageRequest := &metav1.PartialObjectMetadata{}
 	rbdStorageRequest.SetGroupVersionKind(ocsv1alpha1.GroupVersion.WithKind("StorageRequest"))
@@ -244,6 +234,10 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(rbdStorageRequest), rbdStorageRequest); client.IgnoreNotFound(err) != nil {
 		return err
 	} else if rbdStorageRequest.UID != "" {
+		if err := r.reconcilePre4_19CephClients(ctx, rbdStorageRequest.UID, storageConsumer); err != nil {
+			return err
+		}
+
 		rbdStorageRequestCopy := &metav1.PartialObjectMetadata{}
 		rbdStorageRequest.DeepCopyInto(rbdStorageRequestCopy)
 		rbdStorageRequestCopy.Finalizers = []string{}
@@ -253,8 +247,8 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 		if err := r.Client.Delete(ctx, rbdStorageRequest); err != nil {
 			return err
 		}
-
 	}
+
 	cephFsClaimName := util.GenerateNameForCephFilesystemStorageClass(storageCluster)
 	cephFsStorageRequestName := util.GetStorageRequestName(string(storageConsumerUid), cephFsClaimName)
 	cephFsStorageRequestMd5Sum := md5.Sum([]byte(cephFsStorageRequestName))
@@ -265,25 +259,6 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 		return err
 	}
 
-	cephClientName = generateHashForCephClient(cephFsStorageRequestName, "provisioner")
-	if err := r.reconcilePre4_19CephClient(
-		ctx,
-		cephClientName,
-		storageConsumer.Namespace,
-		storageConsumer,
-	); err != nil {
-		return err
-	}
-	cephClientName = generateHashForCephClient(cephFsStorageRequestName, "node")
-	if err := r.reconcilePre4_19CephClient(
-		ctx,
-		cephClientName,
-		storageConsumer.Namespace,
-		storageConsumer,
-	); err != nil {
-		return err
-	}
-
 	cephFsStorageRequest := &metav1.PartialObjectMetadata{}
 	cephFsStorageRequest.SetGroupVersionKind(ocsv1alpha1.GroupVersion.WithKind("StorageRequest"))
 	cephFsStorageRequest.Name = cephFsStorageRequestName
@@ -291,6 +266,10 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageRequest(
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(cephFsStorageRequest), cephFsStorageRequest); client.IgnoreNotFound(err) != nil {
 		return err
 	} else if cephFsStorageRequest.UID != "" {
+		if err := r.reconcilePre4_19CephClients(ctx, cephFsStorageRequest.UID, storageConsumer); err != nil {
+			return err
+		}
+
 		cephFsStorageRequestCopy := &metav1.PartialObjectMetadata{}
 		cephFsStorageRequest.DeepCopyInto(cephFsStorageRequestCopy)
 		cephFsStorageRequestCopy.Finalizers = []string{}
@@ -396,42 +375,29 @@ func (r *StorageConsumerUpgradeReconciler) reconcileLocalStorageClient(
 	return nil
 }
 
-func (r *StorageConsumerUpgradeReconciler) reconcilePre4_19CephClient(
+func (r *StorageConsumerUpgradeReconciler) reconcilePre4_19CephClients(
 	ctx context.Context,
-	name string,
-	namespace string,
+	storageRequestUID types.UID,
 	storageConsumer client.Object,
 ) error {
-	cephClient := &rookCephv1.CephClient{}
-	cephClient.Name = name
-	cephClient.Namespace = namespace
-	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(cephClient), cephClient); err != nil {
+	cephClientsList := rookCephv1.CephClientList{}
+	if err := r.Client.List(
+		ctx, &cephClientsList,
+		client.MatchingFields{util.OwnerUIDIndexName: string(storageRequestUID)},
+		client.InNamespace(storageConsumer.GetNamespace()),
+	); err != nil {
 		return err
 	}
-	if err := controllerutil.SetOwnerReference(storageConsumer, cephClient, r.Scheme); err != nil {
-		return err
-	}
-	util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, "0")
-	if err := r.Client.Update(ctx, cephClient); err != nil {
-		return err
+
+	for i := range cephClientsList.Items {
+		cephClient := &cephClientsList.Items[i]
+		if err := controllerutil.SetOwnerReference(storageConsumer, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, "0")
+		if err := r.Client.Update(ctx, cephClient); err != nil {
+			return err
+		}
 	}
 	return nil
-}
-
-// pre419 function to generate the cephclient name
-func generateHashForCephClient(storageRequestName, cephUserType string) string {
-	var c struct {
-		StorageRequestName string `json:"id"`
-		CephUserType       string `json:"cephUserType"`
-	}
-
-	c.StorageRequestName = storageRequestName
-	c.CephUserType = cephUserType
-
-	cephClient, err := json.Marshal(c)
-	if err != nil {
-		panic("failed to marshal")
-	}
-	name := md5.Sum([]byte(cephClient))
-	return hex.EncodeToString(name[:16])
 }
