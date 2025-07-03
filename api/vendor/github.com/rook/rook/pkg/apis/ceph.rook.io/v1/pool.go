@@ -32,14 +32,6 @@ func (p *PoolSpec) IsHybridStoragePool() bool {
 	return p.Replicated.HybridStorage != nil
 }
 
-func (p *PoolSpec) IsCompressionEnabled() bool {
-	return p.CompressionMode != ""
-}
-
-func (p *ReplicatedSpec) IsTargetRatioEnabled() bool {
-	return p.TargetSizeRatio != 0
-}
-
 // ValidateCephBlockPool validates specifically a CephBlockPool's spec (not just any NamedPoolSpec)
 func ValidateCephBlockPool(p *CephBlockPool) error {
 	if p.Spec.Name == ".rgw.root" || p.Spec.Name == ".mgr" || p.Spec.Name == ".nfs" {
@@ -92,6 +84,10 @@ func (p *CephBlockPool) ToNamedPoolSpec() NamedPoolSpec {
 }
 
 func (p *CephBlockPool) GetStatusConditions() *[]Condition {
+	return &p.Status.Conditions
+}
+
+func (p *CephBlockPoolRadosNamespace) GetStatusConditions() *[]Condition {
 	return &p.Status.Conditions
 }
 
