@@ -88,14 +88,14 @@ func handlePost(w http.ResponseWriter, r *http.Request, client client.Client, na
 		createCephBlockPool(w, r, client, ExpandStorage.PoolDetails.PoolName, ExpandStorage.StorageClassForOSDs, ExpandStorage.PoolDetails.DataProtectionPolicy, ExpandStorage.PoolDetails.EnableCompression, namespace, ExpandStorage.PoolDetails.FailureDomain, storageCluster.Spec.Arbiter.Enable)
 
 		// create storageClass
-		createCephBlockPoolStorageClass(w, r, client, ExpandStorage.StorageClassDetails.Name, ExpandStorage.PoolDetails.PoolName, ExpandStorage.StorageClassDetails.ReclaimPolicy, ExpandStorage.StorageClassDetails.VolumeBindingMode, ExpandStorage.StorageClassDetails.EnableStorageClassEncryption, ExpandStorage.StorageClassDetails.EncryptionKMSID, namespace)
+		createCephBlockPoolStorageClass(w, r, client, ExpandStorage.StorageClassDetails.Name, ExpandStorage.PoolDetails.PoolName, ExpandStorage.StorageClassDetails.ReclaimPolicy, ExpandStorage.StorageClassDetails.VolumeBindingMode, ExpandStorage.StorageClassDetails.EnableStorageClassEncryption, ExpandStorage.StorageClassDetails.EncryptionKMSID)
 	} else if ExpandStorage.PoolDetails.VolumeType == "filesystem" {
 		klog.Info("Creating cephFilesystem dataPool and storageClass")
 		// create cephFilesystem dataPool
 		createCephFilesystemDataPool(w, r, client, ExpandStorage.PoolDetails.PoolName, ExpandStorage.StorageClassForOSDs, ExpandStorage.PoolDetails.DataProtectionPolicy, ExpandStorage.PoolDetails.EnableCompression, ExpandStorage.PoolDetails.FailureDomain, storageCluster)
 
 		// create storageClass
-		createCephFilesystemStorageClass(w, r, client, ExpandStorage.StorageClassDetails.Name, ExpandStorage.PoolDetails.PoolName, ExpandStorage.StorageClassDetails.ReclaimPolicy, ExpandStorage.StorageClassDetails.VolumeBindingMode, ExpandStorage.PoolDetails.FilesystemName, namespace)
+		createCephFilesystemStorageClass(w, r, client, ExpandStorage.StorageClassDetails.Name, ExpandStorage.PoolDetails.PoolName, ExpandStorage.StorageClassDetails.ReclaimPolicy, ExpandStorage.StorageClassDetails.VolumeBindingMode, ExpandStorage.PoolDetails.FilesystemName)
 	} else {
 		klog.Errorf("invalid volumeType: %s", ExpandStorage.PoolDetails.VolumeType)
 		http.Error(w, "invalid volumeType", http.StatusBadRequest)
@@ -181,7 +181,7 @@ func createCephBlockPool(w http.ResponseWriter, r *http.Request, client client.C
 	}
 }
 
-func createCephBlockPoolStorageClass(w http.ResponseWriter, r *http.Request, client client.Client, storageClassName, poolName, reclaimPolicy, volumeBindingMode string, enableEncryption bool, encryptionKMSID, namespace string) {
+func createCephBlockPoolStorageClass(w http.ResponseWriter, r *http.Request, client client.Client, storageClassName, poolName, reclaimPolicy, volumeBindingMode string, enableEncryption bool, encryptionKMSID string) {
 	allowVolumeExpansion := true
 	storageClass := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
@@ -197,18 +197,11 @@ func createCephBlockPoolStorageClass(w http.ResponseWriter, r *http.Request, cli
 		// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
 		AllowVolumeExpansion: &allowVolumeExpansion,
 		Parameters: map[string]string{
-			"clusterID":                 namespace,
 			"pool":                      poolName,
 			"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 			"csi.storage.k8s.io/fstype": "ext4",
 			"imageFormat":               "2",
 			"encrypted":                 strconv.FormatBool(enableEncryption),
-			"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-rbd-provisioner",
-			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
-			"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-rbd-node",
-			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
-			"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-rbd-provisioner",
-			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
 		},
 	}
 	if enableEncryption {
@@ -254,7 +247,7 @@ func createCephFilesystemDataPool(w http.ResponseWriter, r *http.Request, client
 	}
 }
 
-func createCephFilesystemStorageClass(w http.ResponseWriter, r *http.Request, client client.Client, storageClassName, poolName, reclaimPolicy, volumeBindingMode string, filesystemName, namespace string) {
+func createCephFilesystemStorageClass(w http.ResponseWriter, r *http.Request, client client.Client, storageClassName, poolName, reclaimPolicy, volumeBindingMode string, filesystemName string) {
 	allowVolumeExpansion := true
 	storageClass := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
@@ -269,15 +262,8 @@ func createCephFilesystemStorageClass(w http.ResponseWriter, r *http.Request, cl
 		// AllowVolumeExpansion is set to true to enable expansion of OCS backed Volumes
 		AllowVolumeExpansion: &allowVolumeExpansion,
 		Parameters: map[string]string{
-			"clusterID": namespace,
-			"fsName":    filesystemName,
-			"pool":      fmt.Sprintf("%s-%s", filesystemName, poolName),
-			"csi.storage.k8s.io/provisioner-secret-name":            "rook-csi-cephfs-provisioner",
-			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
-			"csi.storage.k8s.io/node-stage-secret-name":             "rook-csi-cephfs-node",
-			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
-			"csi.storage.k8s.io/controller-expand-secret-name":      "rook-csi-cephfs-provisioner",
-			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+			"fsName": filesystemName,
+			"pool":   fmt.Sprintf("%s-%s", filesystemName, poolName),
 		},
 	}
 
