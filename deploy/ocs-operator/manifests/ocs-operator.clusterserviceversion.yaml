@@ -57,6 +57,7 @@ metadata:
     capabilities: Deep Insights
     categories: Storage
     containerImage: quay.io/ocs-dev/ocs-operator:latest
+    createdAt: "2025-07-01T11:59:29Z"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     external.features.ocs.openshift.io/supported-platforms: '["BareMetal", "None",
@@ -93,7 +94,7 @@ metadata:
       \   }\n\t"
     operatorframework.io/suggested-namespace: openshift-storage
     operators.openshift.io/infrastructure-features: '["disconnected"]'
-    operators.operatorframework.io/builder: operator-sdk-v1.25.4
+    operators.operatorframework.io/builder: operator-sdk-v1.30.0
     operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageautoscalers.ocs.openshift.io","storageclusterpeers.ocs.openshift.io","storageconsumers.ocs.openshift.io"]'
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
@@ -634,11 +635,11 @@ spec:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 - name: KUBE_RBAC_PROXY_IMAGE
-                  value: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0
+                  value: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
                 - name: OCS_METRICS_EXPORTER_IMAGE
                   value: quay.io/ocs-dev/ocs-metrics-exporter:latest
                 - name: ROOK_CEPH_IMAGE
-                  value: quay.io/ocs-dev/rook-ceph:vmaster-5d3a5a849
+                  value: quay.io/ocs-dev/rook-ceph:vmaster-068aaaedb
                 - name: CEPH_IMAGE
                   value: quay.io/ceph/ceph:v19.2.1
                 - name: NOOBAA_CORE_IMAGE
@@ -802,7 +803,7 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: quay.io/ocs-dev/rook-ceph:vmaster-5d3a5a849
+  - image: quay.io/ocs-dev/rook-ceph:vmaster-068aaaedb
     name: rook-container
   - image: quay.io/ceph/ceph:v19.2.1
     name: ceph-container
@@ -812,6 +813,6 @@ spec:
     name: ocs-metrics-exporter
   - image: quay.io/openshift/origin-oauth-proxy:4.19.0
     name: ux-backend-oauth-image
-  - image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0
+  - image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
     name: kube-rbac-proxy
   version: 4.20.0

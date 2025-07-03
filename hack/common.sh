@@ -20,12 +20,12 @@ LDFLAGS="-X github.com/red-hat-storage/ocs-operator/v4/version.Version=${CSV_VER
 
 # Tools & binaries versions and locations
 LOCALBIN="$(pwd)/bin"
-OPERATOR_SDK_VERSION="v1.25.4"
+OPERATOR_SDK_VERSION="v1.30.0"
 OPERATOR_SDK="${LOCALBIN}/operator-sdk-${OPERATOR_SDK_VERSION}"
 OPM_VERSION="v1.28.0"
 OPM="${LOCALBIN}/opm-${OPM_VERSION}"
 GINKGO="${LOCALBIN}/ginkgo"
-GOLANGCI_LINT_VERSION="v1.63.4"
+GOLANGCI_LINT_VERSION="v1.64.8"
 GOLANGCI_LINT="${LOCALBIN}/golangci-lint"
 SHELLCHECK_VERSION="v0.9.0"
 SHELLCHECK="${LOCALBIN}/shellcheck"
@@ -49,7 +49,7 @@ OCS_CSV="$OUTDIR_TEMPLATES/ocs-operator.csv.yaml.in"
 # We are using rook dowsntream image now, i.e, red-hat-storage/rook code
 # and we should continue to use dowsntream image only due to few
 # downstream only changes present in rook downstream fork.
-LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-5d3a5a849"
+LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-068aaaedb"
 LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20250326"
 LATEST_NOOBAA_DB_IMAGE="quay.io/sclorg/postgresql-15-c9s"
 LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v19.2.1"
@@ -88,12 +88,17 @@ FILE_BASED_CATALOG_FULL_IMAGE_NAME="${FILE_BASED_CATALOG_FULL_IMAGE_NAME:-${DEFA
 METRICS_EXPORTER_FULL_IMAGE_NAME="${METRICS_EXPORTER_FULL_IMAGE_NAME:-${DEFAULT_METRICS_EXPORTER_FULL_IMAGE_NAME}}"
 UX_BACKEND_OAUTH_FULL_IMAGE_NAME="${UX_BACKEND_OAUTH_FULL_IMAGE_NAME:-${DEFAULT_UX_BACKEND_OAUTH_FULL_IMAGE_NAME}}"
 
-CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME="quay.io/csiaddons/k8s-bundle:v0.11.0"
-CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:main-0ac7669"
-OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:72027"
+# These bundles are dependencies of ocs-client-operator
+# Ref- https://github.com/red-hat-storage/ocs-client-operator/blob/main/bundle/metadata/dependencies.yaml
+CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME="quay.io/csiaddons/k8s-bundle:v0.12.0"
+CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:main-44bd9c5"
+RECIPE_BUNDLE_FULL_IMAGE_NAME="quay.io/ramendr/recipe-bundle:latest"
+SNAPSHOT_CONTROLLER_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/snapshot-controller-bundle:main-4bd0abb"
+
+OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-02e2518"
 NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20250326"
-ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-5d3a5a849"
-KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0"
+ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-068aaaedb"
+KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1"
 
 OCS_OPERATOR_INSTALL="${OCS_OPERATOR_INSTALL:-false}"
 OCS_CLUSTER_UNINSTALL="${OCS_CLUSTER_UNINSTALL:-false}"
