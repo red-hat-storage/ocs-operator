@@ -64,8 +64,6 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 }
 
 func TestNoobaaAccount(t *testing.T) {
-	t.Skip("We no longer reconcile Noobaa")
-
 	var r StorageConsumerReconciler
 	ctx := context.TODO()
 	scheme := createFakeScheme(t)
