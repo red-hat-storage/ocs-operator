@@ -13,6 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const OcsMetricsExporterCephClientName = "ocs-metrics-exporter-ceph-auth"
+
 func ReadEnvVar[T any](envVarName string, defaultValue T, parser func(str string) (T, error)) (T, error) {
 	str := os.Getenv(envVarName)
 	if str == "" {

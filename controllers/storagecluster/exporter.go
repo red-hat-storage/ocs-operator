@@ -8,7 +8,9 @@ import (
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -18,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	controllerutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -106,6 +109,14 @@ func (r *StorageClusterReconciler) enableMetricsExporter(
 	// add the servicemonitor
 	_, err = createMetricsExporterServiceMonitor(ctx, r, instance)
 	if err != nil {
+		return err
+	}
+
+	// create a `ocs-metrics-exporter-ceph-auth` secret for metrics exporter
+	// create a cephclient and it will create the secret
+	err = r.createMetricsExporterCephClient(instance)
+	if err != nil {
+		r.Log.Error(err, "Failed to create ceph client for metrics exporter.")
 		return err
 	}
 	return nil
@@ -1051,6 +1062,47 @@ func createRookCephClusterRolebindings(ctx context.Context,
 			)
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (r *StorageClusterReconciler) createMetricsExporterCephClient(instance *ocsv1.StorageCluster) error {
+	cephClient := &rookCephv1.CephClient{}
+	cephClient.Name = util.OcsMetricsExporterCephClientName
+	cephClient.Namespace = instance.Namespace
+
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cephClient, func() error {
+		if err := controllerutil.SetControllerReference(instance, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		cephClient.Spec.SecretName = cephClient.Name
+		cephClient.Spec.Caps = map[string]string{
+			"mon": "profile rbd, allow command 'osd blocklist'",
+			"mgr": "allow rw",
+			"osd": "profile rbd",
+			"mds": "allow *",
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *StorageClusterReconciler) deleteMetricsExporterCephClient(namespace string) error {
+	cephClient := &rookCephv1.CephClient{}
+	cephClient.Name = util.OcsMetricsExporterCephClientName
+	cephClient.Namespace = namespace
+
+	if err := r.Client.Delete(r.ctx, cephClient); err != nil {
+		if apierrors.IsNotFound(err) {
+			// If the CephClient does not exist, we can safely return nil.
+			return nil
+		}
+
+		return fmt.Errorf("failed to delete CephClient %v. %v", cephClient.Name, err)
 	}
 
 	return nil

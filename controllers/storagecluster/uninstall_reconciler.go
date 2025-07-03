@@ -319,6 +319,16 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (re
 		return reconcile.Result{}, err
 	}
 
+	// the metric exporter creation flow does not comply with the ensureCreatedPattern,
+	// so we don't have a way to add ensureDeleted until a refactor
+	// What's unique: cephcluster waits for all cephclients to deleted
+	// and this cephclient wait for storagecluster to cleaned up,
+	// so ownerreference flow does not work here, and we need a explicit deletion
+	err = r.deleteMetricsExporterCephClient(sc.Namespace)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	objs := []resourceManager{
 		&ocsExternalResources{},
 		&ocsNoobaaSystem{},

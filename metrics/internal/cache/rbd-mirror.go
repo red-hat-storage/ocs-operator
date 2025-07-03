@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
@@ -142,7 +143,7 @@ func initCeph(kubeclient clientset.Interface, cephClusterNamespace, cephAuthName
 	var namespace string
 	var secret *corev1.Secret
 
-	secret, err = kubeclient.CoreV1().Secrets(cephClusterNamespace).Get(context.TODO(), "ocs-metrics-exporter-ceph-auth", metav1.GetOptions{})
+	secret, err = kubeclient.CoreV1().Secrets(cephClusterNamespace).Get(context.TODO(), util.OcsMetricsExporterCephClientName, metav1.GetOptions{})
 	if err != nil && !apierror.IsNotFound(err) {
 		return cephMonitorConfig{}, err
 	}
