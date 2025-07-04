@@ -14,12 +14,8 @@ CONTROLLER_GEN=$(LOCALBIN)/controller-gen
 	operator-bundle \
 	verify-operator-bundle \
 	gen-latest-csv \
-	gen-latest-deploy-yaml \
 	gen-latest-prometheus-rules-yamls \
-	verify-latest-deploy-yaml \
 	verify-latest-csv \
-	cluster-deploy \
-	cluster-clean \
 	functest \
 	shellcheck-test \
 	golangci-lint \
@@ -64,14 +60,6 @@ gen-release-csv: operator-sdk manifests kustomize
 	@echo "Generating unified CSV from sourced component-level operators"
 	hack/generate-unified-csv.sh
 
-gen-latest-deploy-yaml:
-	@echo "Generating latest deployment yaml file"
-	hack/gen-deployment-yaml.sh
-
-verify-latest-deploy-yaml: gen-latest-deploy-yaml
-	@echo "Verifying deployment yaml changes"
-	hack/verify-latest-deploy-yaml.sh
-
 verify-latest-csv: gen-latest-csv
 	@echo "Verifying latest CSV"
 	hack/verify-latest-csv.sh
@@ -84,21 +72,9 @@ operator-bundle: gen-latest-csv
 	@echo "Building ocs operator bundle"
 	hack/build-operator-bundle.sh
 
-operator-catalog:
-	@echo "Building ocs catalog image in file based catalog format"
-	hack/build-operator-catalog.sh
-
 clean:
 	@echo "cleaning previous outputs"
 	hack/clean.sh
-
-cluster-deploy: cluster-clean
-	@echo "Deploying ocs to cluster"
-	hack/cluster-deploy.sh
-
-cluster-clean:
-	@echo "Removing ocs install from cluster"
-	hack/cluster-clean.sh
 
 build-functest:
 	@echo "Building functional tests"
@@ -122,7 +98,7 @@ unit-test:
 	@echo "Executing unit tests"
 	hack/unit-test.sh
 
-ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-deps verify-generated verify-latest-csv verify-operator-bundle verify-latest-deploy-yaml
+ocs-operator-ci: shellcheck-test golangci-lint unit-test verify-deps verify-generated verify-latest-csv verify-operator-bundle
 
 # Generate code
 generate: controller-gen
