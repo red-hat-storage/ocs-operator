@@ -14,6 +14,7 @@ import (
 
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
+	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -63,6 +64,10 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to generate volumegroupsnapshotclasses list for distribution: %v", err)
 	}
+	odfVolumeGroupSnapshotClassesSpec, err := getLocalOdfVolumeGroupSnapshotClassNames(r.ctx, r.Client, storageCluster)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to generate odfvolumegroupsnapshotclasses list for distribution: %v", err)
+	}
 
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = defaults.LocalStorageConsumerName
@@ -76,6 +81,7 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		spec.StorageClasses = storageClassesSpec
 		spec.VolumeSnapshotClasses = volumeSnapshotClassesSpec
 		spec.VolumeGroupSnapshotClasses = volumeGroupSnapshotClassesSpec
+		spec.OdfVolumeGroupSnapshotClasses = odfVolumeGroupSnapshotClassesSpec
 
 		controllerutil.AddFinalizer(storageConsumer, internalComponentFinalizer)
 
@@ -325,6 +331,43 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 			// TODO: skip volumegroupsnapshotclasses that are from external mode if both internal & external mode is enabled
 			vgsc := &volumeGroupSnapshotClassesInCluster.Items[idx]
 			if slices.Contains(supportedCsiDrivers, vgsc.Driver) {
+				volumeGroupSnapshotClassNames[vgsc.Name] = true
+			}
+		}
+	}
+
+	vgscSpec := make([]ocsv1a1.VolumeGroupSnapshotClassSpec, 0, len(volumeGroupSnapshotClassNames))
+	for vscName := range maps.Keys(volumeGroupSnapshotClassNames) {
+		vgscSpec = append(vgscSpec, ocsv1a1.VolumeGroupSnapshotClassSpec{Name: vscName})
+	}
+	return vgscSpec, nil
+}
+
+func getLocalOdfVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster) (
+	[]ocsv1a1.VolumeGroupSnapshotClassSpec, error) {
+
+	volumeGroupSnapshotClassNames := map[string]bool{}
+	volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = true
+
+	crd := &metav1.PartialObjectMetadata{}
+	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
+	crd.Name = OdfVolumeGroupSnapshotClassCrdName
+	if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
+		return nil, err
+	}
+	if crd.UID != "" {
+		// for day2 volumegroupsnapshotclasses
+		volumeGroupSnapshotClassesInCluster := &odfgsapiv1b1.VolumeGroupSnapshotClassList{}
+		if err := kubeClient.List(ctx, volumeGroupSnapshotClassesInCluster, &client.MatchingLabelsSelector{
+			// not select groupsnapshotclasses with external labels
+			Selector: getExternalClassesBlaclistSelector(),
+		}); err != nil {
+			return nil, err
+		}
+		for idx := range volumeGroupSnapshotClassesInCluster.Items {
+			// TODO: skip volumegroupsnapshotclasses that are from external mode if both internal & external mode is enabled
+			vgsc := &volumeGroupSnapshotClassesInCluster.Items[idx]
+			if util.CephFSDriverName == vgsc.Driver {
 				volumeGroupSnapshotClassNames[vgsc.Name] = true
 			}
 		}
