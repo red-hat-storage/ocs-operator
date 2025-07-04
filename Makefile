@@ -116,10 +116,6 @@ golangci-lint:
 	@echo "Running golangci-lint run"
 	hack/golangci_lint.sh
 
-lint: ## Run golangci-lint inside a container
-	source hack/common.sh; source hack/docker-common.sh; \
-	$${IMAGE_BUILD_CMD} run --rm -v $${PROJECT_DIR}:/app:Z -w /app $${GO_LINT_IMG} golangci-lint run ./...
-
 # ignoring the functest dir since it requires an active cluster
 # use 'make functest' to run just the functional tests
 unit-test:
