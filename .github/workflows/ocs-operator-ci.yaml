@@ -88,9 +88,6 @@ jobs:
       - name: Verify ocs bundle changes
         run: make verify-operator-bundle
 
-      - name: Verify deployment YAML
-        run: make verify-latest-deploy-yaml
-
   code-spell:
     name: verify code spellings
     runs-on: ubuntu-latest

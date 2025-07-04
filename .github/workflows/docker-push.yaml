@@ -48,6 +48,3 @@ jobs:
 
         make operator-bundle
         docker push quay.io/$REGISTRY_NAMESPACE/ocs-operator-bundle:$IMAGE_TAG
-
-        make operator-catalog
-        docker push quay.io/$REGISTRY_NAMESPACE/ocs-operator-catalog:$IMAGE_TAG
