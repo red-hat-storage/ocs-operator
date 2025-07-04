@@ -183,6 +183,7 @@ func NewDefaultEncryptedRbdStorageClass(
 			Annotations: map[string]string{
 				"description": "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
 				"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
+				"keyrotation.csiaddons.openshift.io/schedule":  "@weekly",
 				"cdi.kubevirt.io/clone-strategy":               "copy",
 			},
 			Labels: map[string]string{},
