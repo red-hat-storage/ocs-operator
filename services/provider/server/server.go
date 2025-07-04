@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
@@ -30,6 +31,7 @@ import (
 	"github.com/blang/semver/v4"
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
+	"github.com/google/uuid"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	nbapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
@@ -88,12 +90,13 @@ type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
 	client                    client.Client
 	scheme                    *runtime.Scheme
+	log                       logr.Logger
 	consumerManager           *ocsConsumerManager
 	storageClusterPeerManager *storageClusterPeerManager
 	namespace                 string
 }
 
-func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
+func NewOCSProviderServer(ctx context.Context, namespace string, log logr.Logger) (*OCSProviderServer, error) {
 	scheme, err := newScheme()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new scheme. %v", err)
@@ -117,6 +120,7 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 	return &OCSProviderServer{
 		client:                    client,
 		scheme:                    scheme,
+		log:                       log,
 		consumerManager:           consumerManager,
 		storageClusterPeerManager: storageClusterPeerManager,
 		namespace:                 namespace,
@@ -125,7 +129,8 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 
 // OnboardConsumer RPC call to onboard a new OCS consumer cluster.
 func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
-
+	log := s.log.WithValues("endpoint", "OnboardConsumer", "logId", uuid.New().String())
+	log.Info("Onboarding consumer")
 	version, err := semver.FinalizeVersion(req.ClientOperatorVersion)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "malformed ClientOperatorVersion for client %q is provided. %v", req.ConsumerName, err)
@@ -142,15 +147,16 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.Internal, "failed to get public key to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
 	}
 
+	log.Info("validating onboarding ticket")
 	onboardingTicket, err := decodeAndValidateTicket(req.OnboardingTicket, pubKey)
 	if err != nil {
-		klog.Errorf("failed to validate onboarding ticket for consumer %q. %v", req.ConsumerName, err)
+		log.Error(err, "failed to validate onboarding ticket for consumer")
 		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is not valid. %v", err)
 	}
 
 	if onboardingTicket.SubjectRole != services.ClientRole {
 		err := fmt.Errorf("invalid onboarding ticket for %q, expecting role %s found role %s", req.ConsumerName, services.ClientRole, onboardingTicket.SubjectRole)
-		klog.Error(err)
+		log.Error(err, "invalid onboarding ticket")
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -158,10 +164,10 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 	storageConsumer.Name = onboardingTicket.ID
 	storageConsumer.Namespace = s.namespace
 	if err := s.client.Get(ctx, client.ObjectKeyFromObject(storageConsumer), storageConsumer); err != nil {
-		klog.Errorf("failed to get storageconsumer referred by the supplied token: %v", err)
+		log.Error(err, "failed to get storageconsumer referred by the supplied token")
 		return nil, status.Errorf(codes.Internal, "failed to get storageconsumer. %v", err)
 	} else if storageConsumer.Spec.Enable {
-		klog.Errorf("storageconsumer is already enabled %s", storageConsumer.Name)
+		log.Error(err, "storageconsumer is already enabled %s", storageConsumer.Name)
 		return nil, status.Errorf(codes.InvalidArgument, "refusing to onboard onto storageconsumer with supplied token")
 	}
 
@@ -169,11 +175,11 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 	onboardingSecret.Name = fmt.Sprintf("onboarding-token-%s", storageConsumer.UID)
 	onboardingSecret.Namespace = s.namespace
 	if err := s.client.Get(ctx, client.ObjectKeyFromObject(onboardingSecret), onboardingSecret); err != nil {
-		klog.Errorf("failed to get onboarding secret corresponding to storageconsumer %s: %v", storageConsumer.Name, err)
+		log.Error(err, "failed to get onboarding secret corresponding to storageconsumer", storageConsumer.Name)
 		return nil, status.Errorf(codes.Internal, "failed to get onboarding secret. %v", err)
 	}
 	if req.OnboardingTicket != string(onboardingSecret.Data[defaults.OnboardingTokenKey]) {
-		klog.Errorf("supplied onboarding ticket does not match storageconsumer secret")
+		log.Error(err, "supplied onboarding ticket does not match storageconsumer secret %v , logId: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, "supplied onboarding ticket does not match mapped secret")
 	}
 
@@ -181,6 +187,8 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to onboard on storageConsumer resource. %v", err)
 	}
+
+	log.Info("Onboarded storageconsumer")
 	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID}, nil
 }
 
@@ -191,14 +199,14 @@ func (s *OCSProviderServer) AcknowledgeOnboarding(ctx context.Context, req *pb.A
 
 // GetStorageConfig RPC call to onboard a new OCS consumer cluster.
 func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.StorageConfigRequest) (*pb.StorageConfigResponse, error) {
-
 	// Get storage consumer resource using UUID
+	log := s.log.WithValues("endpoint", "GetStorageConfig", "logId", uuid.New().String())
+	log.Info("GetStorageConfig for the consumer", req.StorageConsumerUUID)
 	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
 	if err != nil {
+		log.Error(err, "failed to get storageConsumerUUID")
 		return nil, err
 	}
-
-	klog.Infof("Found storageConsumer for GetStorageConfig")
 
 	// Verify Status
 	switch consumerObj.Status.State {
@@ -214,7 +222,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 	case ocsv1alpha1.StorageConsumerStateReady:
 		kubeResources, err := s.getKubeResources(ctx, consumerObj)
 		if err != nil {
-			klog.Errorf("failed to get kube resources: %v", err)
+			log.Error(err, "failed to get kube resources")
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 
@@ -287,14 +295,14 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 
 		inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
 		if err != nil {
-			klog.Error(err)
+			log.Error(err, "failed to produce client state")
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 		response.SystemAttributes.SystemInMaintenanceMode = inMaintenanceMode
 
 		isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumerObj)
 		if err != nil {
-			klog.Error(err)
+			log.Error(err, "failed to produce client state")
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 		response.SystemAttributes.MirrorEnabled = isConsumerMirrorEnabled
@@ -319,7 +327,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 
 		response.DesiredConfigHash = desiredClientConfigHash
 
-		klog.Infof("successfully returned the config details to the consumer.")
+		log.Info("successfully returned the config details to the consumer")
 		return response, nil
 	}
 
@@ -330,13 +338,13 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.GetDesiredClientStateRequest) (*pb.GetDesiredClientStateResponse, error) {
 
 	// Get storage consumer resource using UUID
+	log := s.log.WithValues("endpoint", "GetDesiredClientState", "logId", uuid.New().String(), "storageConsumerUUID", req.StorageConsumerUUID)
+	log.Info("GetDesiredClientState for the storageconsumer")
 	consumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
 	if err != nil {
-		klog.Errorf("failed to get StorageConsumer: %v", err)
+		log.Error(err, "failed to get StorageConsumer with error")
 		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer")
 	}
-
-	klog.Infof("Found StorageConsumer for GetDesiredClientState")
 
 	// Verify Status
 	switch consumer.Status.State {
@@ -351,7 +359,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 	case ocsv1alpha1.StorageConsumerStateReady:
 		kubeResources, err := s.getKubeResources(ctx, consumer)
 		if err != nil {
-			klog.Errorf("failed to get kube resources: %v", err)
+			log.Error(err, "failed to get kube resources")
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 
@@ -363,7 +371,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 				return nil, err
 			}
 			if kubeResource.GetName() == "" {
-				klog.Errorf("Resource is missing a name: %v", kubeResource)
+				log.Error(err, "Resource is missing a name: %v", kubeResource)
 				return nil, status.Errorf(codes.Internal, "failed to produce client state.")
 			}
 			kubeResource.GetObjectKind().SetGroupVersionKind(gvk)
@@ -375,21 +383,21 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 
 		channelName, err := s.getOCSSubscriptionChannel(ctx)
 		if err != nil {
-			klog.Errorf("failed to get channel name for Client Operator: %v", err)
+			log.Error(err, "failed to get channel name for Client Operator")
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 		response.ClientOperatorChannel = channelName
 
 		inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
 		if err != nil {
-			klog.Error(err)
+			log.Error(err, "failed to produce client state")
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 		response.MaintenanceMode = inMaintenanceMode
 
 		isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumer)
 		if err != nil {
-			klog.Error(err)
+			log.Error(err, "failed to produce client state")
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 		response.MirrorEnabled = isConsumerMirrorEnabled
@@ -401,7 +409,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 
 		cephConnection, err := s.getDesiredCephConnection(ctx, consumer, storageCluster)
 		if err != nil {
-			klog.Error(err)
+			log.Error(err, "failed to produce client state")
 			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 		}
 
@@ -423,7 +431,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
-		klog.Infof("successfully returned the config details to the consumer.")
+		log.Info("successfully returned the config details to the consumer")
 		return response, nil
 	}
 
@@ -433,11 +441,14 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 
 // OffboardConsumer RPC call to delete the StorageConsumer CR
 func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
+	log := s.log.WithValues("endpoint", "OffboardConsumer", "logId", uuid.New().String(), "storageconsumer", req.StorageConsumerUUID)
+	log.Info("Offboarding storageconsumer")
 	err := s.consumerManager.ClearClientInformation(ctx, req.StorageConsumerUUID)
 	if err != nil {
+		log.Error(err, "failed to offboard storageconsumer")
 		return nil, status.Errorf(codes.Internal, "failed to offboard storageConsumer with the provided UUID. %v", err)
 	}
-	klog.Infof("Successfully Offboarded Client from StorageConsumer with the provided UUID %q", req.StorageConsumerUUID)
+	log.Info("Successfully Offboarded Client from StorageConsumer")
 	return &pb.OffboardConsumerResponse{}, nil
 }
 
@@ -578,7 +589,7 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 		return nil, fmt.Errorf("onboarding ticket %s is expired", ticketData.ID)
 	}
 
-	klog.Infof("onboarding ticket %s has been verified successfully", ticketData.ID)
+	klog.Info("onboarding ticket has been verified successfully")
 
 	return &ticketData, nil
 }
@@ -600,13 +611,16 @@ func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.Revo
 
 // GetStorageClaim RPC call to get the ceph resources for the StorageClaim.
 func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.StorageClaimConfigRequest) (*pb.StorageClaimConfigResponse, error) {
+	log := s.log.WithValues("endpoint", "GetStorageClaim", "logId", uuid.New().String(), "storageClaimName", req.StorageClaimName)
+	log.Info("Get ceph resources for the StorageClaim")
 	return nil, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
 // ReportStatus rpc call to check if a consumer can reach to the provider.
 func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStatusRequest) (*pb.ReportStatusResponse, error) {
 	// Update the status in storageConsumer CR
-	klog.Infof("Client status report received: %+v", req)
+	log := s.log.WithValues("endpoint", "ReportStatus", "logId", uuid.New().String(), "storageConsumerUUID", req.StorageConsumerUUID)
+	log.Info("Client status report received")
 
 	if req.ClientOperatorVersion == "" {
 		req.ClientOperatorVersion = notAvailable
@@ -664,19 +678,19 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 
 	inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
 	if err != nil {
-		klog.Error(err)
+		log.Error(err, "Failed to get maintenance mode status.")
 		return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
 	}
 
 	isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, storageConsumer)
 	if err != nil {
-		klog.Error(err)
+		log.Error(err, "Failed to get mirroring status for consumer.")
 		return nil, status.Errorf(codes.Internal, "Failed to get mirroring status for consumer.")
 	}
 
 	cephConnection, err := s.getDesiredCephConnection(ctx, storageConsumer, storageCluster)
 	if err != nil {
-		klog.Error(err)
+		log.Error(err, "failed to produce client state hash")
 		return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 	}
 
@@ -692,6 +706,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		topologyKey,
 	)
 
+	klog.Info("Client ReportStatus response created")
 	return &pb.ReportStatusResponse{
 		DesiredClientOperatorChannel: channelName,
 		DesiredConfigHash:            desiredClientConfigHash,
@@ -863,32 +878,34 @@ func replaceMsgr1PortWithMsgr2(ips []string) {
 }
 
 func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.PeerStorageClusterRequest) (*pb.PeerStorageClusterResponse, error) {
+	log := s.log.WithValues("endpoint", "PeerStorageCluster", "logId", uuid.New().String(), "storageClusterUUID", req.StorageClusterUID)
+	log.Info("Peer the local storagecluster to the remote")
 
 	pubKey, err := s.getOnboardingValidationKey(ctx)
 	if err != nil {
-		klog.Errorf("failed to get public key to validate peer onboarding ticket %v", err)
+		log.Error(err, "failed to get public key to validate peer onboarding ticket")
 		return nil, status.Errorf(codes.Internal, "failed to validate peer onboarding ticket")
 	}
 
 	onboardingToken, err := decodeAndValidateTicket(req.OnboardingToken, pubKey)
 	if err != nil {
-		klog.Errorf("Invalid onboarding token. %v", err)
+		log.Error(err, "Invalid onboarding token")
 		return nil, status.Errorf(codes.InvalidArgument, "invalid onboarding ticket")
 	}
 
 	if onboardingToken.SubjectRole != services.PeerRole {
 		err := fmt.Errorf("invalid onboarding ticket for %q, expecting role %s found role %s", req.StorageClusterUID, services.PeerRole, onboardingToken.SubjectRole)
-		klog.Error(err)
+		log.Error(err, "invalid onboarding ticket")
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	storageClusterPeer, err := s.storageClusterPeerManager.GetByPeerStorageClusterUID(ctx, types.UID(req.StorageClusterUID))
 	if err != nil {
-		klog.Error(err)
+		log.Error(err, "Cannot find a storage cluster peer that meets all criteria")
 		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer that meets all criteria")
 	}
 
-	klog.Infof("Found StorageClusterPeer %s for PeerStorageCluster", storageClusterPeer.Name)
+	log.Info("Found StorageClusterPeer", storageClusterPeer.Name)
 
 	if storageClusterPeer.Status.State != ocsv1.StorageClusterPeerStatePending && storageClusterPeer.Status.State != ocsv1.StorageClusterPeerStatePeered {
 		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer that meets all criteria")
@@ -899,16 +916,18 @@ func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.Peer
 
 func (s *OCSProviderServer) RequestMaintenanceMode(ctx context.Context, req *pb.RequestMaintenanceModeRequest) (*pb.RequestMaintenanceModeResponse, error) {
 	// Get storage consumer resource using UUID
+	log := s.log.WithValues("endpoint", "RequestMaintenanceMode", "logId", uuid.New().String(), "storageConsumerUUID", req.StorageConsumerUUID)
+	log.Info("RequestMaintenanceMode to get storage consumer resource")
 	if req.Enable {
 		err := s.consumerManager.AddAnnotation(ctx, req.StorageConsumerUUID, util.RequestMaintenanceModeAnnotation, "")
 		if err != nil {
-			klog.Error(err)
+			log.Error(err, "failed to request Maintenance Mode for storageConsumer")
 			return nil, fmt.Errorf("failed to request Maintenance Mode for storageConsumer")
 		}
 	} else {
 		err := s.consumerManager.RemoveAnnotation(ctx, req.StorageConsumerUUID, util.RequestMaintenanceModeAnnotation)
 		if err != nil {
-			klog.Error(err)
+			log.Error(err, "failed to disable Maintenance Mode for storageConsumer")
 			return nil, fmt.Errorf("failed to disable Maintenance Mode for storageConsumer")
 		}
 	}
@@ -917,8 +936,8 @@ func (s *OCSProviderServer) RequestMaintenanceMode(ctx context.Context, req *pb.
 }
 
 func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.StorageClientsInfoRequest) (*pb.StorageClientsInfoResponse, error) {
-	klog.Infof("GetStorageClientsInfo called with request: %s", req)
-
+	log := s.log.WithValues("endpoint", "GetStorageClientsInfo", "logId", uuid.New().String(), "storageClusterUID", req.StorageClusterUID)
+	log.Info("GetStorageClientsInfo to get storageclient information")
 	response := &pb.StorageClientsInfoResponse{}
 
 	var fsid string
@@ -945,12 +964,12 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			)
 		}
 		if consumer == nil {
-			klog.Infof("no consumer found with client id %v", req.ClientIDs[i])
+			log.Info("no consumer found with client id %v", req.ClientIDs[i])
 			continue
 		}
 
 		if !consumer.Spec.Enable {
-			klog.Infof("consumer is not yet enaled skipping %v", req.ClientIDs[i])
+			log.Info("consumer is not yet enaled skipping %v", req.ClientIDs[i])
 			continue
 		}
 
@@ -958,12 +977,12 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			return ref.Kind == "StorageCluster"
 		})
 		if idx == -1 {
-			klog.Infof("no owner found for consumer %v", req.ClientIDs[i])
+			log.Info("no owner found for consumer %v", req.ClientIDs[i])
 			continue
 		}
 		owner := &consumer.OwnerReferences[idx]
 		if owner.UID != types.UID(req.StorageClusterUID) {
-			klog.Infof("storageCluster specified on the req does not own the client %v", req.ClientIDs[i])
+			log.Info("storageCluster specified on the req does not own the client %v", req.ClientIDs[i])
 			continue
 		}
 
@@ -991,6 +1010,7 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			clientInfo.ClientProfiles[clientInfoRbdClientProfileKey] = consumerConfig.GetRbdClientProfileName()
 		}
 
+		log.Info("Storageclient info created")
 		response.ClientsInfo = append(response.ClientsInfo, clientInfo)
 	}
 
@@ -998,8 +1018,8 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 }
 
 func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.BlockPoolsInfoRequest) (*pb.BlockPoolsInfoResponse, error) {
-	klog.Infof("GetBlockPoolsInfo called with request: %s", req)
-
+	log := s.log.WithValues("endpoint", "GetBlockPoolsInfo", "logId", uuid.New().String(), "storageClusterUID", req.StorageClusterUID)
+	log.Info("BlockPoolInfo for Peer Storage Cluster")
 	response := &pb.BlockPoolsInfoResponse{}
 	for i := range req.BlockPoolNames {
 		cephBlockPool := &rookCephv1.CephBlockPool{}
@@ -1051,6 +1071,7 @@ func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.Block
 		})
 
 	}
+	log.Info("BlockPoolsInfo created %v", response.BlockPoolsInfo)
 
 	return response, nil
 }
