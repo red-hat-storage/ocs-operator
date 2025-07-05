@@ -1,20 +1,18 @@
 # Table of Contents
 
 - [OpenShift Container Storage Operator](#openshift-container-storage-operator)
-- [Deploying pre-built images](#deploying-pre-built-images)
+- [Installation](#installation)
   - [Prerequisites](#prerequisites)
-  - [Dedicated nodes](#dedicated-nodes)
-  - [Installation](#installation)
+    - [Dedicated nodes](#dedicated-nodes)
+  - [Installing with OLM](#installing-with-olm)
+  - [Creating StorageCluster](#creating-storagecluster)
 - [Development](#development)
   - [Tools](#tools)
   - [Build](#build)
     - [OCS Operator](#ocs-operator)
     - [OCS Metric Exporter](#ocs-metric-exporter)
     - [OCS Operator Bundle](#ocs-operator-bundle)
-    - [OCS Operator Catalog](#ocs-operator-catalog)
   - [Deploying development builds](#deploying-development-builds)
-- [Initial Configuration](#initial-configuration)
-  - [Modifying Initial Configuration](#modifying-initial-configuration)
 - [Functional Tests](#functional-tests)
   - [Prerequisites for running Functional Tests](#prerequisites-for-running-functional-tests)
   - [Running functional test](#running-functional-test)
@@ -24,15 +22,15 @@
   - [Debugging Functional Test Failures](#debugging-functional-test-failures)
     - [Functional test stdout log](#functional-test-stdout-log)
     - [PROW artifacts](#prow-artifacts)
+    - [Getting live access to the PROW CI cluster](#getting-live-access-to-the-prow-ci-cluster)
 
 ## OpenShift Container Storage Operator
 
-This is the primary operator for Red Hat OpenShift Container Storage (OCS). It
-is a "meta" operator, meaning it serves to facilitate the other operators in
+This is a "meta" operator, meaning it serves to facilitate the other operators in
 OCS by performing administrative tasks outside their scope as well as
 watching and configuring their CustomResources (CRs).
 
-## Deploying pre-built images
+## Installation
 
 ### Prerequisites
 
@@ -48,7 +46,7 @@ OCS requires at least 3 nodes labelled this way.
 
 > Note: When deploying via Console, the creation wizard takes care of labelling the selected nodes.
 
-### Dedicated nodes
+#### Dedicated nodes
 
 In case dedicated storage nodes are available, these can also be tainted to allow only OCS components to be scheduled on them.
 Nodes need to be tainted with `node.ocs.openshift.io/storage=true:NoSchedule` which can be done from the CLI as follows,
@@ -59,33 +57,22 @@ $ oc adm taint nodes <NodeNames> node.ocs.openshift.io/storage=true:NoSchedule
 
 > Note: The dedicated/tainted nodes will only run OCS components. The nodes will not run any apps. Therefore, if you taint, you need to have additional worker nodes that are untainted. If you don't, you will be unable to run any other apps in you OpenShift cluster.
 
-### Installation
-
+### Installing with OLM
 
 The OCS operator can be installed into an OpenShift cluster using Operator Lifecycle Manager (OLM).
 
-#### Option 1: Using `make install`  
-
 If you have a development environment or private image and want to install the OCS operator, follow the steps below:
 
-- Label Worker Nodes:  
-  OCS Operator will install its components only on nodes labeled for OCS.
-
-  ```console
-  oc label nodes <NodeName1> cluster.ocs.openshift.io/openshift-storage=''
-  oc label nodes <NodeName2> cluster.ocs.openshift.io/openshift-storage=''
-  oc label nodes <NodeName3> cluster.ocs.openshift.io/openshift-storage=''
-  ```
-
 - Set Environment Variables:  
-  Define the required variables for your private image:
+  Define the required variables for your image:
 
   ```console
   export REGISTRY_NAMESPACE=<your-registry-namespace>
   export IMAGE_TAG=<your-image-tag>
   ```
 
-- Run the following command:
+- Run the following command:  
+  This installs all the dependencies of ocs-operator and the ocs-operator bundle using the operator-sdk cli
 
   ```console
   make install
@@ -98,37 +85,12 @@ If you have a development environment or private image and want to install the O
   oc get csv -n openshift-storage
   ```
 
-#### Option 2: Using Pre-Built YAML
+### Creating StorageCluster
 
-For quick install using pre-built container images, deploy the [deploy-olm.yaml](deploy/deploy-with-olm.yaml) manifest.
-
-```console
-$ oc create -f ./deploy/deploy-with-olm.yaml
-```
-
-This creates:
-
-- a custom CatalogSource
-- a new `openshift-storage` Namespace
-- an OperatorGroup
-- a Subscription for OCS & a Subscription for NOOBAA, to the OCS catalog in the `openshift-storage` namespace
-
-You can check the status of the CSVs using the following command:
+A StorageCluster can be created using the example CR as follows,
 
 ```console
-$ oc get csv -n openshift-storage
-NAME                      DISPLAY                       VERSION   REPLACES   PHASE
-noobaa-operator.v5.14.0   NooBaa Operator               5.14.0               Succeeded
-ocs-operator.v4.16.0      OpenShift Container Storage   4.16.0               Succeeded
-```
-
-This can take a few minutes. Once PHASE says `Succeeded` you can create a StorageCluster.
-
-StorageCluster can be created from the console, using the StorageCluster creation wizard.
-From the CLI, a StorageCluster resource can be created using the example CR as follows,
-
-```console
-$ oc create -f ./config/samples/ocs_v1_storagecluster.yaml
+$ oc create -f ./deploy/storagecluster.yaml
 ```
 
 ## Development
@@ -140,8 +102,6 @@ $ oc create -f ./config/samples/ocs_v1_storagecluster.yaml
 - [Kustomize](https://github.com/kubernetes-sigs/kustomize)
 
 - [controller-gen](https://github.com/kubernetes-sigs/controller-tools)
-
-- [OPM](https://github.com/operator-framework/operator-registry)
 
 ### Build
 
@@ -169,129 +129,11 @@ To create an operator bundle image, run
 $ make operator-bundle
 ```
 
-> Note: Push the OCS Bundle image to image registry before moving to next step.
-
-#### OCS Operator Catalog
-
-An operator catalog image can then be built using,
-
-```console
-$ make operator-catalog
-```
+> Note: Push all the images built to image registry before moving to next step.
 
 ### Deploying development builds
 
-To install own development builds of OCS, first set your own REGISTRY_NAMESPACE and IMAGE_TAG.
-
-```console
-$ export REGISTRY_NAMESPACE=<quay-username>
-$ export IMAGE_TAG=<some-tag>
-```
-
-Then build and push the ocs-operator & ocs-metrics-exporter image to your own image repository.
-
-```console
-$ make ocs-operator
-$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator:$IMAGE_TAG
-
-$ make ocs-metrics-exporter
-$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-metrics-exporter:$IMAGE_TAG
-```
-
-Then build and push the operator bundle image.
-
-```console
-$ make operator-bundle
-$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator-bundle:$IMAGE_TAG
-```
-
-Next build and push the operator catalog image.
-
-```console
-$ make operator-catalog
-$ podman push quay.io/$REGISTRY_NAMESPACE/ocs-operator-catalog:$IMAGE_TAG
-```
-
-Now create a namespace and an OperatorGroup for OCS
-
-```console
-$ oc create ns openshift-storage
-
-$ cat <<EOF | oc create -f -
-apiVersion: operators.coreos.com/v1alpha2
-kind: OperatorGroup
-metadata:
-  name: openshift-storage-operatorgroup
-  namespace: openshift-storage
-spec:
-  targetNamespaces:
-    - openshift-storage
-EOF
-```
-
-Then add a new CatalogSource using the newly built and pushed catalog image.
-
-```console
-$ cat <<EOF | oc create -f -
-apiVersion: operators.coreos.com/v1alpha1
-kind: CatalogSource
-metadata:
-  name: ocs-catalogsource
-  namespace: openshift-marketplace
-spec:
-  sourceType: grpc
-  image: quay.io/$REGISTRY_NAMESPACE/ocs-operator-catalog:$IMAGE_TAG
-  displayName: OpenShift Container Storage
-  publisher: Red Hat
-EOF
-```
-
-Finally create ocs & noobaa subscription.
-
-```console
-$ cat <<EOF | oc create -f -
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: ocs-subscription
-  namespace: openshift-storage
-spec:
-  channel: alpha
-  name: ocs-operator
-  source: ocs-catalogsource
-  sourceNamespace: openshift-marketplace
-EOF
-
-$ cat <<EOF | oc create -f -
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: noobaa-subscription
-  namespace: openshift-storage
-spec:
-  channel: alpha
-  name: noobaa-operator
-  source: ocs-catalogsource
-  sourceNamespace: openshift-marketplace
-EOF
-```
-
-## Initial Configuration
-
-When the operator starts, it will create a single OCSInitialization resource. That
-will cause various initial configuration to be created, including default
-StorageClasses.
-
-The OCSInitialization resource is a singleton. If the operator sees one that it
-did not create, it will write an error message to its status explaining that it
-is being ignored.
-
-### Modifying Initial Configuration
-
-You may modify or delete any of the operator's initial data. To reset and
-restore that data to its initial state, delete the OCSInitialization resource. It
-will be recreated, and all associated resources will be either recreated or
-restored to their original state.
+Install the build by following the steps from the [Installation](#installation) section.
 
 ## Functional Tests
 
@@ -400,4 +242,10 @@ there look at the top right hand corner for the `artifacts` link. That will
 bring you to a directory tree. Follow the `artifacts/` directory to the
 `ocs-operator-bundle-e2e-aws/` directory. There you can find logs and information
 pertaining to objects in the cluster.
+
+#### Getting live access to the PROW CI cluster
+
+Click on the job link for the e2e test (ci/prow/ocs-operator-bundle-e2e-aws). In the initial log lines, look for the "Using namespace" line which includes the OpenShift console URL; open that URL. In the OpenShift console, go to the "Overview" tab and navigate to the "Secrets" section. Find the secret named ocs-operator-bundle-e2e-aws. Inside the secret, locate the key KUBECONFIG and use its value to access the cluster.
+
+> Note: Only the author of the PR on which the tests are running can login to the console URL to get the KUBECONFIG. The cluster is torn down after the tests complete, so you must be proactive in accessing it while the tests are still running.
 
