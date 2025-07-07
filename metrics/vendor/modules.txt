@@ -357,11 +357,11 @@ github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
 # github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20250227172543-a22914aaf7d5 => ../api
-## explicit; go 1.23.5
+## explicit; go 1.24.0
 github.com/red-hat-storage/ocs-operator/api/v4/v1
 github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
 # github.com/red-hat-storage/ocs-operator/v4 v4.0.0-20250227172543-a22914aaf7d5 => ../
-## explicit; go 1.23.5
+## explicit; go 1.24.0
 github.com/red-hat-storage/ocs-operator/v4/controllers/defaults
 github.com/red-hat-storage/ocs-operator/v4/controllers/util
 github.com/red-hat-storage/ocs-operator/v4/services
