@@ -654,6 +654,10 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 	cephCluster.Spec.Security.KeyRotation.Enabled = isEnabled
 	cephCluster.Spec.Security.KeyRotation.Schedule = rotationSchedule
 
+	if sc.Spec.ManagedResources.CephCluster.CleanupPolicy != nil{
+		cephCluster.Spec.CleanupPolicy = *sc.Spec.ManagedResources.CephCluster.CleanupPolicy
+	}
+
 	return cephCluster
 }
 

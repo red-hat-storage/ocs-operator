@@ -799,8 +799,12 @@ spec:
                                   or not
                                 type: boolean
                               mode:
-                                description: 'Mode is the mirroring mode: either pool
-                                  or image'
+                                description: 'Mode is the mirroring mode: pool, image
+                                  or init-only.'
+                                enum:
+                                - pool
+                                - image
+                                - init-only
                                 type: string
                               peers:
                                 description: Peers represents the peers spec
@@ -911,6 +915,7 @@ spec:
                                 description: TargetSizeRatio gives a hint (%) to Ceph
                                   in terms of expected consumption of the total cluster
                                   capacity
+                                minimum: 0
                                 type: number
                             required:
                             - size
@@ -974,6 +979,51 @@ spec:
                             type: string
                           type: object
                         description: Ceph Config options
+                        type: object
+                      cleanupPolicy:
+                        description: CleanupPolicy defines the cleanup policy for
+                          the Rook Ceph cluster.
+                        properties:
+                          allowUninstallWithVolumes:
+                            description: AllowUninstallWithVolumes defines whether
+                              we can proceed with the uninstall if they are RBD images
+                              still present
+                            type: boolean
+                          confirmation:
+                            description: Confirmation represents the cleanup confirmation
+                            nullable: true
+                            pattern: ^$|^yes-really-destroy-data$
+                            type: string
+                          sanitizeDisks:
+                            description: SanitizeDisks represents way we sanitize
+                              disks
+                            nullable: true
+                            properties:
+                              dataSource:
+                                description: DataSource is the data source to use
+                                  to sanitize the disk with
+                                enum:
+                                - zero
+                                - random
+                                type: string
+                              iteration:
+                                description: Iteration is the number of pass to apply
+                                  the sanitizing
+                                format: int32
+                                type: integer
+                              method:
+                                description: Method is the method we use to sanitize
+                                  disks
+                                enum:
+                                - complete
+                                - quick
+                                type: string
+                            type: object
+                          wipeDevicesFromOtherClusters:
+                            description: |-
+                              WipeDevicesFromOtherClusters wipes the OSD disks belonging to other clusters. This is useful in scenarios where ceph cluster
+                              was reinstalled but OSD disk still contains the metadata from previous ceph cluster.
+                            type: boolean
                         type: object
                       continueUpgradeAfterChecksEvenIfNotHealthy:
                         description: Whether or not continue if PGs are not clean
@@ -1533,8 +1583,12 @@ spec:
                                     or not
                                   type: boolean
                                 mode:
-                                  description: 'Mode is the mirroring mode: either
-                                    pool or image'
+                                  description: 'Mode is the mirroring mode: pool,
+                                    image or init-only.'
+                                  enum:
+                                  - pool
+                                  - image
+                                  - init-only
                                   type: string
                                 peers:
                                   description: Peers represents the peers spec
@@ -1649,6 +1703,7 @@ spec:
                                   description: TargetSizeRatio gives a hint (%) to
                                     Ceph in terms of expected consumption of the total
                                     cluster capacity
+                                  minimum: 0
                                   type: number
                               required:
                               - size
@@ -1750,8 +1805,12 @@ spec:
                                   or not
                                 type: boolean
                               mode:
-                                description: 'Mode is the mirroring mode: either pool
-                                  or image'
+                                description: 'Mode is the mirroring mode: pool, image
+                                  or init-only.'
+                                enum:
+                                - pool
+                                - image
+                                - init-only
                                 type: string
                               peers:
                                 description: Peers represents the peers spec
@@ -1862,6 +1921,7 @@ spec:
                                 description: TargetSizeRatio gives a hint (%) to Ceph
                                   in terms of expected consumption of the total cluster
                                   capacity
+                                minimum: 0
                                 type: number
                             required:
                             - size
@@ -1966,8 +2026,12 @@ spec:
                                   or not
                                 type: boolean
                               mode:
-                                description: 'Mode is the mirroring mode: either pool
-                                  or image'
+                                description: 'Mode is the mirroring mode: pool, image
+                                  or init-only.'
+                                enum:
+                                - pool
+                                - image
+                                - init-only
                                 type: string
                               peers:
                                 description: Peers represents the peers spec
@@ -2078,6 +2142,7 @@ spec:
                                 description: TargetSizeRatio gives a hint (%) to Ceph
                                   in terms of expected consumption of the total cluster
                                   capacity
+                                minimum: 0
                                 type: number
                             required:
                             - size
@@ -2723,8 +2788,12 @@ spec:
                                   or not
                                 type: boolean
                               mode:
-                                description: 'Mode is the mirroring mode: either pool
-                                  or image'
+                                description: 'Mode is the mirroring mode: pool, image
+                                  or init-only.'
+                                enum:
+                                - pool
+                                - image
+                                - init-only
                                 type: string
                               peers:
                                 description: Peers represents the peers spec
@@ -2835,6 +2904,7 @@ spec:
                                 description: TargetSizeRatio gives a hint (%) to Ceph
                                   in terms of expected consumption of the total cluster
                                   capacity
+                                minimum: 0
                                 type: number
                             required:
                             - size
@@ -2943,8 +3013,12 @@ spec:
                                   or not
                                 type: boolean
                               mode:
-                                description: 'Mode is the mirroring mode: either pool
-                                  or image'
+                                description: 'Mode is the mirroring mode: pool, image
+                                  or init-only.'
+                                enum:
+                                - pool
+                                - image
+                                - init-only
                                 type: string
                               peers:
                                 description: Peers represents the peers spec
@@ -3055,6 +3129,7 @@ spec:
                                 description: TargetSizeRatio gives a hint (%) to Ceph
                                   in terms of expected consumption of the total cluster
                                   capacity
+                                minimum: 0
                                 type: number
                             required:
                             - size
@@ -3828,7 +3903,7 @@ spec:
                     x-kubernetes-validations:
                     - message: network provider must be disabled (reverted to empty
                         string) before a new provider is enabled
-                      rule: self == '' || self == oldSelf
+                      rule: self == '' || oldSelf == '' || self == oldSelf
                   selectors:
                     additionalProperties:
                       type: string
