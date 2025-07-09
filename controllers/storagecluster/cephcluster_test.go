@@ -1847,3 +1847,238 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 		tassert.Equal(t, c.expectedConfig, actual)
 	}
 }
+
+func TestSetDefaultDataPoolSpec(t *testing.T) {
+	baseSC := mockStorageCluster.DeepCopy()
+	baseSC.Status.DefaultCephDeviceClass = "ssd"
+	baseSC.Status.FailureDomain = "host"
+
+	cases := []struct {
+		name    string
+		pool    rookCephv1.PoolSpec
+		sc      *ocsv1.StorageCluster
+		expects rookCephv1.PoolSpec
+	}{
+		{
+			name: "all fields unset",
+			pool: rookCephv1.PoolSpec{},
+			sc:   baseSC.DeepCopy(),
+			expects: rookCephv1.PoolSpec{
+				EnableCrushUpdates: true,
+				DeviceClass:        "ssd",
+				FailureDomain:      "host",
+				Replicated:         generateCephReplicatedSpec(baseSC, "data"),
+			},
+		},
+		{
+			name: "only deviceClass set",
+			pool: rookCephv1.PoolSpec{
+				DeviceClass: "gold",
+			},
+			sc: baseSC.DeepCopy(),
+			expects: rookCephv1.PoolSpec{
+				EnableCrushUpdates: true,
+				DeviceClass:        "gold",
+				FailureDomain:      "host",
+				Replicated:         generateCephReplicatedSpec(baseSC, "data"),
+			},
+		},
+		{
+			name: "only Replicated targetSizeRatio set",
+			pool: rookCephv1.PoolSpec{
+				Replicated: rookCephv1.ReplicatedSpec{
+					TargetSizeRatio: 0.1,
+				},
+			},
+			sc: baseSC.DeepCopy(),
+			expects: rookCephv1.PoolSpec{
+				EnableCrushUpdates: true,
+				DeviceClass:        "ssd",
+				FailureDomain:      "host",
+				Replicated: rookCephv1.ReplicatedSpec{
+					Size:                     generateCephReplicatedSpec(baseSC, "data").Size,
+					ReplicasPerFailureDomain: generateCephReplicatedSpec(baseSC, "data").ReplicasPerFailureDomain,
+					TargetSizeRatio:          0.1,
+				},
+			},
+		},
+		{
+			name: "arbiter mode- Replicated size & replicasPerFailureDomain should be set to default values",
+			pool: rookCephv1.PoolSpec{
+				Replicated: rookCephv1.ReplicatedSpec{
+					Size:                     3,
+					ReplicasPerFailureDomain: 1,
+					TargetSizeRatio:          0.3,
+				},
+			},
+			sc: func() *ocsv1.StorageCluster {
+				sc := baseSC.DeepCopy()
+				sc.Spec.Arbiter.Enable = true
+				return sc
+			}(),
+			expects: rookCephv1.PoolSpec{
+				EnableCrushUpdates: true,
+				DeviceClass:        "ssd",
+				FailureDomain:      "host",
+				Replicated: rookCephv1.ReplicatedSpec{
+					Size:                     generateCephReplicatedSpec(baseSC, "data").Size,
+					ReplicasPerFailureDomain: generateCephReplicatedSpec(baseSC, "data").ReplicasPerFailureDomain,
+					TargetSizeRatio:          0.3,
+				},
+			},
+		},
+		{
+			name: "erasure-coded spec present- ReplicatedSpec should not be set",
+			pool: rookCephv1.PoolSpec{
+				ErasureCoded: rookCephv1.ErasureCodedSpec{
+					DataChunks:   4,
+					CodingChunks: 2,
+				},
+			},
+			sc: baseSC.DeepCopy(),
+			expects: rookCephv1.PoolSpec{
+				EnableCrushUpdates: true,
+				DeviceClass:        "ssd",
+				FailureDomain:      "host",
+				ErasureCoded: rookCephv1.ErasureCodedSpec{
+					DataChunks:   4,
+					CodingChunks: 2,
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			pool := c.pool
+			// Patch expected Replicated values for arbiter mode at runtime
+			if c.name == "arbiter mode- Replicated size & replicasPerFailureDomain should be set to default values" {
+				c.expects.Replicated.Size = generateCephReplicatedSpec(c.sc, "data").Size
+				c.expects.Replicated.ReplicasPerFailureDomain = generateCephReplicatedSpec(c.sc, "data").ReplicasPerFailureDomain
+			}
+			setDefaultDataPoolSpec(&pool, c.sc)
+			// Only compare relevant fields
+			assert.Equal(t, pool.EnableCrushUpdates, c.expects.EnableCrushUpdates)
+			assert.Equal(t, pool.DeviceClass, c.expects.DeviceClass)
+			assert.Equal(t, pool.FailureDomain, c.expects.FailureDomain)
+			assert.DeepEqual(t, pool.Replicated, c.expects.Replicated)
+			assert.DeepEqual(t, pool.ErasureCoded, c.expects.ErasureCoded)
+		})
+	}
+}
+
+func TestSetDefaultMetadataPoolSpec(t *testing.T) {
+	baseSC := mockStorageCluster.DeepCopy()
+	baseSC.Status.DefaultCephDeviceClass = "ssd"
+	baseSC.Status.FailureDomain = "host"
+
+	cases := []struct {
+		name    string
+		pool    rookCephv1.PoolSpec
+		sc      *ocsv1.StorageCluster
+		expects rookCephv1.PoolSpec
+	}{
+		{
+			name: "all fields unset",
+			pool: rookCephv1.PoolSpec{},
+			sc:   baseSC.DeepCopy(),
+			expects: rookCephv1.PoolSpec{
+				EnableCrushUpdates: true,
+				DeviceClass:        "ssd",
+				FailureDomain:      "host",
+				Replicated:         generateCephReplicatedSpec(baseSC, "metadata"),
+			},
+		},
+		{
+			name: "only deviceClass set",
+			pool: rookCephv1.PoolSpec{
+				DeviceClass: "gold",
+			},
+			sc: baseSC.DeepCopy(),
+			expects: rookCephv1.PoolSpec{
+				EnableCrushUpdates: true,
+				DeviceClass:        "gold",
+				FailureDomain:      "host",
+				Replicated:         generateCephReplicatedSpec(baseSC, "metadata"),
+			},
+		},
+		{
+			name: "only ReplicaPerFailureDomain set",
+			pool: rookCephv1.PoolSpec{
+				Replicated: rookCephv1.ReplicatedSpec{
+					ReplicasPerFailureDomain: 2,
+				},
+			},
+			sc: baseSC.DeepCopy(),
+			expects: rookCephv1.PoolSpec{
+				EnableCrushUpdates: true,
+				DeviceClass:        "ssd",
+				FailureDomain:      "host",
+				Replicated: rookCephv1.ReplicatedSpec{
+					Size:                     generateCephReplicatedSpec(baseSC, "metadata").Size,
+					ReplicasPerFailureDomain: 2,
+				},
+			},
+		},
+		{
+			name: "arbiter mode- Replicated size & replicasPerFailureDomain should be set to default values",
+			pool: rookCephv1.PoolSpec{
+				Replicated: rookCephv1.ReplicatedSpec{
+					Size:                     3,
+					ReplicasPerFailureDomain: 1,
+				},
+			},
+			sc: func() *ocsv1.StorageCluster {
+				sc := baseSC.DeepCopy()
+				sc.Spec.Arbiter.Enable = true
+				return sc
+			}(),
+			expects: rookCephv1.PoolSpec{
+				EnableCrushUpdates: true,
+				DeviceClass:        "ssd",
+				FailureDomain:      "host",
+				Replicated: rookCephv1.ReplicatedSpec{
+					Size:                     generateCephReplicatedSpec(baseSC, "metadata").Size,
+					ReplicasPerFailureDomain: generateCephReplicatedSpec(baseSC, "metadata").ReplicasPerFailureDomain,
+				},
+			},
+		},
+		{
+			name: "erasure-coded spec present- ReplicatedSpec should not be set",
+			pool: rookCephv1.PoolSpec{
+				ErasureCoded: rookCephv1.ErasureCodedSpec{
+					DataChunks:   4,
+					CodingChunks: 2,
+				},
+			},
+			sc: baseSC.DeepCopy(),
+			expects: rookCephv1.PoolSpec{
+				EnableCrushUpdates: true,
+				DeviceClass:        "ssd",
+				FailureDomain:      "host",
+				ErasureCoded: rookCephv1.ErasureCodedSpec{
+					DataChunks:   4,
+					CodingChunks: 2,
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			pool := c.pool
+			// Patch expected Replicated values for arbiter mode at runtime
+			if c.name == "arbiter mode- Replicated size & replicasPerFailureDomain should be set to default values" {
+				c.expects.Replicated.Size = generateCephReplicatedSpec(c.sc, "metadata").Size
+				c.expects.Replicated.ReplicasPerFailureDomain = generateCephReplicatedSpec(c.sc, "metadata").ReplicasPerFailureDomain
+			}
+			setDefaultMetadataPoolSpec(&pool, c.sc)
+			// Only compare relevant fields
+			assert.Equal(t, pool.EnableCrushUpdates, c.expects.EnableCrushUpdates)
+			assert.Equal(t, pool.DeviceClass, c.expects.DeviceClass)
+			assert.Equal(t, pool.FailureDomain, c.expects.FailureDomain)
+			assert.DeepEqual(t, pool.Replicated, c.expects.Replicated)
+			assert.DeepEqual(t, pool.ErasureCoded, c.expects.ErasureCoded)
+		})
+	}
+}
