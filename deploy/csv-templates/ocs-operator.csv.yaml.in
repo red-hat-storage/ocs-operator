@@ -305,6 +305,7 @@ spec:
           - get
         - apiGroups:
           - groupsnapshot.storage.k8s.io
+          - groupsnapshot.storage.openshift.io
           resources:
           - volumegroupsnapshotclasses
           verbs:
