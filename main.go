@@ -61,6 +61,7 @@ import (
 	apiclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	filters "sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
@@ -119,7 +120,7 @@ func main() {
 	var probeAddr string
 	var metricsAddr string
 	var enableLeaderElection bool
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-addr", ":8443", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
@@ -162,8 +163,12 @@ func main() {
 
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:                  scheme,
-		Metrics:                 metrics.Options{BindAddress: metricsAddr},
+		Scheme: scheme,
+		Metrics: metrics.Options{
+			BindAddress:    metricsAddr,
+			SecureServing:  true,
+			FilterProvider: filters.WithAuthenticationAndAuthorization,
+		},
 		HealthProbeBindAddress:  probeAddr,
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "ab76f4c9.openshift.io",
