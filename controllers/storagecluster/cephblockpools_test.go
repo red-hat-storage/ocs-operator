@@ -7,11 +7,8 @@ import (
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
-	"github.com/imdario/mergo"
-	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -42,34 +39,6 @@ func TestCephBlockPools(t *testing.T) {
 		assertCephBlockPools(t, reconciler, cr, request, false, false)
 		assertCephNFSBlockPool(t, reconciler, cr, request)
 	}
-}
-
-func getInitData(customSpec *api.StorageClusterSpec) *api.StorageCluster {
-	cr := createDefaultStorageCluster()
-	if customSpec != nil {
-		_ = mergo.Merge(&cr.Spec, customSpec)
-	}
-	return cr
-}
-
-func createReconcilerFromCustomResources(t *testing.T, cr *api.StorageCluster) StorageClusterReconciler {
-	reconciler := createFakeInitializationStorageClusterReconciler(
-		t, &nbv1.NooBaa{})
-
-	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: testPeerSecretName,
-		},
-	}
-
-	clientObjs := []client.Object{cr, &secret}
-
-	for _, obj := range clientObjs {
-		if err := reconciler.Client.Create(context.TODO(), obj); err != nil {
-			t.Fatalf("failed to create a needed runtime object: %v", err)
-		}
-	}
-	return reconciler
 }
 
 func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request, mirroringEnabled bool, validSecret bool) {
