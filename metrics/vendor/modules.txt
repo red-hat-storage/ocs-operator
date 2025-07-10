@@ -356,6 +356,9 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
+# github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20250611085013-4bd0abb96745
+## explicit; go 1.22.0
+github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1
 # github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20250227172543-a22914aaf7d5 => ../api
 ## explicit; go 1.24.0
 github.com/red-hat-storage/ocs-operator/api/v4/v1
