@@ -51,15 +51,22 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		return ctrl.Result{}, fmt.Errorf("invalid Configuration, allowRemoteStorageConsumers is set while missing a compatibility mode annotation on the storage cluster")
 	}
 
-	storageClassesSpec, err := getLocalStorageClassNames(r.ctx, r.Client, storageCluster)
+	internalConsumer := &ocsv1a1.StorageConsumer{}
+	internalConsumer.Name = defaults.LocalStorageConsumerName
+	internalConsumer.Namespace = storageCluster.Namespace
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(internalConsumer), internalConsumer); client.IgnoreNotFound(err) != nil {
+		return ctrl.Result{}, err
+	}
+
+	storageClassesSpec, err := getLocalStorageClassNames(r.ctx, r.Client, storageCluster, internalConsumer)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to generate storageclasses list for distribution: %v", err)
 	}
-	volumeSnapshotClassesSpec, err := getLocalVolumeSnapshotClassNames(r.ctx, r.Client, storageCluster)
+	volumeSnapshotClassesSpec, err := getLocalVolumeSnapshotClassNames(r.ctx, r.Client, storageCluster, internalConsumer)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to generate volumesnapshotclasses list for distribution: %v", err)
 	}
-	volumeGroupSnapshotClassesSpec, err := getLocalVolumeGroupSnapshotClassNames(r.ctx, r.Client, storageCluster)
+	volumeGroupSnapshotClassesSpec, err := getLocalVolumeGroupSnapshotClassNames(r.ctx, r.Client, storageCluster, internalConsumer)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to generate volumegroupsnapshotclasses list for distribution: %v", err)
 	}
@@ -212,8 +219,15 @@ func getExternalClassesBlaclistSelector() labels.Selector {
 	return labels.NewSelector().Add(*blackListRequirement)
 }
 
-func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster) (
-	[]ocsv1a1.StorageClassSpec, error) {
+func getLocalStorageClassNames(
+	ctx context.Context,
+	kubeClient client.Client,
+	storageCluster *ocsv1.StorageCluster,
+	internalConsumer *ocsv1a1.StorageConsumer,
+) (
+	[]ocsv1a1.StorageClassSpec,
+	error,
+) {
 
 	storageClassNames := map[string]bool{}
 	storageClassNames[util.GenerateNameForCephBlockPoolStorageClass(storageCluster)] = true
@@ -249,24 +263,44 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 	}); err != nil {
 		return nil, err
 	}
+
+	classesSpec := internalConsumer.Spec.StorageClasses
+	destToSrcMap := util.GetDestToSrcClassMapping(classesSpec)
 	for idx := range storageClassesInCluster.Items {
 		sc := &storageClassesInCluster.Items[idx]
-		if slices.Contains(supportedCsiDrivers, sc.Provisioner) {
+		_, aliasOrRename := destToSrcMap[sc.Name]
+		// we distribute classes with a different name or aliases and need to
+		// filter them out to get the actual day2 storageclasses
+		if slices.Contains(supportedCsiDrivers, sc.Provisioner) && !aliasOrRename {
 			storageClassNames[sc.Name] = true
 		}
 	}
 
+	srcIdxMapping := util.GetSrcIdxMapping(classesSpec)
 	scSpec := make([]ocsv1a1.StorageClassSpec, 0, len(storageClassNames))
 	for scName := range maps.Keys(storageClassNames) {
-		// TODO: store the spec as the value which allows each value to be customizable corresponding to the name,
-		// not doing now as we only have name in the storageclassspec
-		scSpec = append(scSpec, ocsv1a1.StorageClassSpec{Name: scName})
+		scItem := ocsv1a1.StorageClassSpec{}
+		scItem.Name = scName
+		// merge the values already set by user for rename and aliases
+		idx, srcExist := srcIdxMapping[scItem.Name]
+		if srcExist {
+			scItem.Rename = classesSpec[idx].Rename
+			scItem.Aliases = classesSpec[idx].Aliases
+		}
+		scSpec = append(scSpec, scItem)
 	}
 	return scSpec, nil
 }
 
-func getLocalVolumeSnapshotClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster) (
-	[]ocsv1a1.VolumeSnapshotClassSpec, error) {
+func getLocalVolumeSnapshotClassNames(
+	ctx context.Context,
+	kubeClient client.Client,
+	storageCluster *ocsv1.StorageCluster,
+	internalConsumer *ocsv1a1.StorageConsumer,
+) (
+	[]ocsv1a1.VolumeSnapshotClassSpec,
+	error,
+) {
 
 	volumeSnapshotClassNames := map[string]bool{}
 	volumeSnapshotClassNames[util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)] = true
@@ -284,23 +318,41 @@ func getLocalVolumeSnapshotClassNames(ctx context.Context, kubeClient client.Cli
 	}); err != nil {
 		return nil, err
 	}
+	classesSpec := internalConsumer.Spec.VolumeSnapshotClasses
+	destToSrcMap := util.GetDestToSrcClassMapping(classesSpec)
 	for idx := range volumeSnapshotClassesInCluster.Items {
-		// TODO: skip volumesnapshotclasses that are from external mode if both internal & external mode is enabled
 		vsc := &volumeSnapshotClassesInCluster.Items[idx]
-		if slices.Contains(supportedCsiDrivers, vsc.Driver) {
+		_, aliasOrRename := destToSrcMap[vsc.Name]
+		if slices.Contains(supportedCsiDrivers, vsc.Driver) && !aliasOrRename {
 			volumeSnapshotClassNames[vsc.Name] = true
 		}
 	}
 
+	srcIdxMapping := util.GetSrcIdxMapping(classesSpec)
 	vscSpec := make([]ocsv1a1.VolumeSnapshotClassSpec, 0, len(volumeSnapshotClassNames))
 	for vscName := range maps.Keys(volumeSnapshotClassNames) {
-		vscSpec = append(vscSpec, ocsv1a1.VolumeSnapshotClassSpec{Name: vscName})
+		vscItem := ocsv1a1.VolumeSnapshotClassSpec{}
+		vscItem.Name = vscName
+		idx, srcExist := srcIdxMapping[vscItem.Name]
+		if srcExist {
+			vscItem.Rename = classesSpec[idx].Rename
+			vscItem.Aliases = classesSpec[idx].Aliases
+		}
+		vscSpec = append(vscSpec, vscItem)
 	}
 	return vscSpec, nil
+
 }
 
-func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster) (
-	[]ocsv1a1.VolumeGroupSnapshotClassSpec, error) {
+func getLocalVolumeGroupSnapshotClassNames(
+	ctx context.Context,
+	kubeClient client.Client,
+	storageCluster *ocsv1.StorageCluster,
+	internalConsumer *ocsv1a1.StorageConsumer,
+) (
+	[]ocsv1a1.VolumeGroupSnapshotClassSpec,
+	error,
+) {
 
 	volumeGroupSnapshotClassNames := map[string]bool{}
 	volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)] = true
@@ -312,6 +364,7 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 	if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
 		return nil, err
 	}
+	classesSpec := internalConsumer.Spec.VolumeSnapshotClasses
 	if crd.UID != "" {
 		// for day2 volumegroupsnapshotclasses
 		volumeGroupSnapshotClassesInCluster := &groupsnapapi.VolumeGroupSnapshotClassList{}
@@ -321,18 +374,27 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 		}); err != nil {
 			return nil, err
 		}
+		destToSrcMap := util.GetDestToSrcClassMapping(classesSpec)
 		for idx := range volumeGroupSnapshotClassesInCluster.Items {
-			// TODO: skip volumegroupsnapshotclasses that are from external mode if both internal & external mode is enabled
 			vgsc := &volumeGroupSnapshotClassesInCluster.Items[idx]
-			if slices.Contains(supportedCsiDrivers, vgsc.Driver) {
+			_, aliasOrRename := destToSrcMap[vgsc.Name]
+			if slices.Contains(supportedCsiDrivers, vgsc.Driver) && !aliasOrRename {
 				volumeGroupSnapshotClassNames[vgsc.Name] = true
 			}
 		}
 	}
 
+	srcIdxMapping := util.GetSrcIdxMapping(classesSpec)
 	vgscSpec := make([]ocsv1a1.VolumeGroupSnapshotClassSpec, 0, len(volumeGroupSnapshotClassNames))
-	for vscName := range maps.Keys(volumeGroupSnapshotClassNames) {
-		vgscSpec = append(vgscSpec, ocsv1a1.VolumeGroupSnapshotClassSpec{Name: vscName})
+	for vgscName := range maps.Keys(volumeGroupSnapshotClassNames) {
+		vgscItem := ocsv1a1.VolumeGroupSnapshotClassSpec{}
+		vgscItem.Name = vgscName
+		idx, srcExist := srcIdxMapping[vgscItem.Name]
+		if srcExist {
+			vgscItem.Rename = classesSpec[idx].Rename
+			vgscItem.Aliases = classesSpec[idx].Aliases
+		}
+		vgscSpec = append(vgscSpec, vgscItem)
 	}
 	return vgscSpec, nil
 }
