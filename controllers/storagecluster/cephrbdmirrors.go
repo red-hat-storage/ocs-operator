@@ -3,11 +3,9 @@ package storagecluster
 import (
 	"context"
 	"fmt"
-
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -90,42 +88,7 @@ func (obj *ocsCephRbdMirrors) ensureCreated(r *StorageClusterReconciler, instanc
 		return reconcile.Result{}, err
 	}
 
-	if instance.Spec.Mirroring == nil || !instance.Spec.Mirroring.Enabled {
-		return reconcile.Result{}, r.deleteCephRbdMirrorInstance(cephRbdMirrors)
-	}
-
-	for _, cephRbdMirror := range cephRbdMirrors {
-		existing, err := r.fetchCephRbdMirrorInstance(cephRbdMirror)
-
-		if err != nil {
-			if errors.IsNotFound(err) {
-				r.Log.Info("Creating CephRbdMirror.", "CephRbdMirror", klog.KRef(cephRbdMirror.Namespace, cephRbdMirror.Name))
-				err = r.Client.Create(context.TODO(), cephRbdMirror)
-				if err != nil {
-					r.Log.Error(err, "Failed to create CephRbdMirror.", "CephRbdMirror", klog.KRef(cephRbdMirror.Namespace, cephRbdMirror.Name))
-					return reconcile.Result{}, err
-				}
-				continue
-			}
-			r.Log.Error(err, "Failed to get CephRbdMirror.", "CephRbdMirror", klog.KRef(cephRbdMirror.Namespace, cephRbdMirror.Name))
-			return reconcile.Result{}, err
-		}
-
-		if existing.DeletionTimestamp != nil {
-			r.Log.Info("Unable to restore CephRbdMirror, It is marked for deletion.", "CephRbdMirror", klog.KRef(existing.Namespace, existing.Name))
-			return reconcile.Result{}, fmt.Errorf("failed to restore initialization object %s, It is marked for deletion", existing.Name)
-		}
-
-		r.Log.Info("Restoring original CephRbdMirror.", "CephRbdMirror", klog.KRef(cephRbdMirror.Namespace, cephRbdMirror.Name))
-		existing.ObjectMeta.OwnerReferences = cephRbdMirror.ObjectMeta.OwnerReferences
-		cephRbdMirror.ObjectMeta = existing.ObjectMeta
-		err = r.Client.Update(context.TODO(), cephRbdMirror)
-		if err != nil {
-			r.Log.Error(err, "Failed to update CephRbdMirror.", "CephRbdMirror", klog.KRef(cephRbdMirror.Namespace, cephRbdMirror.Name))
-			return reconcile.Result{}, err
-		}
-	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, r.deleteCephRbdMirrorInstance(cephRbdMirrors)
 }
 
 // ensureDeleted deletes the CephRbdMirrors owned by the StorageCluster

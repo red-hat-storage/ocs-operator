@@ -273,6 +273,24 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 }
 
 func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.ConfigMap, shouldMirror bool) bool {
+	rbdMirrorList := &rookCephv1.CephRBDMirrorList{}
+
+	if err := r.list(
+		rbdMirrorList,
+		client.InNamespace(clientMappingConfig.Namespace),
+		client.Limit(2),
+	); err != nil {
+		r.log.Error(err, "Failed to list RBDMirror.")
+		return true
+	} else if len(rbdMirrorList.Items) == 2 {
+		r.log.Error(fmt.Errorf("multiple RBDMirror present in the cluster"), "more than 1 CephRBDMirror present in the cluster")
+		return true
+	} else if len(rbdMirrorList.Items) == 1 {
+		if rbdMirrorList.Items[0].Name != util.CephRBDMirrorName {
+			r.log.Error(fmt.Errorf("RBDMirror name mismatch"), "RBDMirror with a different name is present in the cluster")
+			return true
+		}
+	}
 
 	rbdMirror := &rookCephv1.CephRBDMirror{}
 	rbdMirror.Name = util.CephRBDMirrorName
