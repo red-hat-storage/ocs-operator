@@ -56,4 +56,3 @@ _cache
 bin
 
 tools/csv-merger/csv-merger
-tools/cluster-deploy/cluster-deploy

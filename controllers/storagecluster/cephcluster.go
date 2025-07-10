@@ -654,6 +654,10 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 	cephCluster.Spec.Security.KeyRotation.Enabled = isEnabled
 	cephCluster.Spec.Security.KeyRotation.Schedule = rotationSchedule
 
+	if sc.Spec.ManagedResources.CephCluster.CleanupPolicy != nil{
+		cephCluster.Spec.CleanupPolicy = *sc.Spec.ManagedResources.CephCluster.CleanupPolicy
+	}
+
 	return cephCluster
 }
 
@@ -1505,14 +1509,17 @@ func setDefaultMetadataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.Storage
 	if poolSpec.FailureDomain == "" {
 		poolSpec.FailureDomain = getFailureDomain(sc)
 	}
-	// Set default replication settings if necessary
-	// Always set the default Size & ReplicasPerFailureDomain in arbiter mode
-	defaultReplicatedSpec := generateCephReplicatedSpec(sc, poolTypeMetadata)
-	if poolSpec.Replicated.Size == 0 || arbiterEnabled(sc) {
-		poolSpec.Replicated.Size = defaultReplicatedSpec.Size
-	}
-	if poolSpec.Replicated.ReplicasPerFailureDomain == 0 || arbiterEnabled(sc) {
-		poolSpec.Replicated.ReplicasPerFailureDomain = defaultReplicatedSpec.ReplicasPerFailureDomain
+	// Set replication spec only if the pool is not erasure coded
+	if reflect.DeepEqual(poolSpec.ErasureCoded, rookCephv1.ErasureCodedSpec{}) {
+		// Set default replication settings if necessary
+		// Always set the default Size & ReplicasPerFailureDomain in arbiter mode
+		defaultReplicatedSpec := generateCephReplicatedSpec(sc, poolTypeMetadata)
+		if poolSpec.Replicated.Size == 0 || arbiterEnabled(sc) {
+			poolSpec.Replicated.Size = defaultReplicatedSpec.Size
+		}
+		if poolSpec.Replicated.ReplicasPerFailureDomain == 0 || arbiterEnabled(sc) {
+			poolSpec.Replicated.ReplicasPerFailureDomain = defaultReplicatedSpec.ReplicasPerFailureDomain
+		}
 	}
 }
 
@@ -1525,17 +1532,20 @@ func setDefaultDataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageClus
 	if poolSpec.FailureDomain == "" {
 		poolSpec.FailureDomain = getFailureDomain(sc)
 	}
-	// Set default replication settings if necessary
-	// Always set the default Size & ReplicasPerFailureDomain in arbiter mode
-	defaultReplicatedSpec := generateCephReplicatedSpec(sc, poolTypeData)
-	if poolSpec.Replicated.Size == 0 || arbiterEnabled(sc) {
-		poolSpec.Replicated.Size = defaultReplicatedSpec.Size
-	}
-	if poolSpec.Replicated.ReplicasPerFailureDomain == 0 || arbiterEnabled(sc) {
-		poolSpec.Replicated.ReplicasPerFailureDomain = defaultReplicatedSpec.ReplicasPerFailureDomain
-	}
-	if poolSpec.Replicated.TargetSizeRatio == 0.0 {
-		poolSpec.Replicated.TargetSizeRatio = defaultReplicatedSpec.TargetSizeRatio
+	// Set replication spec only if the pool is not erasure coded
+	if reflect.DeepEqual(poolSpec.ErasureCoded, rookCephv1.ErasureCodedSpec{}) {
+		// Set default replication settings if necessary
+		// Always set the default Size & ReplicasPerFailureDomain in arbiter mode
+		defaultReplicatedSpec := generateCephReplicatedSpec(sc, poolTypeData)
+		if poolSpec.Replicated.Size == 0 || arbiterEnabled(sc) {
+			poolSpec.Replicated.Size = defaultReplicatedSpec.Size
+		}
+		if poolSpec.Replicated.ReplicasPerFailureDomain == 0 || arbiterEnabled(sc) {
+			poolSpec.Replicated.ReplicasPerFailureDomain = defaultReplicatedSpec.ReplicasPerFailureDomain
+		}
+		if poolSpec.Replicated.TargetSizeRatio == 0.0 {
+			poolSpec.Replicated.TargetSizeRatio = defaultReplicatedSpec.TargetSizeRatio
+		}
 	}
 }
 
