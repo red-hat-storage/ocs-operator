@@ -260,7 +260,9 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 	for scName := range maps.Keys(storageClassNames) {
 		// TODO: store the spec as the value which allows each value to be customizable corresponding to the name,
 		// not doing now as we only have name in the storageclassspec
-		scSpec = append(scSpec, ocsv1a1.StorageClassSpec{Name: scName})
+		scItem := ocsv1a1.StorageClassSpec{}
+		scItem.Name = scName
+		scSpec = append(scSpec, scItem)
 	}
 	return scSpec, nil
 }
@@ -294,7 +296,9 @@ func getLocalVolumeSnapshotClassNames(ctx context.Context, kubeClient client.Cli
 
 	vscSpec := make([]ocsv1a1.VolumeSnapshotClassSpec, 0, len(volumeSnapshotClassNames))
 	for vscName := range maps.Keys(volumeSnapshotClassNames) {
-		vscSpec = append(vscSpec, ocsv1a1.VolumeSnapshotClassSpec{Name: vscName})
+		vscItem := ocsv1a1.VolumeSnapshotClassSpec{}
+		vscItem.Name = vscName
+		vscSpec = append(vscSpec, vscItem)
 	}
 	return vscSpec, nil
 }
@@ -331,8 +335,10 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 	}
 
 	vgscSpec := make([]ocsv1a1.VolumeGroupSnapshotClassSpec, 0, len(volumeGroupSnapshotClassNames))
-	for vscName := range maps.Keys(volumeGroupSnapshotClassNames) {
-		vgscSpec = append(vgscSpec, ocsv1a1.VolumeGroupSnapshotClassSpec{Name: vscName})
+	for vgscName := range maps.Keys(volumeGroupSnapshotClassNames) {
+		vgscItem := ocsv1a1.VolumeGroupSnapshotClassSpec{}
+		vgscItem.Name = vgscName
+		vgscSpec = append(vgscSpec, vgscItem)
 	}
 	return vgscSpec, nil
 }
