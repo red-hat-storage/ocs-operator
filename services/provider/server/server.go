@@ -212,7 +212,14 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 	case ocsv1alpha1.StorageConsumerStateDeleting:
 		return nil, status.Errorf(codes.NotFound, "storageConsumer is already in deleting phase")
 	case ocsv1alpha1.StorageConsumerStateReady:
-		kubeResources, err := s.getKubeResources(ctx, consumerObj)
+
+		consumerConfig, err := s.getConsumerConfig(ctx, consumerObj.Status.ResourceNameMappingConfigMap.Name, consumerObj.Namespace)
+		if err != nil {
+			klog.Errorf("failed to get consumer config: %v", err)
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+
+		kubeResources, err := s.getKubeResources(ctx, consumerObj, consumerConfig)
 		if err != nil {
 			klog.Errorf("failed to get kube resources: %v", err)
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
@@ -349,7 +356,14 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 	case ocsv1alpha1.StorageConsumerStateDeleting:
 		return nil, status.Errorf(codes.NotFound, "StorageConsumer is in deleting phase")
 	case ocsv1alpha1.StorageConsumerStateReady:
-		kubeResources, err := s.getKubeResources(ctx, consumer)
+
+		consumerConfig, err := s.getConsumerConfig(ctx, consumer.Status.ResourceNameMappingConfigMap.Name, consumer.Namespace)
+		if err != nil {
+			klog.Errorf("failed to get consumer config: %v", err)
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+
+		kubeResources, err := s.getKubeResources(ctx, consumer, consumerConfig)
 		if err != nil {
 			klog.Errorf("failed to get kube resources: %v", err)
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
@@ -405,6 +419,21 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 		}
 
+		isRbdDriverEnabled := consumerConfig.GetRbdClientProfileName() != ""
+		if isRbdDriverEnabled {
+			response.RbdDriverRequirements = &pb.RbdDriverRequirements{}
+		}
+
+		isCephFsDriverEnabled := consumerConfig.GetCephFsClientProfileName() != ""
+		if isCephFsDriverEnabled {
+			response.CephFsDriverRequirements = &pb.CephFsDriverRequirements{}
+		}
+
+		isNfsDriverEnabled := consumerConfig.GetNfsClientProfileName() != ""
+		if isNfsDriverEnabled {
+			response.NfsDriverRequirements = &pb.NfsDriverRequirements{}
+		}
+
 		topologyKey := consumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
 		if topologyKey != "" {
 			response.RbdDriverRequirements = &pb.RbdDriverRequirements{
@@ -420,6 +449,9 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
 			topologyKey,
+			isRbdDriverEnabled,
+			isCephFsDriverEnabled,
+			isNfsDriverEnabled,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -681,6 +713,14 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 	}
 
 	topologyKey := storageConsumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
+	consumerConfig, err := s.getConsumerConfig(ctx, storageConsumer.Status.ResourceNameMappingConfigMap.Name, storageConsumer.Namespace)
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
+	}
+	isRbdDriverEnabled := consumerConfig.GetRbdClientProfileName() != ""
+	isCephFsDriverEnabled := consumerConfig.GetCephFsClientProfileName() != ""
+	isNfsDriverEnabled := consumerConfig.GetNfsClientProfileName() != ""
 
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
@@ -690,6 +730,9 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
 		topologyKey,
+		isRbdDriverEnabled,
+		isCephFsDriverEnabled,
+		isNfsDriverEnabled,
 	)
 
 	return &pb.ReportStatusResponse{
@@ -1091,22 +1134,7 @@ func calculateCephFsStorageID(cephfsid, subVolumeGroupName string) string {
 	return util.CalculateMD5Hash([2]string{cephfsid, subVolumeGroupName})
 }
 
-func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) ([]client.Object, error) {
-
-	consumerConfigMap := &v1.ConfigMap{}
-	if consumer.Status.ResourceNameMappingConfigMap.Name == "" {
-		return nil, fmt.Errorf("waiting for ResourceNameMappingConfig to be generated")
-	}
-	consumerConfigMap.Name = consumer.Status.ResourceNameMappingConfigMap.Name
-	consumerConfigMap.Namespace = consumer.Namespace
-	err := s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get %s configMap. %v", consumerConfigMap.Name, err)
-	}
-	if consumerConfigMap.Data == nil {
-		return nil, fmt.Errorf("waiting StorageConsumer ResourceNameMappingConfig to be generated")
-	}
-	consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer, consumerConfig util.StorageConsumerResources) ([]client.Object, error) {
 
 	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 	if err != nil {
@@ -2006,4 +2034,22 @@ func zeroFieldByName(obj any, fieldName string) {
 	if field.CanSet() {
 		field.SetZero()
 	}
+}
+
+func (s *OCSProviderServer) getConsumerConfig(ctx context.Context, resourceNameMappingConfigMapName, namespace string) (util.StorageConsumerResources, error) {
+	consumerConfigMap := &v1.ConfigMap{}
+	if resourceNameMappingConfigMapName == "" {
+		return nil, fmt.Errorf("waiting for ResourceNameMappingConfig to be generated")
+	}
+	consumerConfigMap.Name = resourceNameMappingConfigMapName
+	consumerConfigMap.Namespace = namespace
+	err := s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get %s configMap. %v", consumerConfigMap.Name, err)
+	}
+	if consumerConfigMap.Data == nil {
+		return nil, fmt.Errorf("waiting for ResourceNameMappingConfig to be generated")
+	}
+	consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+	return consumerConfig, nil
 }
