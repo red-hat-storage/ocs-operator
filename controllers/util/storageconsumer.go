@@ -1,16 +1,18 @@
 package util
 
 import (
+	"cmp"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"k8s.io/apimachinery/pkg/types"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -83,6 +85,12 @@ type StorageConsumerResources interface {
 	ReplaceRbdClientProfileName(string)
 	ReplaceCephFsClientProfileName(string)
 	ReplaceNfsClientProfileName(string)
+}
+
+type CommonClassEntries interface {
+	GetName() string
+	GetRename() string
+	GetAliases() []string
 }
 
 type storageConsumerResourceMapWrapper struct {
@@ -382,6 +390,31 @@ func FillBackwardCompatibleConsumerConfigValues(
 // GetStorageRequestName generates a name for a StorageRequest resource.
 func GetStorageRequestName(consumerUUID, storageClaimName string) string {
 	return fmt.Sprintf("storagerequest-%s", getStorageRequestHash(consumerUUID, storageClaimName))
+}
+
+func GetDestToSrcClassMapping[T CommonClassEntries](entries []T) map[string]string {
+	destToSrcClass := map[string]string{}
+	for i := len(entries) - 1; i >= 0; i-- {
+		src := entries[i].GetName()
+		for _, alias := range entries[i].GetAliases() {
+			destToSrcClass[alias] = src
+		}
+	}
+
+	for i := len(entries) - 1; i >= 0; i-- {
+		clsSpec := entries[i]
+		destToSrcClass[cmp.Or(clsSpec.GetRename(), clsSpec.GetName())] = clsSpec.GetName()
+	}
+
+	return destToSrcClass
+}
+
+func GetSrcIdxMapping[T CommonClassEntries](entries []T) map[string]int {
+	srcIdxMapping := map[string]int{}
+	for idx, spec := range entries {
+		srcIdxMapping[spec.GetName()] = idx
+	}
+	return srcIdxMapping
 }
 
 // getStorageRequestHash generates a hash for a StorageRequest based
