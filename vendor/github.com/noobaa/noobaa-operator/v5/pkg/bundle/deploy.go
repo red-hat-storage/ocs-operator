@@ -1,6 +1,6 @@
 package bundle
 
-const Version = "5.19.0"
+const Version = "5.20.0"
 
 const Sha256_deploy_cluster_role_yaml = "31fc622ff7fa66617be3895bddcb6cfdb97883b75b20bdb2bf04052bd14221a8"
 
@@ -1423,7 +1423,7 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_noobaas_yaml = "1637077ca2e0d584cd4203469f809b215af45ee4ba5358a283bbd7a5bf1b573e"
+const Sha256_deploy_crds_noobaa_io_noobaas_yaml = "9aed761f69a7c552dd6c2dfc558fd055d6c236765a0728b9a39abf289827668f"
 
 const File_deploy_crds_noobaa_io_noobaas_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
@@ -2411,6 +2411,11 @@ spec:
                         type: array
                         x-kubernetes-list-type: atomic
                     type: object
+                  topologyKey:
+                    description: |-
+                      TopologyKey (optional) the TopologyKey to pass as the domain for TopologySpreadConstraint and Affinity of noobaa components
+                      It is used by the endpoints and the DB pods to control pods distribution between topology domains (host/zone)
+                    type: string
                 type: object
               annotations:
                 additionalProperties:
@@ -3980,7 +3985,7 @@ data:
     shared_preload_libraries = 'pg_stat_statements'
 `
 
-const Sha256_deploy_internal_deployment_endpoint_yaml = "e76dc7c81a02fb396263e61311b2bc0d765f32377d1b9d2ec3f435fced2fb0c3"
+const Sha256_deploy_internal_deployment_endpoint_yaml = "8cd3ac9930997965ab9fef72cbbe8bda1474f848ee8bfe2ee9af8fc6ea58dd69"
 
 const File_deploy_internal_deployment_endpoint_yaml = `apiVersion: apps/v1
 kind: Deployment
@@ -4006,7 +4011,7 @@ spec:
       annotations:
         noobaa.io/configmap-hash: ""
     spec:
-        # Notice that changing the serviceAccountName would need to update existing AWS STS role trust policy for customers
+      # Notice that changing the serviceAccountName would need to update existing AWS STS role trust policy for customers
       serviceAccountName: noobaa-endpoint
       volumes:
         - name: mgmt-secret
@@ -4081,6 +4086,16 @@ spec:
                 configMapKeyRef:
                   name: noobaa-config
                   key: NOOBAA_LOG_COLOR
+            - name: NOOBAA_METRICS_AUTH_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: noobaa-config
+                  key: NOOBAA_METRICS_AUTH_ENABLED
+            - name: NOOBAA_VERSION_AUTH_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: noobaa-config
+                  key: NOOBAA_VERSION_AUTH_ENABLED
             - name: MGMT_ADDR
             - name: SYSLOG_ADDR
             - name: BG_ADDR
@@ -4090,12 +4105,16 @@ spec:
             - name: POSTGRES_HOST
             - name: POSTGRES_PORT
             - name: POSTGRES_DBNAME
-              value: nbcore
             - name: POSTGRES_USER
             - name: POSTGRES_PASSWORD
             - name: POSTGRES_CONNECTION_STRING
             - name: POSTGRES_SSL_REQUIRED
             - name: POSTGRES_SSL_UNAUTHORIZED
+            - name: POSTGRES_HOST_PATH
+            - name: POSTGRES_USER_PATH
+            - name: POSTGRES_PASSWORD_PATH
+            - name: POSTGRES_DBNAME_PATH
+            - name: POSTGRES_PORT_PATH
             - name: VIRTUAL_HOSTS
             - name: REGION
             - name: ENDPOINT_GROUP_ID
@@ -5040,7 +5059,7 @@ spec:
       noobaa-s3-svc: "true"
 `
 
-const Sha256_deploy_internal_statefulset_core_yaml = "14226b25028637a7176dbdb4a6fa6e90a9e63cddd5f39cbe0c044f433b0a4764"
+const Sha256_deploy_internal_statefulset_core_yaml = "40aefcf8dbd77e40dfcbe3db3725b56a832c8a81c282c6ba4adc98ce8a65d470"
 
 const File_deploy_internal_statefulset_core_yaml = `apiVersion: apps/v1
 kind: StatefulSet
@@ -5065,7 +5084,7 @@ spec:
       annotations:
         noobaa.io/configmap-hash: ""
     spec:
-    # Notice that changing the serviceAccountName would need to update existing AWS STS role trust policy for customers
+      # Notice that changing the serviceAccountName would need to update existing AWS STS role trust policy for customers
       serviceAccountName: noobaa-core
       volumes:
         - name: logs
@@ -5095,6 +5114,11 @@ spec:
         # CORE CONTAINER #
         #----------------#
         - name: core
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
           image: NOOBAA_CORE_IMAGE
           volumeMounts:
             - name: logs
@@ -5145,16 +5169,30 @@ spec:
                 configMapKeyRef:
                   name: noobaa-config
                   key: NOOBAA_LOG_COLOR
+            - name: NOOBAA_METRICS_AUTH_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: noobaa-config
+                  key: NOOBAA_METRICS_AUTH_ENABLED
+            - name: NOOBAA_VERSION_AUTH_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: noobaa-config
+                  key: NOOBAA_VERSION_AUTH_ENABLED
             - name: POSTGRES_HOST
               value: "noobaa-db-pg-0.noobaa-db-pg"
             - name: POSTGRES_PORT
             - name: POSTGRES_DBNAME
-              value: nbcore
             - name: POSTGRES_USER
             - name: POSTGRES_PASSWORD
             - name: POSTGRES_CONNECTION_STRING
             - name: POSTGRES_SSL_REQUIRED
             - name: POSTGRES_SSL_UNAUTHORIZED
+            - name: POSTGRES_HOST_PATH
+            - name: POSTGRES_USER_PATH
+            - name: POSTGRES_PASSWORD_PATH
+            - name: POSTGRES_DBNAME_PATH
+            - name: POSTGRES_PORT_PATH
             - name: GUARANTEED_LOGS_PATH
             - name: DB_TYPE
               value: postgres
@@ -6115,7 +6153,7 @@ spec:
   sourceNamespace: default
 `
 
-const Sha256_deploy_operator_yaml = "5399fbfcd1c421acd978f2762d6f8c5048d68fb3c5acc79a595d62cd035a3bc0"
+const Sha256_deploy_operator_yaml = "aa8da1c289a05b3c94b9393b04307d38814a67625ac6a8006dace4d09366f35b"
 
 const File_deploy_operator_yaml = `apiVersion: apps/v1
 kind: Deployment
@@ -6173,6 +6211,9 @@ spec:
             limits:
               cpu: "250m"
               memory: "512Mi"
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
           env:
             - name: OPERATOR_NAME
               value: noobaa-operator

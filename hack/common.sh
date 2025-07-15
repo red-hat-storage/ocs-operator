@@ -24,7 +24,7 @@ BUNDLEMANIFESTS_DIR="rbac"
 # External images used in CSV generation
 LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-068aaaedb" # Using downstream rook image as it contains downstream-only changes
 LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v19.2.1" # Ref-https://github.com/rook/rook/blob/master/deploy/examples/images.txt#L3
-LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20250701"
+LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20250715"
 LATEST_NOOBAA_DB_IMAGE="quay.io/sclorg/postgresql-15-c9s" # Ref-https://github.com/noobaa/noobaa-operator/blob/5da5c26e9f126c488445d7d9f9326cf676bdd0ea/pkg/options/options.go#L73-L75
 KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1"
 UX_BACKEND_OAUTH_FULL_IMAGE_NAME="quay.io/openshift/origin-oauth-proxy:4.19.0"
@@ -44,7 +44,7 @@ METRICS_EXPORTER_FULL_IMAGE_NAME="${METRICS_EXPORTER_FULL_IMAGE_NAME:=${IMAGE_RE
 BUNDLE_FULL_IMAGE_NAME="${BUNDLE_FULL_IMAGE_NAME:=${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${OPERATOR_BUNDLE_IMAGE_NAME}:${IMAGE_TAG}}"
 
 # Bundle images of Dependencies of OCS Operator
-NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20250701"
+NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20250715"
 ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-068aaaedb"
 OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-02e2518"
 # Below bundles are dependencies of ocs-client-operator, Ref- https://github.com/red-hat-storage/ocs-client-operator/blob/main/bundle/metadata/dependencies.yaml
