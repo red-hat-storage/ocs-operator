@@ -75,6 +75,18 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		spec.ResourceNameMappingConfigMap.Name = defaults.LocalStorageConsumerConfigMapName
 		spec.StorageClasses = storageClassesSpec
 		spec.VolumeSnapshotClasses = volumeSnapshotClassesSpec
+		// TODO: this is to support upgraded 4.18 provider mode cluster and should be retired in 4.20
+		if dfVersion := storageConsumer.GetLabels()[util.CreatedAtDfVersionLabelKey]; dfVersion == "4.18" {
+			for idx := range spec.VolumeSnapshotClasses {
+				classSpec := &spec.VolumeSnapshotClasses[idx]
+				switch classSpec.Name {
+				case util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter):
+					classSpec.Aliases = append(classSpec.Aliases, fmt.Sprintf("%s-ceph-rbd", storageCluster.Name))
+				case util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter):
+					classSpec.Aliases = append(classSpec.Aliases, fmt.Sprintf("%s-cephfs", storageCluster.Name))
+				}
+			}
+		}
 		spec.VolumeGroupSnapshotClasses = volumeGroupSnapshotClassesSpec
 
 		controllerutil.AddFinalizer(storageConsumer, internalComponentFinalizer)
