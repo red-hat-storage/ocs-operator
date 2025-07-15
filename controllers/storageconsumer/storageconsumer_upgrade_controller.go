@@ -319,17 +319,31 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageConsumer(
 		spec := &storageConsumer.Spec
 		spec.ResourceNameMappingConfigMap.Name = consumerConfigMapName
 
+		rbdStorageClassSpec := ocsv1alpha1.StorageClassSpec{}
+		rbdStorageClassSpec.Name = util.GenerateNameForCephBlockPoolStorageClass(storageCluster)
+		cephFsStorageClassSpec := ocsv1alpha1.StorageClassSpec{}
+		cephFsStorageClassSpec.Name = util.GenerateNameForCephFilesystemStorageClass(storageCluster)
 		spec.StorageClasses = []ocsv1alpha1.StorageClassSpec{
-			{Name: util.GenerateNameForCephBlockPoolStorageClass(storageCluster)},
-			{Name: util.GenerateNameForCephFilesystemStorageClass(storageCluster)},
+			rbdStorageClassSpec,
+			cephFsStorageClassSpec,
 		}
+
+		rbdSnapClassSpec := ocsv1alpha1.VolumeSnapshotClassSpec{}
+		rbdSnapClassSpec.Name = util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)
+		cephFsSnapClassSpec := ocsv1alpha1.VolumeSnapshotClassSpec{}
+		cephFsSnapClassSpec.Name = util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)
 		spec.VolumeSnapshotClasses = []ocsv1alpha1.VolumeSnapshotClassSpec{
-			{Name: util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)},
-			{Name: util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)},
+			rbdSnapClassSpec,
+			cephFsSnapClassSpec,
 		}
+
+		rbdGroupSnapClassSpec := ocsv1alpha1.VolumeGroupSnapshotClassSpec{}
+		rbdGroupSnapClassSpec.Name = util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)
+		cephFsGroupSnapClassSpec := ocsv1alpha1.VolumeGroupSnapshotClassSpec{}
+		cephFsGroupSnapClassSpec.Name = util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)
 		spec.VolumeGroupSnapshotClasses = []ocsv1alpha1.VolumeGroupSnapshotClassSpec{
-			{Name: util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)},
-			{Name: util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)},
+			rbdGroupSnapClassSpec,
+			cephFsGroupSnapClassSpec,
 		}
 		delete(storageConsumer.GetAnnotations(), util.TicketAnnotation)
 		return nil
