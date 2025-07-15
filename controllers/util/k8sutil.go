@@ -58,9 +58,9 @@ const (
 	EnableCephfsKey             = "ROOK_CSI_ENABLE_CEPHFS"
 
 	// This is the name for the FieldIndex
-	OwnerUIDIndexName   = "ownerUID"
-	AnnotationIndexName = "annotation"
-	ObjectUidIndexName  = "objectUID"
+	OwnerUIDIndexName   = "index:ownerUID"
+	AnnotationIndexName = "index:annotation"
+	ObjectUidIndexName  = "index:objectUID"
 
 	OdfInfoNamespacedNameClaimName = "odfinfo.odf.openshift.io"
 
