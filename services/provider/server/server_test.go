@@ -3,6 +3,12 @@ package server
 import (
 	"reflect"
 	"testing"
+
+	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestReplaceMsgr1PortWithMsgr2(t *testing.T) {
@@ -46,6 +52,65 @@ func TestReplaceMsgr1PortWithMsgr2(t *testing.T) {
 			replaceMsgr1PortWithMsgr2(inputCopy)
 			if !reflect.DeepEqual(inputCopy, tt.expected) {
 				t.Errorf("replaceMsgr1PortWithMsgr2() = %v, expected %v", inputCopy, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetKubeResourcesForClass(t *testing.T) {
+	srcClassName := "class-a"
+
+	srcSc := &storagev1.StorageClass{}
+	srcSc.Name = srcClassName
+	srcSc.Parameters = map[string]string{
+		"key1": "val1",
+		"keyn": "valn",
+	}
+	srcSc.Provisioner = "whoami"
+	srcSc.MountOptions = []string{"mount", "secretly"}
+
+	consumer := &ocsv1a1.StorageConsumer{}
+	classItem := ocsv1a1.StorageClassSpec{}
+	classItem.Name = srcClassName
+	classItem.Aliases = append(classItem.Aliases, "class-1", "class-2")
+	consumer.Spec.StorageClasses = append(
+		consumer.Spec.StorageClasses,
+		classItem,
+	)
+	genClassFn := func(srcName string) (client.Object, error) {
+		return srcSc, nil
+	}
+
+	objs := getKubeResourcesForClass(
+		consumer.Spec.StorageClasses,
+		"StorageClass",
+		genClassFn,
+	)
+
+	// class-a, class-1 and class-2
+	wantObjs := 3
+	if gotObjs := len(objs); gotObjs != wantObjs {
+		t.Fatalf("expected %d objects, got %d", wantObjs, gotObjs)
+	}
+
+	objIdxByName := make(map[string]int, len(objs))
+	for idx, obj := range objs {
+		objIdxByName[obj.GetName()] = idx
+	}
+
+	for _, expName := range []string{"class-1", "class-2"} {
+		t.Run(expName, func(t *testing.T) {
+			wantObj := srcSc.DeepCopy()
+			wantObj.Name = expName
+			idx, exist := objIdxByName[wantObj.Name]
+			if !exist {
+				t.Fatalf("expected storageclass with name %s to exist", wantObj.Name)
+			}
+			gotObj := objs[idx]
+			// except the name the whole object should be deep equal
+			wantObj.Name = expName
+			if !equality.Semantic.DeepEqual(gotObj, wantObj) {
+				t.Fatalf("expected %v to be deep equal to %v", gotObj, wantObj)
 			}
 		})
 	}

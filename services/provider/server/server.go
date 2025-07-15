@@ -1,6 +1,7 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"crypto"
 	"crypto/rsa"
@@ -83,6 +84,12 @@ var (
 	knownOcsSubscriptionChannelName string
 	ocsSubChannelAndCsvMutex        sync.Mutex
 )
+
+type CommonClassSpecAccessors interface {
+	GetName() string
+	GetRename() string
+	GetAliases() []string
+}
 
 type OCSProviderServer struct {
 	pb.UnimplementedOCSProviderServer
@@ -1594,38 +1601,29 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 			)
 		}
 	}
-	for i := range consumer.Spec.StorageClasses {
-		var storageClass *storagev1.StorageClass
-		var err error
-		storageClassName := consumer.Spec.StorageClasses[i].Name
-		scGen := scMap[storageClassName]
-		if scGen != nil {
-			storageClass = scGen()
-			storageClass.Name = storageClassName
-		} else {
-			storageClass, err = util.StorageClassFromExisting(
-				ctx,
-				s.client,
-				storageClassName,
-				consumer,
-				consumerConfig,
-				rbdStorageId,
-				cephFsStorageId,
-				cephFsStorageId,
-			)
-		}
-		if kerrors.IsNotFound(err) {
-			klog.Warningf("StorageClass with name %s doesn't exist in the cluster", storageClassName)
-		} else if errors.Is(err, util.UnsupportedProvisioner) {
-			klog.Warningf("Encountered unsupported provisioner in storage class %s", storageClassName)
-		} else if storageClass == nil {
-			klog.Warningf("The name %s does not points to a builtin or an existing storage class, skipping", storageClassName)
-		} else if storageClass.Labels[util.ExternalClassLabelKey] == "true" {
-			klog.Warningf("The storage class %s is an external storage class, skipping", storageClassName)
-		} else {
-			kubeResources = append(kubeResources, storageClass)
-		}
-	}
+
+	resources := getKubeResourcesForClass(
+		consumer.Spec.StorageClasses,
+		"StorageClass",
+		func(scName string) (client.Object, error) {
+			if scGen, fnExist := scMap[scName]; fnExist {
+				return scGen(), nil
+			} else {
+				return util.StorageClassFromExisting(
+					ctx,
+					s.client,
+					scName,
+					consumer,
+					consumerConfig,
+					rbdStorageId,
+					cephFsStorageId,
+					cephFsStorageId,
+				)
+			}
+		},
+	)
+	kubeResources = append(kubeResources, resources...)
+
 	return kubeResources, nil
 }
 
@@ -1668,38 +1666,29 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 			)
 		}
 	}
-	for i := range consumer.Spec.VolumeSnapshotClasses {
-		var snapshotClass *snapapi.VolumeSnapshotClass
-		var err error
-		snapshotClassName := consumer.Spec.VolumeSnapshotClasses[i].Name
-		vscGen := vscMap[snapshotClassName]
-		if vscGen != nil {
-			snapshotClass = vscGen()
-			snapshotClass.Name = snapshotClassName
-		} else {
-			snapshotClass, err = util.VolumeSnapshotClassFromExisting(
-				ctx,
-				s.client,
-				snapshotClassName,
-				consumer,
-				consumerConfig,
-				rbdStorageId,
-				cephFsStorageId,
-				cephFsStorageId,
-			)
-		}
-		if kerrors.IsNotFound(err) {
-			klog.Warningf("VolumeSnapshotClass with name %s doesn't exist in the cluster", snapshotClassName)
-		} else if errors.Is(err, util.UnsupportedDriver) {
-			klog.Warningf("Encountered unsupported driver in volume snapshot class %s", snapshotClassName)
-		} else if snapshotClass == nil {
-			klog.Warningf("The name %s does not points to a builtin or an existing volumesnapshot class, skipping", snapshotClassName)
-		} else if snapshotClass.Labels[util.ExternalClassLabelKey] == "true" {
-			klog.Warningf("The snapshot class %s is an external storage class, skipping", snapshotClassName)
-		} else {
-			kubeResources = append(kubeResources, snapshotClass)
-		}
-	}
+
+	resources := getKubeResourcesForClass(
+		consumer.Spec.VolumeSnapshotClasses,
+		"VolumeSnapshotClass",
+		func(vscName string) (client.Object, error) {
+			if vscGen, fnExist := vscMap[vscName]; fnExist {
+				return vscGen(), nil
+			} else {
+				return util.VolumeSnapshotClassFromExisting(
+					ctx,
+					s.client,
+					vscName,
+					consumer,
+					consumerConfig,
+					rbdStorageId,
+					cephFsStorageId,
+					cephFsStorageId,
+				)
+			}
+		},
+	)
+	kubeResources = append(kubeResources, resources...)
+
 	return kubeResources, nil
 }
 
@@ -1735,38 +1724,29 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 			)
 		}
 	}
-	for i := range consumer.Spec.VolumeGroupSnapshotClasses {
-		var groupSnapshotClass *groupsnapapi.VolumeGroupSnapshotClass
-		var err error
-		groupSnapshotClassName := consumer.Spec.VolumeGroupSnapshotClasses[i].Name
-		vgscGen := vgscMap[groupSnapshotClassName]
-		if vgscGen != nil {
-			groupSnapshotClass = vgscGen()
-			groupSnapshotClass.Name = groupSnapshotClassName
-		} else {
-			groupSnapshotClass, err = util.VolumeGroupSnapshotClassFromExisting(
-				ctx,
-				s.client,
-				groupSnapshotClassName,
-				consumer,
-				consumerConfig,
-				rbdStorageId,
-				cephFsStorageId,
-				cephFsStorageId,
-			)
-		}
-		if kerrors.IsNotFound(err) {
-			klog.Warningf("VolumeGroupSnapshotClass with name %s doesn't exist in the cluster", groupSnapshotClassName)
-		} else if errors.Is(err, util.UnsupportedDriver) {
-			klog.Warningf("Encountered unsupported driver in volume group snapshot class %s", groupSnapshotClassName)
-		} else if groupSnapshotClass == nil {
-			klog.Warningf("The name %s does not points to a builtin or an existing volume group snapshot class, skipping", groupSnapshotClassName)
-		} else if groupSnapshotClass.Labels[util.ExternalClassLabelKey] == "true" {
-			klog.Warningf("The groupSnapshot class %s is an external storage class, skipping", groupSnapshotClassName)
-		} else {
-			kubeResources = append(kubeResources, groupSnapshotClass)
-		}
-	}
+
+	resources := getKubeResourcesForClass(
+		consumer.Spec.VolumeGroupSnapshotClasses,
+		"VolumeGroupSnapshotClass",
+		func(vgscName string) (client.Object, error) {
+			if vgscGen, fnExist := vgscMap[vgscName]; fnExist {
+				return vgscGen(), nil
+			} else {
+				return util.VolumeGroupSnapshotClassFromExisting(
+					ctx,
+					s.client,
+					vgscName,
+					consumer,
+					consumerConfig,
+					rbdStorageId,
+					cephFsStorageId,
+					cephFsStorageId,
+				)
+			}
+		},
+	)
+	kubeResources = append(kubeResources, resources...)
+
 	return kubeResources, nil
 }
 
@@ -2006,4 +1986,50 @@ func zeroFieldByName(obj any, fieldName string) {
 	if field.CanSet() {
 		field.SetZero()
 	}
+}
+
+func getKubeResourcesForClass[T CommonClassSpecAccessors](
+	classList []T,
+	classDisplayName string,
+	genClassKubeObjFn func(string) (client.Object, error),
+) []client.Object {
+	classNameMapping := map[string]string{}
+	for i := len(classList) - 1; i >= 0; i-- {
+		src := classList[i].GetName()
+		for _, alias := range classList[i].GetAliases() {
+			classNameMapping[alias] = src
+		}
+	}
+
+	for i := len(classList) - 1; i >= 0; i-- {
+		clsSpec := classList[i]
+		classNameMapping[cmp.Or(clsSpec.GetRename(), clsSpec.GetName())] = clsSpec.GetName()
+	}
+
+	kubeResources := []client.Object{}
+	srcClassCache := map[string]client.Object{}
+	for destName, srcName := range classNameMapping {
+		var srcKubeObj client.Object
+		if srcKubeObj = srcClassCache[srcName]; srcKubeObj == nil {
+			var err error
+			srcKubeObj, err = genClassKubeObjFn(srcName)
+			if kerrors.IsNotFound(err) {
+				klog.Warningf("%s with name %s doesn't exist in the cluster", classDisplayName, srcName)
+			} else if errors.Is(err, util.UnsupportedProvisioner) {
+				klog.Warningf("Encountered unsupported provisioner in %s: %s", classDisplayName, srcName)
+			} else if srcKubeObj == nil {
+				klog.Warningf("The name %s does not points to a builtin or an existing %s, skipping", classDisplayName, srcName)
+			} else if srcKubeObj.GetLabels()[util.ExternalClassLabelKey] == "true" {
+				klog.Warningf("The %s is an external %s, skipping", srcName, classDisplayName)
+			} else {
+				srcClassCache[srcName] = srcKubeObj
+			}
+		}
+		if srcKubeObj != nil {
+			distKubeObj := srcKubeObj.DeepCopyObject().(client.Object)
+			distKubeObj.SetName(destName)
+			kubeResources = append(kubeResources, distKubeObj)
+		}
+	}
+	return kubeResources
 }
