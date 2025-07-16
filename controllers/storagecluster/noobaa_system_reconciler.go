@@ -182,7 +182,13 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 	if !r.IsNoobaaStandalone || ok {
 		// Add affinity if not in noobaa-standalone mode or if placement is specified
-		nb.Spec.Affinity = &corev1.Affinity{NodeAffinity: placement.NodeAffinity}
+		nb.Spec.Affinity = &nbv1.AffinitySpec{NodeAffinity: placement.NodeAffinity}
+		topologyMap := sc.Status.NodeTopologies
+		if topologyMap != nil {
+			topologyKey := getFailureDomain(sc)
+			topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
+			nb.Spec.Affinity.TopologyKey = topologyKey
+		}
 	} else if nb.Spec.Affinity != nil {
 		// Clear the affinity if it was set previously to handle upgrades
 		nb.Spec.Affinity = nil
