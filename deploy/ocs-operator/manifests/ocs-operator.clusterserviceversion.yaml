@@ -650,6 +650,8 @@ spec:
                   value: quay.io/ocs-dev/ocs-operator:latest
                 - name: ONBOARDING_VALIDATION_KEYS_GENERATOR_IMAGE
                   value: quay.io/ocs-dev/ocs-operator:latest
+                - name: DESIRED_CEPHX_KEY_GEN
+                  value: "2"
                 - name: OPERATOR_NAMESPACE
                   valueFrom:
                     fieldRef:
