@@ -270,6 +270,8 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 
 	err := os.Setenv("OPERATOR_NAMESPACE", cr.Namespace)
 	assert.NoError(t, err)
+	err = os.Setenv(keyRotationCounterEnvVarName, "2")
+	assert.NoError(t, err)
 	result, err := reconciler.Reconcile(context.TODO(), requestOCSInit)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)

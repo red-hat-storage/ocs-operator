@@ -91,3 +91,5 @@ PROTOC_GEN_GO_GRPC="${GRPC_BIN}/protoc-gen-go-grpc"
 
 # gRPC services
 SERVICES=("provider")
+
+KEY_ROTATION_COUNTER="${KEY_ROTATION_COUNTER:-2}"
