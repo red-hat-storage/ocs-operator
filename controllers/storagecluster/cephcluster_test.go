@@ -220,6 +220,7 @@ func TestCephClusterMonTimeout(t *testing.T) {
 }
 
 func TestNewCephClusterMonData(t *testing.T) {
+	t.Setenv(desiredCephxKeyGenEnvVarName, "2")
 	// if both monPVCTemplate and monDataDirHostPath is provided via storageCluster
 	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
@@ -1268,6 +1269,7 @@ func TestGetCephClusterMonitoringLabels(t *testing.T) {
 }
 
 func TestLogCollector(t *testing.T) {
+	t.Setenv(desiredCephxKeyGenEnvVarName, "2")
 	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	maxLogSize := resource.MustParse("500Mi")
@@ -1299,6 +1301,7 @@ func TestLogCollector(t *testing.T) {
 }
 
 func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
+	t.Setenv(desiredCephxKeyGenEnvVarName, "2")
 	testTable := []struct {
 		desc   string
 		scSpec ocsv1.StorageClusterSpec
@@ -1535,6 +1538,7 @@ func TestEnsureRDRMigration(t *testing.T) {
 }
 
 func TestEnsureUpgradeReliabilityParams(t *testing.T) {
+	t.Setenv(desiredCephxKeyGenEnvVarName, "2")
 	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
@@ -1555,6 +1559,7 @@ func TestEnsureUpgradeReliabilityParams(t *testing.T) {
 }
 
 func TestHealthCheckConfiguration(t *testing.T) {
+	t.Setenv(desiredCephxKeyGenEnvVarName, "2")
 	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	interval := metav1.Duration{
