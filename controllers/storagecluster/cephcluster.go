@@ -55,6 +55,10 @@ const (
 	poolTypeMetadata = "metadata"
 )
 
+const (
+	desiredCephxKeyGenEnvVarName = "DESIRED_CEPHX_KEY_GEN"
+)
+
 type knownDiskType struct {
 	speed            diskSpeed
 	provisioner      StorageClassProvisionerType
@@ -259,9 +263,15 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 					return reconcile.Result{}, err
 				}
 			}
-			cephCluster = newCephCluster(sc, r.images.Ceph, kmsConfigMap, r.Log)
+			cephCluster, err = newCephCluster(sc, r.images.Ceph, kmsConfigMap, r.Log)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		} else {
-			cephCluster = newCephCluster(sc, r.images.Ceph, nil, r.Log)
+			cephCluster, err = newCephCluster(sc, r.images.Ceph, nil, r.Log)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 	}
 
@@ -479,7 +489,7 @@ func getCephClusterMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) *rookCephv1.CephCluster {
+func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) (*rookCephv1.CephCluster, error) {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -490,6 +500,23 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 		Enabled:     true,
 		Periodicity: "daily",
 		MaxLogSize:  &maxLogSize,
+	}
+
+	desiredCephxKeyGenAsString := util.MustGetEnv(desiredCephxKeyGenEnvVarName)
+	desiredCephxKeyGen, err := strconv.Atoi(desiredCephxKeyGenAsString)
+	if err != nil {
+		err = fmt.Errorf("could not convert the value %q of env var %q", desiredCephxKeyGenAsString, desiredCephxKeyGenEnvVarName)
+		reqLogger.Error(err, "failed to convert")
+		return nil, err
+	}
+
+	security := rookCephv1.ClusterSecuritySpec{
+		CephX: rookCephv1.ClusterCephxConfig{
+			Daemon: rookCephv1.CephxConfig{
+				KeyRotationPolicy: rookCephv1.KeyGenerationCephxKeyRotationPolicy,
+				KeyGeneration:     uint32(desiredCephxKeyGen),
+			},
+		},
 	}
 
 	cephCluster := &rookCephv1.CephCluster{
@@ -562,6 +589,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 			// if resource profile change is in progress, then set this flag to false
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: sc.Spec.ResourceProfile == sc.Status.LastAppliedResourceProfile,
 			CephConfig: getCephClusterCephConfig(sc),
+			Security:   security,
 		},
 	}
 
@@ -654,11 +682,11 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 	cephCluster.Spec.Security.KeyRotation.Enabled = isEnabled
 	cephCluster.Spec.Security.KeyRotation.Schedule = rotationSchedule
 
-	if sc.Spec.ManagedResources.CephCluster.CleanupPolicy != nil{
+	if sc.Spec.ManagedResources.CephCluster.CleanupPolicy != nil {
 		cephCluster.Spec.CleanupPolicy = *sc.Spec.ManagedResources.CephCluster.CleanupPolicy
 	}
 
-	return cephCluster
+	return cephCluster, nil
 }
 
 func isMultus(nwSpec *rookCephv1.NetworkSpec) bool {
