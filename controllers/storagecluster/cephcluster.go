@@ -55,6 +55,10 @@ const (
 	poolTypeMetadata = "metadata"
 )
 
+const (
+	keyRotationCounterEnvVarName = "KEY_ROTATION_COUNTER"
+)
+
 type knownDiskType struct {
 	speed            diskSpeed
 	provisioner      StorageClassProvisionerType
@@ -562,6 +566,14 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 			// if resource profile change is in progress, then set this flag to false
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: sc.Spec.ResourceProfile == sc.Status.LastAppliedResourceProfile,
 			CephConfig: getCephClusterCephConfig(sc),
+			Security: rookCephv1.ClusterSecuritySpec{
+				CephX: rookCephv1.ClusterCephxConfig{
+					Daemon: rookCephv1.CephxConfig{
+						KeyRotationPolicy: rookCephv1.KeyGenerationCephxKeyRotationPolicy,
+						KeyGeneration:     uint32(util.MustGetEnvInt(keyRotationCounterEnvVarName)),
+					},
+				},
+			},
 		},
 	}
 
@@ -654,7 +666,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 	cephCluster.Spec.Security.KeyRotation.Enabled = isEnabled
 	cephCluster.Spec.Security.KeyRotation.Schedule = rotationSchedule
 
-	if sc.Spec.ManagedResources.CephCluster.CleanupPolicy != nil{
+	if sc.Spec.ManagedResources.CephCluster.CleanupPolicy != nil {
 		cephCluster.Spec.CleanupPolicy = *sc.Spec.ManagedResources.CephCluster.CleanupPolicy
 	}
 
