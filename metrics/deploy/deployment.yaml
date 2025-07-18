@@ -110,6 +110,8 @@ spec:
         image: quay.io/ocs-dev/ocs-operator
         name: ocs-metrics-exporter
         command:
+        - /usr/bin/tini
+        - --
         - /usr/local/bin/metrics-exporter
         args:
           - '--namespaces'

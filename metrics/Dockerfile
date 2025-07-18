@@ -14,10 +14,15 @@ RUN go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o metrics-exporter main.g
 
 FROM quay.io/ceph/ceph:v18
 
+# Install tini to reap zombie processes created by ceph/rbd commands
+USER root
+RUN dnf install -y tini && \
+    dnf clean all
+
 COPY --from=builder workspace/metrics-exporter /usr/local/bin/metrics-exporter
 
 RUN chmod +x /usr/local/bin/metrics-exporter
 
 USER 2024
 
-ENTRYPOINT ["/usr/local/bin/metrics-exporter"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/metrics-exporter"]
