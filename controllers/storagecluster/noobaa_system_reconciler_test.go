@@ -11,7 +11,6 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -373,8 +372,14 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		assert.Equal(t, *noobaa.Spec.DBSpec.DBStorageClass, c.dbStorageClassName)
 		assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, c.dbStorageClassName)
 		noobaaplacement := getPlacement(&c.sc, "noobaa-core")
+		topologyMap := c.sc.Status.NodeTopologies
+		if topologyMap != nil {
+			topologyKey := getFailureDomain(&c.sc)
+			topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
+			noobaa.Spec.Affinity.TopologyKey = topologyKey
+		}
 		assert.Equal(t, noobaa.Spec.Tolerations, noobaaplacement.Tolerations)
-		assert.Equal(t, noobaa.Spec.Affinity, &corev1.Affinity{NodeAffinity: noobaaplacement.NodeAffinity})
+		assert.Equal(t, noobaa.Spec.Affinity, &nbv1.AffinitySpec{NodeAffinity: noobaaplacement.NodeAffinity, TopologyKey: ""})
 		assert.Equalf(t, noobaa.Namespace, c.sc.Namespace, "[%s] namespace mismatch", c.label)
 		if c.envCore != "" {
 			assert.Equalf(t, *noobaa.Spec.Image, c.envCore, "[%s] core envVar not applied to noobaa spec", c.label)

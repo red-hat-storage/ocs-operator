@@ -57,24 +57,41 @@ type StorageConsumerSpec struct {
 	VolumeReplicationClasses []VolumeReplicationClassSpec `json:"volumeReplicationClasses,omitempty"`
 }
 
-type StorageClassSpec struct {
+type CommonClassSpec struct {
 	// +required
 	Name string `json:"name"`
+	// +optional
+	Rename string `json:"rename,omitempty"`
+	// +optional
+	Aliases []string `json:"aliases,omitempty"`
+}
+
+func (c CommonClassSpec) GetName() string {
+	return c.Name
+}
+
+func (c CommonClassSpec) GetRename() string {
+	return c.Rename
+}
+
+func (c CommonClassSpec) GetAliases() []string {
+	return c.Aliases
+}
+
+type StorageClassSpec struct {
+	CommonClassSpec `json:",inline"`
 }
 
 type VolumeSnapshotClassSpec struct {
-	// +required
-	Name string `json:"name"`
+	CommonClassSpec `json:",inline"`
 }
 
 type VolumeGroupSnapshotClassSpec struct {
-	// +required
-	Name string `json:"name"`
+	CommonClassSpec `json:",inline"`
 }
 
 type VolumeReplicationClassSpec struct {
-	// +required
-	Name string `json:"name"`
+	CommonClassSpec `json:",inline"`
 }
 
 // CephResourcesSpec hold details of created ceph resources required for external storage

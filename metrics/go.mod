@@ -102,7 +102,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20250415145404-9b448831a834 // indirect
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20250715171851-7ed752129981 // indirect
 	github.com/openshift/api v0.0.0-20250303104811-f587fb60f627 // indirect
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
