@@ -1229,6 +1229,19 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		return nil, err
 	}
 
+	kubeResources, err = s.appendVolumeGroupReplicationClassKubeResources(
+		ctx,
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+		rbdStorageId,
+		mirroringTargetInfo.RbdStorageID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	kubeResources, err = s.appendClusterResourceQuotaKubeResources(
 		kubeResources,
 		consumer,
@@ -1809,6 +1822,36 @@ func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
 		}
 		kubeResources = append(kubeResources, vrc)
 	}
+
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendVolumeGroupReplicationClassKubeResources(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	rbdStorageId string,
+	remoteRbdStorageId string,
+) ([]client.Object, error) {
+
+	resources := getKubeResourcesForClass(
+		consumer.Spec.VolumeGroupReplicationClasses,
+		"VolumeGroupReplicationClass",
+		func(vgrcName string) (client.Object, error) {
+			return util.VolumeGroupReplicationClassFromTemplate(
+				ctx,
+				s.client,
+				vgrcName,
+				consumer,
+				consumerConfig,
+				rbdStorageId,
+				remoteRbdStorageId,
+			)
+		},
+	)
+	kubeResources = append(kubeResources, resources...)
 
 	return kubeResources, nil
 }
