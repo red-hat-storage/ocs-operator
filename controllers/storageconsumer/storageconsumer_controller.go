@@ -219,15 +219,9 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 			consumerResources := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
 
 			if availableServices.Rbd {
-				// a new radosnamespace is not required for builtin pools
-				builtinBlockPools := []string{
-					"builtin-mgr",
-					util.GenerateNameForCephNFSBlockPool(storageCluster),
-				}
 				if err := r.reconcileCephRadosNamespace(
 					consumerResources.GetRbdRadosNamespaceName(),
 					consumerConfigMap,
-					builtinBlockPools,
 				); err != nil {
 					return reconcile.Result{}, err
 				}
@@ -521,7 +515,6 @@ func (r *StorageConsumerReconciler) reconcileConsumerConfigMap(
 func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
 	radosNamespaceName string,
 	additionalOwner client.Object,
-	builtinBlockPools []string,
 ) error {
 	blockPools := &rookCephv1.CephBlockPoolList{}
 	if err := r.List(r.ctx, blockPools, client.InNamespace(r.namespace)); err != nil {
@@ -532,7 +525,8 @@ func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
 	var combinedErr error
 	for idx := range blockPools.Items {
 		bp := &blockPools.Items[idx]
-		if slices.Contains(builtinBlockPools, bp.Name) {
+		// a new radosnamespace is not required for internal pools
+		if forInternalUseOnly, _ := strconv.ParseBool(bp.GetLabels()[util.ForInternalUseOnlyLabelKey]); forInternalUseOnly {
 			continue
 		}
 

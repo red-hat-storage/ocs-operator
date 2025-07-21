@@ -27,6 +27,11 @@ type ConnectedClient struct {
 	ClientID  string `yaml:"clientId"`
 }
 
+type InfoCephBlockPool struct {
+	Name          string `yaml:"name"`
+	MirrorEnabled bool   `yaml:"mirrorEnabled"`
+}
+
 // InfoStorageCluster describes information regarding a storage cluster key
 type InfoStorageCluster struct {
 	NamespacedName          types.NamespacedName `yaml:"namespacedName"`
@@ -34,6 +39,7 @@ type InfoStorageCluster struct {
 	CephClusterFSID         string               `yaml:"cephClusterFSID"`
 	StorageClusterUID       string               `yaml:"storageClusterUID"`
 	Annotations             map[string]string    `yaml:"annotations"`
+	InfoCephBlockPools      []InfoCephBlockPool  `yaml:"infoCephBlockPools"`
 }
 
 // OdfInfoData describes odf-info CM's data

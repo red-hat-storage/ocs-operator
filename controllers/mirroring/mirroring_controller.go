@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -349,7 +350,10 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 	blockPoolByName := map[string]*rookCephv1.CephBlockPool{}
 	for i := range cephBlockPoolsList.Items {
 		cephBlockPool := &cephBlockPoolsList.Items[i]
-		if _, ok := cephBlockPool.GetLabels()[util.ForbidMirroringLabel]; ok {
+		labels := cephBlockPool.GetLabels()
+		forInternalUseOnly, _ := strconv.ParseBool(labels[util.ForInternalUseOnlyLabelKey])
+		forbidMirroring, _ := strconv.ParseBool(labels[util.ForbidMirroringLabel])
+		if forInternalUseOnly || forbidMirroring {
 			continue
 		}
 		blockPoolByName[cephBlockPool.Name] = cephBlockPool
