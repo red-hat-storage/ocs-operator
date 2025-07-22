@@ -20,6 +20,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -527,6 +528,11 @@ func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
 		bp := &blockPools.Items[idx]
 		// a new radosnamespace is not required for internal pools
 		if forInternalUseOnly, _ := strconv.ParseBool(bp.GetLabels()[util.ForInternalUseOnlyLabelKey]); forInternalUseOnly {
+			continue
+		}
+
+		// For erasure coded block pools creating rados namespaces is not supported
+		if !reflect.DeepEqual(bp.Spec.ErasureCoded, rookCephv1.ErasureCodedSpec{}) {
 			continue
 		}
 
