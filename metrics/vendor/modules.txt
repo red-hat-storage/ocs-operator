@@ -79,6 +79,9 @@ github.com/containernetworking/cni/pkg/types/create
 github.com/containernetworking/cni/pkg/types/internal
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
+# github.com/csi-addons/kubernetes-csi-addons v0.12.0
+## explicit; go 1.23.0
+github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1
 # github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 ## explicit
 github.com/davecgh/go-spew/spew
@@ -321,8 +324,10 @@ github.com/onsi/gomega/types
 # github.com/openshift/api v0.0.0-20250303104811-f587fb60f627
 ## explicit; go 1.23.0
 github.com/openshift/api/config/v1
+github.com/openshift/api/pkg/serialization
 github.com/openshift/api/quota/v1
 github.com/openshift/api/security/v1
+github.com/openshift/api/template/v1
 # github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
 ## explicit; go 1.12
 github.com/openshift/custom-resource-status/conditions/v1
