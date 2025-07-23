@@ -32,8 +32,6 @@ import (
 
 // StorageClusterSpec defines the desired state of StorageCluster
 type StorageClusterSpec struct {
-	ManageNodes  bool   `json:"manageNodes,omitempty"`
-	InstanceType string `json:"instanceType,omitempty"`
 	// LabelSelector is used to specify custom labels of nodes to run OCS on
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 	// ExternalStorage is optional and defaults to false. When set to true, OCS will
@@ -56,15 +54,11 @@ type StorageClusterSpec struct {
 	StorageDeviceSets  []StorageDeviceSet            `json:"storageDeviceSets,omitempty"`
 	MonPVCTemplate     *corev1.PersistentVolumeClaim `json:"monPVCTemplate,omitempty"`
 	MonDataDirHostPath string                        `json:"monDataDirHostPath,omitempty"`
-	Mgr                *MgrSpec                      `json:"mgr,omitempty"`
 	MultiCloudGateway  *MultiCloudGatewaySpec        `json:"multiCloudGateway,omitempty"`
 	NFS                *NFSSpec                      `json:"nfs,omitempty"`
 	CSI                *CSIDriverSpec                `json:"csi,omitempty"`
 	// Monitoring controls the configuration of resources for exposing OCS metrics
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
-	// Version specifies the version of StorageCluster
-	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future versions. Use `StorageCluster.Status.Version` instead."
-	Version string `json:"version,omitempty"`
 	// Network represents cluster network settings
 	Network *rookCephv1.NetworkSpec `json:"network,omitempty"`
 	// ManagedResources specifies how to deal with auxiliary resources reconciled
@@ -232,10 +226,6 @@ type ManageCephDashboard struct {
 // ManageCephBlockPools defines how to reconcile CephBlockPools
 type ManageCephBlockPools struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
-	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future.
-	DisableStorageClass bool `json:"disableStorageClass,omitempty"`
-	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future.
-	DisableSnapshotClass bool `json:"disableSnapshotClass,omitempty"`
 	// if set to true, the storageClass created for cephBlockPools will be annotated as the default for the whole cluster
 	DefaultStorageClass bool `json:"defaultStorageClass,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph block pools
@@ -277,11 +267,7 @@ type ManageCephNonResilientPools struct {
 // ManageCephFilesystems defines how to reconcile CephFilesystems
 type ManageCephFilesystems struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
-	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future.
-	DisableStorageClass   bool `json:"disableStorageClass,omitempty"`
 	ActiveMetadataServers int  `json:"activeMetadataServers,omitempty"`
-	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future.
-	DisableSnapshotClass bool `json:"disableSnapshotClass,omitempty"`
 	// StorageClassName specifies the name of the storage class created for cephfs
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
@@ -297,8 +283,6 @@ type ManageCephFilesystems struct {
 // ManageCephObjectStores defines how to reconcile CephObjectStores
 type ManageCephObjectStores struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
-	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future.
-	DisableStorageClass bool  `json:"disableStorageClass,omitempty"`
 	GatewayInstances    int   `json:"gatewayInstances,omitempty"`
 	DisableRoute        bool  `json:"disableRoute,omitempty"`
 	HostNetwork         *bool `json:"hostNetwork,omitempty"`
@@ -327,14 +311,6 @@ type ManageCephRBDMirror struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 	// +kubebuilder:validation:Minimum=1
 	DaemonCount int `json:"daemonCount,omitempty"`
-}
-
-// MgrSpec defines the settings for the Ceph Manager
-type MgrSpec struct {
-	// EnableActivePassive can be set as true to deploy 2 ceph manager pods, one active and one standby
-	// Ceph will promote the standby mgr when the active mgr goes down due to any reason
-	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future. By default we now have 2 ceph manager pods, one active and one standby."
-	EnableActivePassive bool `json:"enableActivePassive,omitempty"`
 }
 
 // ExternalStorageKind specifies a kind of the external storage
@@ -422,8 +398,6 @@ type StorageDeviceSet struct {
 	// +optional
 	Encrypted *bool `json:"encrypted,omitempty"`
 }
-
-// TODO: Fill in the members when the actual configurable options are defined in rook-ceph
 
 // StorageDeviceSetConfig defines Ceph OSD specific config options for the StorageDeviceSet
 type StorageDeviceSetConfig struct {
