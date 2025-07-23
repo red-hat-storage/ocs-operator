@@ -39,6 +39,7 @@ import (
 	apiv2 "github.com/operator-framework/api/pkg/operators/v2"
 	"github.com/operator-framework/operator-lib/conditions"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -98,6 +99,7 @@ func init() {
 	utilruntime.Must(openshiftv1.AddToScheme(scheme))
 	utilruntime.Must(snapapi.AddToScheme(scheme))
 	utilruntime.Must(groupsnapapi.AddToScheme(scheme))
+	utilruntime.Must(odfgsapiv1b1.AddToScheme(scheme))
 	utilruntime.Must(openshiftConfigv1.AddToScheme(scheme))
 	utilruntime.Must(extv1.AddToScheme(scheme))
 	utilruntime.Must(routev1.AddToScheme(scheme))

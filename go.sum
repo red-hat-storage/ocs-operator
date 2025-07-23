@@ -756,6 +756,8 @@ github.com/prometheus/procfs v0.2.0/go.mod h1:lV6e/gmhEcM9IjHGsFOCxxuZ+z1YqCvr4O
 github.com/prometheus/procfs v0.16.0 h1:xh6oHhKwnOJKMYiYBDWmkHqQPyiY40sny36Cmx2bbsM=
 github.com/prometheus/procfs v0.16.0/go.mod h1:8veyXUu3nGP7oaCxhX6yeaM5u4stL2FeMXnCqhDthZg=
 github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40TwIPHuXU=
+github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20250611085013-4bd0abb96745 h1:qAeLZeqhBoyv11kf3BwygCvEGPHpGgL9v4GhIw5e+fQ=
+github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20250611085013-4bd0abb96745/go.mod h1:5cstVYzNXZ6Fo8TKv7XpnlxXfTre5PQhK6EkP5lr3tE=
 github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20250303120608-b25fe5ab0148 h1:9Rhol5rtwIqUimajdl7J7woj7k0OeRLE+NsndG1CP4k=
 github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20250303120608-b25fe5ab0148/go.mod h1:rhyyl4t7CMWIEyYx2F8Rbw/x4eFty0MVrgNnDuVeDgc=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=

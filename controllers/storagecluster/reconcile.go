@@ -80,6 +80,8 @@ const (
 
 	VolumeGroupSnapshotClassCrdName = "volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io"
 
+	OdfVolumeGroupSnapshotClassCrdName = "volumegroupsnapshotclasses.groupsnapshot.storage.openshift.io"
+
 	internalComponentFinalizer = "ocs.openshift.io/internal-component"
 
 	labelZoneRegionWithoutBeta = "failure-domain.kubernetes.io/region"
@@ -130,6 +132,7 @@ var validTopologyLabelKeys = []string{
 // +kubebuilder:rbac:groups=template.openshift.io,resources=templates,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=snapshot.storage.k8s.io,resources=volumesnapshotclasses,verbs=get;watch;create;update;delete
 // +kubebuilder:rbac:groups=groupsnapshot.storage.k8s.io,resources=volumegroupsnapshotclasses,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=groupsnapshot.storage.openshift.io,resources=volumegroupsnapshotclasses,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures;networks,verbs=get;list;watch
 // +kubebuilder:rbac:groups=config.openshift.io,resources=clusterversions;networks,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;create;update
@@ -157,7 +160,7 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.ctx = ctrllog.IntoContext(ctx, r.Log)
 
-	for _, crdName := range []string{VirtualMachineCrdName, StorageClientCrdName, VolumeGroupSnapshotClassCrdName} {
+	for _, crdName := range []string{VirtualMachineCrdName, StorageClientCrdName, VolumeGroupSnapshotClassCrdName, OdfVolumeGroupSnapshotClassCrdName} {
 		crd := &metav1.PartialObjectMetadata{}
 		crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
 		crd.Name = crdName
@@ -465,6 +468,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			&ocsStorageQuota{},
 			&ocsSnapshotClass{},
 			&ocsGroupSnapshotClass{},
+			&ocsOdfGroupSnapshotClass{},
 			&ocsNoobaaSystem{},
 			&odfInfoConfig{},
 		}
