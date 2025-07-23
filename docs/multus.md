@@ -13,7 +13,6 @@ spec:
     selectors:
       public: ocs-public  
       cluster: ocs-cluster
-  manageNodes: false
   monPVCTemplate:
     spec:
       storageClassName: gp2-csi

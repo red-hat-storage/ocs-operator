@@ -4,7 +4,6 @@ metadata:
   namespace: openshift-storage
   name: example-storagecluster
 spec:
-  manageNodes: false
   monPVCTemplate:
     spec:
       storageClassName: gp2-csi
