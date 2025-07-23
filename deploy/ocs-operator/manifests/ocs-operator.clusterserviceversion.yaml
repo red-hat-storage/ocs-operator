@@ -665,7 +665,13 @@ spec:
                     port: 8081
                   initialDelaySeconds: 5
                   periodSeconds: 10
-                resources: {}
+                resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
+                  requests:
+                    cpu: 50m
+                    memory: 128Mi
                 securityContext:
                   allowPrivilegeEscalation: false
                   capabilities:
@@ -724,7 +730,13 @@ spec:
                 name: ux-backend-server
                 ports:
                 - containerPort: 8080
-                resources: {}
+                resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
+                  requests:
+                    cpu: 50m
+                    memory: 128Mi
                 securityContext:
                   readOnlyRootFilesystem: true
                   runAsNonRoot: true
