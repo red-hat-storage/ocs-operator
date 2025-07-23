@@ -345,6 +345,9 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 	}
 
 	klog.Infof("Found StorageConsumer for GetDesiredClientState")
+	if !checkClientPreConditions(consumer, ocsVersion.Version) {
+		return nil, status.Error(codes.FailedPrecondition, "client operator does not meet version requirements")
+	}
 
 	// Verify Status
 	switch consumer.Status.State {
@@ -428,6 +431,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
 			topologyKey,
+			ocsVersion.Version,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -701,6 +705,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
 		topologyKey,
+		ocsVersion.Version,
 	)
 
 	return &pb.ReportStatusResponse{
@@ -2137,4 +2142,25 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 		}
 	}
 	return kubeResources
+}
+
+func checkClientPreConditions(consumer *ocsv1alpha1.StorageConsumer, ocsOpVersion string) bool {
+	if consumer == nil || consumer.Status.Client == nil {
+		klog.Errorf("failed precondition: client status is not available")
+		return false
+	}
+
+	clientOpVersion := consumer.Status.Client.OperatorVersion
+	if clientOpVersion == notAvailable {
+		klog.Errorf("failed precondition: client version in client status is not available")
+		return false
+	}
+
+	ocsOpSemver := semver.MustParse(ocsOpVersion)
+	clientOpSemver := semver.MustParse(clientOpVersion)
+	if ocsOpSemver.Major < clientOpSemver.Major || ocsOpSemver.Minor < clientOpSemver.Minor {
+		klog.Errorf("failed precondition: client version is ahead of server version")
+		return false
+	}
+	return true
 }
