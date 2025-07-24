@@ -632,8 +632,6 @@ spec:
               hostNetwork:
                 description: HostNetwork defaults to false
                 type: boolean
-              instanceType:
-                type: string
               labelSelector:
                 description: LabelSelector is used to specify custom labels of nodes
                   to run OCS on
@@ -701,8 +699,6 @@ spec:
                     pattern: ^$|^(hourly|daily|weekly|monthly|1h|24h|1d)$
                     type: string
                 type: object
-              manageNodes:
-                type: boolean
               managedResources:
                 description: |-
                   ManagedResources specifies how to deal with auxiliary resources reconciled
@@ -719,10 +715,6 @@ spec:
                       defaultVirtualizationStorageClass:
                         description: if set to true, the virtualization storageClass
                           will be annotated as the default for kubevirt workloads
-                        type: boolean
-                      disableSnapshotClass:
-                        type: boolean
-                      disableStorageClass:
                         type: boolean
                       poolSpec:
                         description: PoolSpec specifies the pool specification for
@@ -1947,10 +1939,6 @@ spec:
                             type: object
                             x-kubernetes-preserve-unknown-fields: true
                         type: object
-                      disableSnapshotClass:
-                        type: boolean
-                      disableStorageClass:
-                        type: boolean
                       metadataPoolSpec:
                         description: MetadataPoolSpec specifies the pool specification
                           for the default cephFS metadata pool
@@ -2932,8 +2920,6 @@ spec:
                         type: object
                       disableRoute:
                         type: boolean
-                      disableStorageClass:
-                        type: boolean
                       gatewayInstances:
                         type: integer
                       hostNetwork:
@@ -3180,15 +3166,6 @@ spec:
                       reconcileStrategy:
                         type: string
                     type: object
-                type: object
-              mgr:
-                description: MgrSpec defines the settings for the Ceph Manager
-                properties:
-                  enableActivePassive:
-                    description: |-
-                      EnableActivePassive can be set as true to deploy 2 ceph manager pods, one active and one standby
-                      Ceph will promote the standby mgr when the active mgr goes down due to any reason
-                    type: boolean
                 type: object
               mirroring:
                 description: |-
@@ -9055,9 +9032,6 @@ spec:
                   - name
                   type: object
                 type: array
-              version:
-                description: Version specifies the version of StorageCluster
-                type: string
             type: object
           status:
             description: StorageClusterStatus defines the observed state of StorageCluster

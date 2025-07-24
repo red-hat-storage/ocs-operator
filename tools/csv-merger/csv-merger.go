@@ -375,7 +375,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
             "namespace": "openshift-storage"
         },
         "spec": {
-            "manageNodes": false,
             "monPVCTemplate": {
                 "spec": {
                     "accessModes": [
@@ -428,7 +427,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
             "namespace": "openshift-storage"
         },
         "spec": {
-            "manageNodes": false,
             "monPVCTemplate": {
                 "spec": {
                     "accessModes": [
