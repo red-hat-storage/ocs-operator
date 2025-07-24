@@ -208,6 +208,20 @@ func (s *storageConsumer) ensureDeleted(r *StorageClusterReconciler, storageClus
 			return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from StorageConsumer: %v", err)
 		}
 	}
+
+	// The internal consumer configmap is owned by both storagecluster and will not be deleted before storage cluster
+	// is deleted. The ceph resources created by the consumer are owned by the primary consumer and consumer configmap.
+	// The storage cluster will wait in deletion phase till cephcluster is deleted, and the ceph cluster will wait till
+	// all ceph resources are deleted. This creates a cyclic dependency, hence we need the internal consumer configmap
+	// to be deleted when storagecluster deletion is triggered
+	consumerConfigMap := &corev1.ConfigMap{}
+	consumerConfigMap.Name = defaults.LocalStorageConsumerConfigMapName
+	consumerConfigMap.Namespace = storageCluster.Namespace
+
+	if err := r.Delete(r.ctx, consumerConfigMap); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to delete local consumerConfigMap %s: %v", consumerConfigMap.Name, err)
+	}
+
 	return ctrl.Result{}, nil
 }
 
