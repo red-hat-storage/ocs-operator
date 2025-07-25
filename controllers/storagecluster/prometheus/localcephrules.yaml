@@ -349,6 +349,30 @@ spec:
       for: 0s
       labels:
         severity: critical
+  - name: pool-usage-alert.rules
+    rules:
+    - alert: CephPoolNearFull
+      annotations:
+        description: Storage pool {{ $labels.name }} usage has crossed 70% of raw capacity. Pool utilization is at {{ printf "%.2f" $value }}%. Consider adding more storage capacity for the device classes used by this pool in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Storage pool {{ $labels.name }} has reached 70% capacity utilization.
+        severity_level: warning
+        storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephPoolNearFull.md
+      expr: |\n        (ceph_pool_stored_raw * on (pool_id, managedBy) group_left(name, namespace) ceph_pool_metadata) / ((ceph_pool_stored_raw + ceph_pool_max_avail) * on (pool_id, managedBy) group_left(name, namespace) ceph_pool_metadata) * 100 > 70
+      for: 1m
+      labels:
+        severity: warning
+    - alert: CephPoolFull
+      annotations:
+        description: Storage pool {{ $labels.name }} usage has crossed 80% of raw capacity. Pool utilization is at {{ printf "%.2f" $value }}%. Immediate action required to add more storage capacity for the device classes used by this pool in namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        message: Storage pool {{ $labels.name }} has reached 80% capacity utilization.
+        severity_level: critical
+        storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephPoolFull.md
+      expr: |\n        (ceph_pool_stored_raw * on (pool_id, managedBy) group_left(name, namespace) ceph_pool_metadata) / ((ceph_pool_stored_raw + ceph_pool_max_avail) * on (pool_id, managedBy) group_left(name, namespace) ceph_pool_metadata) * 100 > 80
+      for: 1m
+      labels:
+        severity: critical
   - name: pool-quota.rules
     rules:
     - alert: CephPoolQuotaBytesNearExhaustion
