@@ -206,6 +206,7 @@ func createCephBlockPoolStorageClass(w http.ResponseWriter, r *http.Request, cli
 	}
 	if enableEncryption {
 		storageClass.Parameters["encryptionKMSID"] = encryptionKMSID
+		storageClass.Annotations["keyrotation.csiaddons.openshift.io/schedule"] = "@weekly"
 	}
 
 	err := client.Create(r.Context(), storageClass)
