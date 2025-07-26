@@ -162,3 +162,15 @@ func getAllStorageConsumers(lister StorageConsumerLister) (storageConsumers []*o
 	}
 	return
 }
+
+func (c *StorageConsumerCollector) GetClientId() string {
+	storageConsumerLister := NewStorageConsumerLister(c.Informer.GetIndexer())
+	storageConsumers := getAllStorageConsumers(storageConsumerLister)
+	for _, storageConsumer := range storageConsumers {
+		if storageConsumer.GetName() == "internal" {
+			clientId := storageConsumer.Status.Client.ID
+			return clientId
+		}
+	}
+	return ""
+}

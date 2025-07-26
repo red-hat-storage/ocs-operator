@@ -30,7 +30,7 @@ func searchInNamespace(opts *options.Options) (returnNamespace string) {
 // RegisterCustomResourceCollectors registers the custom resource collectors
 // in the given prometheus.Registry
 // This is used to expose metrics about the Custom Resources
-func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *options.Options) {
+func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *options.Options) *StorageConsumerCollector {
 	cephObjectStoreCollector := NewCephObjectStoreCollector(opts)
 	cephBlockPoolCollector := NewCephBlockPoolCollector(opts)
 	cephClusterCollector := NewCephClusterCollector(opts)
@@ -65,6 +65,8 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 		storageAutoScalerCollector.Run(opts.StopCh)
 		registry.MustRegister(storageAutoScalerCollector)
 	}
+
+	return storageConsumerCollector
 }
 
 var pvStoreEnabled bool
@@ -126,4 +128,10 @@ func RegisterCephBlocklistCollector(registry *prometheus.Registry, opts *options
 	enableCephBlocklistMirrorStore(opts)
 	blocklistCollector := NewCephBlocklistCollector(cephBlocklistStore, pvStore, opts)
 	registry.MustRegister(blocklistCollector)
+}
+
+func RegisterCephRBDChildrenCollector(registry *prometheus.Registry, opts *options.Options, storageConsumerCollector *StorageConsumerCollector) {
+	enablePVStore(opts)
+	childrenCollector := NewCephRBDChildrenCollector(pvStore, opts, storageConsumerCollector)
+	registry.MustRegister(childrenCollector)
 }

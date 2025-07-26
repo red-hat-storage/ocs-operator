@@ -73,13 +73,16 @@ func main() {
 
 	customResourceRegistry := prometheus.NewRegistry()
 	// Add custom resource collectors to the registry.
-	collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
+	storageConsumerCollector := collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
 
 	// Add persistent volume attributes collector to the registry.
 	collectors.RegisterPersistentVolumeAttributesCollector(customResourceRegistry, opts)
 
 	// Add blocklist collector to the registry
 	collectors.RegisterCephBlocklistCollector(customResourceRegistry, opts)
+
+	// Add rbd children collector to the registry
+	collectors.RegisterCephRBDChildrenCollector(customResourceRegistry, opts, storageConsumerCollector)
 
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
