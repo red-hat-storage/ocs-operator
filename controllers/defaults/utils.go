@@ -1,10 +1,13 @@
 package defaults
 
 import (
+	"runtime"
+	"strconv"
 	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // GetDaemonResources returns a custom ResourceRequirements for the passed
@@ -14,7 +17,18 @@ func GetDaemonResources(name string, custom map[string]corev1.ResourceRequiremen
 	if res, ok := custom[name]; ok {
 		return res
 	}
-	return DaemonResources[name]
+	resourceRequirements := DaemonResources[name]
+	if runtime.GOARCH == "s390x" {
+		// Adjust CPU requests to half for IBM Z platform
+		resourceRequirementsCopy := resourceRequirements.DeepCopy()
+		if resourceRequirementsCopy.Requests != nil {
+			if cpuRequest, exists := resourceRequirementsCopy.Requests[corev1.ResourceCPU]; exists {
+				resourceRequirementsCopy.Requests[corev1.ResourceCPU] = halveCpuResource(cpuRequest)
+			}
+		}
+		return *resourceRequirementsCopy
+	}
+	return resourceRequirements
 }
 
 func GetProfileDaemonResources(name string, sc *ocsv1.StorageCluster) corev1.ResourceRequirements {
@@ -24,14 +38,31 @@ func GetProfileDaemonResources(name string, sc *ocsv1.StorageCluster) corev1.Res
 	}
 	resourceProfile := sc.Spec.ResourceProfile
 	resourceProfile = strings.ToLower(resourceProfile)
+	var resourceRequirements corev1.ResourceRequirements
 	switch resourceProfile {
 	case "lean":
-		return LeanDaemonResources[name]
+		resourceRequirements = LeanDaemonResources[name]
 	case "balanced":
-		return BalancedDaemonResources[name]
+		resourceRequirements = BalancedDaemonResources[name]
 	case "performance":
-		return PerformanceDaemonResources[name]
+		resourceRequirements = PerformanceDaemonResources[name]
 	default:
-		return BalancedDaemonResources[name]
+		resourceRequirements = BalancedDaemonResources[name]
 	}
+	if runtime.GOARCH == "s390x" {
+		// Adjust CPU requests to half for IBM Z platform
+		resourceRequirementsCopy := resourceRequirements.DeepCopy()
+		if resourceRequirementsCopy.Requests != nil {
+			if cpuRequest, exists := resourceRequirementsCopy.Requests[corev1.ResourceCPU]; exists {
+				resourceRequirementsCopy.Requests[corev1.ResourceCPU] = halveCpuResource(cpuRequest)
+			}
+		}
+		return *resourceRequirementsCopy
+	}
+	return resourceRequirements
+}
+
+func halveCpuResource(cpuQty resource.Quantity) resource.Quantity {
+	str := strconv.FormatInt(cpuQty.MilliValue()/2, 10) + "m"
+	return resource.MustParse(str)
 }
