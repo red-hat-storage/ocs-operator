@@ -24,11 +24,16 @@ func GetDaemonResources(name string, custom map[string]corev1.ResourceRequiremen
 	}
 	resourceRequirements := DaemonResources[name]
 	if runtime.GOARCH == IbmZCpuArch {
-		// Adjust CPU requests for IBM Z platform
+		// Adjust CPU requests and limits for IBM Z platform
 		resourceRequirementsCopy := resourceRequirements.DeepCopy()
 		if resourceRequirementsCopy.Requests != nil {
 			if cpuRequest, exists := resourceRequirementsCopy.Requests[corev1.ResourceCPU]; exists {
 				resourceRequirementsCopy.Requests[corev1.ResourceCPU] = adjustCpuResource(cpuRequest, IbmZCpuAdjustFactor)
+			}
+		}
+		if resourceRequirementsCopy.Limits != nil {
+			if cpuLimit, exists := resourceRequirementsCopy.Limits[corev1.ResourceCPU]; exists {
+				resourceRequirementsCopy.Limits[corev1.ResourceCPU] = adjustCpuResource(cpuLimit, IbmZCpuAdjustFactor)
 			}
 		}
 		return *resourceRequirementsCopy
@@ -55,11 +60,16 @@ func GetProfileDaemonResources(name string, sc *ocsv1.StorageCluster) corev1.Res
 		resourceRequirements = BalancedDaemonResources[name]
 	}
 	if runtime.GOARCH == IbmZCpuArch {
-		// Adjust CPU requests for IBM Z platform
+		// Adjust CPU requests and limits for IBM Z platform
 		resourceRequirementsCopy := resourceRequirements.DeepCopy()
 		if resourceRequirementsCopy.Requests != nil {
 			if cpuRequest, exists := resourceRequirementsCopy.Requests[corev1.ResourceCPU]; exists {
 				resourceRequirementsCopy.Requests[corev1.ResourceCPU] = adjustCpuResource(cpuRequest, IbmZCpuAdjustFactor)
+			}
+		}
+		if resourceRequirementsCopy.Limits != nil {
+			if cpuLimit, exists := resourceRequirementsCopy.Limits[corev1.ResourceCPU]; exists {
+				resourceRequirementsCopy.Limits[corev1.ResourceCPU] = adjustCpuResource(cpuLimit, IbmZCpuAdjustFactor)
 			}
 		}
 		return *resourceRequirementsCopy
