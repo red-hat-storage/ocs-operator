@@ -65,6 +65,7 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 		storageAutoScalerCollector.Run(opts.StopCh)
 		registry.MustRegister(storageAutoScalerCollector)
 	}
+
 }
 
 var pvStoreEnabled bool
@@ -126,4 +127,11 @@ func RegisterCephBlocklistCollector(registry *prometheus.Registry, opts *options
 	enableCephBlocklistMirrorStore(opts)
 	blocklistCollector := NewCephBlocklistCollector(cephBlocklistStore, pvStore, opts)
 	registry.MustRegister(blocklistCollector)
+}
+
+func RegisterCephRBDChildrenCollector(registry *prometheus.Registry, opts *options.Options) {
+	enablePVStore(opts)
+	childrenCollector := NewCephRBDChildrenCollector(pvStore, opts)
+	go childrenCollector.Run(opts.StopCh)
+	registry.MustRegister(childrenCollector)
 }

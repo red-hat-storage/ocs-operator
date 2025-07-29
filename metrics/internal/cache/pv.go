@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,14 +34,16 @@ type PersistentVolumeStore struct {
 	Store map[types.UID]PersistentVolumeAttributes
 	// RBDClientMap is a map of RBD client addresses to the names of the nodes whose images had this client as a watcher
 	RBDClientMap         map[string][]string
+	RBDChildrenMap       map[string]int
 	monitorConfig        cephMonitorConfig
 	kubeClient           clientset.Interface
 	cephClusterNamespace string
 	cephAuthNamespace    string
 
 	// Functions to make testing easier
-	initCephFn         func(kubeclient clientset.Interface, cephClusterNamespace, cephAuthNamespace string) (cephMonitorConfig, error)
-	runCephRBDStatusFn func(config *cephMonitorConfig, pool, image string) (Clients, error)
+	initCephFn                func(kubeclient clientset.Interface, cephClusterNamespace, cephAuthNamespace string) (cephMonitorConfig, error)
+	runCephRBDStatusFn        func(config *cephMonitorConfig, pool, namespace, image string) (Clients, error)
+	runCephRBDChildrenCountFn func(config *cephMonitorConfig, pool, namespace, image string) (int, error)
 	// TODO: Use fake k8s client instead
 	getNodeNameForPVFn func(pv *corev1.PersistentVolume, kubeClient clientset.Interface) (string, error)
 }
@@ -59,32 +62,42 @@ type PersistentVolumeAttributes struct {
 	PersistentVolumeName           string
 	PersistentVolumeClaimName      string
 	PersistentVolumeClaimNamespace string
+	RadosNameSpace                 string
 	ImageName                      string
 	Pool                           string
 }
 
+// Define the struct to match rbd children JSON output
+type rbdChild struct {
+	Pool          string `json:"pool"`
+	PoolNamespace string `json:"pool_namespace"`
+	Image         string `json:"image"`
+}
+
 func NewPersistentVolumeStore(opts *options.Options) *PersistentVolumeStore {
 	return &PersistentVolumeStore{
-		Store:                map[types.UID]PersistentVolumeAttributes{},
-		RBDClientMap:         map[string][]string{},
-		kubeClient:           clientset.NewForConfigOrDie(opts.Kubeconfig),
-		monitorConfig:        cephMonitorConfig{},
-		cephClusterNamespace: opts.AllowedNamespaces[0],
-		cephAuthNamespace:    opts.CephAuthNamespace,
-		initCephFn:           initCeph,
-		runCephRBDStatusFn:   runCephRBDStatus,
-		getNodeNameForPVFn:   getNodeNameForPV,
+		Store:                     map[types.UID]PersistentVolumeAttributes{},
+		RBDClientMap:              map[string][]string{},
+		RBDChildrenMap:            make(map[string]int),
+		kubeClient:                clientset.NewForConfigOrDie(opts.Kubeconfig),
+		monitorConfig:             cephMonitorConfig{},
+		cephClusterNamespace:      opts.AllowedNamespaces[0],
+		cephAuthNamespace:         opts.CephAuthNamespace,
+		initCephFn:                initCeph,
+		runCephRBDStatusFn:        runCephRBDStatus,
+		runCephRBDChildrenCountFn: runCephRBDChildrenCount,
+		getNodeNameForPVFn:        getNodeNameForPV,
 	}
 }
 
-func runCephRBDStatus(config *cephMonitorConfig, pool, image string) (Clients, error) {
+func runCephRBDStatus(config *cephMonitorConfig, pool, namespace, image string) (Clients, error) {
 	var clients Clients
 
 	if config.monitor == "" && config.id == "" && config.key == "" {
 		return clients, errors.New("unable to get status data. monitor config missing")
 	}
 	imageSpec := fmt.Sprintf("%s/%s", pool, image)
-	args := []string{"status", imageSpec, "--format", "json", "-m", config.monitor, "--id", config.id, "--key", config.key}
+	args := []string{"status", imageSpec, "--namespace", namespace, "--format", "json", "-m", config.monitor, "--id", config.id, "--key", config.key}
 	cmd, err := execCommand("rbd", args, 30)
 	if err != nil {
 		return clients, fmt.Errorf("failed with output : %v, err: %v", string(cmd), err)
@@ -92,6 +105,48 @@ func runCephRBDStatus(config *cephMonitorConfig, pool, image string) (Clients, e
 
 	err = json.Unmarshal(cmd, &clients)
 	return clients, err
+}
+
+func runCephRBDChildrenCount(config *cephMonitorConfig, pool, namespace, image string) (int, error) {
+
+	if config.monitor == "" && config.id == "" && config.key == "" {
+		return 0, errors.New("unable to get status data. monitor config missing")
+	}
+	imageSpec := fmt.Sprintf("%s/%s", pool, image)
+
+	args := []string{
+		"children", imageSpec,
+		"--namespace", namespace,
+		"--format", "json",
+		"-m", config.monitor,
+		"--id", config.id,
+		"--key", config.key,
+	}
+
+	cmd, err := execCommand("rbd", args, 30)
+	if err != nil {
+		return 0, fmt.Errorf("failed to execute rbd command: %w", err)
+	}
+	if len(cmd) == 0 {
+		return 0, nil // no children
+	}
+
+	// Unmarshal the json output
+	// Here is how the output looks like
+	// [{
+	// "pool": "ocs-storagecluster-cephblockpool",
+	// "pool_namespace": "",
+	// "image": "csi-vol-1c886d74-e27d-4714-acb4-93a8b1ce97b8-temp"},
+	//{"pool": "ocs-storagecluster-cephblockpool",
+	//"pool_namespace": "",
+	//"image": "csi-vol-4317cc5d-fa8c-490a-9e6d-907519788acf-temp"}]
+
+	var children []rbdChild
+	if err := json.Unmarshal([]byte(cmd), &children); err != nil {
+		return 0, fmt.Errorf("failed to parse rbd children JSON output: %v, output: %q", err, string(cmd))
+	}
+
+	return len(children), nil
 }
 
 func appendIfNotExists(slice []string, value string) []string {
@@ -123,7 +178,7 @@ func (p *PersistentVolumeStore) Add(obj interface{}) error {
 	if err := p.add(pv); err != nil {
 		return err
 	}
-	klog.Infof("PV store addition completed at %v", time.Now())
+	klog.Infof("PV store addition completed at %v for PV %v", time.Now(), pv.Name)
 
 	return nil
 }
@@ -137,7 +192,7 @@ func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 	}
 
 	if pv.Spec.ClaimRef == nil {
-		klog.Infof("Skipping unbound volume %s", pv.Name)
+		klog.Infof("ClaimRef empty for pv %s", pv.Name)
 		return nil
 	}
 
@@ -149,8 +204,9 @@ func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 		}
 	}
 
-	if p.monitorConfig.clusterID != pv.Spec.CSI.VolumeAttributes["clusterID"] {
-		return nil
+	radosnamespace := util.ImplicitRbdRadosNamespaceName
+	if pv.Spec.CSI.VolumeAttributes["radosNamespace"] != "" {
+		radosnamespace = pv.Spec.CSI.VolumeAttributes["radosNamespace"]
 	}
 
 	p.Store[pv.GetUID()] = PersistentVolumeAttributes{
@@ -159,9 +215,10 @@ func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 		PersistentVolumeClaimNamespace: pv.Spec.ClaimRef.Namespace,
 		ImageName:                      pv.Spec.CSI.VolumeAttributes["imageName"],
 		Pool:                           pv.Spec.CSI.VolumeAttributes["pool"],
+		RadosNameSpace:                 radosnamespace,
 	}
 
-	clients, err := p.runCephRBDStatusFn(&p.monitorConfig, pv.Spec.CSI.VolumeAttributes["pool"], pv.Spec.CSI.VolumeAttributes["imageName"])
+	clients, err := p.runCephRBDStatusFn(&p.monitorConfig, pv.Spec.CSI.VolumeAttributes["pool"], pv.Spec.CSI.VolumeAttributes["radosNamespace"], pv.Spec.CSI.VolumeAttributes["imageName"])
 	if err != nil {
 		return fmt.Errorf("failed to get image status %v", err)
 	}
@@ -170,6 +227,12 @@ func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 	if err != nil {
 		return fmt.Errorf("failed to get node name for pod: %v", err)
 	}
+
+	childrenCount, err := p.runCephRBDChildrenCountFn(&p.monitorConfig, pv.Spec.CSI.VolumeAttributes["pool"], pv.Spec.CSI.VolumeAttributes["radosNamespace"], pv.Spec.CSI.VolumeAttributes["imageName"])
+	if err != nil {
+		return fmt.Errorf("failed to get children count for image %s/%s: %v", pv.Spec.CSI.VolumeAttributes["radosNamespace"], pv.Spec.CSI.VolumeAttributes["imageName"], err)
+	}
+	p.RBDChildrenMap[pv.Spec.CSI.VolumeAttributes["imageName"]] = childrenCount
 
 	if nodeName == "" {
 		return nil
@@ -279,7 +342,6 @@ func (p *PersistentVolumeStore) Resync() error {
 			return fmt.Errorf("failed to process PV: %s err: %v", pv.Name, err)
 		}
 	}
-
 	klog.Infof("PV store Resync ended at %v", time.Now())
 	return nil
 }
