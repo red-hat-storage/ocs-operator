@@ -1408,6 +1408,12 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 		}
 		rbdClientProfile.Spec.Rbd = &csiopv1.RbdConfigSpec{
 			RadosNamespace: rnsName,
+			CephCsiSecrets: &csiopv1.CephCsiSecretsSpec{
+				ControllerPublishSecret: corev1.SecretReference{
+					Name:      consumerConfig.GetCsiRbdProvisionerCephUserName(),
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},	
+			},
 		}
 	}
 
@@ -1430,6 +1436,12 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 			SubVolumeGroup:     consumerConfig.GetSubVolumeGroupName(),
 			KernelMountOptions: kernelMountOptions,
 			RadosNamespace:     ptr.To(consumerConfig.GetSubVolumeGroupRadosNamespaceName()),
+			CephCsiSecrets: &csiopv1.CephCsiSecretsSpec{
+				ControllerPublishSecret: corev1.SecretReference{
+					Name:      consumerConfig.GetCsiCephFsProvisionerCephUserName(),
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
+			},
 		}
 	}
 
