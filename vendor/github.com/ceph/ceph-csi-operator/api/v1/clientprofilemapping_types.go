@@ -1,5 +1,5 @@
 /*
-Copyright 2024.
+Copyright 2025.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,26 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//+kubebuilder:validation:MinItems:=2
-//+kubebuilder:validation:MaxItems:=2
+// +kubebuilder:validation:MinItems:=2
+// +kubebuilder:validation:MaxItems:=2
 type BlockPoolIdPair []string
 
-// MappingsSpec define a mapping between a local and remote profiles 
+// MappingsSpec define a mapping between a local and remote profiles
 type MappingsSpec struct {
-    //+kubebuilder:validation:Required
-    LocalClientProfile string `json:"localClientProfile,omitempty"`
-    
-    //+kubebuilder:validation:Required
-    RemoteClientProfile string `json:"remoteClientProfile,omitempty"`
+	//+kubebuilder:validation:Required
+	LocalClientProfile string `json:"localClientProfile,omitempty"`
 
-    //+kubebuilder:validation:Optional
-    BlockPoolIdMapping []BlockPoolIdPair `json:"blockPoolIdMapping,omitempty"`
+	//+kubebuilder:validation:Required
+	RemoteClientProfile string `json:"remoteClientProfile,omitempty"`
+
+	//+kubebuilder:validation:Optional
+	BlockPoolIdMapping []BlockPoolIdPair `json:"blockPoolIdMapping,omitempty"`
 }
 
 // ClientProfileMappingSpec defines the desired state of ClientProfileMapping
@@ -47,6 +47,7 @@ type ClientProfileMappingStatus struct {
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:storageversion
 //+kubebuilder:subresource:status
 
 // ClientProfileMapping is the Schema for the clientprofilemappings API
@@ -66,4 +67,3 @@ type ClientProfileMappingList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ClientProfileMapping `json:"items"`
 }
-

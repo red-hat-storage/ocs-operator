@@ -1,5 +1,5 @@
 /*
-Copyright 2024.
+Copyright 2025.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
@@ -297,6 +297,11 @@ type DriverSpec struct {
 	//+kubebuilder:validation:Optional
 	EnableMetadata *bool `json:"enableMetadata,omitempty"`
 
+	// Set to true to enable fencing for the driver.
+	// Fencing is a feature that allows the driver to fence a node when it is tainted with node.kubernetes.io/out-of-service.
+	//+kubebuilder:validation:Optional
+	EnableFencing *bool `json:"enableFencing,omitempty"`
+
 	// Set the gRPC timeout for gRPC call issued by the driver components
 	//+kubebuilder:validation:Optional
 	//+kubebuilder:validation:Minimum:=0
@@ -378,6 +383,7 @@ type DriverStatus struct {
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:storageversion
 //+kubebuilder:subresource:status
 
 // +kubebuilder:validation:XValidation:rule=self.metadata.name.matches('^(.+\\.)?(rbd|cephfs|nfs)?\\.csi\\.ceph\\.com$'),message=".metadata.name must match: '[<prefix>.](rbd|cephfs|nfs).csi.ceph.com'"
