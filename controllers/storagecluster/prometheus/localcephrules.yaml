@@ -359,7 +359,7 @@ spec:
         storage_type: ceph
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephPoolNearFull.md
       expr: |
-        ceph_health_detail{name="POOL_NEAR_FULL"} > 0
+        ceph_health_detail{name="POOL_NEARFULL"} > 0
       for: 1m
       labels:
         severity: warning
