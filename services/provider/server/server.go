@@ -377,6 +377,18 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 				klog.Errorf("Resource is missing a name: %v", kubeResource)
 				return nil, status.Errorf(codes.Internal, "failed to produce client state.")
 			}
+
+			// FIXME: Remove this once we drop csi operator v1alpha1 APIs
+			clientSemver, err := semver.Parse(consumer.Status.Client.OperatorVersion)
+			if err != nil {
+				klog.Errorf("Failed to parse client operator version: %v", err)
+				return nil, status.Errorf(codes.Internal, "failed to produce client state.")
+			}
+			if clientSemver.Major == 4 && clientSemver.Minor <= 19 &&
+				gvk.Group == csiopv1.GroupVersion.Group {
+				gvk.Version = "v1alpha1"
+			}
+
 			kubeResource.GetObjectKind().SetGroupVersionKind(gvk)
 			sanitizeKubeResource(kubeResource)
 			kubeResourceBytes := util.JsonMustMarshal(kubeResource)
