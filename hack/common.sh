@@ -44,14 +44,14 @@ METRICS_EXPORTER_FULL_IMAGE_NAME="${METRICS_EXPORTER_FULL_IMAGE_NAME:=${IMAGE_RE
 BUNDLE_FULL_IMAGE_NAME="${BUNDLE_FULL_IMAGE_NAME:=${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${OPERATOR_BUNDLE_IMAGE_NAME}:${IMAGE_TAG}}"
 
 # Bundle images of Dependencies of OCS Operator
-NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20250715"
-ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-068aaaedb"
-OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-02e2518"
+NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20250729"
+ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-99af0aaad"
+OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-6f2fc63"
 # Below bundles are dependencies of ocs-client-operator, Ref- https://github.com/red-hat-storage/ocs-client-operator/blob/main/bundle/metadata/dependencies.yaml
+CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:main-f73fca8"
+SNAPSHOT_CONTROLLER_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/snapshot-controller-bundle:main-dfea221"
 CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME="quay.io/csiaddons/k8s-bundle:v0.12.0"
-CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:main-44bd9c5"
 RECIPE_BUNDLE_FULL_IMAGE_NAME="quay.io/ramendr/recipe-bundle:latest"
-SNAPSHOT_CONTROLLER_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/snapshot-controller-bundle:main-4bd0abb"
 
 # Vars for testing
 GINKGO_TEST_SUITE="${GINKGO_TEST_SUITE:-ocs}"
