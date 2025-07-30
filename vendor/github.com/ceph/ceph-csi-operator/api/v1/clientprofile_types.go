@@ -1,5 +1,5 @@
 /*
-Copyright 2024.
+Copyright 2025.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,12 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1
 
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// CephCsiSecretsSpec defines the secrets used by the client profile
+// to access the Ceph cluster and perform operations
+// on volumes.
+type CephCsiSecretsSpec struct {
+	//+kubebuilder:validation:Optional
+	ControllerPublishSecret corev1.SecretReference `json:"controllerPublishSecret,omitempty"`
+}
 
 // CephFsConfigSpec defines the desired CephFs configuration
 type CephFsConfigSpec struct {
@@ -35,6 +43,9 @@ type CephFsConfigSpec struct {
 	//+kubebuilder:validation:XValidation:rule="self == oldSelf",message="field is immutable"
 	//+kubebuilder:validation:Optional
 	RadosNamespace *string `json:"radosNamespace,omitempty"`
+
+	//+kubebuilder:validation:Optional
+	CephCsiSecrets *CephCsiSecretsSpec `json:"cephCsiSecrets,omitempty"`
 }
 
 // RbdConfigSpec defines the desired RBD configuration
@@ -42,6 +53,9 @@ type RbdConfigSpec struct {
 	//+kubebuilder:validation:XValidation:rule="self == oldSelf",message="field is immutable"
 	//+kubebuilder:validation:Optional
 	RadosNamespace string `json:"radosNamespace,omitempty"`
+
+	//+kubebuilder:validation:Optional
+	CephCsiSecrets *CephCsiSecretsSpec `json:"cephCsiSecrets,omitempty"`
 }
 
 // NfsConfigSpec cdefines the desired NFS configuration
@@ -73,6 +87,7 @@ type ClientProfileStatus struct {
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:storageversion
 //+kubebuilder:subresource:status
 
 // ClientProfile is the Schema for the clientprofiles API
