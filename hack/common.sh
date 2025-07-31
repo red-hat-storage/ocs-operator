@@ -22,12 +22,12 @@ OCS_FINAL_DIR="deploy/ocs-operator/manifests"
 BUNDLEMANIFESTS_DIR="rbac"
 
 # External images used in CSV generation
-LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-068aaaedb" # Using downstream rook image as it contains downstream-only changes
-LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v19.2.1" # Ref-https://github.com/rook/rook/blob/master/deploy/examples/images.txt#L3
-LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20250715"
+LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-b0d17ebba" # Using downstream rook image as it contains downstream-only changes
+LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v19.2.3" # Ref-https://github.com/rook/rook/blob/master/deploy/examples/images.txt#L3
+LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20250730"
 LATEST_NOOBAA_DB_IMAGE="quay.io/sclorg/postgresql-15-c9s" # Ref-https://github.com/noobaa/noobaa-operator/blob/5da5c26e9f126c488445d7d9f9326cf676bdd0ea/pkg/options/options.go#L73-L75
 KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1"
-UX_BACKEND_OAUTH_FULL_IMAGE_NAME="quay.io/openshift/origin-oauth-proxy:4.19.0"
+UX_BACKEND_OAUTH_FULL_IMAGE_NAME="quay.io/openshift/origin-oauth-proxy:4.20.0"
 LATEST_MUST_GATHER_IMAGE="quay.io/ocs-dev/ocs-must-gather:latest"
 
 # Images built in our repo
