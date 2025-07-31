@@ -40,7 +40,9 @@ type ThanosRulerSpecApplyConfiguration struct {
 	SecurityContext                    *corev1.PodSecurityContext                      `json:"securityContext,omitempty"`
 	DNSPolicy                          *monitoringv1.DNSPolicy                         `json:"dnsPolicy,omitempty"`
 	DNSConfig                          *PodDNSConfigApplyConfiguration                 `json:"dnsConfig,omitempty"`
+	EnableServiceLinks                 *bool                                           `json:"enableServiceLinks,omitempty"`
 	PriorityClassName                  *string                                         `json:"priorityClassName,omitempty"`
+	ServiceName                        *string                                         `json:"serviceName,omitempty"`
 	ServiceAccountName                 *string                                         `json:"serviceAccountName,omitempty"`
 	Storage                            *StorageSpecApplyConfiguration                  `json:"storage,omitempty"`
 	Volumes                            []corev1.Volume                                 `json:"volumes,omitempty"`
@@ -61,6 +63,9 @@ type ThanosRulerSpecApplyConfiguration struct {
 	LogFormat                          *string                                         `json:"logFormat,omitempty"`
 	PortName                           *string                                         `json:"portName,omitempty"`
 	EvaluationInterval                 *monitoringv1.Duration                          `json:"evaluationInterval,omitempty"`
+	RuleOutageTolerance                *monitoringv1.Duration                          `json:"ruleOutageTolerance,omitempty"`
+	RuleQueryOffset                    *monitoringv1.Duration                          `json:"ruleQueryOffset,omitempty"`
+	RuleConcurrentEval                 *int32                                          `json:"ruleConcurrentEval,omitempty"`
 	Retention                          *monitoringv1.Duration                          `json:"retention,omitempty"`
 	Containers                         []corev1.Container                              `json:"containers,omitempty"`
 	InitContainers                     []corev1.Container                              `json:"initContainers,omitempty"`
@@ -78,6 +83,8 @@ type ThanosRulerSpecApplyConfiguration struct {
 	HostAliases                        []HostAliasApplyConfiguration                   `json:"hostAliases,omitempty"`
 	AdditionalArgs                     []ArgumentApplyConfiguration                    `json:"additionalArgs,omitempty"`
 	Web                                *ThanosRulerWebSpecApplyConfiguration           `json:"web,omitempty"`
+	RemoteWrite                        []RemoteWriteSpecApplyConfiguration             `json:"remoteWrite,omitempty"`
+	TerminationGracePeriodSeconds      *int64                                          `json:"terminationGracePeriodSeconds,omitempty"`
 }
 
 // ThanosRulerSpecApplyConfiguration constructs a declarative configuration of the ThanosRulerSpec type for use with
@@ -218,11 +225,27 @@ func (b *ThanosRulerSpecApplyConfiguration) WithDNSConfig(value *PodDNSConfigApp
 	return b
 }
 
+// WithEnableServiceLinks sets the EnableServiceLinks field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the EnableServiceLinks field is set to the value of the last call.
+func (b *ThanosRulerSpecApplyConfiguration) WithEnableServiceLinks(value bool) *ThanosRulerSpecApplyConfiguration {
+	b.EnableServiceLinks = &value
+	return b
+}
+
 // WithPriorityClassName sets the PriorityClassName field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the PriorityClassName field is set to the value of the last call.
 func (b *ThanosRulerSpecApplyConfiguration) WithPriorityClassName(value string) *ThanosRulerSpecApplyConfiguration {
 	b.PriorityClassName = &value
+	return b
+}
+
+// WithServiceName sets the ServiceName field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ServiceName field is set to the value of the last call.
+func (b *ThanosRulerSpecApplyConfiguration) WithServiceName(value string) *ThanosRulerSpecApplyConfiguration {
+	b.ServiceName = &value
 	return b
 }
 
@@ -404,6 +427,30 @@ func (b *ThanosRulerSpecApplyConfiguration) WithEvaluationInterval(value monitor
 	return b
 }
 
+// WithRuleOutageTolerance sets the RuleOutageTolerance field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the RuleOutageTolerance field is set to the value of the last call.
+func (b *ThanosRulerSpecApplyConfiguration) WithRuleOutageTolerance(value monitoringv1.Duration) *ThanosRulerSpecApplyConfiguration {
+	b.RuleOutageTolerance = &value
+	return b
+}
+
+// WithRuleQueryOffset sets the RuleQueryOffset field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the RuleQueryOffset field is set to the value of the last call.
+func (b *ThanosRulerSpecApplyConfiguration) WithRuleQueryOffset(value monitoringv1.Duration) *ThanosRulerSpecApplyConfiguration {
+	b.RuleQueryOffset = &value
+	return b
+}
+
+// WithRuleConcurrentEval sets the RuleConcurrentEval field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the RuleConcurrentEval field is set to the value of the last call.
+func (b *ThanosRulerSpecApplyConfiguration) WithRuleConcurrentEval(value int32) *ThanosRulerSpecApplyConfiguration {
+	b.RuleConcurrentEval = &value
+	return b
+}
+
 // WithRetention sets the Retention field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Retention field is set to the value of the last call.
@@ -559,5 +606,26 @@ func (b *ThanosRulerSpecApplyConfiguration) WithAdditionalArgs(values ...*Argume
 // If called multiple times, the Web field is set to the value of the last call.
 func (b *ThanosRulerSpecApplyConfiguration) WithWeb(value *ThanosRulerWebSpecApplyConfiguration) *ThanosRulerSpecApplyConfiguration {
 	b.Web = value
+	return b
+}
+
+// WithRemoteWrite adds the given value to the RemoteWrite field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the RemoteWrite field.
+func (b *ThanosRulerSpecApplyConfiguration) WithRemoteWrite(values ...*RemoteWriteSpecApplyConfiguration) *ThanosRulerSpecApplyConfiguration {
+	for i := range values {
+		if values[i] == nil {
+			panic("nil value passed to WithRemoteWrite")
+		}
+		b.RemoteWrite = append(b.RemoteWrite, *values[i])
+	}
+	return b
+}
+
+// WithTerminationGracePeriodSeconds sets the TerminationGracePeriodSeconds field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the TerminationGracePeriodSeconds field is set to the value of the last call.
+func (b *ThanosRulerSpecApplyConfiguration) WithTerminationGracePeriodSeconds(value int64) *ThanosRulerSpecApplyConfiguration {
+	b.TerminationGracePeriodSeconds = &value
 	return b
 }
