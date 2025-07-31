@@ -349,6 +349,32 @@ spec:
       for: 0s
       labels:
         severity: critical
+  - name: pool-usage-alert.rules
+    rules:
+    - alert: CephPoolNearFull
+      annotations:
+        description: One or more storage pools are approaching capacity limits on storage cluster {{ $labels.managedBy }}. Consider adding more storage capacity.
+        message: Storage pool is nearly full on cluster {{ $labels.managedBy }}.
+        severity_level: warning
+        storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephPoolNearFull.md
+      expr: |
+        ceph_health_detail{name="POOL_NEARFULL"} > 0
+      for: 1m
+      labels:
+        severity: warning
+    - alert: CephPoolFull
+      annotations:
+        description: One or more storage pools have reached maximum capacity on storage cluster {{ $labels.managedBy }}. Write operations to affected pools are blocked. This is a critical condition requiring immediate intervention, add storage capacity immediately.
+        message: storage pool is full on cluster {{ $labels.managedBy }}, write operations are blocked.
+        severity_level: critical
+        storage_type: ceph
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephPoolFull.md
+      expr: |
+        ceph_health_detail{name="POOL_FULL"} > 0
+      for: 5s
+      labels:
+        severity: critical
   - name: pool-quota.rules
     rules:
     - alert: CephPoolQuotaBytesNearExhaustion

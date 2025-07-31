@@ -461,3 +461,17 @@ spec:
       for: 30s
       labels:
         severity: warning
+  - name: ceph-rbd-children.rules
+    rules:
+    - alert: HighRBDCloneSnapshotCount
+      annotations:
+        description: RBD clones/snapshots count has exceeded 200 for image {{ $labels.image }} under namespace {{ $labels.namespace }}.
+          Please take appropriate action before we have any impact on the performance.
+        message: RBD clones/snapshots count has exceeded the threshold limit.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/HighRBDChildrenCount.md
+        severity_level: warning
+      expr: |
+        ocs_rbd_children_count > 200
+      for: 30m
+      labels:
+        severity: warning

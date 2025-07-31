@@ -24,6 +24,7 @@ import (
 	openshiftv1 "github.com/openshift/api/template/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -1179,6 +1180,10 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = groupsnapapi.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add volume-group-snapshot scheme")
+	}
+	err = odfgsapiv1b1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add odf-volume-group-snapshot scheme")
 	}
 	err = monitoringv1.AddToScheme(scheme)
 	if err != nil {

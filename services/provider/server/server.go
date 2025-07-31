@@ -29,7 +29,7 @@ import (
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
 
 	"github.com/blang/semver/v4"
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
@@ -39,6 +39,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -233,8 +234,8 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 				return nil, err
 			}
 			switch gvk {
-			case csiopv1a1.GroupVersion.WithKind("CephConnection"):
-				cephConn := kubeResource.(*csiopv1a1.CephConnection)
+			case csiopv1.GroupVersion.WithKind("CephConnection"):
+				cephConn := kubeResource.(*csiopv1.CephConnection)
 				response.ExternalResource = append(
 					response.ExternalResource,
 					&pb.ExternalResource{
@@ -253,8 +254,8 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 						Data: util.JsonMustMarshal(quota.Spec),
 					},
 				)
-			case csiopv1a1.GroupVersion.WithKind("ClientProfileMapping"):
-				clientProfileMapping := kubeResource.(*csiopv1a1.ClientProfileMapping)
+			case csiopv1.GroupVersion.WithKind("ClientProfileMapping"):
+				clientProfileMapping := kubeResource.(*csiopv1.ClientProfileMapping)
 				response.ExternalResource = append(
 					response.ExternalResource,
 					&pb.ExternalResource{
@@ -344,6 +345,9 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 	}
 
 	klog.Infof("Found StorageConsumer for GetDesiredClientState")
+	if !checkClientPreConditions(consumer, ocsVersion.Version) {
+		return nil, status.Error(codes.FailedPrecondition, "client operator does not meet version requirements")
+	}
 
 	// Verify Status
 	switch consumer.Status.State {
@@ -373,6 +377,18 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 				klog.Errorf("Resource is missing a name: %v", kubeResource)
 				return nil, status.Errorf(codes.Internal, "failed to produce client state.")
 			}
+
+			// FIXME: Remove this once we drop csi operator v1alpha1 APIs
+			clientSemver, err := semver.Parse(consumer.Status.Client.OperatorVersion)
+			if err != nil {
+				klog.Errorf("Failed to parse client operator version: %v", err)
+				return nil, status.Errorf(codes.Internal, "failed to produce client state.")
+			}
+			if clientSemver.Major == 4 && clientSemver.Minor <= 19 &&
+				gvk.Group == csiopv1.GroupVersion.Group {
+				gvk.Version = "v1alpha1"
+			}
+
 			kubeResource.GetObjectKind().SetGroupVersionKind(gvk)
 			sanitizeKubeResource(kubeResource)
 			kubeResourceBytes := util.JsonMustMarshal(kubeResource)
@@ -427,6 +443,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
 			topologyKey,
+			ocsVersion.Version,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -497,8 +514,8 @@ func newScheme() (*runtime.Scheme, error) {
 	if err = templatev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add templatev1 to scheme. %v", err)
 	}
-	if err = csiopv1a1.AddToScheme(scheme); err != nil {
-		return nil, fmt.Errorf("failed to add csiopv1a1 to scheme. %v", err)
+	if err = csiopv1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add csiopv1 to scheme. %v", err)
 	}
 	if err = storagev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add storagev1 to scheme. %v", err)
@@ -508,6 +525,9 @@ func newScheme() (*runtime.Scheme, error) {
 	}
 	if err = groupsnapapi.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add groupsnapapi to scheme. %v", err)
+	}
+	if err = odfgsapiv1b1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add odfgsapiv1b1 to scheme. %v", err)
 	}
 	if err = replicationv1alpha1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add replicationv1alpha1 to scheme. %v", err)
@@ -697,6 +717,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
 		topologyKey,
+		ocsVersion.Version,
 	)
 
 	return &pb.ReportStatusResponse{
@@ -1216,6 +1237,18 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		return nil, err
 	}
 
+	kubeResources, err = s.appendOdfVolumeGroupSnapshotClassKubeResources(
+		ctx,
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+		cephFsStorageId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	kubeResources, err = s.appendVolumeReplicationClassKubeResources(
 		ctx,
 		kubeResources,
@@ -1279,7 +1312,7 @@ func (s *OCSProviderServer) getDesiredCephConnection(
 	ctx context.Context,
 	consumer *ocsv1alpha1.StorageConsumer,
 	storageCluster *ocsv1.StorageCluster,
-) (*csiopv1a1.CephConnection, error) {
+) (*csiopv1.CephConnection, error) {
 
 	configmap := &v1.ConfigMap{}
 	configmap.Name = monConfigMap
@@ -1300,7 +1333,7 @@ func (s *OCSProviderServer) getDesiredCephConnection(
 	readAffinityOptions := util.GetReadAffinityOptions(storageCluster)
 	readAffinityDisabledAnnotation, _ := strconv.ParseBool(consumer.Annotations["ocs.openshift.io/disable-read-affinity"])
 
-	var readAffinity *csiopv1a1.ReadAffinitySpec = nil
+	var readAffinity *csiopv1.ReadAffinitySpec = nil
 	if readAffinityOptions.Enabled && !readAffinityDisabledAnnotation {
 		labels := readAffinityOptions.CrushLocationLabels
 		if len(labels) == 0 {
@@ -1317,17 +1350,17 @@ func (s *OCSProviderServer) getDesiredCephConnection(
 				"topology.rook.io/chassis",
 			}
 		}
-		readAffinity = &csiopv1a1.ReadAffinitySpec{
+		readAffinity = &csiopv1.ReadAffinitySpec{
 			CrushLocationLabels: labels,
 		}
 	}
 
-	return &csiopv1a1.CephConnection{
+	return &csiopv1.CephConnection{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      consumer.Status.Client.Name,
 			Namespace: consumer.Status.Client.OperatorNamespace,
 		},
-		Spec: csiopv1a1.CephConnectionSpec{
+		Spec: csiopv1.CephConnectionSpec{
 			Monitors:     monIps,
 			ReadAffinity: readAffinity,
 		},
@@ -1351,7 +1384,7 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 
 	// The client profile name for all the driver maybe the same or different, hence using a map to merge in case of
 	// same name
-	profileMap := make(map[string]*csiopv1a1.ClientProfile)
+	profileMap := make(map[string]*csiopv1.ClientProfile)
 
 	rnsName := consumerConfig.GetRbdRadosNamespaceName()
 	if rnsName == util.ImplicitRbdRadosNamespaceName {
@@ -1361,20 +1394,26 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 	if rbdClientProfileName != "" {
 		rbdClientProfile := profileMap[rbdClientProfileName]
 		if rbdClientProfile == nil {
-			rbdClientProfile = &csiopv1a1.ClientProfile{
+			rbdClientProfile = &csiopv1.ClientProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      rbdClientProfileName,
 					Namespace: consumer.Status.Client.OperatorNamespace,
 				},
-				Spec: csiopv1a1.ClientProfileSpec{
+				Spec: csiopv1.ClientProfileSpec{
 					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
 				},
 			}
 			profileMap[rbdClientProfileName] = rbdClientProfile
 
 		}
-		rbdClientProfile.Spec.Rbd = &csiopv1a1.RbdConfigSpec{
+		rbdClientProfile.Spec.Rbd = &csiopv1.RbdConfigSpec{
 			RadosNamespace: rnsName,
+			CephCsiSecrets: &csiopv1.CephCsiSecretsSpec{
+				ControllerPublishSecret: corev1.SecretReference{
+					Name:      consumerConfig.GetCsiRbdProvisionerCephUserName(),
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},	
+			},
 		}
 	}
 
@@ -1382,21 +1421,27 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 	if cephFsClientProfileName != "" {
 		cephFsClientProfile := profileMap[cephFsClientProfileName]
 		if cephFsClientProfile == nil {
-			cephFsClientProfile = &csiopv1a1.ClientProfile{
+			cephFsClientProfile = &csiopv1.ClientProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      cephFsClientProfileName,
 					Namespace: consumer.Status.Client.OperatorNamespace,
 				},
-				Spec: csiopv1a1.ClientProfileSpec{
+				Spec: csiopv1.ClientProfileSpec{
 					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
 				},
 			}
 			profileMap[cephFsClientProfileName] = cephFsClientProfile
 		}
-		cephFsClientProfile.Spec.CephFs = &csiopv1a1.CephFsConfigSpec{
+		cephFsClientProfile.Spec.CephFs = &csiopv1.CephFsConfigSpec{
 			SubVolumeGroup:     consumerConfig.GetSubVolumeGroupName(),
 			KernelMountOptions: kernelMountOptions,
 			RadosNamespace:     ptr.To(consumerConfig.GetSubVolumeGroupRadosNamespaceName()),
+			CephCsiSecrets: &csiopv1.CephCsiSecretsSpec{
+				ControllerPublishSecret: corev1.SecretReference{
+					Name:      consumerConfig.GetCsiCephFsProvisionerCephUserName(),
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
+			},
 		}
 	}
 
@@ -1404,18 +1449,18 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 	if nfsClientProfileName != "" {
 		nfsClientProfile := profileMap[nfsClientProfileName]
 		if nfsClientProfile == nil {
-			nfsClientProfile = &csiopv1a1.ClientProfile{
+			nfsClientProfile = &csiopv1.ClientProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      nfsClientProfileName,
 					Namespace: consumer.Status.Client.OperatorNamespace,
 				},
-				Spec: csiopv1a1.ClientProfileSpec{
+				Spec: csiopv1.ClientProfileSpec{
 					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
 				},
 			}
 			profileMap[nfsClientProfileName] = nfsClientProfile
 		}
-		nfsClientProfile.Spec.Nfs = &csiopv1a1.NfsConfigSpec{}
+		nfsClientProfile.Spec.Nfs = &csiopv1.NfsConfigSpec{}
 	}
 
 	for _, profileObj := range profileMap {
@@ -1740,7 +1785,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 
 	resources := getKubeResourcesForClass(
 		consumer.Spec.VolumeGroupSnapshotClasses,
-		"VolumeGroupSnapshotClass",
+		"volumegroupsnapshotclass.groupsnapshot.storage.k8s.io",
 		func(vgscName string) (client.Object, error) {
 			if vgscGen, fnExist := vgscMap[vgscName]; fnExist {
 				return vgscGen(), nil
@@ -1753,6 +1798,50 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 					consumerConfig,
 					rbdStorageId,
 					cephFsStorageId,
+					cephFsStorageId,
+				)
+			}
+		},
+	)
+	kubeResources = append(kubeResources, resources...)
+
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendOdfVolumeGroupSnapshotClassKubeResources(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	cephFsStorageId string,
+) ([]client.Object, error) {
+	vgscMap := map[string]func() *odfgsapiv1b1.VolumeGroupSnapshotClass{}
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = func() *odfgsapiv1b1.VolumeGroupSnapshotClass {
+			return util.NewDefaultOdfCephFsGroupSnapshotClass(
+				consumerConfig.GetCephFsClientProfileName(),
+				consumerConfig.GetCsiCephFsProvisionerCephUserName(),
+				consumer.Status.Client.OperatorNamespace,
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				cephFsStorageId,
+			)
+		}
+	}
+
+	resources := getKubeResourcesForClass(
+		consumer.Spec.VolumeGroupSnapshotClasses,
+		"volumegroupsnapshotclass.groupsnapshot.storage.openshift.io",
+		func(vgscName string) (client.Object, error) {
+			if vgscGen, fnExist := vgscMap[vgscName]; fnExist {
+				return vgscGen(), nil
+			} else {
+				return util.OdfVolumeGroupSnapshotClassFromExisting(
+					ctx,
+					s.client,
+					vgscName,
+					consumer,
+					consumerConfig,
 					cephFsStorageId,
 				)
 			}
@@ -1901,7 +1990,7 @@ func (s *OCSProviderServer) appendClientProfileMappingKubeResources(
 	if err := s.client.List(ctx, cbpList, client.InNamespace(s.namespace)); err != nil {
 		return kubeResources, fmt.Errorf("failed to list cephBlockPools in namespace. %v", err)
 	}
-	blockPoolMapping := []csiopv1a1.BlockPoolIdPair{}
+	blockPoolMapping := []csiopv1.BlockPoolIdPair{}
 	for i := range cbpList.Items {
 		cephBlockPool := &cbpList.Items[i]
 		remoteBlockPoolID := cephBlockPool.GetAnnotations()[util.BlockPoolMirroringTargetIDAnnotation]
@@ -1909,7 +1998,7 @@ func (s *OCSProviderServer) appendClientProfileMappingKubeResources(
 			localBlockPoolID := strconv.Itoa(cephBlockPool.Status.PoolID)
 			blockPoolMapping = append(
 				blockPoolMapping,
-				csiopv1a1.BlockPoolIdPair{localBlockPoolID, remoteBlockPoolID},
+				csiopv1.BlockPoolIdPair{localBlockPoolID, remoteBlockPoolID},
 			)
 		}
 	}
@@ -1918,13 +2007,13 @@ func (s *OCSProviderServer) appendClientProfileMappingKubeResources(
 	if len(blockPoolMapping) > 0 && remoteClientProfileName != "" {
 		kubeResources = append(
 			kubeResources,
-			&csiopv1a1.ClientProfileMapping{
+			&csiopv1.ClientProfileMapping{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      consumer.Status.Client.Name,
 					Namespace: consumer.Status.Client.OperatorNamespace,
 				},
-				Spec: csiopv1a1.ClientProfileMappingSpec{
-					Mappings: []csiopv1a1.MappingsSpec{
+				Spec: csiopv1.ClientProfileMappingSpec{
+					Mappings: []csiopv1.MappingsSpec{
 						{
 							LocalClientProfile:  consumerConfig.GetRbdClientProfileName(),
 							RemoteClientProfile: remoteClientProfileName,
@@ -2060,7 +2149,9 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 				klog.Warningf("%s with name %s doesn't exist in the cluster", classDisplayName, srcName)
 			} else if errors.Is(err, util.UnsupportedProvisioner) {
 				klog.Warningf("Encountered unsupported provisioner in %s: %s", classDisplayName, srcName)
-			} else if srcKubeObj == nil {
+			} else if errors.Is(err, util.UnsupportedDriver) {
+				klog.Warningf("Encountered unsupported driver in %s: %s", classDisplayName, srcName)
+			} else if reflect.ValueOf(srcKubeObj).IsNil() {
 				klog.Warningf("The name %s does not points to a builtin or an existing %s, skipping", classDisplayName, srcName)
 			} else if srcKubeObj.GetLabels()[util.ExternalClassLabelKey] == "true" {
 				klog.Warningf("The %s is an external %s, skipping", srcName, classDisplayName)
@@ -2068,11 +2159,32 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 				srcClassCache[srcName] = srcKubeObj
 			}
 		}
-		if srcKubeObj != nil {
+		if _, exist := srcClassCache[srcName]; exist {
 			distKubeObj := srcKubeObj.DeepCopyObject().(client.Object)
 			distKubeObj.SetName(destName)
 			kubeResources = append(kubeResources, distKubeObj)
 		}
 	}
 	return kubeResources
+}
+
+func checkClientPreConditions(consumer *ocsv1alpha1.StorageConsumer, ocsOpVersion string) bool {
+	if consumer == nil || consumer.Status.Client == nil {
+		klog.Errorf("failed precondition: client status is not available")
+		return false
+	}
+
+	clientOpVersion := consumer.Status.Client.OperatorVersion
+	if clientOpVersion == notAvailable {
+		klog.Errorf("failed precondition: client version in client status is not available")
+		return false
+	}
+
+	ocsOpSemver := semver.MustParse(ocsOpVersion)
+	clientOpSemver := semver.MustParse(clientOpVersion)
+	if ocsOpSemver.Major < clientOpSemver.Major || ocsOpSemver.Minor < clientOpSemver.Minor {
+		klog.Errorf("failed precondition: client version is ahead of server version")
+		return false
+	}
+	return true
 }

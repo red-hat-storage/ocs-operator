@@ -6,7 +6,6 @@ metadata:
 spec:
   flexibleScaling: true
   managedResources: {}
-  manageNodes: false
   # monDataDirHostPath: /var/lib/rook
   monPVCTemplate:
     spec:

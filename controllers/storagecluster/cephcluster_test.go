@@ -1043,7 +1043,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 func TestParsePrometheusRules(t *testing.T) {
 	prometheusRules, err := parsePrometheusRule(localPrometheusRules)
 	assert.NilError(t, err)
-	assert.Equal(t, 11, len(prometheusRules.Spec.Groups))
+	assert.Equal(t, 12, len(prometheusRules.Spec.Groups))
 
 	prometheusRules, err = parsePrometheusRule(externalPrometheusRules)
 	assert.NilError(t, err)

@@ -14,7 +14,6 @@ metadata:
                   "namespace": "openshift-storage"
               },
               "spec": {
-                  "manageNodes": false,
                   "monPVCTemplate": {
                       "spec": {
                           "accessModes": [
@@ -57,7 +56,7 @@ metadata:
     capabilities: Deep Insights
     categories: Storage
     containerImage: quay.io/ocs-dev/ocs-operator:latest
-    createdAt: "2025-07-21T17:37:14Z"
+    createdAt: "2025-07-23T16:54:42Z"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     external.features.ocs.openshift.io/supported-platforms: '["BareMetal", "None",
@@ -75,13 +74,13 @@ metadata:
     operatorframework.io/initialization-resource: "\n    {\n        \"apiVersion\":
       \"ocs.openshift.io/v1\",\n        \"kind\": \"StorageCluster\",\n        \"metadata\":
       {\n            \"name\": \"example-storagecluster\",\n            \"namespace\":
-      \"openshift-storage\"\n        },\n        \"spec\": {\n            \"manageNodes\":
-      false,\n            \"monPVCTemplate\": {\n                \"spec\": {\n                    \"accessModes\":
-      [\n                        \"ReadWriteOnce\"\n                    ],\n                    \"resources\":
-      {\n                        \"requests\": {\n                            \"storage\":
-      \"10Gi\"\n                        }\n                    },\n                    \"storageClassName\":
-      \"gp2-csi\"\n                }\n            },\n            \"storageDeviceSets\":
-      [\n                {\n                    \"count\": 3,\n                    \"dataPVCTemplate\":
+      \"openshift-storage\"\n        },\n        \"spec\": {\n            \"monPVCTemplate\":
+      {\n                \"spec\": {\n                    \"accessModes\": [\n                        \"ReadWriteOnce\"\n
+      \                   ],\n                    \"resources\": {\n                        \"requests\":
+      {\n                            \"storage\": \"10Gi\"\n                        }\n
+      \                   },\n                    \"storageClassName\": \"gp2-csi\"\n
+      \               }\n            },\n            \"storageDeviceSets\": [\n                {\n
+      \                   \"count\": 3,\n                    \"dataPVCTemplate\":
       {\n                        \"spec\": {\n                            \"accessModes\":
       [\n                                \"ReadWriteOnce\"\n                            ],\n
       \                           \"resources\": {\n                                \"requests\":
@@ -324,6 +323,7 @@ spec:
           - get
         - apiGroups:
           - groupsnapshot.storage.k8s.io
+          - groupsnapshot.storage.openshift.io
           resources:
           - volumegroupsnapshotclasses
           verbs:
@@ -665,7 +665,13 @@ spec:
                     port: 8081
                   initialDelaySeconds: 5
                   periodSeconds: 10
-                resources: {}
+                resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
+                  requests:
+                    cpu: 50m
+                    memory: 128Mi
                 securityContext:
                   allowPrivilegeEscalation: false
                   capabilities:
@@ -724,7 +730,13 @@ spec:
                 name: ux-backend-server
                 ports:
                 - containerPort: 8080
-                resources: {}
+                resources:
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
+                  requests:
+                    cpu: 50m
+                    memory: 128Mi
                 securityContext:
                   readOnlyRootFilesystem: true
                   runAsNonRoot: true

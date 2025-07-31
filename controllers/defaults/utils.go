@@ -1,10 +1,18 @@
 package defaults
 
 import (
+	"runtime"
+	"strconv"
 	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+)
+
+const (
+	IbmZCpuArch         = "s390x"
+	IbmZCpuAdjustFactor = 0.5
 )
 
 // GetDaemonResources returns a custom ResourceRequirements for the passed
@@ -14,7 +22,23 @@ func GetDaemonResources(name string, custom map[string]corev1.ResourceRequiremen
 	if res, ok := custom[name]; ok {
 		return res
 	}
-	return DaemonResources[name]
+	resourceRequirements := DaemonResources[name]
+	if runtime.GOARCH == IbmZCpuArch {
+		// Adjust CPU requests and limits for IBM Z platform
+		resourceRequirementsCopy := resourceRequirements.DeepCopy()
+		if resourceRequirementsCopy.Requests != nil {
+			if cpuRequest, exists := resourceRequirementsCopy.Requests[corev1.ResourceCPU]; exists {
+				resourceRequirementsCopy.Requests[corev1.ResourceCPU] = adjustCpuResource(cpuRequest, IbmZCpuAdjustFactor)
+			}
+		}
+		if resourceRequirementsCopy.Limits != nil {
+			if cpuLimit, exists := resourceRequirementsCopy.Limits[corev1.ResourceCPU]; exists {
+				resourceRequirementsCopy.Limits[corev1.ResourceCPU] = adjustCpuResource(cpuLimit, IbmZCpuAdjustFactor)
+			}
+		}
+		return *resourceRequirementsCopy
+	}
+	return resourceRequirements
 }
 
 func GetProfileDaemonResources(name string, sc *ocsv1.StorageCluster) corev1.ResourceRequirements {
@@ -24,14 +48,36 @@ func GetProfileDaemonResources(name string, sc *ocsv1.StorageCluster) corev1.Res
 	}
 	resourceProfile := sc.Spec.ResourceProfile
 	resourceProfile = strings.ToLower(resourceProfile)
+	var resourceRequirements corev1.ResourceRequirements
 	switch resourceProfile {
 	case "lean":
-		return LeanDaemonResources[name]
+		resourceRequirements = LeanDaemonResources[name]
 	case "balanced":
-		return BalancedDaemonResources[name]
+		resourceRequirements = BalancedDaemonResources[name]
 	case "performance":
-		return PerformanceDaemonResources[name]
+		resourceRequirements = PerformanceDaemonResources[name]
 	default:
-		return BalancedDaemonResources[name]
+		resourceRequirements = BalancedDaemonResources[name]
 	}
+	if runtime.GOARCH == IbmZCpuArch {
+		// Adjust CPU requests and limits for IBM Z platform
+		resourceRequirementsCopy := resourceRequirements.DeepCopy()
+		if resourceRequirementsCopy.Requests != nil {
+			if cpuRequest, exists := resourceRequirementsCopy.Requests[corev1.ResourceCPU]; exists {
+				resourceRequirementsCopy.Requests[corev1.ResourceCPU] = adjustCpuResource(cpuRequest, IbmZCpuAdjustFactor)
+			}
+		}
+		if resourceRequirementsCopy.Limits != nil {
+			if cpuLimit, exists := resourceRequirementsCopy.Limits[corev1.ResourceCPU]; exists {
+				resourceRequirementsCopy.Limits[corev1.ResourceCPU] = adjustCpuResource(cpuLimit, IbmZCpuAdjustFactor)
+			}
+		}
+		return *resourceRequirementsCopy
+	}
+	return resourceRequirements
+}
+
+func adjustCpuResource(cpuQty resource.Quantity, adjustFactor float64) resource.Quantity {
+	str := strconv.FormatInt(int64(float64(cpuQty.MilliValue())*adjustFactor), 10) + "m"
+	return resource.MustParse(str)
 }
