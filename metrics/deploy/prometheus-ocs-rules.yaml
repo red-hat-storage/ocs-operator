@@ -468,7 +468,7 @@ spec:
         description: RBD clones/snapshots count has exceeded 200 for image {{ $labels.image }} under namespace {{ $labels.namespace }}.
           Please take appropriate action before we have any impact on the performance.
         message: RBD clones/snapshots count has exceeded the threshold limit.
-        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/HighRBDChildrenCount.md
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/HighRBDCloneSnapshotCount.md
         severity_level: warning
       expr: |
         ocs_rbd_children_count > 200
