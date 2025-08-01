@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	"slices"
 	"strconv"
 	"time"
@@ -218,13 +219,17 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 	}
 
 	errorOccurred := false
+	var ocsClient *providerClient.OCSProviderClient
+	var err error
 
-	ocsClient, err := providerClient.NewProviderClient(r.ctx, storageClusterPeer.Spec.ApiEndpoint, util.OcsClientTimeout)
-	if err != nil {
-		r.log.Error(err, "failed to create a new provider client")
-		errorOccurred = true
-	} else if ocsClient != nil {
-		defer ocsClient.Close()
+	if shouldMirror {
+		ocsClient, err = providerClient.NewProviderClient(r.ctx, storageClusterPeer.Spec.ApiEndpoint, util.OcsClientTimeout)
+		if err != nil {
+			r.log.Error(err, "failed to create a new provider client")
+			return ctrl.Result{}, fmt.Errorf("failed to reconcile StorageClientMapping")
+		} else if ocsClient != nil {
+			defer ocsClient.Close()
+		}
 	}
 
 	if errored := r.reconcileRbdMirror(clientMappingConfig, shouldMirror); errored {
@@ -347,24 +352,24 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 		return true
 	}
 
-	blockPoolByName := map[string]*rookCephv1.CephBlockPool{}
-	for i := range cephBlockPoolsList.Items {
-		cephBlockPool := &cephBlockPoolsList.Items[i]
-		labels := cephBlockPool.GetLabels()
-		forInternalUseOnly, _ := strconv.ParseBool(labels[util.ForInternalUseOnlyLabelKey])
-		forbidMirroring, _ := strconv.ParseBool(labels[util.ForbidMirroringLabel])
-		if forInternalUseOnly || forbidMirroring {
-			continue
+	remoteBlockPoolInfoByName := map[string]*pb.BlockPoolInfo{}
+	if shouldMirror {
+		blockPoolNames := []string{}
+		for i := range cephBlockPoolsList.Items {
+			cephBlockPool := &cephBlockPoolsList.Items[i]
+			labels := cephBlockPool.GetLabels()
+			forInternalUseOnly, _ := strconv.ParseBool(labels[util.ForInternalUseOnlyLabelKey])
+			forbidMirroring, _ := strconv.ParseBool(labels[util.ForbidMirroringLabel])
+			if forInternalUseOnly || forbidMirroring {
+				continue
+			}
+			blockPoolNames = append(blockPoolNames, cephBlockPool.Name)
 		}
-		blockPoolByName[cephBlockPool.Name] = cephBlockPool
-	}
-
-	if len(blockPoolByName) > 0 && ocsClient != nil {
 		// fetch BlockPoolsInfo
 		response, err := ocsClient.GetBlockPoolsInfo(
 			r.ctx,
 			storageClusterPeer.Status.PeerInfo.StorageClusterUid,
-			maps.Keys(blockPoolByName),
+			blockPoolNames,
 		)
 		if err != nil {
 			r.log.Error(err, "failed to get CephBlockPool(s) info from Peer")
@@ -384,92 +389,98 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 			errorOccurred = true
 		}
 
-		if shouldMirror {
-			for i := range response.BlockPoolsInfo {
-				blockPoolName := response.BlockPoolsInfo[i].BlockPoolName
-				cephBlockPool := blockPoolByName[blockPoolName]
+		for i := range response.BlockPoolsInfo {
+			remoteBlockPoolInfo := response.BlockPoolsInfo[i]
+			remoteBlockPoolInfoByName[remoteBlockPoolInfo.BlockPoolName] = response.BlockPoolsInfo[i]
+		}
+	}
 
-				mirroringToken := response.BlockPoolsInfo[i].MirroringToken
-				secretName := GetMirroringSecretName(blockPoolName)
-				if mirroringToken != "" {
-					mirroringSecret := &corev1.Secret{}
-					mirroringSecret.Name = secretName
-					mirroringSecret.Namespace = clientMappingConfig.Namespace
-					_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, mirroringSecret, func() error {
-						if err = r.own(clientMappingConfig, mirroringSecret); err != nil {
-							return err
-						}
-						mirroringSecret.Data = map[string][]byte{
-							"pool":  []byte(blockPoolName),
-							"token": []byte(mirroringToken),
-						}
-						return nil
-					})
-					if err != nil {
-						r.log.Error(err, "failed to create/update mirroring secret", "Secret", secretName)
-						errorOccurred = true
-						continue
-					}
-				} else {
-					// Mirroring Token is generated only after mirroring is enabled. If both sides reconcile at the
-					// same time the mirroring token won't be fetched. Hence, re-queuing to avoid this
-					r.log.Error(
-						fmt.Errorf("peer's CephBlockPool mirroring token is not generated"),
-						"Re-queuing as peer's CephBlockPool mirroring token is not generated",
-					)
-					errorOccurred = true
-				}
+	for i := range cephBlockPoolsList.Items {
+		cephBlockPool := &cephBlockPoolsList.Items[i]
 
-				// We need to enable mirroring for the blockPool, else the mirroring secret will not be generated
-				_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
-					util.AddAnnotation(
-						cephBlockPool,
-						util.BlockPoolMirroringTargetIDAnnotation,
-						response.BlockPoolsInfo[i].BlockPoolID,
-					)
+		labels := cephBlockPool.GetLabels()
+		forInternalUseOnly, _ := strconv.ParseBool(labels[util.ForInternalUseOnlyLabelKey])
+		forbidMirroring, _ := strconv.ParseBool(labels[util.ForbidMirroringLabel])
+		blockPoolInfo := remoteBlockPoolInfoByName[cephBlockPool.Name]
 
-					cephBlockPool.Spec.Mirroring.Enabled = true
-					cephBlockPool.Spec.Mirroring.Mode = "init-only"
-					if mirroringToken != "" {
-						if cephBlockPool.Spec.Mirroring.Peers == nil {
-							cephBlockPool.Spec.Mirroring.Peers = &rookCephv1.MirroringPeerSpec{SecretNames: []string{}}
-						}
-						if !slices.Contains(cephBlockPool.Spec.Mirroring.Peers.SecretNames, secretName) {
-							cephBlockPool.Spec.Mirroring.Peers.SecretNames = append(
-								cephBlockPool.Spec.Mirroring.Peers.SecretNames, secretName)
-						}
-					}
-					return nil
-				})
-				if err != nil {
-					r.log.Error(
-						err,
-						"failed to update CephBlockPool for mirroring",
-						"CephBlockPool",
-						cephBlockPool.Name,
-					)
-					errorOccurred = true
-				}
+		if blockPoolInfo == nil || forbidMirroring || forInternalUseOnly {
+			_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
+				cephBlockPool.Spec.Mirroring = rookCephv1.MirroringSpec{}
+				return nil
+			})
+			if err != nil {
+				r.log.Error(
+					err,
+					"failed to disable mirroring for CephBlockPool",
+					"CephBlockPool",
+					cephBlockPool.Name,
+				)
+				errorOccurred = true
 			}
 		} else {
-			for i := range response.BlockPoolsInfo {
-				blockPoolName := response.BlockPoolsInfo[i].BlockPoolName
-				cephBlockPool := blockPoolByName[blockPoolName]
-				_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
-					cephBlockPool.Spec.Mirroring = rookCephv1.MirroringSpec{}
+			mirroringToken := blockPoolInfo.MirroringToken
+			secretName := GetMirroringSecretName(cephBlockPool.Name)
+			if mirroringToken != "" {
+				mirroringSecret := &corev1.Secret{}
+				mirroringSecret.Name = secretName
+				mirroringSecret.Namespace = clientMappingConfig.Namespace
+				_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, mirroringSecret, func() error {
+					if err := r.own(clientMappingConfig, mirroringSecret); err != nil {
+						return err
+					}
+					mirroringSecret.Data = map[string][]byte{
+						"pool":  []byte(cephBlockPool.Name),
+						"token": []byte(mirroringToken),
+					}
 					return nil
 				})
 				if err != nil {
-					r.log.Error(
-						err,
-						"failed to disable mirroring for CephBlockPool",
-						"CephBlockPool",
-						cephBlockPool.Name,
-					)
+					r.log.Error(err, "failed to create/update mirroring secret", "Secret", secretName)
 					errorOccurred = true
+					continue
 				}
+			} else {
+				// Mirroring Token is generated only after mirroring is enabled. If both sides reconcile at the
+				// same time the mirroring token won't be fetched. Hence, re-queuing to avoid this
+				r.log.Error(
+					fmt.Errorf("peer's CephBlockPool mirroring token is not generated"),
+					"Re-queuing as peer's CephBlockPool mirroring token is not generated",
+				)
+				errorOccurred = true
+			}
+
+			// We need to enable mirroring for the blockPool, else the mirroring secret will not be generated
+			_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
+				util.AddAnnotation(
+					cephBlockPool,
+					util.BlockPoolMirroringTargetIDAnnotation,
+					blockPoolInfo.BlockPoolID,
+				)
+
+				cephBlockPool.Spec.Mirroring.Enabled = true
+				cephBlockPool.Spec.Mirroring.Mode = "init-only"
+				if mirroringToken != "" {
+					if cephBlockPool.Spec.Mirroring.Peers == nil {
+						cephBlockPool.Spec.Mirroring.Peers = &rookCephv1.MirroringPeerSpec{SecretNames: []string{}}
+					}
+					if !slices.Contains(cephBlockPool.Spec.Mirroring.Peers.SecretNames, secretName) {
+						cephBlockPool.Spec.Mirroring.Peers.SecretNames = append(
+							cephBlockPool.Spec.Mirroring.Peers.SecretNames, secretName)
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				r.log.Error(
+					err,
+					"failed to update CephBlockPool for mirroring",
+					"CephBlockPool",
+					cephBlockPool.Name,
+				)
+				errorOccurred = true
 			}
 		}
+
 	}
 
 	return errorOccurred
@@ -512,7 +523,8 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 		}
 	}
 
-	if len(storageConsumerByRemoteClientID) > 0 && ocsClient != nil {
+	remoteNamespaceByClientID := map[string]string{}
+	if len(storageConsumerByRemoteClientID) > 0 && shouldMirror {
 		response, err := ocsClient.GetStorageClientsInfo(
 			r.ctx,
 			storageClusterPeer.Status.PeerInfo.StorageClusterUid,
@@ -536,10 +548,8 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 			errorOccurred = true
 		}
 
-		remoteNamespaceByClientID := map[string]string{}
 		for i := range response.ClientsInfo {
 			clientInfo := response.ClientsInfo[i]
-
 			consumer := storageConsumerByRemoteClientID[clientInfo.ClientID]
 			remoteNamespaceByClientID[consumer.Status.Client.ID] = clientInfo.RadosNamespace
 			marshaledClientInfo, err := json.Marshal(clientInfo)
@@ -557,48 +567,48 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 				errorOccurred = true
 			}
 		}
+	}
 
-		radosNamespaceList := &rookCephv1.CephBlockPoolRadosNamespaceList{}
-		if err = r.list(radosNamespaceList, client.InNamespace(storageClusterPeer.Namespace)); err != nil {
-			r.log.Error(err, "failed to list CephBlockPoolRadosNamespace(s)")
-			return true
+	radosNamespaceList := &rookCephv1.CephBlockPoolRadosNamespaceList{}
+	if err := r.list(radosNamespaceList, client.InNamespace(storageClusterPeer.Namespace)); err != nil {
+		r.log.Error(err, "failed to list CephBlockPoolRadosNamespace(s)")
+		return true
+	}
+
+	for i := range radosNamespaceList.Items {
+		rns := &radosNamespaceList.Items[i]
+		consumerIndex := slices.IndexFunc(
+			rns.OwnerReferences,
+			func(ref metav1.OwnerReference) bool { return ref.Kind == "StorageConsumer" },
+		)
+		if consumerIndex == -1 {
+			continue
 		}
-
-		for i := range radosNamespaceList.Items {
-			rns := &radosNamespaceList.Items[i]
-			consumerIndex := slices.IndexFunc(
-				rns.OwnerReferences,
-				func(ref metav1.OwnerReference) bool { return ref.Kind == "StorageConsumer" },
-			)
-			if consumerIndex == -1 {
-				continue
-			}
-			consumerOwner := &rns.OwnerReferences[consumerIndex]
-			consumer := storageConsumerByName[consumerOwner.Name]
-			if consumer == nil || consumer.Status.Client == nil {
-				continue
-			}
-			remoteNamespace := remoteNamespaceByClientID[consumer.Status.Client.ID]
-			_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, rns, func() error {
-				if remoteNamespace != "" && shouldMirror {
-					rns.Spec.Mirroring = &rookCephv1.RadosNamespaceMirroring{
-						RemoteNamespace: ptr.To(remoteNamespace),
-						Mode:            "image",
-					}
-				} else {
-					rns.Spec.Mirroring = nil
+		consumerOwner := &rns.OwnerReferences[consumerIndex]
+		consumer := storageConsumerByName[consumerOwner.Name]
+		if consumer == nil || consumer.Status.Client == nil {
+			continue
+		}
+		remoteNamespace := remoteNamespaceByClientID[consumer.Status.Client.ID]
+		_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, rns, func() error {
+			if remoteNamespace != "" {
+				rns.Spec.Mirroring = &rookCephv1.RadosNamespaceMirroring{
+					RemoteNamespace: ptr.To(remoteNamespace),
+					Mode:            "image",
 				}
-				return nil
-			})
-			if err != nil {
-				r.log.Error(
-					err,
-					"failed to update radosnamespace",
-					"CephBlockPoolRadosNamespace",
-					rns.Name,
-				)
-				errorOccurred = true
+			} else {
+				rns.Spec.Mirroring = nil
 			}
+			return nil
+		})
+		if err != nil {
+			r.log.Error(
+				err,
+				"failed to update radosnamespace",
+				"CephBlockPoolRadosNamespace",
+				rns.Name,
+			)
+			errorOccurred = true
 		}
 	}
 	return errorOccurred
