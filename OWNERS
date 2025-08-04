@@ -4,6 +4,7 @@ approvers:
   - agarwal-mudit
   - nb-ohad
   - iamniting
+  - malayparida2000
   - BlaineEXE
   - travisn
 # review == this code is good /lgtm
@@ -12,5 +13,6 @@ reviewers:
   - agarwal-mudit
   - nb-ohad
   - iamniting
+  - malayparida2000
   - BlaineEXE
   - travisn
