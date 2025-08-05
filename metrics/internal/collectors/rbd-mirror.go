@@ -1,7 +1,6 @@
 package collectors
 
 import (
-	"encoding/json"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -30,12 +29,8 @@ type RBDMirrorCollector struct {
 	RBDMirrorStore        *internalcache.RBDMirrorStore
 	PersistentVolumeStore *internalcache.PersistentVolumeStore
 	// Metric descriptors
-	MirrorDaemonHealth         *prometheus.Desc
-	ImageStatusState           *prometheus.Desc
-	PrimarySnapshotTimestamp   *prometheus.Desc
-	SecondarySnapshotTimestamp *prometheus.Desc
-	ImageBytes                 *prometheus.Desc
-	ImageSnapshotBytes         *prometheus.Desc
+	MirrorDaemonHealth *prometheus.Desc
+	ImageStatusState   *prometheus.Desc
 }
 
 func NewRBDMirrorCollector(mirrorStore *internalcache.RBDMirrorStore, pvStore *internalcache.PersistentVolumeStore, opts *options.Options) *RBDMirrorCollector {
@@ -56,30 +51,6 @@ func NewRBDMirrorCollector(mirrorStore *internalcache.RBDMirrorStore, pvStore *i
 			commonRBDMirrorLabels,
 			nil,
 		),
-		PrimarySnapshotTimestamp: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, rbdMirrorSubsystem, "image_primary_snapshot_timestamp"),
-			"Snapshot timestamp of primary image",
-			commonRBDMirrorLabels,
-			nil,
-		),
-		SecondarySnapshotTimestamp: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, rbdMirrorSubsystem, "image_secondary_snapshot_timestamp"),
-			"Snapshot timestamp of secondary image",
-			commonRBDMirrorLabels,
-			nil,
-		),
-		ImageBytes: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, rbdMirrorSubsystem, "image_bytes"),
-			"Bytes of image transferred per second",
-			commonRBDMirrorLabels,
-			nil,
-		),
-		ImageSnapshotBytes: prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, rbdMirrorSubsystem, "image_snapshot_bytes"),
-			"Bytes of image snapshot transferred per second",
-			commonRBDMirrorLabels,
-			nil,
-		),
 	}
 }
 
@@ -88,10 +59,6 @@ func (c *RBDMirrorCollector) Describe(ch chan<- *prometheus.Desc) {
 	ds := []*prometheus.Desc{
 		c.MirrorDaemonHealth,
 		c.ImageStatusState,
-		c.PrimarySnapshotTimestamp,
-		c.SecondarySnapshotTimestamp,
-		c.ImageBytes,
-		c.ImageSnapshotBytes,
 	}
 
 	for _, d := range ds {
@@ -163,40 +130,6 @@ func (c *RBDMirrorCollector) Collect(ch chan<- prometheus.Metric) {
 					default:
 						klog.Errorf("Unknown state %q of image %q", site.State, image.Name)
 					}
-				}
-				if image.Description == "local image is primary" {
-					// site.Description can have values like "replaying,{...}" "split-brain" etc.
-					siteDescription := strings.SplitN(site.Description, ", ", 2)
-					if len(siteDescription) != 2 {
-						klog.Errorf("Unexpected mirror peer site description %q of image %q to site %q.", site.Description, image.Name, site.SiteName)
-						continue
-					}
-					description := siteDescription[1]
-					desc := internalcache.RBDMirrorPeerSiteDescription{}
-					err := json.Unmarshal([]byte(description), &desc)
-					if err != nil {
-						klog.Errorf("Failed to unmarshal description of image %q from site %q: %v", image.Name, site.SiteName, err)
-						continue
-					}
-					// LocalSnapshotTimestamp could be unavailable for a while during image resync.
-					if desc.LocalSnapshotTimestamp > 0 {
-						ch <- prometheus.MustNewConstMetric(
-							c.PrimarySnapshotTimestamp, prometheus.GaugeValue, float64(desc.LocalSnapshotTimestamp),
-							image.Name, poolData.PoolName, site.SiteName,
-						)
-					}
-					ch <- prometheus.MustNewConstMetric(
-						c.SecondarySnapshotTimestamp, prometheus.GaugeValue, float64(desc.RemoteSnapshotTimestamp),
-						image.Name, poolData.PoolName, site.SiteName,
-					)
-					ch <- prometheus.MustNewConstMetric(
-						c.ImageBytes, prometheus.GaugeValue, float64(desc.BytesPerSecond),
-						image.Name, poolData.PoolName, site.SiteName,
-					)
-					ch <- prometheus.MustNewConstMetric(
-						c.ImageSnapshotBytes, prometheus.GaugeValue, float64(desc.BytesPerSnapshot),
-						image.Name, poolData.PoolName, site.SiteName,
-					)
 				}
 			}
 		}
