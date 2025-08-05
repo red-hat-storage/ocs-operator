@@ -763,6 +763,7 @@ func TestStorageDeviceSets(t *testing.T) {
 	scName := ""
 	metadataScName := ""
 	walScName := ""
+	validScName := "gp2-csi"
 	storageClassEBS := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "gp2-csi",
@@ -882,6 +883,72 @@ func TestStorageDeviceSets(t *testing.T) {
 				},
 			},
 			expectedError: fmt.Errorf("no StorageClass specified for walPVCTemplate"),
+		},
+		{
+			label:          "Case 8 - OSD size exceeds 16Ti",
+			storageCluster: &api.StorageCluster{},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &validScName,
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceStorage: resource.MustParse("20Ti"),
+								},
+							},
+						},
+					},
+					Portable: true,
+				},
+			},
+			expectedError: fmt.Errorf("OSD size 20Ti exceeds maximum allowed size of 16Ti"),
+		},
+		{
+			label:          "Case 9 - OSD size exactly 16Ti (should pass)",
+			storageCluster: &api.StorageCluster{},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &validScName,
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceStorage: resource.MustParse("16Ti"),
+								},
+							},
+						},
+					},
+					Portable: true,
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			label:          "Case 10 - OSD size under 16Ti (should pass)",
+			storageCluster: &api.StorageCluster{},
+			deviceSets: []api.StorageDeviceSet{
+				{
+					Name:  "mock-sds",
+					Count: 3,
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							StorageClassName: &validScName,
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceStorage: resource.MustParse("10Ti"),
+								},
+							},
+						},
+					},
+					Portable: true,
+				},
+			},
+			expectedError: nil,
 		},
 	}
 

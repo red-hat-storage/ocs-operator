@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -705,6 +706,8 @@ func (r *StorageClusterReconciler) SetOperatorConditions(message string, reason 
 // validateStorageDeviceSets checks the StorageDeviceSets of the given
 // StorageCluster for completeness and correctness
 func (r *StorageClusterReconciler) validateStorageDeviceSets(sc *ocsv1.StorageCluster) error {
+	maxOSDSize := resource.MustParse("16Ti")
+
 	for i, ds := range sc.Spec.StorageDeviceSets {
 		if ds.DataPVCTemplate.Spec.StorageClassName == nil || *ds.DataPVCTemplate.Spec.StorageClassName == "" {
 			return fmt.Errorf("failed to validate StorageDeviceSet %d: no StorageClass specified", i)
@@ -717,6 +720,12 @@ func (r *StorageClusterReconciler) validateStorageDeviceSets(sc *ocsv1.StorageCl
 		if ds.WalPVCTemplate != nil {
 			if ds.WalPVCTemplate.Spec.StorageClassName == nil || *ds.WalPVCTemplate.Spec.StorageClassName == "" {
 				return fmt.Errorf("failed to validate StorageDeviceSet %d: no StorageClass specified for walPVCTemplate", i)
+			}
+		}
+		// Validate OSD size does not exceed 16Ti
+		if storageRequest, exists := ds.DataPVCTemplate.Spec.Resources.Requests[corev1.ResourceStorage]; exists {
+			if storageRequest.Cmp(maxOSDSize) > 0 {
+				return fmt.Errorf("failed to validate StorageDeviceSet %d: OSD size %s exceeds maximum allowed size of %s", i, storageRequest.String(), maxOSDSize.String())
 			}
 		}
 		if ds.DeviceType != "" {
