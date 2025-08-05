@@ -301,7 +301,6 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 			for _, key := range validTopologyLabelKeys {
 				if strings.Contains(label, key) {
 					if !topologyMap.Contains(label, value) {
-						r.Log.Info("Adding topology label from Node.", "Node", node.Name, "Label", label, "Value", value)
 						topologyMap.Add(label, value)
 					}
 				}
