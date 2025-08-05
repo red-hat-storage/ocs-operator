@@ -49,9 +49,9 @@ import (
 )
 
 const (
-	zoneTopologyLabel   = "failure-domain.kubernetes.io/zone"
-	regionTopologyLabel = "failure-domain.kubernetes.io/region"
-	hostnameLabel       = "kubernetes.io/hostname"
+	zoneTopologyLabel   = corev1.LabelTopologyZone
+	regionTopologyLabel = corev1.LabelTopologyRegion
+	hostnameLabel       = corev1.LabelHostname
 	cephFSID            = "b88c2d78-9de9-4227-9313-a63f62f78743"
 )
 
