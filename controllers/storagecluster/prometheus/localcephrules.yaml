@@ -19,19 +19,19 @@ spec:
   - name: telemeter.rules
     rules:
     - expr: |
-        count by (namespace) (ceph_osd_metadata{job="rook-ceph-mgr"})
+        count by (namespace, managedBy) (ceph_osd_metadata{job="rook-ceph-mgr"})
       record: job:ceph_osd_metadata:count
     - expr: |
         count by (namespace) (kube_persistentvolume_info * on (storageclass) group_left(provisioner, namespace) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)|(.*topolvm.cybozu.com)"})
       record: job:odf_system_pvs:count
     - expr: |
-        sum by (namespace) (ceph_pool_rd{job="rook-ceph-mgr"} + on(pool_id, namespace) ceph_pool_wr)
+        sum by (namespace, managedBy) (ceph_pool_rd{job="rook-ceph-mgr"} + on(pool_id, namespace, managedBy) ceph_pool_wr)
       record: job:ceph_pools_iops:total
     - expr: |
-        sum by (namespace) (ceph_pool_rd_bytes{job="rook-ceph-mgr"} + on(pool_id, namespace) ceph_pool_wr_bytes)
+        sum by (namespace, managedBy) (ceph_pool_rd_bytes{job="rook-ceph-mgr"} + on(pool_id, namespace, managedBy) ceph_pool_wr_bytes)
       record: job:ceph_pools_iops_bytes:total
     - expr: |
-        count by (namespace) (count by (ceph_version, namespace) (ceph_mon_metadata{job="rook-ceph-mgr"} or ceph_osd_metadata{job="rook-ceph-mgr"} or ceph_rgw_metadata{job="rook-ceph-mgr"} or ceph_mds_metadata{job="rook-ceph-mgr"} or ceph_mgr_metadata{job="rook-ceph-mgr"}))
+        count by (namespace, managedBy) (count by (ceph_version, namespace, managedBy) (ceph_mon_metadata{job="rook-ceph-mgr"} or ceph_osd_metadata{job="rook-ceph-mgr"} or ceph_rgw_metadata{job="rook-ceph-mgr"} or ceph_mds_metadata{job="rook-ceph-mgr"} or ceph_mgr_metadata{job="rook-ceph-mgr"}))
       record: job:ceph_versions_running:count
   - name: ceph-mgr-status
     rules:
@@ -66,7 +66,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        sum by (namespace) (ceph_mds_metadata{job="rook-ceph-mgr"} == 1) < 2
+        sum by (namespace, managedBy) (ceph_mds_metadata{job="rook-ceph-mgr"} == 1) < 2
       for: 5m
       labels:
         severity: warning
@@ -79,7 +79,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        count by (namespace) (ceph_mon_quorum_status{job="rook-ceph-mgr"} == 1) <= (floor(count by (namespace) (ceph_mon_metadata{job="rook-ceph-mgr"}) / 2) + 1)
+        count by (namespace, managedBy) (ceph_mon_quorum_status{job="rook-ceph-mgr"} == 1) <= (floor(count by (namespace, managedBy) (ceph_mon_metadata{job="rook-ceph-mgr"}) / 2) + 1)
       for: 15m
       labels:
         severity: critical
@@ -101,7 +101,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        (ceph_mon_metadata{job="rook-ceph-mgr"} * on (ceph_daemon, namespace) group_left() (rate(ceph_mon_num_elections{job="rook-ceph-exporter"}[5m]) * 60)) > 0.95
+        (ceph_mon_metadata{job="rook-ceph-mgr"} * on (ceph_daemon, namespace, managedBy) group_left() (rate(ceph_mon_num_elections{job="rook-ceph-exporter"}[5m]) * 60)) > 0.95
       for: 5m
       labels:
         severity: warning
@@ -127,7 +127,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        (ceph_osd_metadata * on (ceph_daemon, namespace) group_right(device_class,hostname) (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.80
+        (ceph_osd_metadata * on (ceph_daemon, namespace, managedBy) group_right(device_class,hostname) (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.80
       for: 40s
       labels:
         severity: critical
@@ -149,7 +149,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        (ceph_osd_metadata * on (ceph_daemon, namespace) group_right(device_class,hostname) (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.75
+        (ceph_osd_metadata * on (ceph_daemon, namespace, managedBy) group_right(device_class,hostname) (ceph_osd_stat_bytes_used / ceph_osd_stat_bytes)) >= 0.75
       for: 40s
       labels:
         severity: warning
@@ -160,7 +160,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        label_replace((ceph_osd_in == 1 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon, namespace) group_left(host, device) label_replace(ceph_disk_occupation{job="rook-ceph-mgr"},"host","$1","exported_instance","(.*)")
+        label_replace((ceph_osd_in == 1 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon, namespace, managedBy) group_left(host, device) label_replace(ceph_disk_occupation{job="rook-ceph-mgr"},"host","$1","exported_instance","(.*)")
       for: 15m
       labels:
         severity: critical
@@ -171,7 +171,7 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        label_replace((ceph_osd_in == 0 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon, namespace) group_left(host, device) label_replace(ceph_disk_occupation{job="rook-ceph-mgr"},"host","$1","exported_instance","(.*)")
+        label_replace((ceph_osd_in == 0 and ceph_osd_up == 0),"disk","$1","ceph_daemon","osd.(.*)") + on(ceph_daemon, namespace, managedBy) group_left(host, device) label_replace(ceph_disk_occupation{job="rook-ceph-mgr"},"host","$1","exported_instance","(.*)")
       for: 1m
       labels:
         severity: critical
@@ -263,7 +263,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        count by (namespace) (count by (ceph_version, namespace) (ceph_osd_metadata{job="rook-ceph-mgr", ceph_version != ""})) > 1
+        count by (namespace, managedBy) (count by (ceph_version, namespace, managedBy) (ceph_osd_metadata{job="rook-ceph-mgr", ceph_version != ""})) > 1
       for: 10m
       labels:
         severity: warning
@@ -274,7 +274,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        count by (namespace) (count by (ceph_version, namespace) (ceph_mon_metadata{job="rook-ceph-mgr", ceph_version != ""})) > 1
+        count by (namespace, managedBy) (count by (ceph_version, namespace, managedBy) (ceph_mon_metadata{job="rook-ceph-mgr", ceph_version != ""})) > 1
       for: 10m
       labels:
         severity: warning
@@ -322,7 +322,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        (ceph_pool_stored_raw * on (pool_id) group_left(name, namespace)ceph_pool_metadata) / ((ceph_pool_quota_bytes * on (pool_id) group_left(name, namespace)ceph_pool_metadata) > 0) > 0.70
+        (ceph_pool_stored_raw * on (pool_id, managedBy) group_left(name, namespace)ceph_pool_metadata) / ((ceph_pool_quota_bytes * on (pool_id, managedBy) group_left(name, namespace)ceph_pool_metadata) > 0) > 0.70
       for: 1m
       labels:
         severity: warning
@@ -333,7 +333,7 @@ spec:
         severity_level: critical
         storage_type: ceph
       expr: |
-        (ceph_pool_stored_raw * on (pool_id) group_left(name, namespace)ceph_pool_metadata) / ((ceph_pool_quota_bytes * on (pool_id) group_left(name, namespace)ceph_pool_metadata) > 0) > 0.90
+        (ceph_pool_stored_raw * on (pool_id, managedBy) group_left(name, namespace)ceph_pool_metadata) / ((ceph_pool_quota_bytes * on (pool_id, managedBy) group_left(name, namespace)ceph_pool_metadata) > 0) > 0.90
       for: 1m
       labels:
         severity: critical
