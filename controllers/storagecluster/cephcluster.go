@@ -552,9 +552,9 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 				AllowOsdCrushWeightUpdate:    true,
 				StorageClassDeviceSets:       newStorageClassDeviceSets(sc),
 				FlappingRestartIntervalHours: 24,
-				FullRatio:                    sc.Spec.ManagedResources.CephCluster.FullRatio,
-				NearFullRatio:                sc.Spec.ManagedResources.CephCluster.NearFullRatio,
-				BackfillFullRatio:            sc.Spec.ManagedResources.CephCluster.BackfillFullRatio,
+				NearFullRatio:                getNearFullRatio(sc.Spec.ManagedResources.CephCluster.NearFullRatio),
+				BackfillFullRatio:            getBackfillFullRatio(sc.Spec.ManagedResources.CephCluster.BackfillFullRatio),
+				FullRatio:                    getFullRatio(sc.Spec.ManagedResources.CephCluster.FullRatio),
 			},
 			Placement: rookCephv1.PlacementSpec{
 				"all":     getPlacement(sc, "all"),
@@ -1597,9 +1597,6 @@ func getCephClusterCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageClus
 			"mon_target_pg_per_osd":              "200",
 			"mon_pg_warn_max_object_skew":        "0",
 			"mon_data_avail_warn":                "15",
-			"mon_osd_full_ratio":                 ".85",
-			"mon_osd_backfillfull_ratio":         ".80",
-			"mon_osd_nearfull_ratio":             ".75",
 			"bdev_flock_retry":                   "20",
 			"bluestore_prefer_deferred_size_hdd": "0",
 			"bluestore_slow_ops_warn_lifetime":   "0",
@@ -1682,4 +1679,31 @@ func getCephClusterCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageClus
 		}
 	}
 	return cephConfig
+}
+
+// getNearFullRatio returns the specified NearFullRatio or the default value
+func getNearFullRatio(specifiedRatio *float64) *float64 {
+	if specifiedRatio != nil {
+		return specifiedRatio
+	}
+	defaultRatio := 0.75
+	return &defaultRatio
+}
+
+// getBackfillFullRatio returns the specified BackfillFullRatio or the default value
+func getBackfillFullRatio(specifiedRatio *float64) *float64 {
+	if specifiedRatio != nil {
+		return specifiedRatio
+	}
+	defaultRatio := 0.80
+	return &defaultRatio
+}
+
+// getFullRatio returns the specified FullRatio or the default value
+func getFullRatio(specifiedRatio *float64) *float64 {
+	if specifiedRatio != nil {
+		return specifiedRatio
+	}
+	defaultRatio := 0.85
+	return &defaultRatio
 }
