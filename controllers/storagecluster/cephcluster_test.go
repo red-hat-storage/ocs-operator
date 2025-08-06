@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -90,7 +91,7 @@ func TestEnsureCephCluster(t *testing.T) {
 
 		reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
-		expected, err := newCephCluster(mockStorageCluster.DeepCopy(), "", nil, log)
+		expected, err := newCephCluster(&reconciler, mockStorageCluster.DeepCopy(), nil)
 		assert.NilError(t, err)
 		expected.Status.State = c.cephClusterState
 
@@ -205,7 +206,7 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		_, err := obj.ensureCreated(&reconciler, sc)
 		assert.NilError(t, err)
 
-		cc, err := newCephCluster(sc, "", nil, log)
+		cc, err := newCephCluster(&reconciler, sc, nil)
 		assert.NilError(t, err)
 		err = reconciler.Client.Get(context.TODO(), mockCephClusterNamespacedName, cc)
 		assert.NilError(t, err)
@@ -273,7 +274,8 @@ func TestNewCephClusterMonData(t *testing.T) {
 		c.sc.Spec.MonDataDirHostPath = c.monDataPath
 		c.sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 
-		actual, err := newCephCluster(c.sc, "", nil, log)
+		reconciler := createFakeStorageClusterReconciler(t)
+		actual, err := newCephCluster(&reconciler, c.sc, nil)
 		assert.NilError(t, err)
 		assert.Equal(t, ocsutil.GenerateNameForCephCluster(c.sc), actual.Name)
 		assert.Equal(t, c.sc.Namespace, actual.Namespace)
@@ -1273,6 +1275,7 @@ func TestLogCollector(t *testing.T) {
 	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	maxLogSize := resource.MustParse("500Mi")
+	reconciler := createFakeStorageClusterReconciler(t)
 
 	defaultLogCollector := rookCephv1.LogCollectorSpec{
 		Enabled:     true,
@@ -1282,26 +1285,27 @@ func TestLogCollector(t *testing.T) {
 
 	sc.Spec.LogCollector = &defaultLogCollector
 
-	actual, err := newCephCluster(sc, "", nil, log)
+	actual, err := newCephCluster(&reconciler, sc, nil)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, actual.Spec.LogCollector, defaultLogCollector)
 
 	// when disabled in storageCluster
 	sc.Spec.LogCollector = &rookCephv1.LogCollectorSpec{}
-	actual, err = newCephCluster(sc, "", nil, log)
+	actual, err = newCephCluster(&reconciler, sc, nil)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, actual.Spec.LogCollector, defaultLogCollector)
 
 	maxLogSize = resource.MustParse("6Gi")
 	sc.Spec.LogCollector.MaxLogSize = &maxLogSize
 
-	actual, err = newCephCluster(sc, "", nil, log)
+	actual, err = newCephCluster(&reconciler, sc, nil)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, actual.Spec.LogCollector.MaxLogSize, &maxLogSize)
 }
 
 func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 	t.Setenv(desiredCephxKeyGenEnvVarName, "2")
+	reconciler := createFakeStorageClusterReconciler(t)
 	testTable := []struct {
 		desc   string
 		scSpec ocsv1.StorageClusterSpec
@@ -1442,7 +1446,7 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Spec.Network = testCase.scSpec.Network
 		testCase.ccSpec.Network.Connections.RequireMsgr2 = true
-		cc, err := newCephCluster(sc, "", nil, log)
+		cc, err := newCephCluster(&reconciler, sc, nil)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, cc.Spec.Network.Connections, testCase.ccSpec.Network.Connections)
 	}
@@ -1519,7 +1523,7 @@ func TestEnsureRDRMigration(t *testing.T) {
 	sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 	reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
-	expected, err := newCephCluster(mockStorageCluster.DeepCopy(), "", nil, log)
+	expected, err := newCephCluster(&reconciler, mockStorageCluster.DeepCopy(), nil)
 	assert.NilError(t, err)
 
 	expected.Spec.Storage.Store.Type = string(rookCephv1.StoreTypeBlueStoreRDR)
@@ -1541,6 +1545,7 @@ func TestEnsureUpgradeReliabilityParams(t *testing.T) {
 	t.Setenv(desiredCephxKeyGenEnvVarName, "2")
 	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
+	reconciler := createFakeStorageClusterReconciler(t)
 	sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 	defaultContinueUpgradeAfterChecksEvenIfNotHealthyVal := true
 	sc.Spec.ManagedResources.CephCluster.ContinueUpgradeAfterChecksEvenIfNotHealthy = &defaultContinueUpgradeAfterChecksEvenIfNotHealthyVal
@@ -1549,7 +1554,7 @@ func TestEnsureUpgradeReliabilityParams(t *testing.T) {
 	sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes = 20 * time.Minute
 	sc.Spec.ManagedResources.CephCluster.OsdMaintenanceTimeout = 45 * time.Minute
 
-	expected, err := newCephCluster(sc, "", nil, log)
+	expected, err := newCephCluster(&reconciler, sc, nil)
 	assert.NilError(t, err)
 	assert.Equal(t, true, expected.Spec.ContinueUpgradeAfterChecksEvenIfNotHealthy)
 	assert.Equal(t, true, expected.Spec.SkipUpgradeChecks)
@@ -1562,6 +1567,7 @@ func TestHealthCheckConfiguration(t *testing.T) {
 	t.Setenv(desiredCephxKeyGenEnvVarName, "2")
 	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
+	reconciler := createFakeStorageClusterReconciler(t)
 	interval := metav1.Duration{
 		Duration: 20 * time.Second,
 	}
@@ -1596,7 +1602,7 @@ func TestHealthCheckConfiguration(t *testing.T) {
 		StartupProbe:  probeMap,
 		LivenessProbe: probeMap,
 	}
-	expected, err := newCephCluster(sc, "", nil, log)
+	expected, err := newCephCluster(&reconciler, sc, nil)
 	assert.NilError(t, err)
 
 	assert.Equal(t, "11", expected.Spec.HealthCheck.DaemonHealth.Status.Timeout)
@@ -1793,6 +1799,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 	var cases = []struct {
 		description    string
 		storageCluster *ocsv1.StorageCluster
+		addObjs        []runtime.Object
 		expectedConfig map[string]map[string]string
 	}{
 		{
@@ -1800,8 +1807,16 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 			storageCluster: &ocsv1.StorageCluster{},
 			expectedConfig: map[string]map[string]string{
 				"global": {
-					"mon_target_pg_per_osd": "200",
-					"mon_max_pg_per_osd":    "1000",
+					"mon_max_pg_per_osd":                 "1000",
+					"mon_target_pg_per_osd":              "200",
+					"mon_pg_warn_max_object_skew":        "0",
+					"mon_data_avail_warn":                "15",
+					"bdev_flock_retry":                   "20",
+					"bluestore_prefer_deferred_size_hdd": "0",
+					"bluestore_slow_ops_warn_lifetime":   "0",
+				},
+				"osd": {
+					"osd_memory_target_cgroup_limit_ratio": "0.8",
 				},
 			},
 		},
@@ -1823,8 +1838,16 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 			},
 			expectedConfig: map[string]map[string]string{
 				"global": {
-					"mon_target_pg_per_osd": "500",
-					"mon_max_pg_per_osd":    "1500",
+					"mon_max_pg_per_osd":                 "1500",
+					"mon_target_pg_per_osd":              "500",
+					"mon_pg_warn_max_object_skew":        "0",
+					"mon_data_avail_warn":                "15",
+					"bdev_flock_retry":                   "20",
+					"bluestore_prefer_deferred_size_hdd": "0",
+					"bluestore_slow_ops_warn_lifetime":   "0",
+				},
+				"osd": {
+					"osd_memory_target_cgroup_limit_ratio": "0.8",
 				},
 			},
 		},
@@ -1845,11 +1868,162 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 			},
 			expectedConfig: map[string]map[string]string{
 				"global": {
-					"mon_target_pg_per_osd": "200",
-					"mon_max_pg_per_osd":    "1000",
+					"mon_max_pg_per_osd":                 "1000",
+					"mon_target_pg_per_osd":              "200",
+					"mon_pg_warn_max_object_skew":        "0",
+					"mon_data_avail_warn":                "15",
+					"bdev_flock_retry":                   "20",
+					"bluestore_prefer_deferred_size_hdd": "0",
+					"bluestore_slow_ops_warn_lifetime":   "0",
 				},
 				"osd": {
-					"osd_max_backfills": "4",
+					"osd_memory_target_cgroup_limit_ratio": "0.8",
+					"osd_max_backfills":                    "4",
+				},
+			},
+		},
+		{
+			description: "case 4: ResourceProfile 'lean' should set mon_target_pg_per_osd to 100",
+			storageCluster: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					ResourceProfile: "lean",
+				},
+			},
+			expectedConfig: map[string]map[string]string{
+				"global": {
+					"mon_max_pg_per_osd":                 "1000",
+					"mon_target_pg_per_osd":              "100",
+					"mon_pg_warn_max_object_skew":        "0",
+					"mon_data_avail_warn":                "15",
+					"bdev_flock_retry":                   "20",
+					"bluestore_prefer_deferred_size_hdd": "0",
+					"bluestore_slow_ops_warn_lifetime":   "0",
+				},
+				"osd": {
+					"osd_memory_target_cgroup_limit_ratio": "0.8",
+				},
+			},
+		},
+		{
+			description: "case 5: ResourceProfile 'performance' should set mon_target_pg_per_osd to 400",
+			storageCluster: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					ResourceProfile: "performance",
+				},
+			},
+			expectedConfig: map[string]map[string]string{
+				"global": {
+					"mon_max_pg_per_osd":                 "1000",
+					"mon_target_pg_per_osd":              "400",
+					"mon_pg_warn_max_object_skew":        "0",
+					"mon_data_avail_warn":                "15",
+					"bdev_flock_retry":                   "20",
+					"bluestore_prefer_deferred_size_hdd": "0",
+					"bluestore_slow_ops_warn_lifetime":   "0",
+				},
+				"osd": {
+					"osd_memory_target_cgroup_limit_ratio": "0.8",
+				},
+			},
+		},
+		{
+			description: "case 6: CephNonResilientPools enabled should set mon_warn_on_pool_no_redundancy",
+			storageCluster: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					ManagedResources: ocsv1.ManagedResourcesSpec{
+						CephNonResilientPools: ocsv1.ManageCephNonResilientPools{
+							Enable: true,
+						},
+					},
+				},
+			},
+			expectedConfig: map[string]map[string]string{
+				"global": {
+					"mon_max_pg_per_osd":                 "1000",
+					"mon_target_pg_per_osd":              "200",
+					"mon_pg_warn_max_object_skew":        "0",
+					"mon_data_avail_warn":                "15",
+					"bdev_flock_retry":                   "20",
+					"bluestore_prefer_deferred_size_hdd": "0",
+					"bluestore_slow_ops_warn_lifetime":   "0",
+					"mon_warn_on_pool_no_redundancy":     "false",
+				},
+				"osd": {
+					"osd_memory_target_cgroup_limit_ratio": "0.8",
+				},
+			},
+		},
+		{
+			description: "case 7: Network dualstack (not multus) should set public_network",
+			storageCluster: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					Network: &rookCephv1.NetworkSpec{
+						DualStack: true,
+						Provider:  "",
+					},
+				},
+			},
+			addObjs: []runtime.Object{
+				&configv1.Network{
+					ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+					Status: configv1.NetworkStatus{
+						ClusterNetwork: []configv1.ClusterNetworkEntry{{CIDR: "10.128.0.0/14"}},
+					},
+				},
+			},
+			expectedConfig: map[string]map[string]string{
+				"global": {
+					"mon_max_pg_per_osd":                 "1000",
+					"mon_target_pg_per_osd":              "200",
+					"mon_pg_warn_max_object_skew":        "0",
+					"mon_data_avail_warn":                "15",
+					"bdev_flock_retry":                   "20",
+					"bluestore_prefer_deferred_size_hdd": "0",
+					"bluestore_slow_ops_warn_lifetime":   "0",
+					"public_network":                     "10.128.0.0/14",
+				},
+				"osd": {
+					"osd_memory_target_cgroup_limit_ratio": "0.8",
+				},
+			},
+		},
+		{
+			description: "case 8: RBD Mirror CR present should add debug configs",
+			storageCluster: &ocsv1.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{Namespace: "test-ns"},
+			},
+			addObjs: []runtime.Object{
+				&rookCephv1.CephRBDMirror{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rbd-mirror-a",
+						Namespace: "test-ns",
+					},
+				},
+			},
+			expectedConfig: map[string]map[string]string{
+				"global": {
+					"mon_max_pg_per_osd":                 "1000",
+					"mon_target_pg_per_osd":              "200",
+					"mon_pg_warn_max_object_skew":        "0",
+					"mon_data_avail_warn":                "15",
+					"bdev_flock_retry":                   "20",
+					"bluestore_prefer_deferred_size_hdd": "0",
+					"bluestore_slow_ops_warn_lifetime":   "0",
+				},
+				"osd": {
+					"osd_memory_target_cgroup_limit_ratio": "0.8",
+				},
+				"client.rbd-mirror.a": {
+					"debug_ms":         "1",
+					"debug_rbd":        "15",
+					"debug_rbd_mirror": "30",
+					"log_file":         "/var/log/ceph/$cluster-$name.log",
+				},
+				"client.rbd-mirror-peer": {
+					"debug_ms":         "1",
+					"debug_rbd":        "15",
+					"debug_rbd_mirror": "30",
+					"log_file":         "/var/log/ceph/$cluster-$name.log",
 				},
 			},
 		},
@@ -1857,8 +2031,8 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 
 	for _, c := range cases {
 		t.Logf("Running %s", c.description)
-
-		actual := getCephClusterCephConfig(c.storageCluster)
+		reconciler := createFakeStorageClusterReconciler(t, c.addObjs...)
+		actual := getCephClusterCephConfig(&reconciler, c.storageCluster)
 		tassert.Equal(t, c.expectedConfig, actual)
 	}
 }
