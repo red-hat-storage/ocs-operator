@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-logr/logr"
 	configv1 "github.com/openshift/api/config/v1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -30,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sYAML "k8s.io/apimachinery/pkg/util/yaml"
@@ -263,12 +263,12 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 					return reconcile.Result{}, err
 				}
 			}
-			cephCluster, err = newCephCluster(sc, r.images.Ceph, kmsConfigMap, r.Log)
+			cephCluster, err = newCephCluster(r, sc, kmsConfigMap)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
 		} else {
-			cephCluster, err = newCephCluster(sc, r.images.Ceph, nil, r.Log)
+			cephCluster, err = newCephCluster(r, sc, nil)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
@@ -489,7 +489,7 @@ func getCephClusterMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *corev1.ConfigMap, reqLogger logr.Logger) (*rookCephv1.CephCluster, error) {
+func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsConfigMap *corev1.ConfigMap) (*rookCephv1.CephCluster, error) {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -506,7 +506,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 	desiredCephxKeyGen, err := strconv.Atoi(desiredCephxKeyGenAsString)
 	if err != nil {
 		err = fmt.Errorf("could not convert the value %q of env var %q", desiredCephxKeyGenAsString, desiredCephxKeyGenEnvVarName)
-		reqLogger.Error(err, "failed to convert")
+		r.Log.Error(err, "failed to convert")
 		return nil, err
 	}
 
@@ -527,7 +527,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 		},
 		Spec: rookCephv1.ClusterSpec{
 			CephVersion: rookCephv1.CephVersionSpec{
-				Image:            cephImage,
+				Image:            r.images.Ceph,
 				AllowUnsupported: allowUnsupportedCephVersion(),
 			},
 			Mon:             generateMonSpec(sc),
@@ -588,7 +588,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 			UpgradeOSDRequiresHealthyPGs: sc.Spec.ManagedResources.CephCluster.UpgradeOSDRequiresHealthyPGs,
 			// if resource profile change is in progress, then set this flag to false
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: sc.Spec.ResourceProfile == sc.Status.LastAppliedResourceProfile,
-			CephConfig: getCephClusterCephConfig(sc),
+			CephConfig: getCephClusterCephConfig(r, sc),
 			Security:   security,
 		},
 	}
@@ -646,7 +646,7 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, kmsConfigMap *co
 			},
 		}
 	} else {
-		reqLogger.Info("No monDataDirHostPath, monPVCTemplate or storageDeviceSets configured for StorageCluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
+		r.Log.Info("No monDataDirHostPath, monPVCTemplate or storageDeviceSets configured for StorageCluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
 	}
 
 	// if kmsConfig is not 'nil', add the KMS details to CephCluster spec
@@ -1589,15 +1589,27 @@ func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string)
 	return crs
 }
 
-func getCephClusterCephConfig(sc *ocsv1.StorageCluster) map[string]map[string]string {
+func getCephClusterCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) map[string]map[string]string {
+	// Default Ceph configuration settings
 	cephConfig := map[string]map[string]string{
 		"global": {
-			"mon_max_pg_per_osd":    "1000",
-			"mon_target_pg_per_osd": "200",
+			"mon_max_pg_per_osd":                 "1000",
+			"mon_target_pg_per_osd":              "200",
+			"mon_pg_warn_max_object_skew":        "0",
+			"mon_data_avail_warn":                "15",
+			"mon_osd_full_ratio":                 ".85",
+			"mon_osd_backfillfull_ratio":         ".80",
+			"mon_osd_nearfull_ratio":             ".75",
+			"bdev_flock_retry":                   "20",
+			"bluestore_prefer_deferred_size_hdd": "0",
+			"bluestore_slow_ops_warn_lifetime":   "0",
+		},
+		"osd": {
+			"osd_memory_target_cgroup_limit_ratio": "0.8",
 		},
 	}
 
-	// Set the mon_target_pg_per_osd based on the resource profile
+	// Set mon_target_pg_per_osd based on the resource profile
 	switch sc.Spec.ResourceProfile {
 	case "lean":
 		cephConfig["global"]["mon_target_pg_per_osd"] = "100"
@@ -1605,8 +1617,61 @@ func getCephClusterCephConfig(sc *ocsv1.StorageCluster) map[string]map[string]st
 		cephConfig["global"]["mon_target_pg_per_osd"] = "400"
 	}
 
+	// Set mon_warn_on_pool_no_redundancy to false only if non-resilient pools are enabled
+	if sc.Spec.ManagedResources.CephNonResilientPools.Enable {
+		cephConfig["global"]["mon_warn_on_pool_no_redundancy"] = "false"
+	}
+
+	// Configure public network if the cluster is dualstack, but not multus
+	if sc.Spec.Network != nil && sc.Spec.Network.Provider == "" && sc.Spec.Network.DualStack {
+		networkConfig := &configv1.Network{}
+		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "cluster", Namespace: ""}, networkConfig)
+		if err == nil {
+			cidrNameArray := []string{}
+			for _, cidr := range networkConfig.Status.ClusterNetwork {
+				cidrNameArray = append(cidrNameArray, cidr.CIDR)
+			}
+			if len(cidrNameArray) != 0 {
+				cidrName := strings.Join(cidrNameArray, ",")
+				cephConfig["global"]["public_network"] = cidrName
+			}
+
+		}
+		r.Log.Error(err, "could not get network config details", "CephCluster", klog.KRef(sc.Namespace, sc.Name))
+	}
+
+	// Add RBD mirror debug logging configs if RBD mirror CR is present
+	partialList := &metav1.PartialObjectMetadataList{}
+	partialList.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "ceph.rook.io",
+		Version: "v1",
+		Kind:    "CephRBDMirrorList",
+	})
+	err := r.Client.List(context.TODO(), partialList,
+		client.InNamespace(sc.Namespace),
+		client.Limit(1),
+	)
+	if err == nil {
+		if len(partialList.Items) > 0 {
+			cephConfig["client.rbd-mirror.a"] = map[string]string{
+				"debug_ms":         "1",
+				"debug_rbd":        "15",
+				"debug_rbd_mirror": "30",
+				"log_file":         "/var/log/ceph/$cluster-$name.log",
+			}
+			cephConfig["client.rbd-mirror-peer"] = map[string]string{
+				"debug_ms":         "1",
+				"debug_rbd":        "15",
+				"debug_rbd_mirror": "30",
+				"log_file":         "/var/log/ceph/$cluster-$name.log",
+			}
+		}
+	} else {
+		r.Log.Error(err, "failed to list RBD mirror CRs", "CephCluster", klog.KRef(sc.Namespace, sc.Name))
+	}
+
+	// Merge the existing ceph config with the specified one in the StorageCluster
 	if sc.Spec.ManagedResources.CephCluster.CephConfig != nil {
-		// Merge the existing ceph config with the new one
 		for section, config := range sc.Spec.ManagedResources.CephCluster.CephConfig {
 			if _, ok := cephConfig[section]; !ok {
 				cephConfig[section] = make(map[string]string)
