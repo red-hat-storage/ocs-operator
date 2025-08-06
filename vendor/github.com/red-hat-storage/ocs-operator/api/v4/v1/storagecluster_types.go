@@ -619,7 +619,7 @@ type TopologyLabelValues []string
 // across all nodes in the StorageCluster
 type NodeTopologyMap struct {
 	// Labels is a map of topology label keys
-	// (e.g. "failure-domain.kubernetes.io") to a set of values for those
+	// (e.g. "topology.kubernetes.io/zone") to a set of values for those
 	// keys.
 	// +optional
 	// +nullable
