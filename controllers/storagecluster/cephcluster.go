@@ -14,6 +14,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -205,6 +206,16 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		if err != nil {
 			r.Log.Error(err, "Failed to validate Multus Selectors specified in StorageCluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
 			return reconcile.Result{}, err
+		}
+	}
+
+	if sc.Spec.HostNetwork && sc.Spec.Network != nil {
+		if sc.Spec.Network.AddressRanges != nil && sc.Spec.Network.AddressRanges.Public != nil {
+			err := updateRookCephOperatorHostNetwork(r.ctx, r.Client, r.OperatorNamespace)
+			if err != nil {
+				r.Log.Error(err, "Failed to update Rook Ceph Operator HostNetwork.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
+				return reconcile.Result{}, err
+			}
 		}
 	}
 
@@ -1706,4 +1717,53 @@ func getFullRatio(specifiedRatio *float64) *float64 {
 	}
 	defaultRatio := 0.85
 	return &defaultRatio
+}
+
+// updateRookCephOperatorHostNetwork updates the rook-ceph-operator CSV to enable host network
+func updateRookCephOperatorHostNetwork(ctx context.Context, c client.Client, opNamespace string) error {
+	csvList := &opv1a1.ClusterServiceVersionList{}
+	labelSelector := labels.SelectorFromSet(map[string]string{
+		fmt.Sprintf("operators.coreos.com/rook-ceph-operator.%v", opNamespace): "",
+	})
+	listOpts := &client.ListOptions{
+		Namespace:     opNamespace,
+		LabelSelector: labelSelector,
+	}
+
+	// List the ClusterServiceVersion for rook-ceph-operator
+	err := c.List(ctx, csvList, listOpts)
+	if err != nil {
+		return err
+	}
+
+	// Check if we found exactly one ClusterServiceVersion for rook-ceph-operator
+	if len(csvList.Items) == 0 {
+		return fmt.Errorf("no ClusterServiceVersion found for rook-ceph-operator in namespace %s", opNamespace)
+	}
+	if len(csvList.Items) > 1 {
+		return fmt.Errorf("multiple ClusterServiceVersions found for rook-ceph-operator, skipping update during upgrade")
+	}
+	rookCSV := &csvList.Items[0]
+
+	// Update the rook-ceph-operator deployment in CSV to enable host network
+	updated := false
+	for i := range rookCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs {
+		deployment := &rookCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[i]
+		if deployment.Name == "rook-ceph-operator" {
+			// Enable host network
+			deployment.Spec.Template.Spec.HostNetwork = true
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		return fmt.Errorf("rook-ceph-operator deployment not found in CSV %v", rookCSV.Name)
+	}
+
+	err = c.Update(ctx, rookCSV)
+	if err != nil {
+		return fmt.Errorf("failed to update rook-ceph-operator CSV: %v", err)
+	}
+
+	return nil
 }
