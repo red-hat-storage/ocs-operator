@@ -18,8 +18,6 @@ import (
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -409,8 +407,7 @@ func (r *OCSInitializationReconciler) ensureClusterClaimExists() error {
 }
 
 // ensureRookCephOperatorConfigExists ensures that the rook-ceph-operator-config cm exists
-// This configmap is semi-reserved for any user overrides to be applied 4.16 onwards.
-// Earlier it used to be purely reserved for user overrides.
+// This configmap is purely reserved for any user overrides to be applied.
 // We don't reconcile it if it exists as it can reset any values the user has set
 // The configmap is watched by the rook operator and values set here have higher precedence
 // than the default values set in the rook operator pod env vars.
@@ -421,76 +418,11 @@ func (r *OCSInitializationReconciler) ensureRookCephOperatorConfigExists(initial
 			Namespace: initialData.Namespace,
 		},
 	}
-
-	opResult, err := ctrl.CreateOrUpdate(r.ctx, r.Client, rookCephOperatorConfig, func() error {
-
-		if rookCephOperatorConfig.Data == nil {
-			rookCephOperatorConfig.Data = make(map[string]string)
-		}
-
-		csiPluginDefaults := defaults.DaemonPlacements[defaults.CsiPluginKey]
-		csiPluginTolerations := r.getCsiTolerations(defaults.CsiPluginKey)
-		if err := updateTolerationsConfigFunc(rookCephOperatorConfig,
-			csiPluginTolerations, csiPluginDefaults.Tolerations, "CSI_PLUGIN_TOLERATIONS",
-			&initialData.Status.RookCephOperatorConfig.CsiPluginTolerationsModified); err != nil {
-			return err
-		}
-
-		csiProvisionerDefaults := defaults.DaemonPlacements[defaults.CsiProvisionerKey]
-		csiProvisionerTolerations := r.getCsiTolerations(defaults.CsiProvisionerKey)
-		if err := updateTolerationsConfigFunc(rookCephOperatorConfig,
-			csiProvisionerTolerations, csiProvisionerDefaults.Tolerations, "CSI_PROVISIONER_TOLERATIONS",
-			&initialData.Status.RookCephOperatorConfig.CsiProvisionerTolerationsModified); err != nil {
-			return err // nolint:revive
-		}
-
-		// TODO: remove this in the next release, look at commit msg for more info
-		delete(rookCephOperatorConfig.Data, "ROOK_CSI_ENABLE_CEPHFS")
-
-		return nil
-	})
-
-	if err != nil {
-		r.Log.Error(err, "Failed to create/update rook-ceph-operator-config configmap")
+	err := r.Client.Create(r.ctx, rookCephOperatorConfig)
+	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}
-	r.Log.Info("Successfully created/updated rook-ceph-operator-config configmap", "OperationResult", opResult)
-
 	return nil
-}
-
-func updateTolerationsConfigFunc(rookCephOperatorConfig *corev1.ConfigMap,
-	tolerations, defaults []corev1.Toleration, configMapKey string, modifiedFlag *bool) error {
-
-	if tolerations != nil {
-		updatedTolerations := append(tolerations, defaults...)
-		tolerationsYAML, err := yaml.Marshal(updatedTolerations)
-		if err != nil {
-			return err
-		}
-		rookCephOperatorConfig.Data[configMapKey] = string(tolerationsYAML)
-		*modifiedFlag = true
-	} else if tolerations == nil && *modifiedFlag {
-		delete(rookCephOperatorConfig.Data, configMapKey)
-		*modifiedFlag = false
-	}
-
-	return nil
-}
-
-func (r *OCSInitializationReconciler) getCsiTolerations(csiTolerationKey string) []corev1.Toleration {
-
-	var tolerations []corev1.Toleration
-
-	clusters := r.clusters.GetStorageClusters()
-
-	for i := range clusters {
-		if val, ok := clusters[i].Spec.Placement[rookCephv1.KeyType(csiTolerationKey)]; ok {
-			tolerations = append(tolerations, val.Tolerations...)
-		}
-	}
-
-	return tolerations
 }
 
 // ensureOcsOperatorConfigExists ensures that the ocs-operator-config exists & if not create/update it with required values
