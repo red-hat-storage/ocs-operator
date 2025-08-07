@@ -373,6 +373,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 				SecurityContext: &corev1.PodSecurityContext{
 					RunAsNonRoot: ptr.To(true),
 				},
+				HostNetwork: getRookCephHostNetwork(instance),
 				Containers: []corev1.Container{
 					{
 						Resources: defaults.MonitoringResources["kube-rbac-proxy"],
@@ -1106,4 +1107,13 @@ func (r *StorageClusterReconciler) deleteMetricsExporterCephClient(namespace str
 	}
 
 	return nil
+}
+
+func getRookCephHostNetwork(instance *ocsv1.StorageCluster) bool {
+	if instance.Spec.HostNetwork && instance.Spec.Network != nil {
+		if instance.Spec.Network.AddressRanges != nil && instance.Spec.Network.AddressRanges.Public != nil {
+			return instance.Spec.Network.HostNetwork
+		}
+	}
+	return false
 }
