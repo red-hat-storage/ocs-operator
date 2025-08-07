@@ -405,6 +405,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			// list of default ensure functions
 			// preserve list order
 			objs = []resourceManager{
+				&rookCephCsvHostNetwork{},
 				&ocsProviderServer{},
 				&backingStorageClasses{},
 				&ocsTopologyMap{},
