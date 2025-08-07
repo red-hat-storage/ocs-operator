@@ -23,6 +23,13 @@ import (
 
 type ocsTopologyMap struct{}
 
+var validTopologyLabelKeys = []string{
+	corev1.LabelTopologyRegion,
+	corev1.LabelTopologyZone,
+	corev1.LabelHostname,
+	defaults.RackTopologyKey,
+}
+
 // ensureCreated ensures that StorageCluster.Status.Topology is up to date
 func (obj *ocsTopologyMap) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	if err := r.reconcileNodeTopologyMap(instance); err != nil {
@@ -63,11 +70,6 @@ func getFailureDomain(sc *ocsv1.StorageCluster) string {
 	return sc.Status.FailureDomain
 }
 
-// getFailureDomainKey returns the failure domain key that was determined at the time of node topology reconciliation
-func getFailureDomainKey(sc *ocsv1.StorageCluster) string {
-	return sc.Status.FailureDomainKey
-}
-
 // setFailureDomain determines the appropriate Ceph failure domain based
 // on the storage cluster's topology map
 func setFailureDomain(sc *ocsv1.StorageCluster) {
@@ -100,7 +102,7 @@ func setFailureDomain(sc *ocsv1.StorageCluster) {
 	// If sufficient zones are available then we select zone as the failure domain
 	topologyMap := sc.Status.NodeTopologies
 	for label, labelValues := range topologyMap.Labels {
-		if label == corev1.LabelZoneFailureDomainStable || label == labelZoneFailureDomainWithoutBeta {
+		if label == corev1.LabelZoneFailureDomainStable {
 			if (len(labelValues) >= 2 && arbiterEnabled(sc)) || (len(labelValues) >= 3) {
 				failureDomain = "zone"
 			}
@@ -135,7 +137,7 @@ func determinePlacementRack(
 	targetAZ := ""
 	for label, value := range node.Labels {
 		for _, key := range validTopologyLabelKeys {
-			if strings.Contains(label, key) && (label == corev1.LabelZoneFailureDomainStable || label == labelZoneFailureDomainWithoutBeta) {
+			if strings.Contains(label, key) && (label == corev1.LabelZoneFailureDomainStable) {
 				targetAZ = value
 				break
 			}
@@ -159,7 +161,7 @@ func determinePlacementRack(
 					if n.Name == nodeName {
 						for label, value := range n.Labels {
 							for _, key := range validTopologyLabelKeys {
-								if strings.Contains(label, key) && (label == corev1.LabelZoneFailureDomainStable || label == labelZoneFailureDomainWithoutBeta) && value == targetAZ {
+								if strings.Contains(label, key) && (label == corev1.LabelZoneFailureDomainStable) && value == targetAZ {
 									validRack = true
 									break
 								}
@@ -299,7 +301,6 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 			for _, key := range validTopologyLabelKeys {
 				if strings.Contains(label, key) {
 					if !topologyMap.Contains(label, value) {
-						r.Log.Info("Adding topology label from Node.", "Node", node.Name, "Label", label, "Value", value)
 						topologyMap.Add(label, value)
 					}
 				}
@@ -313,7 +314,6 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 
 	}
 
-	filterDuplicateLabels(sc, nodes, topologyMap)
 	sortTopologyMapLabelValues(topologyMap)
 	sc.Status.NodeTopologies = topologyMap
 	setFailureDomain(sc)
@@ -334,88 +334,4 @@ func sortTopologyMapLabelValues(topologyMap *ocsv1.NodeTopologyMap) {
 		sort.Strings(values)
 		topologyMap.Labels[label] = values
 	}
-}
-
-// nodesHaveIdenticalValuesForKeys will return true only if
-// a. all the nodes have all the keys in their map
-// b. for a given node, values for all the keys are the same
-func nodesHaveIdenticalValuesForKeys(nodes *corev1.NodeList, keys []string) bool {
-
-	var match = true
-	if len(keys) == 0 {
-		return match
-	}
-
-	for _, node := range nodes.Items {
-		v, found := node.Labels[keys[0]]
-		if !found {
-			match = false
-		}
-		for _, key := range keys {
-			vnext, found := node.Labels[key]
-			if !found {
-				match = false
-			}
-			if v != vnext {
-				match = false
-			}
-		}
-	}
-	return match
-}
-
-// filterDuplicateLabels modifies the topologyMap such that valid but redundant
-// labels are removed from it. The logic of determining which labels are redundant
-// should be all within this function.
-func filterDuplicateLabels(sc *ocsv1.StorageCluster, nodes *corev1.NodeList, topologyMap *ocsv1.NodeTopologyMap) {
-
-	//lint:ignore ST1017 required to compare it directly
-	if "" == getFailureDomain(sc) {
-		//This is the first time we are determining the failure domain
-
-		if topologyMap.ContainsKey(corev1.LabelZoneFailureDomainStable) {
-			// New label is found, use it and discard old
-			delete(topologyMap.Labels, corev1.LabelZoneFailureDomain)
-			delete(topologyMap.Labels, labelZoneFailureDomainWithoutBeta)
-		}
-		if topologyMap.ContainsKey(corev1.LabelZoneRegionStable) {
-			// New label is found, use it and discard old
-			delete(topologyMap.Labels, corev1.LabelZoneRegion)
-			delete(topologyMap.Labels, labelZoneRegionWithoutBeta)
-		}
-
-		// If the new label isn't found, we don't do anything. This leaves the behavior as it was before.
-		return
-	}
-
-	if corev1.LabelZoneFailureDomainStable == getFailureDomainKey(sc) || corev1.LabelZoneRegionStable == getFailureDomainKey(sc) {
-		// We are already using the new key, delete the old labels
-		delete(topologyMap.Labels, corev1.LabelZoneFailureDomain)
-		delete(topologyMap.Labels, labelZoneFailureDomainWithoutBeta)
-		delete(topologyMap.Labels, corev1.LabelZoneRegion)
-		delete(topologyMap.Labels, labelZoneRegionWithoutBeta)
-		return
-	}
-
-	// We have a failure domain selected already AND we know that it is not one
-	// of the new labels. Make a conservative switch to the new labels only if
-	// all the three zone labels have the same value for each node. To keep the
-	// behavior same as in the previous releases, we will delete the new labels
-	// from the topologyMap. If the user wishes to use new labels, they have to
-	// make sure values for the old and the new labels match
-	// TODO: revisit this in the upcoming releases
-	if nodesHaveIdenticalValuesForKeys(nodes, []string{corev1.LabelZoneFailureDomainStable, corev1.LabelZoneFailureDomain, labelZoneFailureDomainWithoutBeta}) {
-		delete(topologyMap.Labels, corev1.LabelZoneFailureDomain)
-		delete(topologyMap.Labels, labelZoneFailureDomainWithoutBeta)
-	} else {
-		delete(topologyMap.Labels, corev1.LabelZoneFailureDomainStable)
-	}
-
-	if nodesHaveIdenticalValuesForKeys(nodes, []string{corev1.LabelZoneRegionStable, corev1.LabelZoneRegion, labelZoneRegionWithoutBeta}) {
-		delete(topologyMap.Labels, corev1.LabelZoneRegion)
-		delete(topologyMap.Labels, labelZoneRegionWithoutBeta)
-	} else {
-		delete(topologyMap.Labels, corev1.LabelZoneRegionStable)
-	}
-
 }
