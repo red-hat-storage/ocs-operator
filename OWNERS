@@ -1,22 +1,18 @@
 # approval == this is a good idea /approve
 approvers:
-  - jarrpa
   - obnoxxx
-  - umangachapagain
   - agarwal-mudit
-  - nbalacha
-  - BlaineEXE
   - nb-ohad
   - iamniting
+  - malayparida2000
+  - BlaineEXE
   - travisn
 # review == this code is good /lgtm
 reviewers:
-  - jarrpa
   - obnoxxx
-  - umangachapagain
   - agarwal-mudit
-  - nbalacha
-  - BlaineEXE
   - nb-ohad
   - iamniting
+  - malayparida2000
+  - BlaineEXE
   - travisn
