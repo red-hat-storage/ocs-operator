@@ -9,8 +9,6 @@ import (
 var (
 	APIServerKey       = "api-server"
 	MetricsExporterKey = "metrics-exporter"
-	CsiPluginKey       = "csi-plugin"
-	CsiProvisionerKey  = "csi-provisioner"
 
 	// osdLabelSelector is the key in OSD pod. Used
 	// as a label selector for topology spread constraints.
@@ -111,18 +109,6 @@ var (
 		},
 
 		MetricsExporterKey: {
-			Tolerations: []corev1.Toleration{
-				getOcsToleration(),
-			},
-		},
-
-		CsiPluginKey: {
-			Tolerations: []corev1.Toleration{
-				getOcsToleration(),
-			},
-		},
-
-		CsiProvisionerKey: {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
