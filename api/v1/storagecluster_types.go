@@ -39,7 +39,9 @@ type StorageClusterSpec struct {
 	ExternalStorage ExternalStorageClusterSpec `json:"externalStorage,omitempty"`
 	// HostNetwork defaults to false
 	HostNetwork bool `json:"hostNetwork,omitempty"`
-	// Placement is optional and used to specify placements of OCS components explicitly
+	// Placement is optional and used to specify placements of OCS components(except csi) explicitly
+	// The specified placement here will be selectively merged with the default placement for the components
+	// For example, if only tolerations are specified, the default node affinity or TSC etc will be applied if applicable
 	Placement rookCephv1.PlacementSpec `json:"placement,omitempty"`
 	// Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
 	Resources map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
