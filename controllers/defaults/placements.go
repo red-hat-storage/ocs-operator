@@ -23,6 +23,12 @@ var (
 	DefaultNodeAffinity = &corev1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: getOcsNodeSelector(),
 	}
+	// MasterNodeToleration is a toleration for master node scheduling
+	MasterNodeToleration = corev1.Toleration{
+		Key:      "node-role.kubernetes.io/master",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
 	// DaemonPlacements map contains the default placement configs for the
 	// various OCS daemons
 	DaemonPlacements = map[string]rookCephv1.Placement{

@@ -21,17 +21,6 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	specifiedPlacement, specified := sc.Spec.Placement[rookCephv1.KeyType(component)]
 	placement := mergePlacements(defaultPlacement, specified, specifiedPlacement)
 
-	if component == "arbiter" {
-		if !sc.Spec.Arbiter.DisableMasterNodeToleration {
-			placement.Tolerations = append(placement.Tolerations, corev1.Toleration{
-				Key:      "node-role.kubernetes.io/master",
-				Operator: corev1.TolerationOpExists,
-				Effect:   corev1.TaintEffectNoSchedule,
-			})
-		}
-		return placement
-	}
-
 	// If the StorageCluster specifies a label selector, append it to the
 	// node affinity, creating it if it doesn't exist.
 	if sc.Spec.LabelSelector != nil {
@@ -39,6 +28,10 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		if len(reqs) != 0 {
 			appendNodeRequirements(&placement, reqs...)
 		}
+	}
+
+	if component == "arbiter" && !sc.Spec.Arbiter.DisableMasterNodeToleration {
+		placement.Tolerations = append(placement.Tolerations, defaults.MasterNodeToleration)
 	}
 
 	topologyKey := sc.Status.FailureDomainKey
