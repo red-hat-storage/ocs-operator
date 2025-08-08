@@ -87,21 +87,6 @@ var mockStorageCluster = &api.StorageCluster{
 	},
 }
 
-var mockStorageClusterWithArbiter = &api.StorageCluster{
-	TypeMeta: metav1.TypeMeta{
-		Kind: "StorageCluster",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      mockStorageClusterRequest.Name,
-		Namespace: mockStorageClusterRequest.Namespace,
-	},
-	Spec: api.StorageClusterSpec{
-		Arbiter: api.ArbiterSpec{
-			Enable: true,
-		},
-	},
-}
-
 var mockCephCluster = &rookCephv1.CephCluster{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      statusutil.GenerateNameForCephCluster(mockStorageCluster.DeepCopy()),
