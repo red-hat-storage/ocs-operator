@@ -14,13 +14,22 @@ import (
 
 // getPlacement returns placement configuration for ceph components with appropriate topology
 func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placement {
-	placement := rookCephv1.Placement{}
-	in, ok := sc.Spec.Placement[rookCephv1.KeyType(component)]
-	if ok {
-		(&in).DeepCopyInto(&placement)
+	var placement rookCephv1.Placement
+	defaultPlacement := defaults.DaemonPlacements[component]
+	specifiedPlacement, specified := sc.Spec.Placement[rookCephv1.KeyType(component)]
+	// If specified placement is present but empty, the intention is to have no placement
+	if specified && isPlacementEmpty(specifiedPlacement) {
+		return specifiedPlacement
+	}
+	// Placement for osd & prepareosd are handled at the deviceSet level
+	if component == "osd" || component == "prepareosd" {
+		specified = false
+	}
+	// If some placement is specified, merge it with the default placement
+	if specified {
+		placement = mergePlacements(defaultPlacement, specifiedPlacement)
 	} else {
-		in := defaults.DaemonPlacements[component]
-		(&in).DeepCopyInto(&placement)
+		placement = defaultPlacement
 	}
 
 	if component == "arbiter" {
@@ -31,18 +40,6 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 				Effect:   corev1.TaintEffectNoSchedule,
 			})
 		}
-		return placement
-	}
-
-	// if provider-server placements are found in the storagecluster spec append the default ocs tolerations to it
-	if ok && component == defaults.APIServerKey {
-		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
-		return placement
-	}
-
-	// if metrics-exporter placements are found in the storagecluster spec append the default ocs tolerations to it
-	if ok && component == defaults.MetricsExporterKey {
-		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
 		return placement
 	}
 
@@ -66,7 +63,7 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	}
 
 	topologyKey := sc.Status.FailureDomainKey
-	if !ok {
+	if !specified || specifiedPlacement.TopologySpreadConstraints == nil {
 		// Set the topology key and label selector values on the TSCs as required
 		switch component {
 		case "mon":
@@ -84,6 +81,49 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	}
 
 	return placement
+}
+
+// mergePlacements merges the default and user-specified placements
+// While merging, for the sections which are not specified, we will use the default placement
+func mergePlacements(defaultPlacement rookCephv1.Placement, specifiedPlacement rookCephv1.Placement) rookCephv1.Placement {
+	merged := rookCephv1.Placement{}
+
+	// NodeAffinity
+	if specifiedPlacement.NodeAffinity != nil {
+		merged.NodeAffinity = specifiedPlacement.NodeAffinity.DeepCopy()
+	} else if defaultPlacement.NodeAffinity != nil {
+		merged.NodeAffinity = defaultPlacement.NodeAffinity.DeepCopy()
+	}
+
+	// PodAffinity
+	if specifiedPlacement.PodAffinity != nil {
+		merged.PodAffinity = specifiedPlacement.PodAffinity.DeepCopy()
+	} else if defaultPlacement.PodAffinity != nil {
+		merged.PodAffinity = defaultPlacement.PodAffinity.DeepCopy()
+	}
+
+	// PodAntiAffinity
+	if specifiedPlacement.PodAntiAffinity != nil {
+		merged.PodAntiAffinity = specifiedPlacement.PodAntiAffinity.DeepCopy()
+	} else if defaultPlacement.PodAntiAffinity != nil {
+		merged.PodAntiAffinity = defaultPlacement.PodAntiAffinity.DeepCopy()
+	}
+
+	// Tolerations
+	if specifiedPlacement.Tolerations != nil {
+		merged.Tolerations = specifiedPlacement.Tolerations
+	} else if defaultPlacement.Tolerations != nil {
+		merged.Tolerations = defaultPlacement.Tolerations
+	}
+
+	// TopologySpreadConstraints
+	if specifiedPlacement.TopologySpreadConstraints != nil {
+		merged.TopologySpreadConstraints = specifiedPlacement.TopologySpreadConstraints
+	} else if defaultPlacement.TopologySpreadConstraints != nil {
+		merged.TopologySpreadConstraints = defaultPlacement.TopologySpreadConstraints
+	}
+
+	return merged
 }
 
 // convertLabelToNodeSelectorRequirements returns a NodeSelectorRequirement list from a given LabelSelector
@@ -119,6 +159,12 @@ func appendNodeRequirements(placement *rookCephv1.Placement, reqs ...corev1.Node
 		nodeSelector.NodeSelectorTerms = append(nodeSelector.NodeSelectorTerms, corev1.NodeSelectorTerm{})
 	}
 	nodeSelector.NodeSelectorTerms[0].MatchExpressions = append(nodeSelector.NodeSelectorTerms[0].MatchExpressions, reqs...)
+}
+
+func isPlacementEmpty(placement rookCephv1.Placement) bool {
+	return placement.NodeAffinity == nil &&
+		placement.PodAffinity == nil && placement.PodAntiAffinity == nil &&
+		placement.Tolerations == nil && placement.TopologySpreadConstraints == nil
 }
 
 // MatchingLabelsSelector filters the list/delete operation on the given label
