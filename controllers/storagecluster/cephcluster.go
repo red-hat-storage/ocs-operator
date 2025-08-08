@@ -555,11 +555,17 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 				BackfillFullRatio:            getBackfillFullRatio(sc.Spec.ManagedResources.CephCluster.BackfillFullRatio),
 				FullRatio:                    getFullRatio(sc.Spec.ManagedResources.CephCluster.FullRatio),
 			},
-			Placement: rookCephv1.PlacementSpec{
-				"all":     getPlacement(sc, "all"),
-				"mon":     getPlacement(sc, "mon"),
-				"arbiter": getPlacement(sc, "arbiter"),
-			},
+			Placement: func() rookCephv1.PlacementSpec {
+				placement := rookCephv1.PlacementSpec{
+					"all": getPlacement(sc, "all"),
+					"mon": getPlacement(sc, "mon"),
+					"mgr": getPlacement(sc, "mgr"),
+				}
+				if arbiterEnabled(sc) {
+					placement["arbiter"] = getPlacement(sc, "arbiter")
+				}
+				return placement
+			}(),
 			PriorityClassNames: rookCephv1.PriorityClassNamesSpec{
 				rookCephv1.KeyMgr:            systemNodeCritical,
 				rookCephv1.KeyMon:            systemNodeCritical,
