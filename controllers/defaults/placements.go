@@ -10,6 +10,7 @@ var (
 	APIServerKey       = "api-server"
 	MetricsExporterKey = "metrics-exporter"
 
+	monLableSelector = "rook-ceph-mon"
 	// osdLabelSelector is the key in OSD pod. Used
 	// as a label selector for topology spread constraints.
 	osdLabelSelector = "rook-ceph-osd"
@@ -22,6 +23,12 @@ var (
 	DefaultNodeAffinity = &corev1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: getOcsNodeSelector(),
 	}
+	// MasterNodeToleration is a toleration for master node scheduling
+	MasterNodeToleration = corev1.Toleration{
+		Key:      "node-role.kubernetes.io/master",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
 	// DaemonPlacements map contains the default placement configs for the
 	// various OCS daemons
 	DaemonPlacements = map[string]rookCephv1.Placement{
@@ -29,36 +36,34 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 		},
 
 		"mon": {
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-					getPodAffinityTerm("rook-ceph-mon"),
-				},
+			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{monLableSelector}, corev1.DoNotSchedule),
 			},
 		},
 
 		"osd": {
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraintsSpec(1, []string{osdLabelSelector}),
+				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{osdLabelSelector}, corev1.ScheduleAnyway),
 			},
 		},
 
 		"osd-prepare": {
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraintsSpec(1, []string{osdLabelSelector, osdPrepareLabelSelector}),
+				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{osdLabelSelector, osdPrepareLabelSelector}, corev1.ScheduleAnyway),
 			},
 		},
-
 		"rgw": {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-					getWeightedPodAffinityTerm(100, "rook-ceph-rgw"),
-				},
+			NodeAffinity: DefaultNodeAffinity,
+			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+				// leave the label value empty as it will be updated with the objectStore name later in getPlacement()
+				getTopologySpreadConstraint(1, "rook_object_store", []string{}, corev1.DoNotSchedule),
 			},
 		},
 
@@ -66,10 +71,10 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-					// left the selector value empty as it will be updated later in the getPlacement()
-				},
+			NodeAffinity: DefaultNodeAffinity,
+			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+				// leave the label value empty as it will be updated with the filesystem name later in getPlacement()
+				getTopologySpreadConstraint(1, "rook_file_system", []string{}, corev1.DoNotSchedule),
 			},
 		},
 
@@ -77,10 +82,10 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-					getPodAffinityTerm("rook-ceph-nfs"),
-				},
+			NodeAffinity: DefaultNodeAffinity,
+			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+				// leave the label value empty as it will be updated with the nfs name later in getPlacement()
+				getTopologySpreadConstraint(1, "ceph_nfs", []string{}, corev1.DoNotSchedule),
 			},
 		},
 
@@ -88,6 +93,7 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 		},
 
 		"noobaa-standalone": {
@@ -100,6 +106,14 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
+		},
+
+		"toolbox": {
+			Tolerations: []corev1.Toleration{
+				getOcsToleration(),
+			},
+			NodeAffinity: DefaultNodeAffinity,
 		},
 
 		APIServerKey: {
@@ -116,77 +130,23 @@ var (
 	}
 )
 
-// getTopologySpreadConstraintsSpec populates values required for topology spread constraints.
-// TopologyKey gets updated in newStorageClassDeviceSets after determining it from determineFailureDomain.
-func getTopologySpreadConstraintsSpec(maxSkew int32, valueLabels []string) corev1.TopologySpreadConstraint {
-	topologySpreadConstraints := corev1.TopologySpreadConstraint{
+// getTopologySpreadConstraint populates values required & returns the topology spread constraint
+func getTopologySpreadConstraint(maxSkew int32, labelKey string, labelValues []string, whenUnsatisfiable corev1.UnsatisfiableConstraintAction) corev1.TopologySpreadConstraint {
+	topologySpreadConstraint := corev1.TopologySpreadConstraint{
 		MaxSkew:           maxSkew,
-		TopologyKey:       corev1.LabelHostname,
-		WhenUnsatisfiable: "ScheduleAnyway",
+		TopologyKey:       corev1.LabelHostname, // TopologyKey gets updated with the failure domain in newStorageClassDeviceSets()/getPlacement()
+		WhenUnsatisfiable: whenUnsatisfiable,
 		LabelSelector: &metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{
 				{
-					Key:      appLabelSelectorKey,
+					Key:      labelKey,
 					Operator: metav1.LabelSelectorOpIn,
-					Values:   valueLabels,
+					Values:   labelValues,
 				},
 			},
 		},
 	}
-
-	return topologySpreadConstraints
-}
-
-func getWeightedPodAffinityTerm(weight int32, selectorValue ...string) corev1.WeightedPodAffinityTerm {
-	return corev1.WeightedPodAffinityTerm{
-		Weight: weight,
-		PodAffinityTerm: corev1.PodAffinityTerm{
-			LabelSelector: &metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
-					{
-						Key:      appLabelSelectorKey,
-						Operator: metav1.LabelSelectorOpIn,
-						Values:   selectorValue,
-					},
-				},
-			},
-			TopologyKey: corev1.LabelHostname,
-		},
-	}
-}
-
-func GetMdsWeightedPodAffinityTerm(weight int32, selectorValue ...string) corev1.WeightedPodAffinityTerm {
-	return corev1.WeightedPodAffinityTerm{
-		Weight: weight,
-		PodAffinityTerm: corev1.PodAffinityTerm{
-			LabelSelector: &metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
-					{
-						Key:      "rook_file_system",
-						Operator: metav1.LabelSelectorOpIn,
-						Values:   selectorValue,
-					},
-				},
-			},
-			TopologyKey: corev1.LabelHostname,
-		},
-	}
-}
-
-func getPodAffinityTerm(selectorValue ...string) corev1.PodAffinityTerm {
-	podAffinityTerm := corev1.PodAffinityTerm{
-		LabelSelector: &metav1.LabelSelector{
-			MatchExpressions: []metav1.LabelSelectorRequirement{
-				{
-					Key:      appLabelSelectorKey,
-					Operator: metav1.LabelSelectorOpIn,
-					Values:   selectorValue,
-				},
-			},
-		},
-		TopologyKey: corev1.LabelHostname,
-	}
-	return podAffinityTerm
+	return topologySpreadConstraint
 }
 
 func getOcsToleration() corev1.Toleration {

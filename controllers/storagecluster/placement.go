@@ -14,70 +14,9 @@ import (
 
 // getPlacement returns placement configuration for ceph components with appropriate topology
 func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placement {
-	placement := rookCephv1.Placement{}
-	in, ok := sc.Spec.Placement[rookCephv1.KeyType(component)]
-	if ok {
-		(&in).DeepCopyInto(&placement)
-	} else {
-		in := defaults.DaemonPlacements[component]
-		(&in).DeepCopyInto(&placement)
-		// label rook_file_system is added to the mds pod using rook operator
-		if component == "mds" {
-			// if active MDS number is more than 1 then Preferred and if it is 1 then Required pod anti-affinity is set
-			mdsWeightedPodAffinity := defaults.GetMdsWeightedPodAffinityTerm(100, util.GenerateNameForCephFilesystem(sc.Name))
-			if sc.Spec.ManagedResources.CephFilesystems.ActiveMetadataServers > 1 {
-				placement.PodAntiAffinity = &corev1.PodAntiAffinity{
-					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-						mdsWeightedPodAffinity,
-					},
-				}
-			} else {
-				placement.PodAntiAffinity = &corev1.PodAntiAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-						mdsWeightedPodAffinity.PodAffinityTerm,
-					},
-				}
-			}
-		}
-	}
-
-	// ignore default PodAntiAffinity mon placement when arbiter is enabled
-	if component == "mon" && arbiterEnabled(sc) {
-		placement.PodAntiAffinity = &corev1.PodAntiAffinity{}
-	}
-
-	if component == "arbiter" {
-		if !sc.Spec.Arbiter.DisableMasterNodeToleration {
-			placement.Tolerations = append(placement.Tolerations, corev1.Toleration{
-				Key:      "node-role.kubernetes.io/master",
-				Operator: corev1.TolerationOpExists,
-				Effect:   corev1.TaintEffectNoSchedule,
-			})
-		}
-		return placement
-	}
-
-	// if provider-server placements are found in the storagecluster spec append the default ocs tolerations to it
-	if ok && component == defaults.APIServerKey {
-		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
-		return placement
-	}
-
-	// if metrics-exporter placements are found in the storagecluster spec append the default ocs tolerations to it
-	if ok && component == defaults.MetricsExporterKey {
-		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
-		return placement
-	}
-
-	// If no placement is specified for the given component and the
-	// StorageCluster has no label selector, set the default node
-	// affinity.
-	if placement.NodeAffinity == nil && sc.Spec.LabelSelector == nil {
-		// Don't add node affinity again for these rook-ceph daemons as it is already added via the "all" key
-		if component != "mgr" && component != "mon" && component != "osd" && component != "osd-prepare" {
-			placement.NodeAffinity = defaults.DefaultNodeAffinity
-		}
-	}
+	defaultPlacement := defaults.DaemonPlacements[component]
+	specifiedPlacement, specified := sc.Spec.Placement[rookCephv1.KeyType(component)]
+	placement := mergePlacements(defaultPlacement, specified, specifiedPlacement)
 
 	// If the StorageCluster specifies a label selector, append it to the
 	// node affinity, creating it if it doesn't exist.
@@ -88,29 +27,75 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		}
 	}
 
-	topologyMap := sc.Status.NodeTopologies
-	if topologyMap == nil {
-		return placement
+	if component == "arbiter" && !sc.Spec.Arbiter.DisableMasterNodeToleration {
+		placement.Tolerations = append(placement.Tolerations, defaults.MasterNodeToleration)
 	}
 
-	topologyKey := getFailureDomain(sc)
-	topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
-	if component == "mon" || component == "mds" || component == "rgw" {
-		if placement.PodAntiAffinity != nil {
-			if placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution != nil {
-				for i := range placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-					placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[i].PodAffinityTerm.TopologyKey = topologyKey
-				}
-			}
-			if placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-				for i := range placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
-					placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[i].TopologyKey = topologyKey
-				}
-			}
+	topologyKey := sc.Status.FailureDomainKey
+	// Change the topology key to the failure domain key, osd & osd-prepare are handled separately
+	if component == "mgr" || component == "mon" {
+		for i := range placement.TopologySpreadConstraints {
+			placement.TopologySpreadConstraints[i].TopologyKey = topologyKey
 		}
+	}
+	if component == "mds" {
+		placement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+		placement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions[0].Values = []string{util.GenerateNameForCephFilesystem(sc.Name)}
+	}
+	if component == "rgw" {
+		placement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+		placement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions[0].Values = []string{util.GenerateNameForCephObjectStore(sc)}
+	}
+	if component == "nfs" {
+		placement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+		placement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions[0].Values = []string{util.GenerateNameForCephNFS(sc)}
 	}
 
 	return placement
+}
+
+// mergePlacements merges the default and user-specified placements
+func mergePlacements(defaultPlacement rookCephv1.Placement, specified bool, specifiedPlacement rookCephv1.Placement) rookCephv1.Placement {
+	merged := rookCephv1.Placement{}
+
+	// NodeAffinity
+	if specified && specifiedPlacement.NodeAffinity != nil {
+		merged.NodeAffinity = specifiedPlacement.NodeAffinity.DeepCopy()
+	} else if defaultPlacement.NodeAffinity != nil {
+		merged.NodeAffinity = defaultPlacement.NodeAffinity.DeepCopy()
+	}
+
+	// PodAffinity
+	if specified && specifiedPlacement.PodAffinity != nil {
+		merged.PodAffinity = specifiedPlacement.PodAffinity.DeepCopy()
+	} else if defaultPlacement.PodAffinity != nil {
+		merged.PodAffinity = defaultPlacement.PodAffinity.DeepCopy()
+	}
+
+	// PodAntiAffinity
+	if specified && specifiedPlacement.PodAntiAffinity != nil {
+		merged.PodAntiAffinity = specifiedPlacement.PodAntiAffinity.DeepCopy()
+	} else if defaultPlacement.PodAntiAffinity != nil {
+		merged.PodAntiAffinity = defaultPlacement.PodAntiAffinity.DeepCopy()
+	}
+
+	// Tolerations: append specified to default
+	if len(defaultPlacement.Tolerations) > 0 {
+		merged.Tolerations = append([]corev1.Toleration{}, defaultPlacement.Tolerations...)
+	}
+	if specified {
+		merged.Tolerations = append(merged.Tolerations, specifiedPlacement.Tolerations...)
+	}
+
+	// TopologySpreadConstraints: append specified to default
+	if len(defaultPlacement.TopologySpreadConstraints) > 0 {
+		merged.TopologySpreadConstraints = append([]corev1.TopologySpreadConstraint{}, defaultPlacement.TopologySpreadConstraints...)
+	}
+	if specified {
+		merged.TopologySpreadConstraints = append(merged.TopologySpreadConstraints, specifiedPlacement.TopologySpreadConstraints...)
+	}
+
+	return merged
 }
 
 // convertLabelToNodeSelectorRequirements returns a NodeSelectorRequirement list from a given LabelSelector
