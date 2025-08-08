@@ -14,14 +14,9 @@ import (
 
 // getPlacement returns placement configuration for ceph components with appropriate topology
 func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placement {
-	placement := rookCephv1.Placement{}
-	in, ok := sc.Spec.Placement[rookCephv1.KeyType(component)]
-	if ok {
-		(&in).DeepCopyInto(&placement)
-	} else {
-		in := defaults.DaemonPlacements[component]
-		(&in).DeepCopyInto(&placement)
-	}
+	defaultPlacement := defaults.DaemonPlacements[component]
+	specifiedPlacement, specified := sc.Spec.Placement[rookCephv1.KeyType(component)]
+	placement := mergePlacements(defaultPlacement, specified, specifiedPlacement)
 
 	if component == "arbiter" {
 		if !sc.Spec.Arbiter.DisableMasterNodeToleration {
@@ -31,18 +26,6 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 				Effect:   corev1.TaintEffectNoSchedule,
 			})
 		}
-		return placement
-	}
-
-	// if provider-server placements are found in the storagecluster spec append the default ocs tolerations to it
-	if ok && component == defaults.APIServerKey {
-		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
-		return placement
-	}
-
-	// if metrics-exporter placements are found in the storagecluster spec append the default ocs tolerations to it
-	if ok && component == defaults.MetricsExporterKey {
-		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
 		return placement
 	}
 
@@ -86,6 +69,50 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	}
 
 	return placement
+}
+
+// mergePlacements merges the default and user-specified placements
+func mergePlacements(defaultPlacement rookCephv1.Placement, specified bool, specifiedPlacement rookCephv1.Placement) rookCephv1.Placement {
+	merged := rookCephv1.Placement{}
+
+	// NodeAffinity
+	if specified && specifiedPlacement.NodeAffinity != nil {
+		merged.NodeAffinity = specifiedPlacement.NodeAffinity.DeepCopy()
+	} else if defaultPlacement.NodeAffinity != nil {
+		merged.NodeAffinity = defaultPlacement.NodeAffinity.DeepCopy()
+	}
+
+	// PodAffinity
+	if specified && specifiedPlacement.PodAffinity != nil {
+		merged.PodAffinity = specifiedPlacement.PodAffinity.DeepCopy()
+	} else if defaultPlacement.PodAffinity != nil {
+		merged.PodAffinity = defaultPlacement.PodAffinity.DeepCopy()
+	}
+
+	// PodAntiAffinity
+	if specified && specifiedPlacement.PodAntiAffinity != nil {
+		merged.PodAntiAffinity = specifiedPlacement.PodAntiAffinity.DeepCopy()
+	} else if defaultPlacement.PodAntiAffinity != nil {
+		merged.PodAntiAffinity = defaultPlacement.PodAntiAffinity.DeepCopy()
+	}
+
+	// Tolerations: append specified to default
+	if len(defaultPlacement.Tolerations) > 0 {
+		merged.Tolerations = append([]corev1.Toleration{}, defaultPlacement.Tolerations...)
+	}
+	if specified {
+		merged.Tolerations = append(merged.Tolerations, specifiedPlacement.Tolerations...)
+	}
+
+	// TopologySpreadConstraints: append specified to default
+	if len(defaultPlacement.TopologySpreadConstraints) > 0 {
+		merged.TopologySpreadConstraints = append([]corev1.TopologySpreadConstraint{}, defaultPlacement.TopologySpreadConstraints...)
+	}
+	if specified {
+		merged.TopologySpreadConstraints = append(merged.TopologySpreadConstraints, specifiedPlacement.TopologySpreadConstraints...)
+	}
+
+	return merged
 }
 
 // convertLabelToNodeSelectorRequirements returns a NodeSelectorRequirement list from a given LabelSelector
