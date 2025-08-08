@@ -109,6 +109,12 @@ var (
 			NodeAffinity: DefaultNodeAffinity,
 		},
 
+		"toolbox": {
+			Tolerations: []corev1.Toleration{
+				getOcsToleration(),
+			},
+			NodeAffinity: DefaultNodeAffinity,
+		},
 
 		APIServerKey: {
 			Tolerations: []corev1.Toleration{
