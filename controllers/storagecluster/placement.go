@@ -21,29 +21,6 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	} else {
 		in := defaults.DaemonPlacements[component]
 		(&in).DeepCopyInto(&placement)
-		// label rook_file_system is added to the mds pod using rook operator
-		if component == "mds" {
-			// if active MDS number is more than 1 then Preferred and if it is 1 then Required pod anti-affinity is set
-			mdsWeightedPodAffinity := defaults.GetMdsWeightedPodAffinityTerm(100, util.GenerateNameForCephFilesystem(sc.Name))
-			if sc.Spec.ManagedResources.CephFilesystems.ActiveMetadataServers > 1 {
-				placement.PodAntiAffinity = &corev1.PodAntiAffinity{
-					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-						mdsWeightedPodAffinity,
-					},
-				}
-			} else {
-				placement.PodAntiAffinity = &corev1.PodAntiAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-						mdsWeightedPodAffinity.PodAffinityTerm,
-					},
-				}
-			}
-		}
-	}
-
-	// ignore default PodAntiAffinity mon placement when arbiter is enabled
-	if component == "mon" && arbiterEnabled(sc) {
-		placement.PodAntiAffinity = &corev1.PodAntiAffinity{}
 	}
 
 	if component == "arbiter" {
@@ -88,26 +65,24 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		}
 	}
 
-	topologyMap := sc.Status.NodeTopologies
-	if topologyMap == nil {
-		return placement
-	}
-
-	topologyKey := getFailureDomain(sc)
-	topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
-	if component == "mon" || component == "mds" || component == "rgw" {
-		if placement.PodAntiAffinity != nil {
-			if placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution != nil {
-				for i := range placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
-					placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution[i].PodAffinityTerm.TopologyKey = topologyKey
-				}
-			}
-			if placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-				for i := range placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
-					placement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[i].TopologyKey = topologyKey
-				}
-			}
+	topologyKey := sc.Status.FailureDomainKey
+	// Change the topology key to the failure domain key, osd & osd-prepare are handled separately
+	if component == "mgr" || component == "mon" {
+		for i := range placement.TopologySpreadConstraints {
+			placement.TopologySpreadConstraints[i].TopologyKey = topologyKey
 		}
+	}
+	if component == "mds" {
+		placement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+		placement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions[0].Values = []string{util.GenerateNameForCephFilesystem(sc.Name)}
+	}
+	if component == "rgw" {
+		placement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+		placement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions[0].Values = []string{util.GenerateNameForCephObjectStore(sc)}
+	}
+	if component == "nfs" {
+		placement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+		placement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions[0].Values = []string{util.GenerateNameForCephNFS(sc)}
 	}
 
 	return placement
