@@ -30,6 +30,7 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 		},
 
 		"mon": {
@@ -53,7 +54,7 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
-			PodAntiAffinity: &corev1.PodAntiAffinity{
+			NodeAffinity: DefaultNodeAffinity,
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 				// leave the label value empty as it will be updated with the objectStore name later in getPlacement()
 				getTopologySpreadConstraint(1, "rook_object_store", []string{}, corev1.DoNotSchedule),
@@ -64,7 +65,7 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
-			PodAntiAffinity: &corev1.PodAntiAffinity{
+			NodeAffinity: DefaultNodeAffinity,
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 				// leave the label value empty as it will be updated with the filesystem name later in getPlacement()
 				getTopologySpreadConstraint(1, "rook_file_system", []string{}, corev1.DoNotSchedule),
@@ -75,6 +76,7 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 				// leave the label value empty as it will be updated with the nfs name later in getPlacement()
 				getTopologySpreadConstraint(1, "ceph_nfs", []string{}, corev1.DoNotSchedule),
@@ -85,6 +87,7 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 		},
 
 		"noobaa-standalone": {
@@ -97,7 +100,9 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 		},
+
 
 		APIServerKey: {
 			Tolerations: []corev1.Toleration{
