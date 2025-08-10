@@ -213,7 +213,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	// if the StorageCluster is configured to run on non-default host network, rook-ceph-operator needs to run on host network as well
 	// this is validated by checking if the AddressRanges.Public field is set in the Network spec
 	// since pod network cannot always communicate with non-default host network rook-ceph-operator needs to run on host network
-	if !sc.Spec.Network.IsMultus() &&
+	if !isMultus(sc.Spec.Network) &&
 		sc.Spec.Network != nil &&
 		sc.Spec.Network.AddressRanges != nil &&
 		sc.Spec.Network.AddressRanges.Public != nil {
