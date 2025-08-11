@@ -16,6 +16,9 @@ const TestStorageCluster = deploymanager.DefaultStorageClusterName
 // StorageClassRBD is the name of the ceph rbd storage class the test suite installs
 const StorageClassRBD = deploymanager.DefaultStorageClassRBD
 
+// StorageClassCephFS is the name of the ceph filesystem storage class the test suite installs
+const StorageClassCephFS = deploymanager.DefaultStorageClassCephFS
+
 // InstallNamespace is the namespace ocs is installed into
 var InstallNamespace string
 
