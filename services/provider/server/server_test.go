@@ -616,3 +616,121 @@ func TestOnboardConsumer(t *testing.T) {
 		})
 	}
 }
+
+func TestOffboardConsumer(t *testing.T) {
+	tests := []struct {
+		name                 string
+		storageConsumerUUID  string
+		consumer             *ocsv1a1.StorageConsumer
+		updateCache          func(t *testing.T, consumerManager *ocsConsumerManager)
+		expectError          bool
+		expectedGRPCCode     codes.Code
+		expectedErrorMessage string
+	}{
+		{
+			name:                 "empty storage consumer UUID",
+			storageConsumerUUID:  "",
+			consumer:             nil,
+			expectError:          true,
+			expectedGRPCCode:     codes.Internal,
+			expectedErrorMessage: "failed to offboard storageConsumer",
+		},
+		{
+			name:                 "consumer not found in cache",
+			storageConsumerUUID:  "non-existent-uid",
+			consumer:             nil,
+			expectError:          true,
+			expectedGRPCCode:     codes.Internal,
+			expectedErrorMessage: "failed to offboard storageConsumer",
+		},
+		{
+			name:                "consumer not found in cluster",
+			storageConsumerUUID: "test-uid-123",
+			consumer:            nil,
+			updateCache: func(t *testing.T, consumerManager *ocsConsumerManager) {
+				consumerManager.nameByUID[types.UID("test-uid-123")] = "test-consumer"
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.Internal,
+			expectedErrorMessage: "failed to offboard storageConsumer",
+		},
+		{
+			name:                "successful offboard with client information",
+			storageConsumerUUID: "test-uid-123",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-uid-123",
+				},
+				Status: ocsv1a1.StorageConsumerStatus{
+					Client: &ocsv1a1.ClientStatus{
+						ID:   "client-123",
+						Name: "client-name",
+					},
+				},
+			},
+			updateCache: func(t *testing.T, consumerManager *ocsConsumerManager) {
+				consumerManager.nameByUID[types.UID("test-uid-123")] = "test-consumer"
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheme, err := newScheme()
+			assert.NoError(t, err)
+
+			var existingObjects []client.Object
+			if tt.consumer != nil {
+				existingObjects = append(existingObjects, tt.consumer)
+			}
+
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithStatusSubresource(&ocsv1a1.StorageConsumer{}).
+				WithObjects(existingObjects...).
+				Build()
+
+			consumerManager := createTestConsumerManager(fakeClient)
+			server := &OCSProviderServer{
+				client:          fakeClient,
+				namespace:       testNamespace,
+				consumerManager: consumerManager,
+			}
+
+			if tt.updateCache != nil {
+				tt.updateCache(t, consumerManager)
+			}
+
+			req := &pb.OffboardConsumerRequest{
+				StorageConsumerUUID: tt.storageConsumerUUID,
+			}
+
+			resp, err := server.OffboardConsumer(context.TODO(), req)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, resp)
+
+				// Check gRPC error code and message
+				st, ok := status.FromError(err)
+				assert.True(t, ok)
+				assert.Equal(t, tt.expectedGRPCCode, st.Code())
+				assert.Contains(t, st.Message(), tt.expectedErrorMessage)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, resp)
+
+				// Verify that client information was cleared
+				if tt.consumer != nil {
+					actualConsumer := &ocsv1a1.StorageConsumer{}
+					err := fakeClient.Get(context.TODO(), client.ObjectKeyFromObject(tt.consumer), actualConsumer)
+					assert.NoError(t, err)
+					assert.Nil(t, actualConsumer.Status.Client, "Client information should be cleared")
+				}
+			}
+		})
+	}
+}
