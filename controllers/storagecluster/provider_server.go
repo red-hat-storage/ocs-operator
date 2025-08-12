@@ -315,7 +315,10 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 							},
 						},
 					},
-					Tolerations:        getPlacement(instance, defaults.APIServerKey).Tolerations,
+					Tolerations: getPlacement(instance, defaults.APIServerKey).Tolerations,
+					Affinity: &corev1.Affinity{
+						NodeAffinity: getPlacement(instance, defaults.APIServerKey).NodeAffinity,
+					},
 					PriorityClassName:  systemClusterCritical,
 					ServiceAccountName: ocsProviderServerName,
 				},

@@ -531,6 +531,9 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 					},
 				},
 				Tolerations: getPlacement(instance, defaults.MetricsExporterKey).Tolerations,
+				Affinity: &corev1.Affinity{
+					NodeAffinity: getPlacement(instance, defaults.MetricsExporterKey).NodeAffinity,
+				},
 			},
 		}
 		return nil
