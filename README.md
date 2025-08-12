@@ -22,6 +22,7 @@
   - [Debugging Functional Test Failures](#debugging-functional-test-failures)
     - [Functional test stdout log](#functional-test-stdout-log)
     - [PROW artifacts](#prow-artifacts)
+      - [Finding OCS Must-Gather](#finding-ocs-must-gather)
     - [Getting live access to the PROW CI cluster](#getting-live-access-to-the-prow-ci-cluster)
 
 ## OpenShift Container Storage Operator
@@ -242,6 +243,15 @@ there look at the top right hand corner for the `artifacts` link. That will
 bring you to a directory tree. Follow the `artifacts/` directory to the
 `ocs-operator-bundle-e2e-aws/` directory. There you can find logs and information
 pertaining to objects in the cluster.
+
+###### Finding OCS Must-Gather
+
+To locate the OCS must-gather artifacts from a failed e2e test, continue navigating 
+from the `ocs-operator-bundle-e2e-aws/` directory: `e2e-test/` → `artifacts/` → `ocs-must-gather/`
+
+The `ocs-must-gather/` directory contains comprehensive debugging information collected
+from the test cluster, including logs, resource definitions, and cluster state information
+that can help diagnose test failures.
 
 #### Getting live access to the PROW CI cluster
 
