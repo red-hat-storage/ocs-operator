@@ -181,9 +181,9 @@ func TestGetPlacement(t *testing.T) {
 					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
 				},
 				"mds": {
-					NodeAffinity:    defaults.DefaultNodeAffinity,
-					PodAntiAffinity: defaults.DaemonPlacements["mds"].PodAntiAffinity,
-					Tolerations:     defaults.DaemonPlacements["mds"].Tolerations,
+					NodeAffinity:              defaults.DefaultNodeAffinity,
+					TopologySpreadConstraints: defaults.DaemonPlacements["mds"].TopologySpreadConstraints,
+					Tolerations:               defaults.DaemonPlacements["mds"].Tolerations,
 				},
 			},
 		},
@@ -217,9 +217,9 @@ func TestGetPlacement(t *testing.T) {
 					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
 				},
 				"mds": {
-					NodeAffinity:    &workerNodeAffinity,
-					PodAntiAffinity: defaults.DaemonPlacements["mds"].PodAntiAffinity,
-					Tolerations:     defaults.DaemonPlacements["mds"].Tolerations,
+					NodeAffinity:              &workerNodeAffinity,
+					TopologySpreadConstraints: defaults.DaemonPlacements["mds"].TopologySpreadConstraints,
+					Tolerations:               defaults.DaemonPlacements["mds"].Tolerations,
 				},
 			},
 		},
@@ -303,8 +303,8 @@ func TestGetPlacement(t *testing.T) {
 					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
 				},
 				"mds": {
-					PodAntiAffinity: defaults.DaemonPlacements["mds"].PodAntiAffinity,
-					Tolerations:     defaults.DaemonPlacements["mds"].Tolerations,
+					TopologySpreadConstraints: defaults.DaemonPlacements["mds"].TopologySpreadConstraints,
+					Tolerations:               defaults.DaemonPlacements["mds"].Tolerations,
 				},
 			},
 		},
@@ -364,19 +364,19 @@ func TestGetPlacement(t *testing.T) {
 				"mds": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
 					Tolerations:  defaults.DaemonPlacements["mds"].Tolerations,
-					PodAntiAffinity: &corev1.PodAntiAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-							{
-								LabelSelector: &metav1.LabelSelector{
-									MatchExpressions: []metav1.LabelSelectorRequirement{
-										{
-											Key:      "rook_file_system",
-											Operator: metav1.LabelSelectorOpIn,
-											Values:   []string{"storage-test-cephfilesystem"},
-										},
+					TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       corev1.LabelZoneFailureDomainStable,
+							WhenUnsatisfiable: corev1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      "rook_file_system",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"storage-test-cephfilesystem"},
 									},
 								},
-								TopologyKey: corev1.LabelZoneFailureDomainStable,
 							},
 						},
 					},
@@ -425,9 +425,9 @@ func TestGetPlacement(t *testing.T) {
 					PodAntiAffinity: &corev1.PodAntiAffinity{},
 				},
 				"mds": {
-					NodeAffinity:    defaults.DefaultNodeAffinity,
-					Tolerations:     defaults.DaemonPlacements["all"].Tolerations,
-					PodAntiAffinity: defaults.DaemonPlacements["mds"].PodAntiAffinity,
+					NodeAffinity:              defaults.DefaultNodeAffinity,
+					Tolerations:               defaults.DaemonPlacements["mds"].Tolerations,
+					TopologySpreadConstraints: defaults.DaemonPlacements["mds"].TopologySpreadConstraints,
 				},
 			},
 		},
@@ -473,9 +473,9 @@ func TestGetPlacement(t *testing.T) {
 					PodAntiAffinity: nil,
 				},
 				"mds": {
-					NodeAffinity:    defaults.DefaultNodeAffinity,
-					Tolerations:     defaults.DaemonPlacements["mds"].Tolerations,
-					PodAntiAffinity: nil,
+					NodeAffinity:              defaults.DefaultNodeAffinity,
+					Tolerations:               defaults.DaemonPlacements["mds"].Tolerations,
+					TopologySpreadConstraints: nil,
 				},
 			},
 		},
@@ -500,20 +500,13 @@ func TestGetPlacement(t *testing.T) {
 		assert.Equal(t, expectedPlacement, actualPlacement, c.label)
 
 		expectedPlacement = c.expectedPlacements["mds"]
-		testPodAffinity := &corev1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-				defaults.GetMdsWeightedPodAffinityTerm(100, util.GenerateNameForCephFilesystem(sc.Name)).PodAffinityTerm,
-			},
-		}
-		if expectedPlacement.PodAntiAffinity != nil {
-			topologyKeys := ""
-			if len(expectedPlacement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution) != 0 {
-				topologyKeys = expectedPlacement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey
+		if len(expectedPlacement.TopologySpreadConstraints) > 0 {
+			expectedTSCs := make([]corev1.TopologySpreadConstraint, len(expectedPlacement.TopologySpreadConstraints))
+			copy(expectedTSCs, expectedPlacement.TopologySpreadConstraints)
+			if len(expectedTSCs[0].LabelSelector.MatchExpressions) > 0 {
+				expectedTSCs[0].LabelSelector.MatchExpressions[0].Values = []string{util.GenerateNameForCephFilesystem(sc.Name)}
 			}
-			expectedPlacement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = testPodAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-			if topologyKeys != "" {
-				expectedPlacement.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey = topologyKeys
-			}
+			expectedPlacement.TopologySpreadConstraints = expectedTSCs
 		}
 		actualPlacement = getPlacement(sc, "mds")
 		assert.Equal(t, expectedPlacement, actualPlacement, c.label)
