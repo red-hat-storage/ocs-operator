@@ -66,4 +66,47 @@ func DataValidationTest() {
 			})
 		})
 	})
+
+	ginkgo.Describe("cephfs", func() {
+		var namespace string
+		var pvc *k8sv1.PersistentVolumeClaim
+		var job *k8sbatchv1.Job
+
+		ginkgo.BeforeEach(func() {
+			namespace = tests.TestNamespace
+			pvc = tests.GetRandomPVC(tests.StorageClassCephFS, "1Gi")
+			pvc.Namespace = namespace
+			job = tests.GetDataValidatorJob(pvc.GetName())
+			job.Namespace = namespace
+		})
+
+		ginkgo.AfterEach(func() {
+			err := client.Delete(context.TODO(), job)
+			if err != nil && !errors.IsNotFound(err) {
+				gomega.Expect(err).To(gomega.BeNil())
+			}
+			err = client.Delete(context.TODO(), pvc)
+			if err != nil && !errors.IsNotFound(err) {
+				gomega.Expect(err).To(gomega.BeNil())
+			}
+		})
+		ginkgo.Context("Create job with pvc", func() {
+			ginkgo.It("and verify the data integrity", func() {
+				ginkgo.By("Creating PVC")
+				err := dm.WaitForPVCBound(pvc, namespace)
+				gomega.Expect(err).To(gomega.BeNil())
+
+				ginkgo.By("Running Job")
+				err = dm.WaitForJobSucceeded(job, namespace)
+				gomega.Expect(err).To(gomega.BeNil())
+				finalJob := &k8sbatchv1.Job{}
+				err = client.Get(context.TODO(), types.NamespacedName{
+					Name:      job.GetName(),
+					Namespace: namespace,
+				}, finalJob)
+				gomega.Expect(err).To(gomega.BeNil())
+				gomega.Expect(finalJob.Status.Succeeded).NotTo(gomega.BeZero())
+			})
+		})
+	})
 }

@@ -27,6 +27,9 @@ const DefaultStorageClusterName = "test-storagecluster"
 // DefaultStorageClassRBD is the name of the ceph rbd storage class the test suite installs
 const DefaultStorageClassRBD = DefaultStorageClusterName + "-ceph-rbd"
 
+// DefaultStorageClassCephFS is the name of the ceph filesystem storage class the test suite installs
+const DefaultStorageClassCephFS = DefaultStorageClusterName + "-cephfs"
+
 const minOSDsCount = 3
 const minOSDsCountArbiter = 4
 
