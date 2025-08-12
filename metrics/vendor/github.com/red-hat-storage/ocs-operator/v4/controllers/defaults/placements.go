@@ -41,13 +41,13 @@ var (
 
 		"osd": {
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraintsSpec(1, []string{osdLabelSelector}),
+				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{osdLabelSelector}, corev1.ScheduleAnyway),
 			},
 		},
 
 		"osd-prepare": {
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraintsSpec(1, []string{osdLabelSelector, osdPrepareLabelSelector}),
+				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{osdLabelSelector, osdPrepareLabelSelector}, corev1.ScheduleAnyway),
 			},
 		},
 
@@ -66,10 +66,9 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-					// left the selector value empty as it will be updated later in the getPlacement()
-				},
+			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+				// leave the label value empty as it will be updated with the filesystem name later in getPlacement()
+				getTopologySpreadConstraint(1, "rook_file_system", []string{}, corev1.DoNotSchedule),
 			},
 		},
 
@@ -116,25 +115,23 @@ var (
 	}
 )
 
-// getTopologySpreadConstraintsSpec populates values required for topology spread constraints.
-// TopologyKey gets updated in newStorageClassDeviceSets after determining it from determineFailureDomain.
-func getTopologySpreadConstraintsSpec(maxSkew int32, valueLabels []string) corev1.TopologySpreadConstraint {
-	topologySpreadConstraints := corev1.TopologySpreadConstraint{
+// getTopologySpreadConstraint populates values required & returns the topology spread constraint
+func getTopologySpreadConstraint(maxSkew int32, labelKey string, labelValues []string, whenUnsatisfiable corev1.UnsatisfiableConstraintAction) corev1.TopologySpreadConstraint {
+	topologySpreadConstraint := corev1.TopologySpreadConstraint{
 		MaxSkew:           maxSkew,
-		TopologyKey:       corev1.LabelHostname,
-		WhenUnsatisfiable: "ScheduleAnyway",
+		TopologyKey:       corev1.LabelHostname, // TopologyKey gets updated with the failure domain in newStorageClassDeviceSets()/getPlacement()
+		WhenUnsatisfiable: whenUnsatisfiable,
 		LabelSelector: &metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{
 				{
-					Key:      appLabelSelectorKey,
+					Key:      labelKey,
 					Operator: metav1.LabelSelectorOpIn,
-					Values:   valueLabels,
+					Values:   labelValues,
 				},
 			},
 		},
 	}
-
-	return topologySpreadConstraints
+	return topologySpreadConstraint
 }
 
 func getWeightedPodAffinityTerm(weight int32, selectorValue ...string) corev1.WeightedPodAffinityTerm {
@@ -145,24 +142,6 @@ func getWeightedPodAffinityTerm(weight int32, selectorValue ...string) corev1.We
 				MatchExpressions: []metav1.LabelSelectorRequirement{
 					{
 						Key:      appLabelSelectorKey,
-						Operator: metav1.LabelSelectorOpIn,
-						Values:   selectorValue,
-					},
-				},
-			},
-			TopologyKey: corev1.LabelHostname,
-		},
-	}
-}
-
-func GetMdsWeightedPodAffinityTerm(weight int32, selectorValue ...string) corev1.WeightedPodAffinityTerm {
-	return corev1.WeightedPodAffinityTerm{
-		Weight: weight,
-		PodAffinityTerm: corev1.PodAffinityTerm{
-			LabelSelector: &metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
-					{
-						Key:      "rook_file_system",
 						Operator: metav1.LabelSelectorOpIn,
 						Values:   selectorValue,
 					},

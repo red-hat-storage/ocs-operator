@@ -21,24 +21,6 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	} else {
 		in := defaults.DaemonPlacements[component]
 		(&in).DeepCopyInto(&placement)
-		// label rook_file_system is added to the mds pod using rook operator
-		if component == "mds" {
-			// if active MDS number is more than 1 then Preferred and if it is 1 then Required pod anti-affinity is set
-			mdsWeightedPodAffinity := defaults.GetMdsWeightedPodAffinityTerm(100, util.GenerateNameForCephFilesystem(sc.Name))
-			if sc.Spec.ManagedResources.CephFilesystems.ActiveMetadataServers > 1 {
-				placement.PodAntiAffinity = &corev1.PodAntiAffinity{
-					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-						mdsWeightedPodAffinity,
-					},
-				}
-			} else {
-				placement.PodAntiAffinity = &corev1.PodAntiAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-						mdsWeightedPodAffinity.PodAffinityTerm,
-					},
-				}
-			}
-		}
 	}
 
 	// ignore default PodAntiAffinity mon placement when arbiter is enabled
@@ -95,7 +77,7 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 
 	topologyKey := getFailureDomain(sc)
 	topologyKey, _ = topologyMap.GetKeyValues(topologyKey)
-	if component == "mon" || component == "mds" || component == "rgw" {
+	if component == "mon" || component == "rgw" {
 		if placement.PodAntiAffinity != nil {
 			if placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution != nil {
 				for i := range placement.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
@@ -108,6 +90,11 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 				}
 			}
 		}
+	}
+
+	if !ok && component == "mds" {
+		placement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+		placement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions[0].Values = []string{util.GenerateNameForCephFilesystem(sc.Name)}
 	}
 
 	return placement
