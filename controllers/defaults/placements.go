@@ -66,10 +66,9 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-					// left the selector value empty as it will be updated later in the getPlacement()
-				},
+			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+				// leave the label value empty as it will be updated with the filesystem name later in getPlacement()
+				getTopologySpreadConstraint(1, "rook_file_system", []string{}, corev1.DoNotSchedule),
 			},
 		},
 
@@ -143,24 +142,6 @@ func getWeightedPodAffinityTerm(weight int32, selectorValue ...string) corev1.We
 				MatchExpressions: []metav1.LabelSelectorRequirement{
 					{
 						Key:      appLabelSelectorKey,
-						Operator: metav1.LabelSelectorOpIn,
-						Values:   selectorValue,
-					},
-				},
-			},
-			TopologyKey: corev1.LabelHostname,
-		},
-	}
-}
-
-func GetMdsWeightedPodAffinityTerm(weight int32, selectorValue ...string) corev1.WeightedPodAffinityTerm {
-	return corev1.WeightedPodAffinityTerm{
-		Weight: weight,
-		PodAffinityTerm: corev1.PodAffinityTerm{
-			LabelSelector: &metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
-					{
-						Key:      "rook_file_system",
 						Operator: metav1.LabelSelectorOpIn,
 						Values:   selectorValue,
 					},
