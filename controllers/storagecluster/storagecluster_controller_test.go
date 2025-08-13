@@ -715,8 +715,13 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 	mockInfrastructure.DeepCopyInto(infra)
 	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "storage-test",
-			Namespace: "storage-test-ns",
+			Name:       "storage-test",
+			Namespace:  "storage-test-ns",
+			Finalizers: []string{storageClusterFinalizer},
+			Annotations: map[string]string{
+				UninstallModeAnnotation: string(UninstallModeGraceful),
+				CleanupPolicyAnnotation: string(CleanupPolicyDelete),
+			},
 		},
 		Spec: api.StorageClusterSpec{
 			Monitoring: &api.MonitoringSpec{
@@ -725,7 +730,7 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 		},
 	}
 
-	reconciler := createFakeStorageClusterReconciler(t, cr, nodeList, infra)
+	reconciler := createFakeStorageClusterReconciler(t, cr, nodeList, infra, networkConfig)
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
