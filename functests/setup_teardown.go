@@ -37,14 +37,12 @@ func AfterTestSuiteCleanup() {
 	debug("\n------------------------------\n")
 
 	// collect debug log before deleting namespace & cluster
-	if SuiteFailed {
-		debug("AfterTestSuite: collecting debug information\n")
-		err := RunMustGather()
-		gomega.Expect(err).To(gomega.BeNil())
-	}
+	debug("AfterTestSuite: collecting debug information\n")
+	err := RunMustGather()
+	gomega.Expect(err).To(gomega.BeNil())
 
 	debug("AfterTestSuite: deleting Namespace %s\n", TestNamespace)
-	err := DeployManager.DeleteNamespaceAndWait(TestNamespace)
+	err = DeployManager.DeleteNamespaceAndWait(TestNamespace)
 	gomega.Expect(err).To(gomega.BeNil())
 
 	if ocsClusterUninstall {
