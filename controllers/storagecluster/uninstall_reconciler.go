@@ -225,9 +225,9 @@ func (r *StorageClusterReconciler) setNoobaaUninstallMode(sc *ocsv1.StorageClust
 	return nil
 }
 
-// reconcileUninstallAnnotations looks at the current uninstall annotations on the StorageCluster and sets defaults if none or unrecognized ones are set.
-// It returns error and bool (true if storagecluster gets updated else false).
-func (r *StorageClusterReconciler) reconcileUninstallAnnotations(sc *ocsv1.StorageCluster) (bool, error) {
+// checkAndSetUninstallAnnotations looks at the current uninstall  & cleanup annotations on the StorageCluster and sets defaults if none or unrecognized ones are set.
+// It returns true if storageCluster needs to be updated else returns false
+func (r *StorageClusterReconciler) checkAndSetUninstallAnnotations(sc *ocsv1.StorageCluster) bool {
 	var updateRequired bool
 
 	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
@@ -255,21 +255,9 @@ func (r *StorageClusterReconciler) reconcileUninstallAnnotations(sc *ocsv1.Stora
 	}
 
 	if updateRequired {
-		oldSc := ocsv1.StorageCluster{}
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, &oldSc)
-		if err != nil {
-			r.Log.Error(err, "Uninstall: Failed to get StorageCluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
-			return false, err
-		}
-		sc.ObjectMeta.ResourceVersion = oldSc.ObjectMeta.ResourceVersion
-		if err := r.Client.Update(context.TODO(), sc); err != nil {
-			r.Log.Error(err, "Uninstall: Failed to update the StorageCluster with uninstall defaults.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
-			return false, err
-		}
-		r.Log.Info("Uninstall: Default uninstall annotations has been set on StorageCluster", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
-		return true, nil
+		return true
 	}
-	return false, nil
+	return false
 }
 
 // verifyNoStorageConsumerExist verifies there are no storageConsumers on the same namespace
