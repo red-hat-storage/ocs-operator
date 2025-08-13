@@ -53,8 +53,7 @@ func assertStorageClusterUninstallAnnotation(
 	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster,
 	CleanupPolicy CleanupPolicyType, UninstallMode UninstallModeType, ShouldSCUpdate bool) {
 
-	wasSCUpdated, err := reconciler.reconcileUninstallAnnotations(sc)
-	assert.NoError(t, err)
+	wasSCUpdated := reconciler.checkAndSetUninstallAnnotations(sc)
 	assert.Equal(t, ShouldSCUpdate, wasSCUpdated)
 
 	if val, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
@@ -76,8 +75,7 @@ func TestSetRookUninstallandCleanupPolicy(t *testing.T) {
 	// there are two annotations which will be 4 combinations, test all 4 combinations
 
 	// set default uninstall annotations
-	_, err := reconciler.reconcileUninstallAnnotations(sc)
-	assert.NoError(t, err)
+	_ = reconciler.checkAndSetUninstallAnnotations(sc)
 
 	combinationsList := []struct {
 		CleanupPolicy             CleanupPolicyType
@@ -686,12 +684,11 @@ func assertTestSetNoobaaUninstallMode(
 	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster,
 	UninstallMode UninstallModeType, NoobaaUninstallMode nbv1.CleanupConfirmationProperty) {
 
-	_, err := reconciler.reconcileUninstallAnnotations(sc)
-	assert.NoError(t, err)
+	_ = reconciler.checkAndSetUninstallAnnotations(sc)
 
 	sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(UninstallMode)
 
-	err = reconciler.setNoobaaUninstallMode(sc)
+	err := reconciler.setNoobaaUninstallMode(sc)
 	assert.NoError(t, err)
 
 	noobaa := &nbv1.NooBaa{}
