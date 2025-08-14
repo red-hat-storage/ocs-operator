@@ -114,11 +114,15 @@ func (r *StorageClusterReconciler) enableMetricsExporter(
 
 	// create a `ocs-metrics-exporter-ceph-auth` secret for metrics exporter
 	// create a cephclient and it will create the secret
-	err = r.createMetricsExporterCephClient(instance)
-	if err != nil {
-		r.Log.Error(err, "Failed to create ceph client for metrics exporter.")
-		return err
+	// and create ceph clients if external storage is not enabled
+	if !instance.Spec.ExternalStorage.Enable {
+		err = r.createMetricsExporterCephClient(instance)
+		if err != nil {
+			r.Log.Error(err, "Failed to create ceph client for metrics exporter.")
+			return err
+		}
 	}
+
 	return nil
 }
 
