@@ -25,14 +25,15 @@ import (
 )
 
 const (
-	metricsExporterName     = "ocs-metrics-exporter"
-	prometheusRoleName      = "ocs-metrics-svc"
-	metricsExporterRoleName = metricsExporterName
-	portMetricsMain         = "https-main"
-	portMetricsSelf         = "https-self"
-	metricsPath             = "/metrics"
-	rbdMirrorMetricsPath    = "/metrics/rbd-mirror"
-	scrapeInterval          = "1m"
+	metricsExporterName           = "ocs-metrics-exporter"
+	prometheusRoleName            = "ocs-metrics-svc"
+	metricsExporterRoleName       = metricsExporterName
+	portMetricsMain               = "https-main"
+	portMetricsSelf               = "https-self"
+	metricsPath                   = "/metrics"
+	rbdMirrorMetricsPath          = "/metrics/rbd-mirror"
+	scrapeInterval                = "1m"
+	metricsExporterHostNetCRBName = "ocs-metrics-exporter-hostnet"
 
 	componentLabel = "app.kubernetes.io/component"
 	nameLabel      = "app.kubernetes.io/name"
@@ -81,6 +82,14 @@ func (r *StorageClusterReconciler) enableMetricsExporter(
 	// create/update rook-ceph monitoring rolebindings
 	if err := createRookCephClusterRolebindings(ctx, r, instance); err != nil {
 		return err
+	}
+
+	// bind the exporter to hostnetwork-v2 SCC if needed
+	if getRookCephHostNetwork(instance) {
+		if err := bindExporterToHostNetworkV2SCC(ctx, r, instance.Namespace); err != nil {
+			r.Log.Error(err, "failed to bind ocs-metrics-exporter to hostnetwork-v2 SCC")
+			return err
+		}
 	}
 
 	// create/update the config-map needed for the exporter deployment
@@ -373,6 +382,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 				SecurityContext: &corev1.PodSecurityContext{
 					RunAsNonRoot: ptr.To(true),
 				},
+				HostNetwork: getRookCephHostNetwork(instance),
 				Containers: []corev1.Container{
 					{
 						Resources: defaults.MonitoringResources["kube-rbac-proxy"],
@@ -1109,4 +1119,40 @@ func (r *StorageClusterReconciler) deleteMetricsExporterCephClient(namespace str
 	}
 
 	return nil
+}
+
+func getRookCephHostNetwork(instance *ocsv1.StorageCluster) bool {
+	if instance.Spec.HostNetwork && instance.Spec.Network != nil {
+		if instance.Spec.Network.AddressRanges != nil && instance.Spec.Network.AddressRanges.Public != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func bindExporterToHostNetworkV2SCC(ctx context.Context, r *StorageClusterReconciler, ns string) error {
+	crb := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: metricsExporterHostNetCRBName,
+		},
+	}
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, crb, func() error {
+		crb.ObjectMeta.Labels = map[string]string{
+			componentLabel: exporterLabels[componentLabel],
+			nameLabel:      exporterLabels[nameLabel],
+			versionLabel:   version.Version,
+		}
+		crb.RoleRef = rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     "system:openshift:scc:hostnetwork-v2",
+		}
+		crb.Subjects = []rbacv1.Subject{{
+			Kind:      "ServiceAccount",
+			Name:      metricsExporterName,
+			Namespace: ns,
+		}}
+		return nil
+	})
+	return err
 }
