@@ -244,7 +244,13 @@ func (r *StorageAutoscalerReconciler) detectInvalidState(ctx context.Context, st
 		return false, err
 	}
 
-	if duplicateCr || duplicateClass || leanProfile {
+	// check if it's a external mode storage cluster
+	externalMode, err := r.detectExternalModeStorageCluster(ctx, storageCluster, storageAutoScaler)
+	if err != nil {
+		return false, err
+	}
+
+	if duplicateCr || duplicateClass || leanProfile || externalMode {
 		r.Log.Info("storage autoscaler is in invalid state", "namespace", storageAutoScaler.Namespace, "name", storageAutoScaler.Name)
 		return true, nil
 	}
@@ -327,6 +333,27 @@ func (r *StorageAutoscalerReconciler) detectLeanResourceProfile(ctx context.Cont
 	storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseInvalid
 	storageAutoScaler.Status.Error = &ocsv1.TimestampedError{
 		Message:   "storage profile is lean, autoscaler does not support lean storage profile, delete the autoStorageScaler cr as scaling is not supported",
+		Timestamp: metav1.Now(),
+	}
+	err = r.updateStatus(ctx, storageAutoScaler)
+	if err != nil {
+		return false, err
+	}
+	// not sending an error as user can see in the cr status
+	return true, nil
+}
+
+func (r *StorageAutoscalerReconciler) detectExternalModeStorageCluster(ctx context.Context, storageCluster *ocsv1.StorageCluster, storageAutoScaler *ocsv1.StorageAutoScaler) (bool, error) {
+	if !storageCluster.Spec.ExternalStorage.Enable {
+		return false, nil
+	}
+
+	err := fmt.Errorf("storage cluster is in external mode, autoscaler does not support external mode, delete the autoStorageScaler cr as scaling is not supported")
+	r.Log.Error(err, "storage cluster is external mode")
+
+	storageAutoScaler.Status.Phase = ocsv1.StorageAutoScalerPhaseInvalid
+	storageAutoScaler.Status.Error = &ocsv1.TimestampedError{
+		Message:   "storage cluster is in external mode, autoscaler does not support external mode, delete the autoStorageScaler cr as scaling is not supported",
 		Timestamp: metav1.Now(),
 	}
 	err = r.updateStatus(ctx, storageAutoScaler)
