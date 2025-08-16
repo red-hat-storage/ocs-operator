@@ -22,6 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -138,19 +140,30 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 		util.AssertEqual(r.AvailableCrds[crd.Name], crd.UID != "", util.ExitCodeThatShouldRestartTheProcess)
 	}
 
-	// Fetch the StorageCluster instance
-	sc := &ocsv1.StorageCluster{}
-	if err := r.Client.Get(ctx, request.NamespacedName, sc); err != nil {
+	// Fetch the StorageCluster instance as unstructured
+	r.unstructuredSC = &unstructured.Unstructured{}
+	r.unstructuredSC.SetGroupVersionKind(ocsv1.GroupVersion.WithKind("StorageCluster"))
+	if err := r.Client.Get(ctx, request.NamespacedName, r.unstructuredSC); err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info("No StorageCluster resource.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
+			r.Log.Info("No StorageCluster resource.", "StorageCluster", klog.KRef(request.Namespace, request.Name))
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		r.Log.Error(err, "Failed to retrieve StorageCluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
+		r.Log.Error(err, "Failed to retrieve StorageCluster.", "StorageCluster", klog.KRef(request.Namespace, request.Name))
 		return reconcile.Result{}, err
+	}
+
+	// Convert unstructured to structured StorageCluster
+	sc := &ocsv1.StorageCluster{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(r.unstructuredSC.Object, sc); err != nil {
+		r.Log.Error(err, "Failed to convert unstructured StorageCluster to structured,getting structured object directly", "StorageCluster", klog.KRef(request.Namespace, request.Name))
+		if err := r.Client.Get(ctx, request.NamespacedName, sc); err != nil {
+			r.Log.Error(err, "Failed to retrieve StorageCluster as structured object.", "StorageCluster", klog.KRef(request.Namespace, request.Name))
+			return reconcile.Result{}, err
+		}
 	}
 
 	if err := r.validateStorageClusterSpec(sc); err != nil {
