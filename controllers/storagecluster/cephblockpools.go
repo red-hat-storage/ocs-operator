@@ -16,6 +16,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+var (
+	cephBlockPoolsSpecifiedPoolSpecPath = []string{"spec", "managedResources", "cephBlockPools", "poolSpec"}
+)
+
 type ocsCephBlockPools struct{}
 
 func (o *ocsCephBlockPools) deleteCephBlockPool(r *StorageClusterReconciler, cephBlockPool *cephv1.CephBlockPool) (reconcile.Result, error) {
@@ -71,7 +75,7 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 		}
 
 		// Set default values in the poolSpec as necessary
-		setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
+		r.setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster, cephBlockPoolsSpecifiedPoolSpecPath)
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
@@ -124,7 +128,7 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 			cephBlockPool.Spec.Replicated.Size = manageCBPSpec.PoolSpec.Replicated.Size
 		}
 
-		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
+		r.setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster, []string{})
 		util.AddLabel(cephBlockPool, util.ForInternalUseOnlyLabelKey, "true")
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
@@ -169,7 +173,7 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		cephBlockPool.Spec.Name = ".nfs"
-		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
+		r.setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster, []string{})
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 		util.AddLabel(cephBlockPool, util.ForInternalUseOnlyLabelKey, "true")
 
