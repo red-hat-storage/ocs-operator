@@ -16,6 +16,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+var (
+	cephBlockPoolsSpecifiedPoolSpecPath = []string{"spec", "managedResources", "cephBlockPools", "poolSpec"}
+)
+
 type ocsCephBlockPools struct{}
 
 func (o *ocsCephBlockPools) deleteCephBlockPool(r *StorageClusterReconciler, cephBlockPool *cephv1.CephBlockPool) (reconcile.Result, error) {
@@ -71,7 +75,7 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 		}
 
 		// Set default values in the poolSpec as necessary
-		setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
+		r.setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster, cephBlockPoolsSpecifiedPoolSpecPath)
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
@@ -117,14 +121,22 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		cephBlockPool.Spec.Name = ".mgr"
+		poolSpec := &cephBlockPool.Spec.PoolSpec
 
-		// Pass the Replicated Size Spec for the default CephBlockPool from the storageCluster CR
+		// Pass the EnableCrushUpdates and DeviceClass for the default cephBlockPool spec if specified
+		if val, found := getValueAtPath(r.unstructuredSC, append(cephBlockPoolsSpecifiedPoolSpecPath, "enableCrushUpdates")); found {
+			poolSpec.EnableCrushUpdates = val.(bool)
+		}
+		if val, found := getValueAtPath(r.unstructuredSC, append(cephBlockPoolsSpecifiedPoolSpecPath, "deviceClass")); found {
+			poolSpec.DeviceClass = val.(string)
+		}
+		// Pass the Replicated Size Spec for the default CephBlockPool spec if specified
 		manageCBPSpec := &storageCluster.Spec.ManagedResources.CephBlockPools
 		if manageCBPSpec.PoolSpec != nil && manageCBPSpec.PoolSpec.Replicated.Size != 0 {
-			cephBlockPool.Spec.Replicated.Size = manageCBPSpec.PoolSpec.Replicated.Size
+			poolSpec.Replicated.Size = manageCBPSpec.PoolSpec.Replicated.Size
 		}
 
-		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
+		r.setDefaultMetadataPoolSpec(poolSpec, storageCluster, []string{})
 		util.AddLabel(cephBlockPool, util.ForInternalUseOnlyLabelKey, "true")
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
@@ -169,8 +181,23 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		cephBlockPool.Spec.Name = ".nfs"
-		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
-		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
+		poolSpec := &cephBlockPool.Spec.PoolSpec
+
+		// Pass the EnableCrushUpdates and DeviceClass for the default cephBlockPool spec if specified
+		if val, found := getValueAtPath(r.unstructuredSC, append(cephBlockPoolsSpecifiedPoolSpecPath, "enableCrushUpdates")); found {
+			poolSpec.EnableCrushUpdates = val.(bool)
+		}
+		if val, found := getValueAtPath(r.unstructuredSC, append(cephBlockPoolsSpecifiedPoolSpecPath, "deviceClass")); found {
+			poolSpec.DeviceClass = val.(string)
+		}
+		// Pass the Replicated Size Spec for the default CephBlockPool spec if specified
+		manageCBPSpec := &storageCluster.Spec.ManagedResources.CephBlockPools
+		if manageCBPSpec.PoolSpec != nil && manageCBPSpec.PoolSpec.Replicated.Size != 0 {
+			poolSpec.Replicated.Size = manageCBPSpec.PoolSpec.Replicated.Size
+		}
+
+		r.setDefaultMetadataPoolSpec(poolSpec, storageCluster, []string{})
+		poolSpec.EnableRBDStats = true
 		util.AddLabel(cephBlockPool, util.ForInternalUseOnlyLabelKey, "true")
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
