@@ -170,7 +170,8 @@ func createStorageCluster(scName, failureDomainName string,
 			},
 		},
 		Status: api.StorageClusterStatus{
-			FailureDomain: failureDomainName,
+			FailureDomain:    failureDomainName,
+			FailureDomainKey: v1.LabelZoneFailureDomainStable, // Set based on zone failure domain
 			NodeTopologies: &api.NodeTopologyMap{
 				Labels: map[string]api.TopologyLabelValues{
 					zoneTopologyLabel: zoneTopologyLabels,
