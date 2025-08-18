@@ -324,20 +324,27 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 	// Check GetDeletionTimestamp to determine if the object is under deletion
 	if instance.GetDeletionTimestamp().IsZero() {
+		var updateRequired bool
+
+		// Check if finalizer needs to be added
 		if !contains(instance.GetFinalizers(), storageClusterFinalizer) {
 			r.Log.Info("Finalizer not found for StorageCluster. Adding finalizer.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, storageClusterFinalizer)
+			updateRequired = true
+		}
+
+		// Check if annotations need to be updated
+		if r.checkAndSetUninstallAnnotations(instance) {
+			updateRequired = true
+		}
+
+		if updateRequired {
 			if err := r.Client.Update(r.ctx, instance); err != nil {
 				r.Log.Info("Failed to update StorageCluster", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 				return reconcile.Result{}, err
 			}
-		}
-
-		if scWasUpdated, err := r.reconcileUninstallAnnotations(instance); err != nil {
-			return reconcile.Result{}, err
-		} else if scWasUpdated {
-			r.Log.Info("exiting reconcile loop immediately after updating the storagecluster annotations")
-			return reconcile.Result{}, err
+			r.Log.Info("exiting reconcile & requeueing another, immediately after updating storagecluster finalizer or uninstall/cleanup annotations")
+			return reconcile.Result{Requeue: true}, nil
 		}
 
 	} else {
