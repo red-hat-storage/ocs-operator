@@ -8,8 +8,10 @@ import (
 
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/provider/server"
+
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
@@ -18,6 +20,7 @@ var (
 
 func main() {
 	flag.Parse()
+	ctrl.SetLogger(klog.NewKlogr())
 
 	klog.Info("Starting Provider API server")
 

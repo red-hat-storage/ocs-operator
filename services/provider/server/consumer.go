@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgocache "k8s.io/client-go/tools/cache"
-	"k8s.io/klog/v2"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -102,11 +101,9 @@ func (c *ocsConsumerManager) EnableStorageConsumer(
 	// resolves to a single storageconsumer the resourceVersion of one of
 	// the calls will not match and be dropped
 	if err := c.client.Update(ctx, consumer); err != nil {
-		klog.Errorf("Failed to enable storageConsumer %v", err)
 		return "", fmt.Errorf("failed to update storageConsumer resource %q. %v", consumer.Name, err)
 	}
 
-	klog.Infof("successfully Enabled the StorageConsumer resource %q", consumer.Name)
 	return string(consumer.UID), nil
 }
 
@@ -115,7 +112,6 @@ func (c *ocsConsumerManager) GetByName(ctx context.Context, name string) (*ocsv1
 
 	consumerObj := &ocsv1alpha1.StorageConsumer{}
 	if err := c.client.Get(ctx, types.NamespacedName{Name: name, Namespace: c.namespace}, consumerObj); err != nil {
-		klog.Errorf("Failed to get the storageConsumer %s: %v", name, err)
 		return nil, err
 	}
 
@@ -130,7 +126,6 @@ func (c *ocsConsumerManager) Get(ctx context.Context, id string) (*ocsv1alpha1.S
 	consumerName, ok := c.nameByUID[uid]
 	if !ok {
 		c.mutex.RUnlock()
-		klog.Errorf("no storageConsumer found with the UID %q", id)
 		return nil, fmt.Errorf("no storageConsumer found with the UID %q", id)
 	}
 	c.mutex.RUnlock()
@@ -161,7 +156,6 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 	if err := c.client.Status().Update(ctx, consumerObj); err != nil {
 		return fmt.Errorf("Failed to patch Status for StorageConsumer %v: %v", consumerObj.Name, err)
 	}
-	klog.Infof("successfully updated Status for StorageConsumer %v", consumerObj.Name)
 	return nil
 }
 
@@ -230,7 +224,6 @@ func (c *ocsConsumerManager) ClearClientInformation(ctx context.Context, consume
 		return fmt.Errorf("failed to remove client information from storageConsumer status %v: %v", consumer.Name, err)
 	}
 
-	klog.Infof("successfully removed client information from storageConsumer %v", consumer.Name)
 	return nil
 }
 
