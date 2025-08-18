@@ -165,25 +165,56 @@ func TestGetPlacement(t *testing.T) {
 		placements         rookCephv1.PlacementSpec
 		labelSelector      *metav1.LabelSelector
 		expectedPlacements rookCephv1.PlacementSpec
-		topologyMap        *ocsv1.NodeTopologyMap
+		failureDomain      string
 	}{
 		{
 			label:          "Case 1: Defaults are preserved i.e no placement and no label selector",
 			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     rookCephv1.PlacementSpec{},
 			labelSelector:  nil,
+			failureDomain:  "rack",
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
 					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
 				},
 				"mon": {
-					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
+					TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       "topology.rook.io/rack",
+							WhenUnsatisfiable: corev1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      "app",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"rook-ceph-mon"},
+									},
+								},
+							},
+						},
+					},
 				},
 				"mds": {
-					NodeAffinity:              defaults.DefaultNodeAffinity,
-					TopologySpreadConstraints: defaults.DaemonPlacements["mds"].TopologySpreadConstraints,
-					Tolerations:               defaults.DaemonPlacements["mds"].Tolerations,
+					NodeAffinity: defaults.DefaultNodeAffinity,
+					Tolerations:  defaults.DaemonPlacements["mds"].Tolerations,
+					TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       "topology.rook.io/rack",
+							WhenUnsatisfiable: corev1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      "rook_file_system",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"storage-test-cephfilesystem"},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -192,6 +223,7 @@ func TestGetPlacement(t *testing.T) {
 			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     emptyPlacements,
 			labelSelector:  nil,
+			failureDomain:  "rack",
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
@@ -207,19 +239,50 @@ func TestGetPlacement(t *testing.T) {
 			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     rookCephv1.PlacementSpec{},
 			labelSelector:  &workerLabelSelector,
+			failureDomain:  "rack",
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
 					NodeAffinity: &workerNodeAffinity,
 					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
 				},
 				"mon": {
-					NodeAffinity:    &workerNodeAffinity,
-					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
+					NodeAffinity: &workerNodeAffinity,
+					TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       "topology.rook.io/rack",
+							WhenUnsatisfiable: corev1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      "app",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"rook-ceph-mon"},
+									},
+								},
+							},
+						},
+					},
 				},
 				"mds": {
-					NodeAffinity:              &workerNodeAffinity,
-					TopologySpreadConstraints: defaults.DaemonPlacements["mds"].TopologySpreadConstraints,
-					Tolerations:               defaults.DaemonPlacements["mds"].Tolerations,
+					NodeAffinity: &workerNodeAffinity,
+					Tolerations:  defaults.DaemonPlacements["mds"].Tolerations,
+					TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       "topology.rook.io/rack",
+							WhenUnsatisfiable: corev1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      "rook_file_system",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"storage-test-cephfilesystem"},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -228,6 +291,7 @@ func TestGetPlacement(t *testing.T) {
 			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     emptyPlacements,
 			labelSelector:  &workerLabelSelector,
+			failureDomain:  "rack",
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
 					NodeAffinity: &workerNodeAffinity,
@@ -245,6 +309,7 @@ func TestGetPlacement(t *testing.T) {
 			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     workerPlacements,
 			labelSelector:  &masterLabelSelector,
+			failureDomain:  "rack",
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
 					NodeAffinity: &corev1.NodeAffinity{
@@ -295,16 +360,47 @@ func TestGetPlacement(t *testing.T) {
 			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     rookCephv1.PlacementSpec{},
 			labelSelector:  &emptyLabelSelector,
+			failureDomain:  "rack",
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
 					Tolerations: defaults.DaemonPlacements["all"].Tolerations,
 				},
 				"mon": {
-					PodAntiAffinity: defaults.DaemonPlacements["mon"].PodAntiAffinity,
+					TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       "topology.rook.io/rack",
+							WhenUnsatisfiable: corev1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      "app",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"rook-ceph-mon"},
+									},
+								},
+							},
+						},
+					},
 				},
 				"mds": {
-					TopologySpreadConstraints: defaults.DaemonPlacements["mds"].TopologySpreadConstraints,
-					Tolerations:               defaults.DaemonPlacements["mds"].Tolerations,
+					Tolerations: defaults.DaemonPlacements["mds"].Tolerations,
+					TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       "topology.rook.io/rack",
+							WhenUnsatisfiable: corev1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      "rook_file_system",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"storage-test-cephfilesystem"},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -315,6 +411,7 @@ func TestGetPlacement(t *testing.T) {
 				"mds": customMDSPlacement,
 				"mon": customMONPlacement,
 			},
+			failureDomain: "rack",
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
@@ -337,6 +434,7 @@ func TestGetPlacement(t *testing.T) {
 				"mon": customMONPlacement,
 			},
 			labelSelector: &workerLabelSelector,
+			failureDomain: "rack",
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
 					NodeAffinity: &workerNodeAffinity,
@@ -353,9 +451,10 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			label:          "Case 9: NodeTopologyMap modifies default mon placement",
+			label:          "Case 9: FailureDomain zone modifies default placement",
 			storageCluster: mockStorageCluster.DeepCopy(),
 			placements:     rookCephv1.PlacementSpec{},
+			failureDomain:  "zone",
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
@@ -381,58 +480,79 @@ func TestGetPlacement(t *testing.T) {
 						},
 					},
 				},
-
 				"mon": {
-					PodAntiAffinity: &corev1.PodAntiAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-							{
-								LabelSelector: &metav1.LabelSelector{
-									MatchExpressions: []metav1.LabelSelectorRequirement{
-										{
-											Key:      "app",
-											Operator: metav1.LabelSelectorOpIn,
-											Values:   []string{"rook-ceph-mon"},
-										},
+					TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       corev1.LabelZoneFailureDomainStable,
+							WhenUnsatisfiable: corev1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      "app",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"rook-ceph-mon"},
 									},
 								},
-								TopologyKey: corev1.LabelZoneFailureDomainStable,
 							},
 						},
 					},
 				},
 			},
-			topologyMap: &ocsv1.NodeTopologyMap{
-				Labels: map[string]ocsv1.TopologyLabelValues{
-					corev1.LabelZoneFailureDomainStable: []string{
-						"zone1",
-						"zone2",
-						"zone3",
-					},
-				},
-			},
 		},
 		{
-			label:          "Case 10: skip podAntiAffinity in mon placement in case of stretched cluster",
+			label:          "Case 10: Default placement with arbiter enabled",
 			storageCluster: mockStorageClusterWithArbiter.DeepCopy(),
 			placements:     rookCephv1.PlacementSpec{},
 			labelSelector:  nil,
+			failureDomain:  "rack",
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
 					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
 				},
 				"mon": {
-					PodAntiAffinity: &corev1.PodAntiAffinity{},
+					TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       "topology.rook.io/rack",
+							WhenUnsatisfiable: corev1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      "app",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"rook-ceph-mon"},
+									},
+								},
+							},
+						},
+					},
 				},
 				"mds": {
-					NodeAffinity:              defaults.DefaultNodeAffinity,
-					Tolerations:               defaults.DaemonPlacements["mds"].Tolerations,
-					TopologySpreadConstraints: defaults.DaemonPlacements["mds"].TopologySpreadConstraints,
+					NodeAffinity: defaults.DefaultNodeAffinity,
+					Tolerations:  defaults.DaemonPlacements["mds"].Tolerations,
+					TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       "topology.rook.io/rack",
+							WhenUnsatisfiable: corev1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      "rook_file_system",
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{"storage-test-cephfilesystem"},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		{
-			label:          "Case 11: When PodAntiAffinity is empty and topologyMap is provided ",
+			label:          "Case 11: Custom tolerations with zone failure domain",
 			storageCluster: mockStorageCluster.DeepCopy(),
 			placements: rookCephv1.PlacementSpec{
 				"all": {
@@ -451,15 +571,7 @@ func TestGetPlacement(t *testing.T) {
 					},
 				},
 			},
-			topologyMap: &ocsv1.NodeTopologyMap{
-				Labels: map[string]ocsv1.TopologyLabelValues{
-					zoneTopologyLabel: []string{
-						"zone1",
-						"zone2",
-						"zone3",
-					},
-				},
-			},
+			failureDomain: "zone",
 			labelSelector: nil,
 			expectedPlacements: rookCephv1.PlacementSpec{
 				"all": {
@@ -470,12 +582,10 @@ func TestGetPlacement(t *testing.T) {
 					Tolerations: []corev1.Toleration{
 						getOcsToleration(),
 					},
-					PodAntiAffinity: nil,
 				},
 				"mds": {
-					NodeAffinity:              defaults.DefaultNodeAffinity,
-					Tolerations:               defaults.DaemonPlacements["mds"].Tolerations,
-					TopologySpreadConstraints: nil,
+					NodeAffinity: defaults.DefaultNodeAffinity,
+					Tolerations:  defaults.DaemonPlacements["mds"].Tolerations,
 				},
 			},
 		},
@@ -487,9 +597,14 @@ func TestGetPlacement(t *testing.T) {
 		c.storageCluster.DeepCopyInto(sc)
 		sc.Spec.Placement = c.placements
 		sc.Spec.LabelSelector = c.labelSelector
-		sc.Status.NodeTopologies = c.topologyMap
-		if c.topologyMap != nil {
-			setFailureDomain(sc)
+		if c.failureDomain != "" {
+			// Set the FailureDomainKey based on the failure domain
+			supportedLabels := map[string]string{
+				"rack": "topology.rook.io/rack",
+				"host": corev1.LabelHostname,
+				"zone": corev1.LabelZoneFailureDomainStable,
+			}
+			sc.Status.FailureDomainKey = supportedLabels[c.failureDomain]
 		}
 		expectedPlacement := c.expectedPlacements["all"]
 		actualPlacement = getPlacement(sc, "all")
