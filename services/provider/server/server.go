@@ -67,17 +67,12 @@ const (
 	onboardingTicketKeySecret = "onboarding-ticket-key"
 	notAvailable              = "N/A"
 
-	ramenDRStorageIDLabelKey         = "ramendr.openshift.io/storageid"
-	ramenDRReplicationIDLabelKey     = "ramendr.openshift.io/replicationid"
-	ramenDRFlattenModeLabelKey       = "replication.storage.openshift.io/flatten-mode"
-	ramenMaintenanceModeLabelKey     = "ramendr.openshift.io/maintenancemodes"
-	oneGibInBytes                    = 1024 * 1024 * 1024
-	monConfigMap                     = "rook-ceph-mon-endpoints"
-	monSecret                        = "rook-ceph-mon"
-	volumeReplicationClass5mSchedule = "5m"
-	mirroringTokenKey                = "rbdMirrorBootstrapPeerSecretName"
-	clientInfoRbdClientProfileKey    = "csiop-rbd-client-profile"
-	csiCephUserCurrGen               = 1
+	oneGibInBytes                 = 1024 * 1024 * 1024
+	monConfigMap                  = "rook-ceph-mon-endpoints"
+	monSecret                     = "rook-ceph-mon"
+	mirroringTokenKey             = "rbdMirrorBootstrapPeerSecretName"
+	clientInfoRbdClientProfileKey = "csiop-rbd-client-profile"
+	csiCephUserCurrGen            = 1
 )
 
 var (
@@ -1274,7 +1269,6 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, consumer *ocsv
 		kubeResources,
 		consumer,
 		consumerConfig,
-		storageCluster,
 		rbdStorageId,
 		mirroringTargetInfo.RbdStorageID,
 	)
@@ -1432,7 +1426,7 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 				ControllerPublishSecret: corev1.SecretReference{
 					Name:      consumerConfig.GetCsiRbdProvisionerCephUserName(),
 					Namespace: consumer.Status.Client.OperatorNamespace,
-				},	
+				},
 			},
 		}
 	}
@@ -1877,60 +1871,26 @@ func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
 	kubeResources []client.Object,
 	consumer *ocsv1alpha1.StorageConsumer,
 	consumerConfig util.StorageConsumerResources,
-	storageCluster *ocsv1.StorageCluster,
 	rbdStorageId string,
 	remoteRbdStorageId string,
 ) ([]client.Object, error) {
-	if mirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumer); err != nil {
-		return kubeResources, err
-	} else if !mirrorEnabled {
-		klog.Infof("skipping distribution of VolumeReplicationClass as mirroring is not enabled for the consumer")
-		return kubeResources, nil
-	}
 
-	storageIDs := []string{rbdStorageId, remoteRbdStorageId}
-	slices.Sort(storageIDs)
-	replicationID := util.CalculateMD5Hash(storageIDs)
-
-	for i := range consumer.Spec.VolumeReplicationClasses {
-		replicationClassName := consumer.Spec.VolumeReplicationClasses[i].Name
-		//TODO: The code is written under the assumption VRC name is exactly the same as the template name and there
-		// is 1:1 mapping between template and vrc. The restriction will be relaxed in the future
-		vrcTemplate := &templatev1.Template{}
-		vrcTemplate.Name = replicationClassName
-		vrcTemplate.Namespace = consumer.Namespace
-
-		if err := s.client.Get(ctx, client.ObjectKeyFromObject(vrcTemplate), vrcTemplate); err != nil {
-			return kubeResources, fmt.Errorf("failed to get VolumeReplicationClass template: %s, %v", replicationClassName, err)
-		}
-
-		if len(vrcTemplate.Objects) != 1 {
-			return kubeResources, fmt.Errorf("unexpected number of Volume Replication Class found expected 1")
-		}
-
-		vrc := &replicationv1alpha1.VolumeReplicationClass{}
-		if err := json.Unmarshal(vrcTemplate.Objects[0].Raw, vrc); err != nil {
-			return kubeResources, fmt.Errorf("failed to unmarshall volume replication class: %s, %v", replicationClassName, err)
-
-		}
-
-		if vrc.Name != replicationClassName {
-			return kubeResources, fmt.Errorf("volume replication class name mismatch: %s, %v", replicationClassName, vrc.Name)
-		}
-
-		switch vrc.Spec.Provisioner {
-		case util.RbdDriverName:
-			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-name"] = consumerConfig.GetCsiRbdProvisionerCephUserName()
-			vrc.Spec.Parameters["replication.storage.openshift.io/replication-secret-namespace"] = consumer.Status.Client.OperatorNamespace
-			vrc.Spec.Parameters["clusterID"] = consumerConfig.GetRbdClientProfileName()
-			util.AddLabel(vrc, ramenDRStorageIDLabelKey, rbdStorageId)
-			util.AddLabel(vrc, ramenMaintenanceModeLabelKey, "Failover")
-			util.AddLabel(vrc, ramenDRReplicationIDLabelKey, replicationID)
-		default:
-			return kubeResources, fmt.Errorf("unsupported Provisioner for VolumeReplicationClass")
-		}
-		kubeResources = append(kubeResources, vrc)
-	}
+	resources := getKubeResourcesForClass(
+		consumer.Spec.VolumeReplicationClasses,
+		"VolumeReplicationClass",
+		func(vrcName string) (client.Object, error) {
+			return util.VolumeReplicationClassFromTemplate(
+				ctx,
+				s.client,
+				vrcName,
+				consumer,
+				consumerConfig,
+				rbdStorageId,
+				remoteRbdStorageId,
+			)
+		},
+	)
+	kubeResources = append(kubeResources, resources...)
 
 	return kubeResources, nil
 }
