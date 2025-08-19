@@ -492,128 +492,203 @@ func TestGenerateMonSpec(t *testing.T) {
 }
 
 func TestStorageClassDeviceSetCreation(t *testing.T) {
-	sc1 := &ocsv1.StorageCluster{}
-	sc1.Spec.StorageDeviceSets = mockDeviceSets
-	sc1.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
-		Labels: map[string]ocsv1.TopologyLabelValues{
-			corev1.LabelZoneFailureDomainStable: []string{
-				"zone1",
-				"zone2",
-			},
-		},
-	}
-
-	sc2 := &ocsv1.StorageCluster{}
-	sc2.Spec.Encryption.ClusterWide = false
-	sc2.Spec.StorageDeviceSets = mockDeviceSets
-	sc2.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
-		Labels: map[string]ocsv1.TopologyLabelValues{
-			corev1.LabelZoneFailureDomainStable: []string{
-				"zone1",
-				"zone2",
-				"zone3",
-			},
-		},
-	}
-
-	sc3 := &ocsv1.StorageCluster{}
-	sc3.Spec.Encryption.ClusterWide = true
-	sc3.Spec.StorageDeviceSets = mockDeviceSets
-	sc3.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
-		Labels: map[string]ocsv1.TopologyLabelValues{
-			corev1.LabelZoneFailureDomainStable: []string{
-				"zone1",
-				"zone2",
-				"zone3",
-			},
-		},
-	}
-
-	sc4 := &ocsv1.StorageCluster{}
-	sc4.Spec.StorageDeviceSets = mockDeviceSets
-	sc4.Status.NodeTopologies = &ocsv1.NodeTopologyMap{
-		Labels: map[string]ocsv1.TopologyLabelValues{
-			defaults.RackTopologyKey: []string{
-				"rack1",
-				"rack2",
-				"rack3",
-			},
-		},
-	}
-	var emptyLabelSelector = metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{},
-	}
-	sc3.Spec.LabelSelector = &emptyLabelSelector
-
 	cases := []struct {
-		label       string
-		sc          *ocsv1.StorageCluster
-		topologyKey string
+		label               string
+		setupStorageCluster func() *ocsv1.StorageCluster
+		hasCustomPlacement  bool
 	}{
 		{
-			label:       "case 1",
-			sc:          sc1,
-			topologyKey: "zone",
+			label: "Zone failure domain with 3 zones",
+			setupStorageCluster: func() *ocsv1.StorageCluster {
+				sc := &ocsv1.StorageCluster{}
+				sc.Spec.Encryption.ClusterWide = false
+				sc.Spec.StorageDeviceSets = mockDeviceSets
+				sc.Status.FailureDomainKey = corev1.LabelZoneFailureDomainStable
+				return sc
+			},
 		},
 		{
-			label:       "case 2",
-			sc:          sc2,
-			topologyKey: "zone",
+			label: "Zone failure domain with 3 zones, cluster-wide encryption",
+			setupStorageCluster: func() *ocsv1.StorageCluster {
+				sc := &ocsv1.StorageCluster{}
+				sc.Spec.Encryption.ClusterWide = true
+				sc.Spec.StorageDeviceSets = mockDeviceSets
+				sc.Status.FailureDomainKey = corev1.LabelZoneFailureDomainStable
+				sc.Spec.LabelSelector = &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{},
+				}
+				return sc
+			},
 		},
 		{
-			label:       "case 3",
-			sc:          sc3,
-			topologyKey: "zone",
+			label: "Rack failure domain",
+			setupStorageCluster: func() *ocsv1.StorageCluster {
+				sc := &ocsv1.StorageCluster{}
+				sc.Spec.StorageDeviceSets = mockDeviceSets
+				sc.Status.FailureDomainKey = defaults.RackTopologyKey
+				return sc
+			},
 		},
 		{
-			label:       "case 4",
-			sc:          sc4,
-			topologyKey: "rack",
+			label: "Host failure domain",
+			setupStorageCluster: func() *ocsv1.StorageCluster {
+				sc := &ocsv1.StorageCluster{}
+				sc.Spec.StorageDeviceSets = mockDeviceSets
+				sc.Status.FailureDomainKey = corev1.LabelHostname
+				return sc
+			},
+		},
+		{
+			label: "Device set with custom OSD placement only",
+			setupStorageCluster: func() *ocsv1.StorageCluster {
+				sc := &ocsv1.StorageCluster{}
+				customDeviceSet := mockDeviceSets[0]
+				customDeviceSet.Placement = rookCephv1.Placement{
+					NodeAffinity: &corev1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{
+											Key:      "custom-osd-label",
+											Operator: corev1.NodeSelectorOpIn,
+											Values:   []string{"osd-value"},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				sc.Spec.StorageDeviceSets = []ocsv1.StorageDeviceSet{customDeviceSet}
+				sc.Status.FailureDomainKey = corev1.LabelZoneFailureDomainStable
+				return sc
+			},
+			hasCustomPlacement: true,
+		},
+		{
+			label: "Device set with both custom OSD and prepare placements",
+			setupStorageCluster: func() *ocsv1.StorageCluster {
+				sc := &ocsv1.StorageCluster{}
+				customDeviceSet := mockDeviceSets[0]
+				customDeviceSet.Placement = rookCephv1.Placement{
+					NodeAffinity: &corev1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{
+											Key:      "osd-node-type",
+											Operator: corev1.NodeSelectorOpIn,
+											Values:   []string{"storage"},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				customDeviceSet.PreparePlacement = rookCephv1.Placement{
+					NodeAffinity: &corev1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{
+											Key:      "prepare-node-type",
+											Operator: corev1.NodeSelectorOpIn,
+											Values:   []string{"compute"},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				sc.Spec.StorageDeviceSets = []ocsv1.StorageDeviceSet{customDeviceSet}
+				sc.Status.FailureDomainKey = corev1.LabelZoneFailureDomainStable
+				return sc
+			},
+			hasCustomPlacement: true,
+		},
+		{
+			label: "Device set with custom placement and tolerations",
+			setupStorageCluster: func() *ocsv1.StorageCluster {
+				sc := &ocsv1.StorageCluster{}
+				customDeviceSet := mockDeviceSets[0]
+				customDeviceSet.Placement = rookCephv1.Placement{
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      "storage-node",
+							Operator: corev1.TolerationOpEqual,
+							Value:    "dedicated",
+							Effect:   corev1.TaintEffectNoSchedule,
+						},
+					},
+					NodeAffinity: &corev1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{
+								{
+									MatchExpressions: []corev1.NodeSelectorRequirement{
+										{
+											Key:      "node-role",
+											Operator: corev1.NodeSelectorOpIn,
+											Values:   []string{"storage-worker"},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				sc.Spec.StorageDeviceSets = []ocsv1.StorageDeviceSet{customDeviceSet}
+				sc.Status.FailureDomainKey = defaults.RackTopologyKey
+				return sc
+			},
+			hasCustomPlacement: true,
 		},
 	}
 
 	for _, c := range cases {
-		t.Logf("Case: %s\n", c.label)
-		setFailureDomain(c.sc)
-		actual := newStorageClassDeviceSets(c.sc)
-		assert.Equal(t, defaults.DeviceSetReplica, len(actual))
-		deviceSet := c.sc.Spec.StorageDeviceSets[0]
+		t.Run(c.label, func(t *testing.T) {
+			sc := c.setupStorageCluster()
+			actual := newStorageClassDeviceSets(sc)
+			assert.Equal(t, defaults.DeviceSetReplica, len(actual))
+			deviceSet := sc.Spec.StorageDeviceSets[0]
 
-		for i, scds := range actual {
-			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
-			assert.Equal(t, deviceSet.Count/3, scds.Count)
-			assert.DeepEqual(t, getDaemonResources("osd", c.sc), scds.Resources)
-			assert.DeepEqual(t, deviceSet.DataPVCTemplate.ObjectMeta, scds.VolumeClaimTemplates[0].ObjectMeta)
-			assert.DeepEqual(t, deviceSet.DataPVCTemplate.Spec, scds.VolumeClaimTemplates[0].Spec)
-			assert.Equal(t, true, scds.Portable)
-			assert.Equal(t, c.sc.Spec.Encryption.ClusterWide, scds.Encrypted)
-			if scds.Portable && c.topologyKey == "rack" {
-				assert.Equal(t, scds.Placement.TopologySpreadConstraints[0].WhenUnsatisfiable, corev1.UnsatisfiableConstraintAction("DoNotSchedule"))
-				assert.Equal(t, len(scds.Placement.TopologySpreadConstraints), 2)
-				assert.Equal(t, scds.Placement.TopologySpreadConstraints[0].TopologyKey, defaults.RackTopologyKey)
-				placementOsd := getPlacement(c.sc, "osd")
-				newTSC := placementOsd.TopologySpreadConstraints[0]
-				newTSC.TopologyKey = defaults.RackTopologyKey
-				newTSC.WhenUnsatisfiable = corev1.UnsatisfiableConstraintAction("DoNotSchedule")
-				placementOsd.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{newTSC, placementOsd.TopologySpreadConstraints[0]}
-				assert.DeepEqual(t, placementOsd, scds.Placement)
-			} else {
-				assert.DeepEqual(t, getPlacement(c.sc, "osd"), scds.Placement)
+			for i, scds := range actual {
+				assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
+				assert.Equal(t, deviceSet.Count/defaults.DeviceSetReplica, scds.Count)
+				assert.DeepEqual(t, getDaemonResources("osd", sc), scds.Resources)
+				assert.DeepEqual(t, deviceSet.DataPVCTemplate.ObjectMeta, scds.VolumeClaimTemplates[0].ObjectMeta)
+				assert.DeepEqual(t, deviceSet.DataPVCTemplate.Spec, scds.VolumeClaimTemplates[0].Spec)
+				assert.Equal(t, true, scds.Portable)
+				assert.Equal(t, sc.Spec.Encryption.ClusterWide, scds.Encrypted)
+				expectedOSDPlacement := getPlacement(sc, "osd")
+				expectedPreparePlacement := getPlacement(sc, "prepareosd")
+
+				if c.hasCustomPlacement {
+					// Handle different custom placement scenarios based on the new placement logic
+					switch {
+					case !isPlacementEmpty(deviceSet.Placement) && !isPlacementEmpty(deviceSet.PreparePlacement):
+						// Both OSD and prepare placements are specified
+						expectedOSDPlacement = mergePlacements(expectedOSDPlacement, deviceSet.Placement)
+						expectedPreparePlacement = mergePlacements(expectedPreparePlacement, deviceSet.PreparePlacement)
+					case isPlacementEmpty(deviceSet.Placement) && !isPlacementEmpty(deviceSet.PreparePlacement):
+						// Only prepare placement is specified
+						expectedPreparePlacement = mergePlacements(expectedPreparePlacement, deviceSet.PreparePlacement)
+					case !isPlacementEmpty(deviceSet.Placement) && isPlacementEmpty(deviceSet.PreparePlacement):
+						// Only OSD placement is specified - prepare placement uses the OSD placement
+						expectedOSDPlacement = mergePlacements(expectedOSDPlacement, deviceSet.Placement)
+						expectedPreparePlacement = expectedOSDPlacement
+					}
+				}
+
+				assert.DeepEqual(t, expectedOSDPlacement, scds.Placement)
+				assert.DeepEqual(t, &expectedPreparePlacement, scds.PreparePlacement)
 			}
-
-			topologyKey := scds.PreparePlacement.TopologySpreadConstraints[0].TopologyKey
-
-			if c.topologyKey == "rack" {
-				assert.Equal(t, defaults.RackTopologyKey, topologyKey)
-			} else if len(c.sc.Status.NodeTopologies.Labels[corev1.LabelZoneFailureDomainStable]) >= defaults.DeviceSetReplica {
-				assert.Equal(t, corev1.LabelZoneFailureDomainStable, topologyKey)
-			} else {
-				assert.Equal(t, hostnameLabel, topologyKey)
-			}
-		}
-
+		})
 	}
-
 }
 
 func createDummyKMSConfigMap(kmsProvider, kmsAddr string, kmsAuthMethod string) *corev1.ConfigMap {

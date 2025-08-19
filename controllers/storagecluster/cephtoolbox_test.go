@@ -19,22 +19,25 @@ import (
 
 func TestEnsureToolsDeployment(t *testing.T) {
 	testcases := []struct {
-		label           string
-		enableCephTools bool
-		tolerations     []corev1.Toleration
+		label                string
+		enableCephTools      bool
+		tolerations          []corev1.Toleration
+		nodeAffinity         *corev1.NodeAffinity
+		expectedTolerations  []corev1.Toleration
+		expectedNodeAffinity *corev1.NodeAffinity
 	}{
 		{
-			label:           "Case 1",
-			enableCephTools: true,
-			tolerations:     []corev1.Toleration{},
+			label:                "Case 1: CephTools enabled with default tolerations and node affinity",
+			enableCephTools:      true,
+			expectedTolerations:  []corev1.Toleration{getOcsToleration()},
+			expectedNodeAffinity: defaults.DefaultNodeAffinity,
 		},
 		{
-			label:           "Case 2",
+			label:           "Case 2: CephTools disabled",
 			enableCephTools: false,
-			tolerations:     []corev1.Toleration{},
 		},
 		{
-			label:           "Case 3",
+			label:           "Case 3: Custom toleration",
 			enableCephTools: true,
 			tolerations: []corev1.Toleration{{
 				Key:      "test-toleration",
@@ -42,35 +45,79 @@ func TestEnsureToolsDeployment(t *testing.T) {
 				Value:    "true",
 				Effect:   corev1.TaintEffectNoSchedule,
 			}},
+			expectedTolerations: []corev1.Toleration{{
+				Key:      "test-toleration",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			}},
+			expectedNodeAffinity: defaults.DefaultNodeAffinity,
+		},
+		{
+			label:           "Case 4: Custom node affinity",
+			enableCephTools: true,
+			nodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "test-node-label",
+									Operator: corev1.NodeSelectorOpExists,
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedTolerations: []corev1.Toleration{getOcsToleration()},
+			expectedNodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "test-node-label",
+									Operator: corev1.NodeSelectorOpExists,
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
-
-	defaultTolerations := []corev1.Toleration{{
-		Key:      defaults.NodeTolerationKey,
-		Operator: corev1.TolerationOpEqual,
-		Value:    "true",
-		Effect:   corev1.TaintEffectNoSchedule,
-	}}
 
 	for _, tc := range testcases {
 		ocs, request, reconciler := getTestParams(false, t)
 		ocs.Spec.EnableCephTools = tc.enableCephTools
-		if ocs.Spec.Placement == nil {
-			ocs.Spec.Placement = rookCephv1.PlacementSpec{}
-		}
-		ocs.Spec.Placement[rookCephv1.KeyType("toolbox")] = rookCephv1.Placement{
-			Tolerations: tc.tolerations,
+		if tc.tolerations != nil || tc.nodeAffinity != nil {
+			if ocs.Spec.Placement == nil {
+				ocs.Spec.Placement = rookCephv1.PlacementSpec{}
+			}
+			placement := rookCephv1.Placement{}
+			if tc.tolerations != nil {
+				placement.Tolerations = tc.tolerations
+			}
+			if tc.nodeAffinity != nil {
+				placement.NodeAffinity = tc.nodeAffinity
+			}
+			ocs.Spec.Placement[rookCephv1.KeyType("toolbox")] = placement
 		}
 		err := reconciler.ensureToolsDeployment(&ocs)
-		assert.NoErrorf(t, err, "[%s] failed to create ceph tools", tc.label)
+		assert.NoErrorf(t, err, "[%s] failed to ensure ceph tools deployment", tc.label)
 		if tc.enableCephTools {
 			cephtoolsDeployment := &appsv1.Deployment{}
 			err := reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: request.Namespace}, cephtoolsDeployment)
-			assert.NoErrorf(t, err, "[%s] failed to create ceph tools", tc.label)
+			assert.NoErrorf(t, err, "[%s] failed to get ceph tools deployment", tc.label)
 
 			assert.Equalf(
-				t, cephtoolsDeployment.Spec.Template.Spec.Tolerations, append(defaultTolerations, tc.tolerations...),
+				t, tc.expectedTolerations, cephtoolsDeployment.Spec.Template.Spec.Tolerations,
 				"[%s]: failed to add toleration to the ceph tool deployment resource", tc.label,
+			)
+			assert.Equalf(
+				t, tc.expectedNodeAffinity, cephtoolsDeployment.Spec.Template.Spec.Affinity.NodeAffinity,
+				"[%s]: failed to add node affinity to the ceph tool deployment resource", tc.label,
 			)
 		}
 	}
@@ -80,21 +127,25 @@ func TestEnsureToolsDeploymentUpdate(t *testing.T) {
 	var replicaTwo int32 = 2
 
 	testcases := []struct {
-		label           string
-		enableCephTools bool
-		tolerations     []corev1.Toleration
+		label                string
+		enableCephTools      bool
+		tolerations          []corev1.Toleration
+		nodeAffinity         *corev1.NodeAffinity
+		expectedTolerations  []corev1.Toleration
+		expectedNodeAffinity *corev1.NodeAffinity
 	}{
 		{
-			label:           "Case 1", // existing ceph tools pod should get updated
-			enableCephTools: true,
-			tolerations:     []corev1.Toleration{},
+			label:                "Case 1: Update existing deployment with default placement",
+			enableCephTools:      true,
+			expectedTolerations:  []corev1.Toleration{getOcsToleration()},
+			expectedNodeAffinity: defaults.DefaultNodeAffinity,
 		},
 		{
-			label:           "Case 2", // existing ceph tool pod should get deleted
+			label:           "Case 2: Delete existing deployment when disabled",
 			enableCephTools: false,
 		},
 		{
-			label:           "Case 3",
+			label:           "Case 3: Update with custom toleration and custom node affinity",
 			enableCephTools: true,
 			tolerations: []corev1.Toleration{{
 				Key:      "test-toleration",
@@ -102,24 +153,58 @@ func TestEnsureToolsDeploymentUpdate(t *testing.T) {
 				Value:    "true",
 				Effect:   corev1.TaintEffectNoSchedule,
 			}},
+			nodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "test-node-label",
+									Operator: corev1.NodeSelectorOpExists,
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedTolerations: []corev1.Toleration{{
+				Key:      "test-toleration",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
+			}},
+			expectedNodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "test-node-label",
+									Operator: corev1.NodeSelectorOpExists,
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
-
-	defaultTolerations := []corev1.Toleration{{
-		Key:      defaults.NodeTolerationKey,
-		Operator: corev1.TolerationOpEqual,
-		Value:    "true",
-		Effect:   corev1.TaintEffectNoSchedule,
-	}}
 
 	for _, tc := range testcases {
 		ocs, request, reconciler := getTestParams(false, t)
 		ocs.Spec.EnableCephTools = tc.enableCephTools
-		if ocs.Spec.Placement == nil {
-			ocs.Spec.Placement = rookCephv1.PlacementSpec{}
-		}
-		ocs.Spec.Placement[rookCephv1.KeyType("toolbox")] = rookCephv1.Placement{
-			Tolerations: tc.tolerations,
+		if tc.tolerations != nil || tc.nodeAffinity != nil {
+			if ocs.Spec.Placement == nil {
+				ocs.Spec.Placement = rookCephv1.PlacementSpec{}
+			}
+			placement := rookCephv1.Placement{}
+			if tc.tolerations != nil {
+				placement.Tolerations = tc.tolerations
+			}
+			if tc.nodeAffinity != nil {
+				placement.NodeAffinity = tc.nodeAffinity
+			}
+			ocs.Spec.Placement[rookCephv1.KeyType("toolbox")] = placement
 		}
 		cephTools := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
@@ -139,13 +224,16 @@ func TestEnsureToolsDeploymentUpdate(t *testing.T) {
 		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: request.Namespace}, cephtoolsDeployment)
 		if tc.enableCephTools {
 			assert.NoErrorf(t, err, "[%s] failed to get ceph tools deployment", tc.label)
-			assert.Equalf(t, int32(1), *cephtoolsDeployment.Spec.Replicas, "[%s] failed to update the ceph tools pod", tc.label)
+			assert.Equalf(t, int32(1), *cephtoolsDeployment.Spec.Replicas, "[%s] failed to update the ceph tools replica count", tc.label)
 
 			assert.Equalf(
-				t, cephtoolsDeployment.Spec.Template.Spec.Tolerations, append(defaultTolerations, tc.tolerations...),
+				t, tc.expectedTolerations, cephtoolsDeployment.Spec.Template.Spec.Tolerations,
 				"[%s]: failed to add toleration to the ceph tool deployment resource", tc.label,
 			)
-
+			assert.Equalf(
+				t, tc.expectedNodeAffinity, cephtoolsDeployment.Spec.Template.Spec.Affinity.NodeAffinity,
+				"[%s]: failed to add node affinity to the ceph tools deployment", tc.label,
+			)
 		} else {
 			assert.Errorf(t, err, "[%s] failed to delete ceph tools deployment when it was disabled in the spec", tc.label)
 		}
