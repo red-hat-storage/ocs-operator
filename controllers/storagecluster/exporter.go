@@ -760,6 +760,12 @@ func updateMetricsExporterClusterRoles(ctx context.Context, r *StorageClusterRec
 				Resources: []string{"objectbuckets"},
 				Verbs:     []string{"get", "list"},
 			},
+			{
+				APIGroups:     []string{"security.openshift.io"},
+				Resources:     []string{"securitycontextconstraints"},
+				ResourceNames: []string{"hostnetwork-v2"},
+				Verbs:         []string{"use"},
+			},
 		}
 
 		return nil
