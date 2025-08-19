@@ -640,13 +640,26 @@ spec:
                       fieldPath: metadata.namespace
                 image: quay.io/ocs-dev/ocs-operator:latest
                 imagePullPolicy: Always
+                livenessProbe:
+                  failureThreshold: 3
+                  httpGet:
+                    path: /healthz
+                    port: healthz
+                  initialDelaySeconds: 15
+                  periodSeconds: 10
+                  timeoutSeconds: 5
                 name: ocs-operator
+                ports:
+                - containerPort: 8081
+                  name: healthz
                 readinessProbe:
+                  failureThreshold: 3
                   httpGet:
                     path: /readyz
-                    port: 8081
+                    port: healthz
                   initialDelaySeconds: 5
                   periodSeconds: 10
+                  timeoutSeconds: 5
                 resources:
                   limits:
                     cpu: 250m
@@ -660,6 +673,13 @@ spec:
                     drop:
                     - all
                   readOnlyRootFilesystem: true
+                startupProbe:
+                  failureThreshold: 30
+                  httpGet:
+                    path: /healthz
+                    port: healthz
+                  periodSeconds: 10
+                  timeoutSeconds: 5
                 terminationMessagePolicy: FallbackToLogsOnError
                 volumeMounts:
                 - mountPath: /etc/private-key
