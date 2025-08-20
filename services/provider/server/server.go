@@ -1085,6 +1085,28 @@ func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.Block
 	return response, nil
 }
 
+func (s *OCSProviderServer) RotateMirroringKey(ctx context.Context, req *pb.RotateMirroringKeyRequest) (*pb.RotateMirroringKeyResponse, error) {
+	cephCluster, err := util.GetCephClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		klog.Errorf("Failed to get CephCluster: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get CephCluster: %v", err)
+	}
+
+	cephCluster.Spec.Security.CephX.RBDMirrorPeer.KeyGeneration = uint32(req.DesiredKeyGeneration)
+
+	if err := s.client.Update(ctx, cephCluster); err != nil {
+		klog.Errorf("Failed to update CephCluster keyGeneration: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to update CephCluster: %v", err)
+	}
+
+	currentGen := cephCluster.Status.Cephx.RBDMirrorPeer.KeyGeneration
+	if currentGen != uint32(req.DesiredKeyGeneration) {
+		klog.Errorf("CephCluster keyGeneration not updated: expected %d, got %d. Will requeue.", req.DesiredKeyGeneration, currentGen)
+		return nil, status.Errorf(codes.Unavailable, "CephCluster keyGeneration not updated: expected %d, got %d. Please retry later.", req.DesiredKeyGeneration, currentGen)
+	}
+	return &pb.RotateMirroringKeyResponse{}, nil
+}
+
 func (s *OCSProviderServer) isSystemInMaintenanceMode(ctx context.Context) (bool, error) {
 	// found - false, not found - true
 	cephRBDMirrors := &rookCephv1.CephRBDMirror{}
