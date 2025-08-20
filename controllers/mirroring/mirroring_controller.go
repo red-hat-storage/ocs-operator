@@ -30,6 +30,8 @@ import (
 	"github.com/go-logr/logr"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"golang.org/x/exp/maps"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +52,7 @@ const (
 	mirroringFinalizer              = "ocs.openshift.io/mirroring"
 	clientIDIndexName               = "clientID"
 	storageClusterPeerAnnotationKey = "ocs.openshift.io/storage-cluster-peer"
+	desiredCephxKeyGenEnvVarName    = "DESIRED_CEPHX_KEY_GEN"
 )
 
 // MirroringReconciler reconciles a Mirroring fields for Ceph Object(s)
@@ -231,6 +234,10 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 		errorOccurred = true
 	}
 
+	if errored := r.reconcileRotateMirroringKey(ocsClient, storageClusterPeer); errored {
+		errorOccurred = true
+	}
+
 	if errored := r.reconcileBlockPoolMirroring(
 		ocsClient,
 		clientMappingConfig,
@@ -327,6 +334,30 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 		}
 	}
 
+	return false
+}
+
+func (r *MirroringReconciler) reconcileRotateMirroringKey(
+	ocsClient *providerClient.OCSProviderClient,
+	storageClusterPeer *ocsv1.StorageClusterPeer,
+) bool {
+	desiredKeyGeneration, err := strconv.Atoi(util.MustGetEnv(desiredCephxKeyGenEnvVarName))
+	if err != nil {
+		r.log.Error(err, "failed to parse desiredCephxKeyGenEnvVarName")
+		return true
+	}
+
+	if ocsClient != nil {
+		_, err := ocsClient.RotateMirroringKey(r.ctx, storageClusterPeer.Status.PeerInfo.StorageClusterUid, int64(desiredKeyGeneration))
+		if err != nil {
+			if status.Code(err) == codes.Unimplemented {
+				r.log.Info("RotateMirroringKey is not implemented on the peer, skipping")
+				return false
+			}
+			r.log.Error(err, "failed to rotate mirroring key")
+			return true
+		}
+	}
 	return false
 }
 
