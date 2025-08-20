@@ -56,6 +56,10 @@ service OCSProvider {
   // GetBlockPoolsInfo RPC call to get BlockPoolInfo for Peer Storage Cluster
   rpc GetBlockPoolsInfo(BlockPoolsInfoRequest)
   returns (BlockPoolsInfoResponse) {}
+
+  // RotateMirroringKey RPC call to rotate the mirroring key for the given storage cluster
+  rpc RotateMirroringKey(RotateMirroringKeyRequest) 
+  returns (RotateMirroringKeyResponse) {}
 }
 
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
@@ -346,3 +350,12 @@ message BlockPoolsInfoResponse{
   repeated BlockPoolInfo blockPoolsInfo = 1;
   repeated BlockPoolInfoError errors = 2;
 }
+
+message RotateMirroringKeyRequest{
+  // storageClusterUID is the k8s UID of the Peer StorageCluster
+  string storageClusterUID = 1;
+  // desiredKeyGeneration is the generation of the key requested for Mirroing
+  int64 desiredKeyGeneration = 2;
+}
+
+message RotateMirroringKeyResponse{}
