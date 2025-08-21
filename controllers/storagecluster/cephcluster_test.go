@@ -2145,7 +2145,8 @@ func TestSetDefaultDataPoolSpec(t *testing.T) {
 				c.expects.Replicated.Size = generateCephReplicatedSpec(c.sc, "data").Size
 				c.expects.Replicated.ReplicasPerFailureDomain = generateCephReplicatedSpec(c.sc, "data").ReplicasPerFailureDomain
 			}
-			setDefaultDataPoolSpec(&pool, c.sc)
+			reconciler := createFakeStorageClusterReconciler(t, c.sc)
+			reconciler.setDefaultDataPoolSpec(&pool, c.sc, []string{})
 			// Only compare relevant fields
 			assert.Equal(t, pool.EnableCrushUpdates, c.expects.EnableCrushUpdates)
 			assert.Equal(t, pool.DeviceClass, c.expects.DeviceClass)
@@ -2261,7 +2262,8 @@ func TestSetDefaultMetadataPoolSpec(t *testing.T) {
 				c.expects.Replicated.Size = generateCephReplicatedSpec(c.sc, "metadata").Size
 				c.expects.Replicated.ReplicasPerFailureDomain = generateCephReplicatedSpec(c.sc, "metadata").ReplicasPerFailureDomain
 			}
-			setDefaultMetadataPoolSpec(&pool, c.sc)
+			reconciler := createFakeStorageClusterReconciler(t, c.sc)
+			reconciler.setDefaultMetadataPoolSpec(&pool, c.sc, []string{})
 			// Only compare relevant fields
 			assert.Equal(t, pool.EnableCrushUpdates, c.expects.EnableCrushUpdates)
 			assert.Equal(t, pool.DeviceClass, c.expects.DeviceClass)
