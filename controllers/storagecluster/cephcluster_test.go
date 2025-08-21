@@ -582,7 +582,7 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 		for i, scds := range actual {
 			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
 			assert.Equal(t, deviceSet.Count/3, scds.Count)
-			assert.DeepEqual(t, defaults.GetProfileDaemonResources("osd", c.sc), scds.Resources)
+			assert.DeepEqual(t, getDaemonResources("osd", c.sc), scds.Resources)
 			assert.DeepEqual(t, deviceSet.DataPVCTemplate.ObjectMeta, scds.VolumeClaimTemplates[0].ObjectMeta)
 			assert.DeepEqual(t, deviceSet.DataPVCTemplate.Spec, scds.VolumeClaimTemplates[0].Spec)
 			assert.Equal(t, true, scds.Portable)
@@ -815,7 +815,7 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 		for i, scds := range actual {
 			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
 			assert.Equal(t, deviceSet.Count, scds.Count)
-			assert.DeepEqual(t, defaults.GetProfileDaemonResources("osd", c.sc), scds.Resources)
+			assert.DeepEqual(t, getDaemonResources("osd", c.sc), scds.Resources)
 			assert.DeepEqual(t, deviceSet.DataPVCTemplate.ObjectMeta, scds.VolumeClaimTemplates[0].ObjectMeta)
 			assert.DeepEqual(t, deviceSet.DataPVCTemplate.Spec, scds.VolumeClaimTemplates[0].Spec)
 			assert.Equal(t, true, scds.Portable)
@@ -847,6 +847,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				"mgr":            defaults.BalancedDaemonResources["mgr"],
 				"mon":            defaults.BalancedDaemonResources["mon"],
 				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
@@ -862,6 +863,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				"mgr":            defaults.LeanDaemonResources["mgr"],
 				"mon":            defaults.LeanDaemonResources["mon"],
 				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
@@ -877,6 +879,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				"mgr":            defaults.BalancedDaemonResources["mgr"],
 				"mon":            defaults.BalancedDaemonResources["mon"],
 				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
@@ -892,6 +895,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				"mgr":            defaults.PerformanceDaemonResources["mgr"],
 				"mon":            defaults.PerformanceDaemonResources["mon"],
 				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
@@ -926,6 +930,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 					},
 				},
 				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
@@ -961,6 +966,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				},
 				"mon":            defaults.PerformanceDaemonResources["mon"],
 				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
@@ -995,7 +1001,8 @@ func TestNewCephDaemonResources(t *testing.T) {
 						corev1.ResourceMemory: resource.MustParse("16Gi"),
 					},
 				},
-				"exporter": defaults.DaemonResources["exporter"],
+				"logcollector": defaults.DaemonResources["logcollector"],
+				"exporter":     defaults.DaemonResources["exporter"],
 			},
 		},
 		{
@@ -1030,7 +1037,131 @@ func TestNewCephDaemonResources(t *testing.T) {
 						corev1.ResourceMemory: resource.MustParse("16Gi"),
 					},
 				},
-				"exporter": defaults.DaemonResources["exporter"],
+				"logcollector": defaults.DaemonResources["logcollector"],
+				"exporter":     defaults.DaemonResources["exporter"],
+			},
+		},
+		{
+			name: "All resource keys are included when resources are non-empty",
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					Resources: map[string]corev1.ResourceRequirements{
+						"mgr-sidecar": {
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("128Mi"),
+							},
+						},
+						"cmd-reporter": {
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("50m"),
+								corev1.ResourceMemory: resource.MustParse("64Mi"),
+							},
+						},
+						"cleanup": {
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("25m"),
+								corev1.ResourceMemory: resource.MustParse("32Mi"),
+							},
+						},
+					},
+				},
+			},
+			expected: map[string]corev1.ResourceRequirements{
+				"mgr":            defaults.BalancedDaemonResources["mgr"],
+				"mon":            defaults.BalancedDaemonResources["mon"],
+				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"logcollector":   defaults.DaemonResources["logcollector"],
+				"exporter":       defaults.DaemonResources["exporter"],
+				"mgr-sidecar": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("128Mi"),
+					},
+				},
+				"cmd-reporter": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("50m"),
+						corev1.ResourceMemory: resource.MustParse("64Mi"),
+					},
+				},
+				"cleanup": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("25m"),
+						corev1.ResourceMemory: resource.MustParse("32Mi"),
+					},
+				},
+			},
+		},
+		{
+			name: "Empty resource requirements are filtered out",
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					Resources: map[string]corev1.ResourceRequirements{
+						"mgr": {
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("1"),
+								corev1.ResourceMemory: resource.MustParse("2Gi"),
+							},
+						},
+						"empty-resource": {}, // This should be filtered out
+					},
+				},
+			},
+			expected: map[string]corev1.ResourceRequirements{
+				"mgr": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("2Gi"),
+					},
+				},
+				"mon":            defaults.BalancedDaemonResources["mon"],
+				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"logcollector":   defaults.DaemonResources["logcollector"],
+				"exporter":       defaults.DaemonResources["exporter"],
+			},
+		},
+		{
+			name: "Resource merging with partial specifications",
+			sc: &ocsv1.StorageCluster{
+				Spec: ocsv1.StorageClusterSpec{
+					Resources: map[string]corev1.ResourceRequirements{
+						"mgr": {
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU: resource.MustParse("500m"), // Only CPU request specified
+							},
+						},
+						"mon": {
+							Limits: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("4Gi"), // Only memory limit specified
+							},
+						},
+					},
+					ResourceProfile: "lean",
+				},
+			},
+			expected: map[string]corev1.ResourceRequirements{
+				"mgr": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("500m"),                                          // Specified CPU request
+						corev1.ResourceMemory: defaults.LeanDaemonResources["mgr"].Requests[corev1.ResourceMemory], // Default memory request
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceMemory: defaults.LeanDaemonResources["mgr"].Limits[corev1.ResourceMemory], // Default memory limit (CPU limit not included since CPU request was specified)
+					},
+				},
+				"mon": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU: defaults.LeanDaemonResources["mon"].Requests[corev1.ResourceCPU], // Default CPU request (memory request not included since memory limit was specified)
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    defaults.LeanDaemonResources["mon"].Limits[corev1.ResourceCPU], // Default CPU limit
+						corev1.ResourceMemory: resource.MustParse("4Gi"),                                      // Specified memory limit
+					},
+				},
+				"crashcollector": defaults.DaemonResources["crashcollector"],
+				"logcollector":   defaults.DaemonResources["logcollector"],
+				"exporter":       defaults.DaemonResources["exporter"],
 			},
 		},
 	}
