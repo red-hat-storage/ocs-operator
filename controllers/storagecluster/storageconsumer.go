@@ -190,24 +190,39 @@ func (s *storageConsumer) ensureDeleted(r *StorageClusterReconciler, storageClus
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = defaults.LocalStorageConsumerName
 	storageConsumer.Namespace = storageCluster.Namespace
-	if err := r.Get(r.ctx, client.ObjectKeyFromObject(storageConsumer), storageConsumer); err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to get storageconsumer %s: %v", storageConsumer.Name, err)
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(storageConsumer), storageConsumer); client.IgnoreNotFound(err) != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get storageconsumer %s: %v", storageConsumer.Name, err)
+	} else if storageConsumer.UID != "" {
+		if storageConsumer.Status.Client != nil {
+			return ctrl.Result{}, fmt.Errorf("waiting for client to offboard before deleting storageconsumer %s", storageConsumer.Name)
 		}
-		return ctrl.Result{}, nil
+
+		if err := r.Delete(r.ctx, storageConsumer); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to delete storageconsumer %s: %v", storageConsumer.Name, err)
+		}
+
+		if controllerutil.RemoveFinalizer(storageConsumer, internalComponentFinalizer) {
+			r.Log.Info("Removing finalizer from StorageConsumer.", "StorageConsumer:", storageConsumer.Name, " StorageConsumer Namespace:", storageConsumer.Namespace, " Finalizer:", internalComponentFinalizer)
+			if err := r.Update(r.ctx, storageConsumer); err != nil {
+				r.Log.Info("Failed to remove finalizer from StorageConsumer.", "StorageConsumer:", storageConsumer.Name, "Finalizer:", internalComponentFinalizer)
+				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from StorageConsumer: %v", err)
+			}
+		}
 	}
 
-	if err := r.Delete(r.ctx, storageConsumer); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to delete storageconsumer %s: %v", storageConsumer.Name, err)
+	// The internal consumer configmap is owned by both storagecluster and storage consumer and will not be deleted
+	// before storage cluster is deleted. The ceph resources created by the consumer are owned by the primary consumer
+	//  and consumer configmap. The storage cluster will wait in deletion phase till cephcluster is deleted, and the
+	// ceph cluster will wait till all ceph resources are deleted. This creates a cyclic dependency, hence we need the
+	// internal consumer configmap to be deleted when storagecluster deletion is triggered
+	consumerConfigMap := &corev1.ConfigMap{}
+	consumerConfigMap.Name = defaults.LocalStorageConsumerConfigMapName
+	consumerConfigMap.Namespace = storageCluster.Namespace
+
+	if err := r.Delete(r.ctx, consumerConfigMap); client.IgnoreNotFound(err) != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to delete local consumerConfigMap %s: %v", consumerConfigMap.Name, err)
 	}
 
-	if controllerutil.RemoveFinalizer(storageConsumer, internalComponentFinalizer) {
-		r.Log.Info("Removing finalizer from StorageConsumer.", "StorageConsumer:", storageConsumer.Name, " StorageConsumer Namespace:", storageConsumer.Namespace, " Finalizer:", internalComponentFinalizer)
-		if err := r.Update(r.ctx, storageConsumer); err != nil {
-			r.Log.Info("Failed to remove finalizer from StorageConsumer.", "StorageConsumer:", storageConsumer.Name, "Finalizer:", internalComponentFinalizer)
-			return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from StorageConsumer: %v", err)
-		}
-	}
 	return ctrl.Result{}, nil
 }
 
