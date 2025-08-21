@@ -877,13 +877,12 @@ func getMonCount(sc *ocsv1.StorageCluster) int {
 func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageClassDeviceSet {
 	storageDeviceSets := sc.Spec.StorageDeviceSets
 	topologyMap := sc.Status.NodeTopologies
-
 	var storageClassDeviceSets []rookCephv1.StorageClassDeviceSet
-
 	for _, ds := range storageDeviceSets {
-		resources := ds.Resources
-		if resources.Requests == nil && resources.Limits == nil {
-			resources = defaults.GetProfileDaemonResources("osd", sc)
+		resources := getDaemonResources(rookCephv1.ResourcesKeyOSD, sc)
+		specifiedResources := ds.Resources
+		if isResourceNonEmpty(specifiedResources) {
+			resources = mergeResourceRequirements(resources, specifiedResources)
 		}
 
 		portable := ds.Portable
@@ -1027,12 +1026,14 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 			} else {
 				ds.Count = sc.Spec.ManagedResources.CephNonResilientPools.Count
 			}
-			if sc.Spec.ManagedResources.CephNonResilientPools.Resources != nil &&
-				!reflect.DeepEqual(*sc.Spec.ManagedResources.CephNonResilientPools.Resources, corev1.ResourceRequirements{}) {
-				ds.Resources = *sc.Spec.ManagedResources.CephNonResilientPools.Resources
-			} else {
-				ds.Resources = defaults.GetProfileDaemonResources("osd", sc)
+			resources := getDaemonResources(rookCephv1.ResourcesKeyOSD, sc)
+			if sc.Spec.ManagedResources.CephNonResilientPools.Resources != nil {
+				specifiedResources := *sc.Spec.ManagedResources.CephNonResilientPools.Resources
+				if isResourceNonEmpty(specifiedResources) {
+					resources = mergeResourceRequirements(resources, specifiedResources)
+				}
 			}
+			ds.Resources = resources
 			// passing on existing defaults from existing devcicesets
 			ds.TuneSlowDeviceClass = sc.Spec.StorageDeviceSets[0].Config.TuneSlowDeviceClass
 			ds.TuneFastDeviceClass = sc.Spec.StorageDeviceSets[0].Config.TuneFastDeviceClass

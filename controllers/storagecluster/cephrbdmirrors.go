@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -61,7 +60,7 @@ func (r *StorageClusterReconciler) newCephRbdMirrorInstances(initData *ocsv1.Sto
 					}
 					return initData.Spec.ManagedResources.CephRBDMirror.DaemonCount
 				}(),
-				Resources: defaults.GetDaemonResources("rbd-mirror", initData.Spec.Resources),
+				Resources: getDaemonResources("rbd-mirror", initData),
 				Placement: getPlacement(initData, "rbd-mirror"),
 			},
 		},

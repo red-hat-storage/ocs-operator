@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -34,7 +33,7 @@ func (r *StorageClusterReconciler) newCephNFSInstances(initData *ocsv1.StorageCl
 				Server: cephv1.GaneshaServerSpec{
 					Active:    1,
 					Placement: getPlacement(initData, "nfs"),
-					Resources: defaults.GetDaemonResources("nfs", initData.Spec.Resources),
+					Resources: getDaemonResources("nfs", initData),
 					// set high PriorityClassName for the NFS pods, since this will block io for
 					// pods using NFS volumes.
 					PriorityClassName: openshiftUserCritical,

@@ -132,10 +132,10 @@ func getNooBaaMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
 }
 
 func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocsv1.StorageCluster) error {
-	coreResources := defaults.GetDaemonResources("noobaa-core", sc.Spec.Resources)
-	dbResources := defaults.GetDaemonResources("noobaa-db", sc.Spec.Resources)
-	dBVolumeResources := defaults.GetDaemonResources("noobaa-db-vol", sc.Spec.Resources)
-	endpointResources := defaults.GetDaemonResources("noobaa-endpoint", sc.Spec.Resources)
+	coreResources := getDaemonResources("noobaa-core", sc)
+	dbResources := getDaemonResources("noobaa-db", sc)
+	dBVolumeResources := getDaemonResources("noobaa-db-vol", sc)
+	endpointResources := getDaemonResources("noobaa-endpoint", sc)
 
 	nb.Labels = map[string]string{
 		"app": "noobaa",
