@@ -54,17 +54,17 @@ type OCSInitializationStatus struct {
 	// operator. Object references will be added to this list after they have
 	// been created AND found in the cluster.
 	// +optional
-	RelatedObjects                []corev1.ObjectReference     `json:"relatedObjects,omitempty"`
-	ErrorMessage                  string                       `json:"errorMessage,omitempty"`
-	SCCsCreated                   bool                         `json:"sCCsCreated,omitempty"`
-	RookCephOperatorConfigCreated bool                         `json:"rookCephOperatorConfigCreated,omitempty"`
-	RookCephOperatorConfig        RookCephOperatorConfigStatus `json:"rookCephOperatorConfig,omitempty"`
+	RelatedObjects []corev1.ObjectReference `json:"relatedObjects,omitempty"`
+	ErrorMessage   string                   `json:"errorMessage,omitempty"`
+	SCCsCreated    bool                     `json:"sCCsCreated,omitempty"`
+	// +kubebuilder:deprecatedversion:warning=This field is deprecated and will be removed in future
+	RookCephOperatorConfigCreated bool `json:"rookCephOperatorConfigCreated,omitempty"`
+	// +kubebuilder:deprecatedversion:warning=This field is deprecated and will be removed in future
+	RookCephOperatorConfig RookCephOperatorConfigStatus `json:"rookCephOperatorConfig,omitempty"`
 }
 
 type RookCephOperatorConfigStatus struct {
-	// CsiPluginTolerationsModified indicates if CsiPluginTolerations are added to the configmap via controller
 	CsiPluginTolerationsModified bool `json:"csiPluginTolerationsModified,omitempty"`
-	// CsiProvisionerTolerationsModified indicates if CsiProvisionerTolerations are added to the configmap via controller
 	CsiProvisionerTolerationsModified bool `json:"csiProvisionerTolerationsModified,omitempty"`
 }
 
