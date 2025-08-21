@@ -81,6 +81,9 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 				toolsDeployment.Spec.Template.Spec.HostNetwork = false
 			}
 		}
+		if runOnHostNetwork(sc) {
+			toolsDeployment.Spec.Template.Spec.HostNetwork = true
+		}
 
 		if !isFound {
 			return r.Client.Create(context.TODO(), toolsDeployment)

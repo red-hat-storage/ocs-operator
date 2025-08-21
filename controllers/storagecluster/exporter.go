@@ -377,6 +377,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 				SecurityContext: &corev1.PodSecurityContext{
 					RunAsNonRoot: ptr.To(true),
 				},
+				HostNetwork: runOnHostNetwork(instance),
 				Containers: []corev1.Container{
 					{
 						Resources: defaults.MonitoringResources["kube-rbac-proxy"],
@@ -759,6 +760,12 @@ func updateMetricsExporterClusterRoles(ctx context.Context, r *StorageClusterRec
 				Resources: []string{"objectbuckets"},
 				Verbs:     []string{"get", "list"},
 			},
+			{
+				APIGroups:     []string{"security.openshift.io"},
+				Resources:     []string{"securitycontextconstraints"},
+				ResourceNames: []string{"hostnetwork-v2"},
+				Verbs:         []string{"use"},
+			},
 		}
 
 		return nil
@@ -1113,4 +1120,17 @@ func (r *StorageClusterReconciler) deleteMetricsExporterCephClient(namespace str
 	}
 
 	return nil
+}
+
+// runOnHostNetwork checks if the StorageCluster is configured to run on non-default host network
+// this is validated by checking if the AddressRanges.Public field is set in the Network spec
+// since pod network cannot always communicate with non-default host network metrics exporter needs to run on host net
+func runOnHostNetwork(instance *ocsv1.StorageCluster) bool {
+	if !isMultus(instance.Spec.Network) &&
+		instance.Spec.Network != nil &&
+		instance.Spec.Network.AddressRanges != nil &&
+		instance.Spec.Network.AddressRanges.Public != nil {
+		return true
+	}
+	return false
 }
