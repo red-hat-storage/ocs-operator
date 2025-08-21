@@ -14,6 +14,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -22,6 +23,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -204,6 +206,19 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		err := validateMultusSelectors(sc.Spec.Network.Selectors)
 		if err != nil {
 			r.Log.Error(err, "Failed to validate Multus Selectors specified in StorageCluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
+			return reconcile.Result{}, err
+		}
+	}
+
+	// if the StorageCluster is configured to run on non-default host network, rook-ceph-operator needs to run on host network as well
+	// this is validated by checking if the AddressRanges.Public field is set in the Network spec
+	// since pod network cannot always communicate with non-default host network rook-ceph-operator needs to run on host network
+	if !isMultus(sc.Spec.Network) &&
+		sc.Spec.Network != nil &&
+		sc.Spec.Network.AddressRanges != nil &&
+		sc.Spec.Network.AddressRanges.Public != nil {
+		if err := updateRookCephOperatorHostNetwork(r.ctx, r.Client, r.OperatorNamespace); err != nil {
+			r.Log.Error(err, "Failed to update Rook Ceph Operator HostNetwork.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
 			return reconcile.Result{}, err
 		}
 	}
@@ -1706,4 +1721,56 @@ func getFullRatio(specifiedRatio *float64) *float64 {
 	}
 	defaultRatio := 0.85
 	return &defaultRatio
+}
+
+// updateRookCephOperatorHostNetwork updates the rook-ceph-operator CSV to enable host network
+func updateRookCephOperatorHostNetwork(ctx context.Context, c client.Client, opNamespace string) error {
+	rookDeployment := &appsv1.Deployment{}
+	key := client.ObjectKey{
+		Name:      "rook-ceph-operator",
+		Namespace: opNamespace,
+	}
+	if err := c.Get(ctx, key, rookDeployment); err != nil {
+		return fmt.Errorf("failed to get rook-ceph-operator deployment: %v", err)
+	}
+
+	var csvOwnerRef *metav1.OwnerReference
+	for _, ownerRef := range rookDeployment.GetOwnerReferences() {
+		if ownerRef.Kind == "ClusterServiceVersion" {
+			csvOwnerRef = &ownerRef
+			break
+		}
+	}
+
+	rookCSV := &opv1a1.ClusterServiceVersion{}
+	csvKey := client.ObjectKey{
+		Name:      csvOwnerRef.Name,
+		Namespace: opNamespace,
+	}
+
+	// List the ClusterServiceVersion for rook-ceph-operator
+	if err := c.Get(ctx, csvKey, rookCSV); err != nil {
+		return err
+	}
+	if rookCSV.Status.Phase != opv1a1.CSVPhaseSucceeded {
+		return fmt.Errorf("rook-ceph-operator CSV is not in Succeeded phase: %s", rookCSV.Status.Phase)
+	}
+
+	// Update the rook-ceph-operator deployment in CSV to enable host network
+	for i := range rookCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs {
+		deployment := &rookCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[i]
+		if deployment.Name == "rook-ceph-operator" {
+			if deployment.Spec.Template.Spec.HostNetwork {
+				return nil
+			}
+			// Enable host network for rook-ceph-operator
+			deployment.Spec.Template.Spec.HostNetwork = true
+			if err := c.Update(ctx, rookCSV); err != nil {
+				return fmt.Errorf("failed to update rook-ceph-operator CSV: %v", err)
+			}
+			break
+		}
+	}
+
+	return nil
 }
