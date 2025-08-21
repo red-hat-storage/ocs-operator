@@ -57,6 +57,7 @@ const (
 
 const (
 	desiredCephxKeyGenEnvVarName = "DESIRED_CEPHX_KEY_GEN"
+	ScKeyTypeAnnotationKey       = "ocs.openshift.io//rbdMirroringKeyType"
 )
 
 type knownDiskType struct {
@@ -510,11 +511,20 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 		return nil, err
 	}
 
+	rbdMirrorPeerKeyType := "aes256k"
+	annotations := sc.GetAnnotations()
+	if _, ok := annotations[ScKeyTypeAnnotationKey]; ok {
+		rbdMirrorPeerKeyType = annotations[ScKeyTypeAnnotationKey]
+	}
+
 	security := rookCephv1.ClusterSecuritySpec{
 		CephX: rookCephv1.ClusterCephxConfig{
 			Daemon: rookCephv1.CephxConfig{
 				KeyRotationPolicy: rookCephv1.KeyGenerationCephxKeyRotationPolicy,
 				KeyGeneration:     uint32(desiredCephxKeyGen),
+			},
+			rbdMirrorPeer: rookCephv1.CephxConfig{
+				KeyType: rbdMirrorPeerKeyType,
 			},
 		},
 	}
