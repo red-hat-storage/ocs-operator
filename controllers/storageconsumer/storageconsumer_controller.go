@@ -60,6 +60,7 @@ const (
 	StorageConsumerNameLabel      = "ocs.openshift.io/storageconsumer-name"
 	storageConsumerFinalizer      = "ocs.openshift.io/storageconsumer-protection"
 	primaryConsumerUIDAnnotation  = "ocs.openshift.io/primary-consumer-uid"
+	blockPoolNameLabel            = "ocs.openshift.io/cephblockpool-name"
 	csiCephUserCurrGen            = 1
 )
 
@@ -562,6 +563,7 @@ func (r *StorageConsumerReconciler) reconcileCephRadosNamespace(
 				if err := controllerutil.SetOwnerReference(additionalOwner, rns, r.Scheme); err != nil {
 					return err
 				}
+				util.AddLabel(rns, blockPoolNameLabel, bp.Name)
 				rns.Spec.Name = radosNamespaceName
 				rns.Spec.BlockPoolName = bp.Name
 				return nil
