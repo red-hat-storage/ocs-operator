@@ -1118,16 +1118,24 @@ func isDeviceSetToBeEncrypted(sc *ocsv1.StorageCluster, ds ocsv1.StorageDeviceSe
 }
 
 func newCephDaemonResources(sc *ocsv1.StorageCluster) map[string]corev1.ResourceRequirements {
-	resources := map[string]corev1.ResourceRequirements{
-		"mon":            defaults.GetProfileDaemonResources("mon", sc),
-		"mgr":            defaults.GetProfileDaemonResources("mgr", sc),
-		"crashcollector": defaults.GetDaemonResources("crashcollector", sc.Spec.Resources),
-		"exporter":       defaults.GetDaemonResources("exporter", sc.Spec.Resources),
+	resources := make(map[string]corev1.ResourceRequirements)
+	// Valid keys for the resources map in cephCluster CR, Resources for osd are handled at the deviceSet level
+	// Ref- https://github.com/rook/rook/blob/master/Documentation/CRDs/Cluster/ceph-cluster-crd.md#cluster-wide-resources-configuration-settings
+	resourceKeys := []string{
+		rookCephv1.ResourcesKeyMon,
+		rookCephv1.ResourcesKeyMgr,
+		rookCephv1.ResourcesKeyMgrSidecar,
+		rookCephv1.ResourcesKeyPrepareOSD,
+		rookCephv1.ResourcesKeyCrashCollector,
+		rookCephv1.ResourcesKeyLogCollector,
+		rookCephv1.ResourcesKeyCmdReporter,
+		rookCephv1.ResourcesKeyCleanup,
+		rookCephv1.ResourcesKeyCephExporter,
 	}
-	custom := sc.Spec.Resources
-	for k := range custom {
-		if r, ok := custom[k]; ok {
-			resources[k] = r
+	for _, key := range resourceKeys {
+		resource := getDaemonResources(key, sc)
+		if isResourceNonEmpty(resource) {
+			resources[key] = resource
 		}
 	}
 
