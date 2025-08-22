@@ -21,7 +21,7 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	if specified && isPlacementEmpty(specifiedPlacement) {
 		return specifiedPlacement
 	}
-	// Placement for osd & prepareosd are handled at the deviceSet level
+	// Placement specification for osd & prepareosd are handled at the deviceSet level
 	if component == "osd" || component == "prepareosd" {
 		specified = false
 	}
@@ -51,6 +51,16 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		switch component {
 		case "mon":
 			placement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+		case "osd":
+			placement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+			if topologyKey != corev1.LabelHostname {
+				addSoftTscAtHostLevel(&placement)
+			}
+		case "prepareosd":
+			placement.TopologySpreadConstraints[0].TopologyKey = topologyKey
+			if topologyKey != corev1.LabelHostname {
+				addSoftTscAtHostLevel(&placement)
+			}
 		case "mds":
 			placement.TopologySpreadConstraints[0].TopologyKey = topologyKey
 			placement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions[0].Values = []string{util.GenerateNameForCephFilesystem(sc.Name)}
@@ -148,6 +158,13 @@ func isPlacementEmpty(placement rookCephv1.Placement) bool {
 	return placement.NodeAffinity == nil &&
 		placement.PodAffinity == nil && placement.PodAntiAffinity == nil &&
 		placement.Tolerations == nil && placement.TopologySpreadConstraints == nil
+}
+
+func addSoftTscAtHostLevel(placement *rookCephv1.Placement) {
+	newTSC := placement.TopologySpreadConstraints[0]
+	newTSC.TopologyKey = corev1.LabelHostname
+	newTSC.WhenUnsatisfiable = corev1.ScheduleAnyway
+	placement.TopologySpreadConstraints = append(placement.TopologySpreadConstraints, newTSC)
 }
 
 // MatchingLabelsSelector filters the list/delete operation on the given label

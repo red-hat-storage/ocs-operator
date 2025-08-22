@@ -47,13 +47,13 @@ var (
 
 		"osd": {
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{osdLabelSelector}, corev1.ScheduleAnyway),
+				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{osdLabelSelector}, corev1.DoNotSchedule),
 			},
 		},
 
-		"osd-prepare": {
+		"prepareosd": {
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{osdLabelSelector, osdPrepareLabelSelector}, corev1.ScheduleAnyway),
+				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{osdLabelSelector, osdPrepareLabelSelector}, corev1.DoNotSchedule),
 			},
 		},
 

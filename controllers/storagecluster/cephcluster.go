@@ -881,7 +881,6 @@ func getMonCount(sc *ocsv1.StorageCluster) int {
 // newStorageClassDeviceSets converts a list of StorageDeviceSets into a list of Rook StorageClassDeviceSets
 func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageClassDeviceSet {
 	storageDeviceSets := sc.Spec.StorageDeviceSets
-	topologyMap := sc.Status.NodeTopologies
 	var storageClassDeviceSets []rookCephv1.StorageClassDeviceSet
 	for _, ds := range storageDeviceSets {
 		resources := getDaemonResources(rookCephv1.ResourcesKeyOSD, sc)
@@ -892,74 +891,28 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 
 		portable := ds.Portable
 
-		topologyKey := ds.TopologyKey
-		topologyKeyValues := []string{}
-
-		noPlacementTsc := ds.Placement.TopologySpreadConstraints == nil
-		noPlacement := ds.Placement.NodeAffinity == nil && ds.Placement.PodAffinity == nil && ds.Placement.PodAntiAffinity == nil && noPlacementTsc
-		noPreparePlacementTsc := ds.PreparePlacement.TopologySpreadConstraints == nil
-		noPreparePlacement := ds.PreparePlacement.NodeAffinity == nil && ds.PreparePlacement.PodAffinity == nil && ds.PreparePlacement.PodAntiAffinity == nil && noPreparePlacementTsc
-
-		if topologyKey == "" {
-			topologyKey = getFailureDomain(sc)
-		}
-
-		if topologyKey == "host" {
-			portable = false
-		}
-
-		if topologyMap != nil {
-			topologyKey, topologyKeyValues = topologyMap.GetKeyValues(topologyKey)
-		}
-
 		count, replica := countAndReplicaOf(&ds)
-		for i := 0; i < replica; i++ {
-			placement := rookCephv1.Placement{}
-			preparePlacement := rookCephv1.Placement{}
+		for i := range replica {
+			// Default placements for osd and prepareosd
+			placement := getPlacement(sc, "osd")
+			preparePlacement := getPlacement(sc, "prepareosd")
 
-			if noPlacement {
-				in := getPlacement(sc, "osd")
-				(&in).DeepCopyInto(&placement)
-
-				if noPreparePlacement {
-					in := getPlacement(sc, "osd-prepare")
-					(&in).DeepCopyInto(&preparePlacement)
-				} else {
-					preparePlacement = ds.PreparePlacement
-				}
-			} else if !noPlacement && noPreparePlacement {
-				preparePlacement = ds.Placement
-				placement = ds.Placement
-			} else {
-				preparePlacement = ds.PreparePlacement
-				placement = ds.Placement
-			}
-
-			// Add default TSCs if not set to ensure even distribution of OSDs across nodes
-			if len(placement.TopologySpreadConstraints) == 0 {
-				placement.TopologySpreadConstraints = append(placement.TopologySpreadConstraints, defaults.DaemonPlacements["osd"].TopologySpreadConstraints...)
-			}
-			if len(preparePlacement.TopologySpreadConstraints) == 0 {
-				preparePlacement.TopologySpreadConstraints = append(preparePlacement.TopologySpreadConstraints, defaults.DaemonPlacements["osd-prepare"].TopologySpreadConstraints...)
-			}
-
-			if len(topologyKeyValues) >= getMinDeviceSetReplica(sc) {
-				// Hard constraints are set in OSD placement for portable volumes with rack failure domain
-				// domain as there is no node affinity in PVs. This restricts the movement of OSDs
-				// between failure domain.
-				if noPlacementTsc && portable && !strings.Contains(topologyKey, "zone") {
-					addStrictFailureDomainTSC(&placement, topologyKey)
-				}
-				// If topologyKey is not host, append additional topology spread constraint to the
-				// default preparePlacement. This serves even distribution at the host level
-				// within a failure domain (zone/rack).
-				if noPlacementTsc && noPreparePlacementTsc {
-					if topologyKey != corev1.LabelHostname {
-						addStrictFailureDomainTSC(&preparePlacement, topologyKey)
-					} else {
-						preparePlacement.TopologySpreadConstraints[0].TopologyKey = topologyKey
-					}
-				}
+			switch {
+			case !isPlacementEmpty(ds.Placement) && !isPlacementEmpty(ds.PreparePlacement):
+				// Both osd and prepareosd placements are specified, use them after merging with their defaults
+				placement = mergePlacements(placement, ds.Placement)
+				preparePlacement = mergePlacements(preparePlacement, ds.PreparePlacement)
+			case !isPlacementEmpty(ds.Placement) && isPlacementEmpty(ds.PreparePlacement):
+				// Only osd placement is specified, use it after merging with its default
+				// For prepareosd placement also use the osd placement
+				placement = mergePlacements(placement, ds.Placement)
+				preparePlacement = placement
+			case isPlacementEmpty(ds.Placement) && !isPlacementEmpty(ds.PreparePlacement):
+				// Only prepareosd placement is specified, use it after merging with its default
+				// For osd placement, use it's default
+				preparePlacement = mergePlacements(preparePlacement, ds.PreparePlacement)
+			default:
+				// If none of osd or prepareosd placements are specified, use their defaults
 			}
 
 			// Annotation crushDeviceClass ensures osd with different CRUSH device class than the one detected by Ceph
@@ -1249,16 +1202,6 @@ func generateMgrSpec(sc *ocsv1.StorageCluster) rookCephv1.MgrSpec {
 	}
 
 	return spec
-}
-
-// addStrictFailureDomainTSC adds hard topology constraints at failure domain level
-// and uses soft topology constraints within failure domain (across host).
-func addStrictFailureDomainTSC(placement *rookCephv1.Placement, topologyKey string) {
-	newTSC := placement.TopologySpreadConstraints[0]
-	newTSC.TopologyKey = topologyKey
-	newTSC.WhenUnsatisfiable = "DoNotSchedule"
-
-	placement.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{newTSC, placement.TopologySpreadConstraints[0]}
 }
 
 // ensureCreated ensures that cephFilesystem resources exist in the desired
