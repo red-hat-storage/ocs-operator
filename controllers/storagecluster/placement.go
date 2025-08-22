@@ -32,27 +32,6 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		placement = defaultPlacement
 	}
 
-	if component == "arbiter" {
-		if !sc.Spec.Arbiter.DisableMasterNodeToleration {
-			placement.Tolerations = append(placement.Tolerations, corev1.Toleration{
-				Key:      "node-role.kubernetes.io/master",
-				Operator: corev1.TolerationOpExists,
-				Effect:   corev1.TaintEffectNoSchedule,
-			})
-		}
-		return placement
-	}
-
-	// If no placement is specified for the given component and the
-	// StorageCluster has no label selector, set the default node
-	// affinity.
-	if placement.NodeAffinity == nil && sc.Spec.LabelSelector == nil {
-		// Don't add node affinity again for these rook-ceph daemons as it is already added via the "all" key
-		if component != "mgr" && component != "mon" && component != "osd" && component != "osd-prepare" {
-			placement.NodeAffinity = defaults.DefaultNodeAffinity
-		}
-	}
-
 	// If the StorageCluster specifies a label selector, append it to the
 	// node affinity, creating it if it doesn't exist.
 	if sc.Spec.LabelSelector != nil {
@@ -60,6 +39,10 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		if len(reqs) != 0 {
 			appendNodeRequirements(&placement, reqs...)
 		}
+	}
+
+	if component == "arbiter" && !sc.Spec.Arbiter.DisableMasterNodeToleration {
+		placement.Tolerations = append(placement.Tolerations, defaults.MasterNodeToleration)
 	}
 
 	topologyKey := sc.Status.FailureDomainKey
