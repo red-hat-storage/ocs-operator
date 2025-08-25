@@ -563,7 +563,7 @@ func getFakeCephObjectStore() *cephv1.CephObjectStore {
 				Port:      80,
 				Instances: 2,
 				Placement: defaults.DaemonPlacements["rgw"],
-				Resources: defaults.GetDaemonResources("rgw", sc.Spec.Resources),
+				Resources: getDaemonResources("rgw", sc),
 			},
 		},
 	}

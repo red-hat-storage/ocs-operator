@@ -484,7 +484,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							},
 							InitialDelaySeconds: 15,
 						},
-						Resources: defaults.GetDaemonResources("ocs-metrics-exporter", instance.Spec.Resources),
+						Resources: getDaemonResources("ocs-metrics-exporter", instance),
 						SecurityContext: &corev1.SecurityContext{
 							Capabilities: &corev1.Capabilities{
 								Drop: []corev1.Capability{"ALL"},
