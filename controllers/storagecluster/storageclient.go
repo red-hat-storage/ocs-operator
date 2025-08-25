@@ -9,11 +9,11 @@ import (
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -97,10 +97,14 @@ func (s *storageClient) ensureDeleted(r *StorageClusterReconciler, storagecluste
 	}
 	storageClient := &ocsclientv1a1.StorageClient{}
 	storageClient.Name = storagecluster.Name
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(storageClient), storageClient); client.IgnoreNotFound(err) != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get storageclient %s: %v", storageClient.Name, err)
+	} else if storageClient.UID == "" {
+		return reconcile.Result{}, nil
+	}
 
-	if err := r.Delete(r.ctx, storageClient); err != nil && !kerrors.IsNotFound(err) {
-		r.Log.Error(err, "Failed to initiate deletion of local StorageClient CR")
-		return reconcile.Result{}, err
+	if err := r.Delete(r.ctx, storageClient); err != nil {
+		return reconcile.Result{}, fmt.Errorf("failed to delete storageclient %s: %v", storageClient.Name, err)
 	}
 
 	if controllerutil.RemoveFinalizer(storageClient, internalComponentFinalizer) {
