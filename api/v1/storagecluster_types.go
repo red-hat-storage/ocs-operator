@@ -39,7 +39,9 @@ type StorageClusterSpec struct {
 	ExternalStorage ExternalStorageClusterSpec `json:"externalStorage,omitempty"`
 	// HostNetwork defaults to false
 	HostNetwork bool `json:"hostNetwork,omitempty"`
-	// Placement is optional and used to specify placements of OCS components explicitly
+	// Placement is optional and used to specify placements of OCS components(except csi) explicitly
+	// The specified placement here will be selectively merged with the default placement for the components
+	// For example, if only tolerations are specified, the default node affinity or TSC etc will be applied if applicable
 	Placement rookCephv1.PlacementSpec `json:"placement,omitempty"`
 	// Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
 	Resources map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
@@ -335,6 +337,7 @@ type ExternalStorageClusterSpec struct {
 // StorageDeviceSet defines a set of storage devices.
 // It configures the StorageClassDeviceSets field in Rook-Ceph.
 type StorageDeviceSet struct {
+	Name string `json:"name"`
 	// Count is the number of devices in each StorageClassDeviceSet
 	// +kubebuilder:validation:Minimum=1
 	Count int `json:"count"`
@@ -375,18 +378,11 @@ type StorageDeviceSet struct {
 	// +optional
 	PrimaryAffinity string `json:"primaryAffinity,omitempty"`
 
-	// TopologyKey is the Kubernetes topology label that the
-	// StorageClassDeviceSets will be distributed across. Ignored if
-	// Placement is set
-	// +optional
-	TopologyKey string `json:"topologyKey,omitempty"`
-
 	// Portable says whether the OSDs in this device set can move between
 	// nodes. This is ignored if Placement is not set
 	// +optional
 	Portable bool `json:"portable,omitempty"`
 
-	Name                string                        `json:"name"`
 	Resources           corev1.ResourceRequirements   `json:"resources,omitempty"`
 	PreparePlacement    rookCephv1.Placement          `json:"preparePlacement,omitempty"`
 	Placement           rookCephv1.Placement          `json:"placement,omitempty"`
