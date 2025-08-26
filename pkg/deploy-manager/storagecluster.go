@@ -97,42 +97,7 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 			NFS: &ocsv1.NFSSpec{
 				Enable: true,
 			},
-			// Setting empty ResourceLists to prevent ocs-operator from setting the
-			// default resource requirements
-			Resources: map[string]corev1.ResourceRequirements{
-				"mon": {
-					Requests: corev1.ResourceList{},
-					Limits:   corev1.ResourceList{},
-				},
-				"mds": {
-					Requests: corev1.ResourceList{},
-					Limits:   corev1.ResourceList{},
-				},
-				"nfs": {
-					Requests: corev1.ResourceList{},
-					Limits:   corev1.ResourceList{},
-				},
-				"rgw": {
-					Requests: corev1.ResourceList{},
-					Limits:   corev1.ResourceList{},
-				},
-				"mgr": {
-					Requests: corev1.ResourceList{},
-					Limits:   corev1.ResourceList{},
-				},
-				"noobaa-core": {
-					Requests: corev1.ResourceList{},
-					Limits:   corev1.ResourceList{},
-				},
-				"noobaa-db": {
-					Requests: corev1.ResourceList{},
-					Limits:   corev1.ResourceList{},
-				},
-				"noobaa-endpoint": {
-					Requests: corev1.ResourceList{},
-					Limits:   corev1.ResourceList{},
-				},
-			},
+			ResourceProfile: "lean",
 			StorageDeviceSets: []ocsv1.StorageDeviceSet{
 				{
 					Name:     "example-deviceset",
@@ -141,7 +106,8 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 					Portable: true,
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
-							corev1.ResourceMemory: resource.MustParse("1Gi"),
+							corev1.ResourceCPU:    resource.MustParse("1"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
 						},
 					},
 
