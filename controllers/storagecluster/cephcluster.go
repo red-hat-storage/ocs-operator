@@ -877,13 +877,12 @@ func getMonCount(sc *ocsv1.StorageCluster) int {
 func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageClassDeviceSet {
 	storageDeviceSets := sc.Spec.StorageDeviceSets
 	topologyMap := sc.Status.NodeTopologies
-
 	var storageClassDeviceSets []rookCephv1.StorageClassDeviceSet
-
 	for _, ds := range storageDeviceSets {
-		resources := ds.Resources
-		if resources.Requests == nil && resources.Limits == nil {
-			resources = defaults.GetProfileDaemonResources("osd", sc)
+		resources := getDaemonResources(rookCephv1.ResourcesKeyOSD, sc)
+		specifiedResources := ds.Resources
+		if isResourceNonEmpty(specifiedResources) {
+			resources = mergeResourceRequirements(resources, specifiedResources)
 		}
 
 		portable := ds.Portable
@@ -1027,12 +1026,14 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 			} else {
 				ds.Count = sc.Spec.ManagedResources.CephNonResilientPools.Count
 			}
-			if sc.Spec.ManagedResources.CephNonResilientPools.Resources != nil &&
-				!reflect.DeepEqual(*sc.Spec.ManagedResources.CephNonResilientPools.Resources, corev1.ResourceRequirements{}) {
-				ds.Resources = *sc.Spec.ManagedResources.CephNonResilientPools.Resources
-			} else {
-				ds.Resources = defaults.GetProfileDaemonResources("osd", sc)
+			resources := getDaemonResources(rookCephv1.ResourcesKeyOSD, sc)
+			if sc.Spec.ManagedResources.CephNonResilientPools.Resources != nil {
+				specifiedResources := *sc.Spec.ManagedResources.CephNonResilientPools.Resources
+				if isResourceNonEmpty(specifiedResources) {
+					resources = mergeResourceRequirements(resources, specifiedResources)
+				}
 			}
+			ds.Resources = resources
 			// passing on existing defaults from existing devcicesets
 			ds.TuneSlowDeviceClass = sc.Spec.StorageDeviceSets[0].Config.TuneSlowDeviceClass
 			ds.TuneFastDeviceClass = sc.Spec.StorageDeviceSets[0].Config.TuneFastDeviceClass
@@ -1117,16 +1118,24 @@ func isDeviceSetToBeEncrypted(sc *ocsv1.StorageCluster, ds ocsv1.StorageDeviceSe
 }
 
 func newCephDaemonResources(sc *ocsv1.StorageCluster) map[string]corev1.ResourceRequirements {
-	resources := map[string]corev1.ResourceRequirements{
-		"mon":            defaults.GetProfileDaemonResources("mon", sc),
-		"mgr":            defaults.GetProfileDaemonResources("mgr", sc),
-		"crashcollector": defaults.GetDaemonResources("crashcollector", sc.Spec.Resources),
-		"exporter":       defaults.GetDaemonResources("exporter", sc.Spec.Resources),
+	resources := make(map[string]corev1.ResourceRequirements)
+	// Valid keys for the resources map in cephCluster CR, Resources for osd are handled at the deviceSet level
+	// Ref- https://github.com/rook/rook/blob/master/Documentation/CRDs/Cluster/ceph-cluster-crd.md#cluster-wide-resources-configuration-settings
+	resourceKeys := []string{
+		rookCephv1.ResourcesKeyMon,
+		rookCephv1.ResourcesKeyMgr,
+		rookCephv1.ResourcesKeyMgrSidecar,
+		rookCephv1.ResourcesKeyPrepareOSD,
+		rookCephv1.ResourcesKeyCrashCollector,
+		rookCephv1.ResourcesKeyLogCollector,
+		rookCephv1.ResourcesKeyCmdReporter,
+		rookCephv1.ResourcesKeyCleanup,
+		rookCephv1.ResourcesKeyCephExporter,
 	}
-	custom := sc.Spec.Resources
-	for k := range custom {
-		if r, ok := custom[k]; ok {
-			resources[k] = r
+	for _, key := range resourceKeys {
+		resource := getDaemonResources(key, sc)
+		if isResourceNonEmpty(resource) {
+			resources[key] = resource
 		}
 	}
 

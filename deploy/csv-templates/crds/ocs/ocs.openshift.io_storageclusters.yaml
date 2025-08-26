@@ -5273,8 +5273,10 @@ spec:
                         More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                       type: object
                   type: object
-                description: Resources follows the conventions of and is mapped to
-                  CephCluster.Spec.Resources
+                description: |-
+                  Resources is optional and used to specify resource requirements for the OCS components(except csi) explicitly
+                  The specified resource requirements will be selectively merged according to the type, with the defaults for the components
+                  For example, if requests/limits only for CPU are specified, default limits & requests for memory would be applied to the component
                 type: object
               storageDeviceSets:
                 items:
