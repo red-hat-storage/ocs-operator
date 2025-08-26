@@ -41,7 +41,9 @@ type StorageClusterSpec struct {
 	HostNetwork bool `json:"hostNetwork,omitempty"`
 	// Placement is optional and used to specify placements of OCS components explicitly
 	Placement rookCephv1.PlacementSpec `json:"placement,omitempty"`
-	// Resources follows the conventions of and is mapped to CephCluster.Spec.Resources
+	// Resources is optional and used to specify resource requirements for the OCS components(except csi) explicitly
+	// The specified resource requirements will be selectively merged according to the type, with the defaults for the components
+	// For example, if requests/limits only for CPU are specified, default limits & requests for memory would be applied to the component
 	Resources map[string]corev1.ResourceRequirements `json:"resources,omitempty"`
 	// Resource Profile can be used to choose from a set of predefined resource profiles for the ceph daemons.
 	// We have 3 profiles
@@ -267,8 +269,8 @@ type ManageCephNonResilientPools struct {
 
 // ManageCephFilesystems defines how to reconcile CephFilesystems
 type ManageCephFilesystems struct {
-	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
-	ActiveMetadataServers int  `json:"activeMetadataServers,omitempty"`
+	ReconcileStrategy     string `json:"reconcileStrategy,omitempty"`
+	ActiveMetadataServers int    `json:"activeMetadataServers,omitempty"`
 	// StorageClassName specifies the name of the storage class created for cephfs
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
@@ -284,9 +286,9 @@ type ManageCephFilesystems struct {
 // ManageCephObjectStores defines how to reconcile CephObjectStores
 type ManageCephObjectStores struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
-	GatewayInstances    int   `json:"gatewayInstances,omitempty"`
-	DisableRoute        bool  `json:"disableRoute,omitempty"`
-	HostNetwork         *bool `json:"hostNetwork,omitempty"`
+	GatewayInstances  int    `json:"gatewayInstances,omitempty"`
+	DisableRoute      bool   `json:"disableRoute,omitempty"`
+	HostNetwork       *bool  `json:"hostNetwork,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph obc's
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
