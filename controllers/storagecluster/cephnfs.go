@@ -36,7 +36,7 @@ func (r *StorageClusterReconciler) newCephNFSInstances(initData *ocsv1.StorageCl
 					Resources: getDaemonResources("nfs", initData),
 					// set high PriorityClassName for the NFS pods, since this will block io for
 					// pods using NFS volumes.
-					PriorityClassName: openshiftUserCritical,
+					PriorityClassName: systemClusterCritical,
 					LogLevel:          initData.Spec.NFS.LogLevel,
 				},
 			},
