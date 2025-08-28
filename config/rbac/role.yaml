@@ -146,6 +146,17 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - networkfenceclasses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
   - groupsnapshot.storage.k8s.io
   - groupsnapshot.storage.openshift.io
   resources:
