@@ -52,20 +52,51 @@ func TestEnableStorageConsumer(t *testing.T) {
 		},
 	}
 
+	clientStatus := ocsv1a1.ClientStatus{
+		PlatformVersion:   "0.0.1",
+		OperatorVersion:   "0.0.1",
+		OperatorNamespace: testNamespace,
+		ID:                "uid",
+		Name:              "name",
+		ClusterID:         "cluster-uid",
+		ClusterName:       "cluster-name",
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			scheme, err := newScheme()
 			assert.NoError(t, err)
 
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.existingObjs...).Build()
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.existingObjs...).
+				WithStatusSubresource(tt.existingObjs...).Build()
 			testConsumerManager := createTestConsumerManager(fakeClient)
 
-			_, err = testConsumerManager.EnableStorageConsumer(context.TODO(), tt.consumer)
+			req := providerClient.NewOnboardConsumerRequest().
+				SetClientPlatformVersion(clientStatus.PlatformVersion).
+				SetClientOperatorVersion(clientStatus.OperatorVersion).
+				SetClientOperatorNamespace(clientStatus.OperatorNamespace).
+				SetClientID(clientStatus.ID).
+				SetClientName(clientStatus.Name).
+				SetClusterID(clientStatus.ClusterID).
+				SetClusterName(clientStatus.ClusterName).(interfaces.StorageClientOnboarding)
+
+			_, err = testConsumerManager.EnableStorageConsumer(context.TODO(), tt.consumer, req)
 
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
+				assert.True(t, consumer.Spec.Enable)
+				assert.NotNil(t, consumer.Status.Client)
+				status := consumer.Status.Client
+				assert.Equal(t, clientStatus.PlatformVersion, status.PlatformVersion)
+				assert.Equal(t, clientStatus.OperatorVersion, status.OperatorVersion)
+				assert.Equal(t, clientStatus.OperatorNamespace, status.OperatorNamespace)
+				assert.Equal(t, clientStatus.ID, status.ID)
+				assert.Equal(t, clientStatus.Name, status.Name)
+				assert.Equal(t, clientStatus.ClusterID, status.ClusterID)
+				assert.Equal(t, clientStatus.ClusterName, status.ClusterName)
 			}
 		})
 	}
@@ -274,9 +305,9 @@ func TestUpdateConsumerStatus(t *testing.T) {
 			status: func() interfaces.StorageClientStatus {
 				status := providerClient.NewStorageClientStatus()
 				status.SetClientID("client-456")
-				status.SetPlatformVersion("4.16.0")
-				status.SetOperatorVersion("4.16.0")
-				status.SetOperatorNamespace("test-namespace")
+				status.SetClientPlatformVersion("4.16.0")
+				status.SetClientOperatorVersion("4.16.0")
+				status.SetClientOperatorNamespace("test-namespace")
 				status.SetClusterID("cluster-789")
 				status.SetClientName("test-client-name")
 				status.SetClusterName("test-cluster-name")
