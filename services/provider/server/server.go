@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"net"
 	"os"
 	"reflect"
@@ -1138,6 +1139,20 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 		return nil, err
 	}
 
+	kubeResources, err = s.appendNetworkFenceClassKubeResources(
+		ctx,
+		logger,
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+		rbdStorageId,
+		cephFsStorageId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	kubeResources, err = s.appendVolumeReplicationClassKubeResources(
 		ctx,
 		logger,
@@ -1745,6 +1760,61 @@ func (s *OCSProviderServer) appendOdfVolumeGroupSnapshotClassKubeResources(
 					vgscName,
 					consumer,
 					consumerConfig,
+					cephFsStorageId,
+				)
+			}
+		},
+	)
+	kubeResources = append(kubeResources, resources...)
+
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendNetworkFenceClassKubeResources(
+	ctx context.Context,
+	logger logr.Logger,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	rbdStorageId,
+	cephFsStorageId string,
+) ([]client.Object, error) {
+	nfcMap := map[string]func() *csiaddonsv1alpha1.NetworkFenceClass{}
+	if consumerConfig.GetRbdClientProfileName() != "" {
+		nfcMap[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.RbdNetworkFenceClass)] = func() *csiaddonsv1alpha1.NetworkFenceClass {
+			return util.NewDefaultRbdNetworkFenceClass(
+				consumerConfig.GetCsiRbdProvisionerCephUserName(),
+				consumer.Status.Client.OperatorNamespace,
+				rbdStorageId,
+			)
+		}
+	}
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		nfcMap[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.CephfsNetworkFenceClass)] = func() *csiaddonsv1alpha1.NetworkFenceClass {
+			return util.NewDefaultCephFsNetworkFenceClass(
+				consumerConfig.GetCsiCephFsProvisionerCephUserName(),
+				consumer.Status.Client.OperatorNamespace,
+				rbdStorageId,
+			)
+		}
+	}
+
+	resources := getKubeResourcesForClass(
+		logger,
+		consumer.Spec.NetworkFenceClasses,
+		"networkfenceclass",
+		func(nfcName string) (client.Object, error) {
+			if nfcGen, fnExist := nfcMap[nfcName]; fnExist {
+				return nfcGen(), nil
+			} else {
+				return util.NetworkFenceClassFromExisting(
+					ctx,
+					s.client,
+					nfcName,
+					consumer,
+					consumerConfig,
+					rbdStorageId,
 					cephFsStorageId,
 				)
 			}

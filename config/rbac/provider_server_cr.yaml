@@ -25,3 +25,10 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+    - csiaddons.openshift.io
+  resources:
+    - networkfenceclasses
+  verbs:
+    - get
+    - list
