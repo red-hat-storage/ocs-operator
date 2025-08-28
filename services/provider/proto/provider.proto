@@ -67,6 +67,17 @@ message OnboardConsumerRequest{
     string consumerName = 2;
     // clientOperatorVersion is the semver version of ocs-client-operator
     string clientOperatorVersion = 3;
+    string clientPlatformVersion = 4;
+    // ocs-client-operator deployed namespace
+    string clientOperatorNamespace = 5;
+    // clientID is the k8s UID of storageClient
+    string clientID = 6;
+    // clientName is the name of the connected storageclient
+    string clientName = 7;
+    // clusterID is the id of the openshift cluster
+    string clusterID = 8;
+    // clusterName is the name of the openshift cluster
+    string clusterName = 9;
 }
 
 // OnboardConsumerResponse holds the response for OnboardConsumer API request
