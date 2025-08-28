@@ -61,8 +61,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -106,26 +108,55 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new scheme. %v", err)
 	}
 
-	client, err := util.NewK8sClient(scheme)
+	config, err := config.GetConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new client. %v", err)
+		return nil, err
 	}
 
-	consumerManager, err := newConsumerManager(ctx, client, namespace)
+	cache, err := ctrlcache.New(config, ctrlcache.Options{
+		Scheme: scheme,
+		DefaultNamespaces: map[string]ctrlcache.Config{
+			namespace: {},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := client.New(config, client.Options{
+		Scheme: scheme,
+		Cache: &client.CacheOptions{
+			Reader: cache,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	logger := klog.FromContext(ctx).WithName("NewOCSProviderServer")
+
+	consumerManager, err := newConsumerManager(ctx, client, cache, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new OCSConumer instance. %v", err)
 	}
 
-	storageClusterPeerManager, err := newStorageClusterPeerManager(client, namespace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new StorageClusterPeer instance. %v", err)
+	logger.Info("starting cache")
+	go func() {
+		if err := cache.Start(ctx); err != nil {
+			logger.Error(err, "failed to start cache")
+			os.Exit(1)
+		}
+	}()
+
+	if !cache.WaitForCacheSync(ctx) {
+		panic("cache did not sync")
 	}
 
 	return &OCSProviderServer{
 		client:                    client,
 		scheme:                    scheme,
 		consumerManager:           consumerManager,
-		storageClusterPeerManager: storageClusterPeerManager,
+		storageClusterPeerManager: newStorageClusterPeerManager(client, namespace),
 		namespace:                 namespace,
 	}, nil
 }
