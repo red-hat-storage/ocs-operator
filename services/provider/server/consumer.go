@@ -86,7 +86,28 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 }
 
 // EnableStorageConsumer enables storageConsumer resource
-func (c *ocsConsumerManager) EnableStorageConsumer(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (string, error) {
+func (c *ocsConsumerManager) EnableStorageConsumer(
+	ctx context.Context,
+	consumer *ocsv1alpha1.StorageConsumer,
+	clientInfo ifaces.StorageClientOnboarding,
+) (string, error) {
+	if consumer.Status.Client == nil {
+		consumer.Status.Client = &ocsv1alpha1.ClientStatus{}
+	}
+
+	consumer.Status.LastHeartbeat = metav1.Now()
+	consumer.Status.Client.PlatformVersion = clientInfo.GetClientPlatformVersion()
+	consumer.Status.Client.OperatorVersion = clientInfo.GetClientOperatorVersion()
+	consumer.Status.Client.OperatorNamespace = clientInfo.GetClientOperatorNamespace()
+	consumer.Status.Client.ID = clientInfo.GetClientID()
+	consumer.Status.Client.Name = clientInfo.GetClientName()
+	consumer.Status.Client.ClusterID = clientInfo.GetClusterID()
+	consumer.Status.Client.ClusterName = clientInfo.GetClusterName()
+
+	// performing status update first as it's ephemeral and will only be checked during onboard again if we are already enabled
+	if err := c.client.Status().Update(ctx, consumer); err != nil {
+		return "", fmt.Errorf("Failed to update status for StorageConsumer %v: %v", consumer.Name, err)
+	}
 	consumer.Spec.Enable = true
 	// update here acts as a synchronization point even if two api calls
 	// resolves to a single storageconsumer the resourceVersion of one of

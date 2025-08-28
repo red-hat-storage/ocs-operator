@@ -169,6 +169,9 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		klog.Errorf("failed to get storageconsumer referred by the supplied token: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to get storageconsumer. %v", err)
 	} else if storageConsumer.Spec.Enable {
+		if storageConsumer.Status.Client != nil && storageConsumer.Status.Client.ID == req.ClientID {
+			return &pb.OnboardConsumerResponse{StorageConsumerUUID: string(storageConsumer.UID)}, nil
+		}
 		klog.Errorf("storageconsumer is already enabled %s", storageConsumer.Name)
 		return nil, status.Errorf(codes.InvalidArgument, "refusing to onboard onto storageconsumer with supplied token")
 	}
@@ -185,7 +188,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.InvalidArgument, "supplied onboarding ticket does not match mapped secret")
 	}
 
-	storageConsumerUUID, err := s.consumerManager.EnableStorageConsumer(ctx, storageConsumer)
+	storageConsumerUUID, err := s.consumerManager.EnableStorageConsumer(ctx, storageConsumer, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to onboard on storageConsumer resource. %v", err)
 	}
@@ -1412,7 +1415,7 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 				ControllerPublishSecret: corev1.SecretReference{
 					Name:      consumerConfig.GetCsiRbdProvisionerCephUserName(),
 					Namespace: consumer.Status.Client.OperatorNamespace,
-				},	
+				},
 			},
 		}
 	}

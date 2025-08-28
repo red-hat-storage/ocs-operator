@@ -25,8 +25,20 @@ type StorageClientOnboarding interface {
 	GetOnboardingTicket() string
 	GetConsumerName() string
 	GetClientOperatorVersion() string
+	GetClientPlatformVersion() string
+	GetClientOperatorNamespace() string
+	GetClientID() string
+	GetClientName() string
+	GetClusterID() string
+	GetClusterName() string
 
 	SetOnboardingTicket(string) StorageClientOnboarding
 	SetConsumerName(string) StorageClientOnboarding
 	SetClientOperatorVersion(string) StorageClientOnboarding
+	SetClientPlatformVersion(string) StorageClientOnboarding
+	SetClientOperatorNamespace(string) StorageClientOnboarding
+	SetClientID(string) StorageClientOnboarding
+	SetClientName(string) StorageClientOnboarding
+	SetClusterID(string) StorageClientOnboarding
+	SetClusterName(string) StorageClientOnboarding
 }

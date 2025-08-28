@@ -76,3 +76,33 @@ func (o *OnboardConsumerRequest) SetClientOperatorVersion(version string) ifaces
 	o.ClientOperatorVersion = version
 	return o
 }
+
+func (o *OnboardConsumerRequest) SetClientPlatformVersion(version string) ifaces.StorageClientOnboarding {
+	o.ClientPlatformVersion = version
+	return o
+}
+
+func (o *OnboardConsumerRequest) SetClientOperatorNamespace(name string) ifaces.StorageClientOnboarding {
+	o.ClientOperatorNamespace = name
+	return o
+}
+
+func (o *OnboardConsumerRequest) SetClientID(id string) ifaces.StorageClientOnboarding {
+	o.ClientID = id
+	return o
+}
+
+func (o *OnboardConsumerRequest) SetClientName(name string) ifaces.StorageClientOnboarding {
+	o.ClientName = name
+	return o
+}
+
+func (o *OnboardConsumerRequest) SetClusterID(id string) ifaces.StorageClientOnboarding {
+	o.ClusterID = id
+	return o
+}
+
+func (o *OnboardConsumerRequest) SetClusterName(name string) ifaces.StorageClientOnboarding {
+	o.ClusterName = name
+	return o
+}
