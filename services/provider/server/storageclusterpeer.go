@@ -3,10 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
+
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type storageClusterPeerManager struct {
@@ -14,11 +15,11 @@ type storageClusterPeerManager struct {
 	namespace string
 }
 
-func newStorageClusterPeerManager(cl client.Client, namespace string) (*storageClusterPeerManager, error) {
+func newStorageClusterPeerManager(cl client.Client, namespace string) *storageClusterPeerManager {
 	return &storageClusterPeerManager{
 		client:    cl,
 		namespace: namespace,
-	}, nil
+	}
 }
 
 func (s *storageClusterPeerManager) GetByPeerStorageClusterUID(ctx context.Context, storageClusterUID types.UID) (*ocsv1.StorageClusterPeer, error) {
