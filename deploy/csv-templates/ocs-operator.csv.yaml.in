@@ -79,7 +79,7 @@ metadata:
           "spec": null
         }
       ]
-    createdAt: "2025-10-09T10:46:54Z"
+    createdAt: "2025-10-09T10:47:52Z"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     operators.operatorframework.io/builder: operator-sdk-v1.30.0
@@ -561,6 +561,13 @@ spec:
           - groupsnapshot.storage.k8s.io
           resources:
           - volumegroupsnapshotclasses
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - csiaddons.openshift.io
+          resources:
+          - networkfenceclasses
           verbs:
           - get
           - list
