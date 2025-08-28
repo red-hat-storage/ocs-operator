@@ -8,8 +8,11 @@ import (
 
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/provider/server"
+
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var (
@@ -17,9 +20,14 @@ var (
 )
 
 func main() {
-	flag.Parse()
 
 	klog.Info("Starting Provider API server")
+	loggerOpts := zap.Options{}
+	loggerOpts.BindFlags(flag.CommandLine)
+	flag.Parse()
+
+	logger := zap.New(zap.UseFlagOptions(&loggerOpts))
+	ctrl.SetLogger(logger)
 
 	namespace := util.GetPodNamespace()
 

@@ -11,13 +11,11 @@ import (
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgocache "k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 type ocsConsumerManager struct {
@@ -27,20 +25,17 @@ type ocsConsumerManager struct {
 	mutex     sync.RWMutex
 }
 
-func newConsumerManager(ctx context.Context, cl client.Client, namespace string) (*ocsConsumerManager, error) {
+func newConsumerManager(ctx context.Context, mgr manager.Manager, namespace string) (*ocsConsumerManager, error) {
 
 	consumerManager := &ocsConsumerManager{
-		client:    cl,
+		client:    mgr.GetClient(),
 		namespace: namespace,
 		nameByUID: map[types.UID]string{},
 	}
 
-	cache, err := newStorageConsumerCache(namespace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cache: %w", err)
-	}
+	cache := mgr.GetCache()
 
-	consumer := &metav1.PartialObjectMetadata{}
+	consumer := &ocsv1alpha1.StorageConsumer{}
 	consumer.SetGroupVersionKind(ocsv1alpha1.GroupVersion.WithKind("StorageConsumer"))
 
 	informer, err := cache.GetInformer(ctx, consumer)
@@ -50,7 +45,7 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 
 	if _, err = informer.AddEventHandler(clientgocache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
-			consumer, ok := obj.(*metav1.PartialObjectMetadata)
+			consumer, ok := obj.(*ocsv1alpha1.StorageConsumer)
 			if !ok {
 				return
 			}
@@ -60,7 +55,7 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 		},
 
 		DeleteFunc: func(obj any) {
-			consumer, ok := obj.(*metav1.PartialObjectMetadata)
+			consumer, ok := obj.(*ocsv1alpha1.StorageConsumer)
 			if !ok {
 				return
 			}
@@ -70,16 +65,6 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 		},
 	}); err != nil {
 		return nil, fmt.Errorf("failed to create informer: %w", err)
-	}
-
-	go func() {
-		if err := cache.Start(ctx); err != nil {
-			panic(fmt.Errorf("cache failed to start: %w", err))
-		}
-	}()
-
-	if !cache.WaitForCacheSync(ctx) {
-		panic("cache did not sync")
 	}
 
 	return consumerManager, nil
@@ -234,38 +219,4 @@ func (c *ocsConsumerManager) ClearClientInformation(ctx context.Context, consume
 
 	klog.Infof("successfully removed client information from storageConsumer %v", consumer.Name)
 	return nil
-}
-
-func newStorageConsumerCache(namespace string) (ctrlcache.Cache, error) {
-
-	cacheScheme := runtime.NewScheme()
-	if err := ocsv1alpha1.AddToScheme(cacheScheme); err != nil {
-		return nil, fmt.Errorf("failed to add ocsv1alpha1 to scheme. %v", err)
-	}
-
-	config, err := config.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	cache, err := ctrlcache.New(
-		config,
-		ctrlcache.Options{
-			Scheme: cacheScheme,
-			DefaultNamespaces: map[string]ctrlcache.Config{
-				namespace: {},
-			},
-			ByObject: map[client.Object]ctrlcache.ByObject{
-				&metav1.PartialObjectMetadata{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: ocsv1alpha1.GroupVersion.String(),
-						Kind:       "StorageConsumer",
-					},
-				}: {},
-			},
-		})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new cache %w", err)
-	}
-	return cache, nil
 }
