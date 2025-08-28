@@ -89,7 +89,6 @@ const (
 	// PriorityClasses for cephCluster
 	systemNodeCritical    = "system-node-critical"
 	systemClusterCritical = "system-cluster-critical"
-	openshiftUserCritical = "openshift-user-critical"
 
 	prometheusLocalRuleName    = "prometheus-ceph-rules"
 	prometheusExternalRuleName = "prometheus-ceph-rules-external"
