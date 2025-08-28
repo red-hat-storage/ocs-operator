@@ -11,6 +11,8 @@ rules:
       - services
     verbs:
       - get
+      - list
+      - watch
   - apiGroups:
       - ceph.rook.io
     resources:
@@ -22,6 +24,7 @@ rules:
     verbs:
       - get
       - list
+      - watch
   - apiGroups:
       - ocs.openshift.io
     resources:
@@ -30,6 +33,7 @@ rules:
     verbs:
       - get
       - list
+      - watch
       - create
       - delete
       - update
@@ -51,6 +55,8 @@ rules:
       - cephclients
     verbs:
       - get
+      - list
+      - watch
   - apiGroups:
       - ""
     resources:
@@ -58,6 +64,7 @@ rules:
     verbs:
       - get
       - list
+      - watch
   - apiGroups:
       - operators.coreos.com
     resources:
@@ -66,6 +73,7 @@ rules:
     verbs:
       - get
       - list
+      - watch
   - apiGroups:
       - packages.operators.coreos.com
     resources:
@@ -73,6 +81,7 @@ rules:
     verbs:
       - get
       - list
+      - watch
   - apiGroups:
       - ocs.openshift.io
     resources:
@@ -80,6 +89,7 @@ rules:
     verbs:
       - get
       - list
+      - watch
   - apiGroups:
       - route.openshift.io
     resources:
@@ -87,6 +97,7 @@ rules:
     verbs:
       - get
       - list
+      - watch
   - apiGroups:
       - ocs.openshift.io
     resources:
@@ -94,6 +105,7 @@ rules:
     verbs:
       - get
       - list
+      - watch
   - apiGroups:
       - template.openshift.io
     resources:
@@ -101,3 +113,4 @@ rules:
     verbs:
       - get
       - list
+      - watch
