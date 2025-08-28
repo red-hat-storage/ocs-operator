@@ -3,10 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
+
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type storageClusterPeerManager struct {

@@ -13,22 +13,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestNewStorageClusterPeerManager(t *testing.T) {
-	t.Run("successful manager creation", func(t *testing.T) {
-		scheme, err := newScheme()
-		assert.NoError(t, err)
-
-		client := fake.NewClientBuilder().
-			WithScheme(scheme).
-			Build()
-
-		manager, err := newStorageClusterPeerManager(client, testNamespace)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, manager)
-		assert.Equal(t, testNamespace, manager.namespace)
-		assert.NotNil(t, manager.client)
-	})
+func createTestStorageClusterPeerManager(client client.Client) *storageClusterPeerManager {
+	return &storageClusterPeerManager{
+		client:    client,
+		namespace: testNamespace,
+	}
 }
 
 func TestGetByPeerStorageClusterUID(t *testing.T) {
@@ -119,8 +108,7 @@ func TestGetByPeerStorageClusterUID(t *testing.T) {
 			assert.NoError(t, err)
 
 			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.existingObjs...).Build()
-			scpManager, err := newStorageClusterPeerManager(fakeClient, testNamespace)
-			assert.NoError(t, err)
+			scpManager := createTestStorageClusterPeerManager(fakeClient)
 
 			result, err := scpManager.GetByPeerStorageClusterUID(context.TODO(), types.UID(tt.storageClusterUID))
 
