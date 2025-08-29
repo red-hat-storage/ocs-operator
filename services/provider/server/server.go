@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"reflect"
 	"slices"
 	"strconv"
@@ -58,8 +59,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 const (
@@ -102,23 +106,47 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new scheme. %v", err)
 	}
 
-	client, err := util.NewK8sClient(scheme)
+	config, err := config.GetConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new client. %v", err)
+		return nil, err
 	}
 
-	consumerManager, err := newConsumerManager(ctx, client, namespace)
+	mgr, err := manager.New(config, manager.Options{
+		Scheme: scheme,
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				namespace: {},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	consumerManager, err := newConsumerManager(ctx, mgr, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new OCSConumer instance. %v", err)
 	}
 
-	storageClusterPeerManager, err := newStorageClusterPeerManager(client, namespace)
+	storageClusterPeerManager, err := newStorageClusterPeerManager(mgr, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new StorageClusterPeer instance. %v", err)
 	}
 
+	klog.Info("starting manager")
+	go func() {
+		if err := mgr.Start(ctx); err != nil {
+			klog.Error(err, "problem running manager")
+			os.Exit(1)
+		}
+	}()
+
+	if !mgr.GetCache().WaitForCacheSync(ctx) {
+		panic("cache did not sync")
+	}
+
 	return &OCSProviderServer{
-		client:                    client,
+		client:                    mgr.GetClient(),
 		scheme:                    scheme,
 		consumerManager:           consumerManager,
 		storageClusterPeerManager: storageClusterPeerManager,

@@ -3,10 +3,12 @@ package server
 import (
 	"context"
 	"fmt"
+
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 type storageClusterPeerManager struct {
@@ -14,9 +16,9 @@ type storageClusterPeerManager struct {
 	namespace string
 }
 
-func newStorageClusterPeerManager(cl client.Client, namespace string) (*storageClusterPeerManager, error) {
+func newStorageClusterPeerManager(mgr manager.Manager, namespace string) (*storageClusterPeerManager, error) {
 	return &storageClusterPeerManager{
-		client:    cl,
+		client:    mgr.GetClient(),
 		namespace: namespace,
 	}, nil
 }
