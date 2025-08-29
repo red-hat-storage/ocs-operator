@@ -472,6 +472,6 @@ spec:
         severity_level: warning
       expr: |
         ocs_rbd_children_count > 200
-      for: 30m
+      for: 30s
       labels:
         severity: warning
