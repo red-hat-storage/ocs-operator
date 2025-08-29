@@ -423,6 +423,12 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 		}
 
+		availableServices, err := util.GetAvailableServices(ctx, s.client, storageCluster)
+		if err != nil {
+			klog.Error(err)
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+
 		topologyKey := consumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
 		if topologyKey != "" {
 			response.RbdDriverRequirements = &pb.RbdDriverRequirements{
@@ -439,6 +445,9 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			isConsumerMirrorEnabled,
 			topologyKey,
 			ocsVersion.Version,
+			availableServices.Rbd,
+			availableServices.CephFs,
+			availableServices.Nfs,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -704,6 +713,12 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 
 	topologyKey := storageConsumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
 
+	availableServices, err := util.GetAvailableServices(ctx, s.client, storageCluster)
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
+	}
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
@@ -713,6 +728,9 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		isConsumerMirrorEnabled,
 		topologyKey,
 		ocsVersion.Version,
+		availableServices.Rbd,
+		availableServices.CephFs,
+		availableServices.Nfs,
 	)
 
 	return &pb.ReportStatusResponse{
