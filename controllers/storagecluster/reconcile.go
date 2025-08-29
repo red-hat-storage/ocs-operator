@@ -16,7 +16,9 @@ import (
 	"github.com/blang/semver/v4"
 	"github.com/go-logr/logr"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/operator-framework/operator-lib/conditions"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -108,7 +110,7 @@ var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 // +kubebuilder:rbac:groups=operators.coreos.com,resources=operatorconditions,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=get;list;create;update;watch;delete
-// +kubebuilder:rbac:groups=operators.coreos.com,resources=clusterserviceversions,verbs=get;list;watch
+// +kubebuilder:rbac:groups=operators.coreos.com,resources=clusterserviceversions,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=k8s.cni.cncf.io,resources=network-attachment-definitions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings;rolebindings;clusterroles;roles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=objectbucket.io,resources=objectbuckets;objectbucketclaims,verbs=get;list;watch
@@ -390,6 +392,19 @@ func (r *StorageClusterReconciler) reconcilePhases(
 	if instance.Spec.ExternalStorage.Enable {
 		if err := r.setExternalOCSResourcesData(instance); err != nil {
 			r.Log.Error(err, "Failed to set the externalOCSResources cache")
+			return reconcile.Result{}, err
+		}
+	}
+
+	// if the StorageCluster is configured to run on non-default host network, rook-ceph-operator needs to run on host network as well
+	// this is validated by checking if the AddressRanges.Public field is set in the Network spec
+	// since pod network cannot always communicate with non-default host network rook-ceph-operator needs to run on host network
+	if !instance.Spec.ExternalStorage.Enable &&
+		!r.IsNoobaaStandalone &&
+		shouldUseHostNetworking(instance) {
+		err := updateOpHostNetworkInRookCephCSV(ctx, r.Client, instance.Namespace)
+		if err != nil {
+			r.Log.Error(err, "Failed to update Rook Ceph Operator HostNetwork.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 			return reconcile.Result{}, err
 		}
 	}
@@ -946,4 +961,69 @@ func getUnsupportedClientsCount(r *StorageClusterReconciler, namespace string) (
 	}
 
 	return count, nil
+}
+
+// shouldUseHostNetworking checks if the StorageCluster is configured to run on non-default host network
+// this is validated by checking if the AddressRanges.Public field is set in the Network spec
+// since pod network cannot always communicate with non-default host network metrics exporter needs to run on host net
+func shouldUseHostNetworking(instance *ocsv1.StorageCluster) bool {
+	if !isMultus(instance.Spec.Network) &&
+		instance.Spec.Network != nil &&
+		instance.Spec.Network.AddressRanges != nil &&
+		instance.Spec.Network.AddressRanges.Public != nil {
+		return true
+	}
+	return false
+}
+
+// updateOpHostNetworkInRookCephCSV updates the rook-ceph-operator CSV to enable host network
+func updateOpHostNetworkInRookCephCSV(ctx context.Context, c client.Client, opNamespace string) error {
+	rookDeployment := &appsv1.Deployment{}
+	key := client.ObjectKey{
+		Name:      "rook-ceph-operator",
+		Namespace: opNamespace,
+	}
+	if err := c.Get(ctx, key, rookDeployment); err != nil {
+		return fmt.Errorf("failed to get rook-ceph-operator deployment: %v", err)
+	}
+
+	var csvOwnerRef *metav1.OwnerReference
+	for _, ownerRef := range rookDeployment.GetOwnerReferences() {
+		if ownerRef.Kind == "ClusterServiceVersion" {
+			csvOwnerRef = &ownerRef
+			break
+		}
+	}
+
+	rookCSV := &opv1a1.ClusterServiceVersion{}
+	csvKey := client.ObjectKey{
+		Name:      csvOwnerRef.Name,
+		Namespace: opNamespace,
+	}
+
+	// List the ClusterServiceVersion for rook-ceph-operator
+	if err := c.Get(ctx, csvKey, rookCSV); err != nil {
+		return err
+	}
+	if rookCSV.Status.Phase != opv1a1.CSVPhaseSucceeded {
+		return fmt.Errorf("rook-ceph-operator CSV is not in Succeeded phase: %s", rookCSV.Status.Phase)
+	}
+
+	// Update the rook-ceph-operator deployment in CSV to enable host network
+	for i := range rookCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs {
+		deployment := &rookCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[i]
+		if deployment.Name == "rook-ceph-operator" {
+			if deployment.Spec.Template.Spec.HostNetwork {
+				return nil
+			}
+			// Enable host network for rook-ceph-operator
+			deployment.Spec.Template.Spec.HostNetwork = true
+			if err := c.Update(ctx, rookCSV); err != nil {
+				return fmt.Errorf("failed to update rook-ceph-operator CSV: %v", err)
+			}
+			break
+		}
+	}
+
+	return nil
 }
