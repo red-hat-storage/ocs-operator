@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -583,19 +584,18 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 		}
 
 		fmt.Printf("reading CRD file %s\n", crdFile)
-		// CRDs that refer to 'ObjectReference' fetches
-		// spec description from K8s in incorrect YAML format.
-		// This can not be prevented and documentation needs to
-		// be updated in Kubernetes. Until then the work around is
-		// to remove all occurrences of ' --- ' in description.
-		// "---" is used as YAML separator and should not be replaced.
-		// https://github.com/kubernetes/api/blob/master/core/v1/types.go#L5287-L5301
-		crdBytes = []byte(strings.ReplaceAll(string(crdBytes), " ---\n", " "))
-		entries := strings.Split(string(crdBytes), "---")
-		for _, entry := range entries {
+
+		toJSON, err := yaml.YAMLToJSON(crdBytes)
+		if err != nil {
+			panic(err)
+		}
+		decoder := json.NewDecoder(bytes.NewReader(toJSON))
+		for {
 			crd := extv1.CustomResourceDefinition{}
-			err = yaml.Unmarshal([]byte(entry), &crd)
-			if err != nil {
+			err = decoder.Decode(&crd)
+			if err == io.EOF {
+				break
+			} else if err != nil {
 				panic(err)
 			}
 
@@ -607,10 +607,6 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 				crd.Labels["odf.openshift.io/is-storage-system"] = "true"
 			}
 
-			if crd.Spec.Names.Singular == "" {
-				// filters out empty entries caused by starting file with '---' separator
-				continue
-			}
 			if ownedCrds[crd.Name] == nil {
 				continue
 			}
