@@ -89,7 +89,7 @@ func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, ins
 		),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
 	}
-	rbdGroupSnapshotClass.groupSnapshotClass.Name = util.GenerateNameForGroupSnapshotClass(instance, util.RbdGroupSnapshotter)
+	rbdGroupSnapshotClass.groupSnapshotClass.Name = util.GenerateNameForGroupSnapshotClass(instance.Name, util.RbdGroupSnapshotter)
 	util.AddLabel(rbdGroupSnapshotClass.groupSnapshotClass, util.ExternalClassLabelKey, strconv.FormatBool(true))
 
 	cephfsClusterID, cephfsProvisionerSecret, err := r.getClusterIDAndSecretName(instance, util.CephfsSnapshotter)
@@ -106,7 +106,7 @@ func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, ins
 		),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
 	}
-	cephFsGroupSnapshotClass.groupSnapshotClass.Name = util.GenerateNameForGroupSnapshotClass(instance, util.CephfsGroupSnapshotter)
+	cephFsGroupSnapshotClass.groupSnapshotClass.Name = util.GenerateNameForGroupSnapshotClass(instance.Name, util.CephfsGroupSnapshotter)
 	util.AddLabel(cephFsGroupSnapshotClass.groupSnapshotClass, util.ExternalClassLabelKey, strconv.FormatBool(true))
 
 	volumeGroupSnapshotClasses := []GroupSnapshotClassConfiguration{
@@ -128,8 +128,8 @@ func (obj *ocsGroupSnapshotClass) ensureDeleted(r *StorageClusterReconciler, ins
 	}
 
 	names := []string{
-		util.GenerateNameForGroupSnapshotClass(instance, util.RbdGroupSnapshotter),
-		util.GenerateNameForGroupSnapshotClass(instance, util.CephfsGroupSnapshotter),
+		util.GenerateNameForGroupSnapshotClass(instance.Name, util.RbdGroupSnapshotter),
+		util.GenerateNameForGroupSnapshotClass(instance.Name, util.CephfsGroupSnapshotter),
 	}
 	for _, name := range names {
 		vgsc := &groupsnapapi.VolumeGroupSnapshotClass{}

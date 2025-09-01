@@ -158,8 +158,8 @@ func (obj *ocsSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance
 func (obj *ocsSnapshotClass) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	names := []string{
-		util.GenerateNameForGroupSnapshotClass(instance, util.RbdGroupSnapshotter),
-		util.GenerateNameForGroupSnapshotClass(instance, util.CephfsGroupSnapshotter),
+		util.GenerateNameForGroupSnapshotClass(instance.Name, util.RbdGroupSnapshotter),
+		util.GenerateNameForGroupSnapshotClass(instance.Name, util.CephfsGroupSnapshotter),
 	}
 	for _, name := range names {
 		vsc := &snapapi.VolumeSnapshotClass{}
