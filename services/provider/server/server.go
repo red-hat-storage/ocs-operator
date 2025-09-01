@@ -1728,7 +1728,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 ) ([]client.Object, error) {
 	vgscMap := map[string]func() *groupsnapapi.VolumeGroupSnapshotClass{}
 	if consumerConfig.GetRbdClientProfileName() != "" {
-		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
+		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster.Name, util.RbdGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
 			return util.NewDefaultRbdGroupSnapshotClass(
 				consumerConfig.GetRbdClientProfileName(),
 				consumerConfig.GetCsiRbdProvisionerCephUserName(),
@@ -1739,7 +1739,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 		}
 	}
 	if consumerConfig.GetCephFsClientProfileName() != "" {
-		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
+		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster.Name, util.CephfsGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
 			return util.NewDefaultCephFsGroupSnapshotClass(
 				consumerConfig.GetCephFsClientProfileName(),
 				consumerConfig.GetCsiCephFsProvisionerCephUserName(),
