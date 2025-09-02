@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -221,6 +222,7 @@ func (r *StorageClusterReconciler) newNFSMetricsServiceMonitors(initData *ocsv1.
 						"app": "rook-ceph-nfs",
 					},
 				},
+				FallbackScrapeProtocol: ptr.To(monitoringv1.PrometheusText1_0_0),
 			},
 		},
 	}
