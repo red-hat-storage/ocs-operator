@@ -170,6 +170,7 @@ func main() {
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "ab76f4c9.openshift.io",
 		LeaderElectionNamespace: operatorNamespace,
+		Client:                  apiclient.Options{Cache: &apiclient.CacheOptions{Unstructured: true}},
 		Cache:                   cache.Options{DefaultNamespaces: defaultNamespaces},
 	})
 	if err != nil {
