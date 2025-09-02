@@ -236,20 +236,7 @@ rules:
 - apiGroups:
   - ocs.openshift.io
   resources:
-  - storageclients
-  verbs:
-  - get
-- apiGroups:
-  - ocs.openshift.io
-  resources:
-  - storageclients/status
-  verbs:
-  - patch
-- apiGroups:
-  - ocs.openshift.io
-  resources:
   - storageclusterpeers/finalizers
-  - storagerequests/finalizers
   verbs:
   - update
 - apiGroups:
@@ -268,17 +255,6 @@ rules:
   verbs:
   - get
   - list
-  - watch
-- apiGroups:
-  - ocs.openshift.io
-  resources:
-  - storagerequests
-  verbs:
-  - delete
-  - get
-  - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - operators.coreos.com
