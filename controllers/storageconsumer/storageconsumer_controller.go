@@ -137,10 +137,6 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 }
 
 func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) {
-	if _, notAdjusted := r.storageConsumer.GetAnnotations()[util.TicketAnnotation]; notAdjusted {
-		r.Log.Info("waiting for StorageConsumer to be adjusted for 4.19")
-		return reconcile.Result{}, nil
-	}
 
 	if _, exist := r.storageConsumer.GetLabels()[util.CreatedAtDfVersionLabelKey]; !exist {
 		majorAndMinorVersion, err := version.GetMajorAndMinorVersion()
