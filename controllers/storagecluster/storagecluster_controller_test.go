@@ -1167,6 +1167,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		ocsProviderService,
 		ocsProviderServiceDeployment,
 		ocsProviderServiceSecret,
+		createRookCephOperatorCSV(namespace),
 	)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
