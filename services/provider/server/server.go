@@ -215,150 +215,6 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 	return &pb.OnboardConsumerResponse{StorageConsumerUUID: storageConsumerUUID}, nil
 }
 
-// AcknowledgeOnboarding acknowledge the onboarding is complete
-func (s *OCSProviderServer) AcknowledgeOnboarding(ctx context.Context, req *pb.AcknowledgeOnboardingRequest) (*pb.AcknowledgeOnboardingResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Not expecting a two step onboarding process")
-}
-
-// GetStorageConfig RPC call to onboard a new OCS consumer cluster.
-func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.StorageConfigRequest) (*pb.StorageConfigResponse, error) {
-	logger := klog.FromContext(ctx).WithName("GetDesiredClientState").WithValues("consumer", req.StorageConsumerUUID)
-	logger.Info("Starting GetDesiredClientState RPC", "request", req)
-
-	// Get storage consumer resource using UUID
-	consumerObj, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
-	if err != nil {
-		return nil, err
-	}
-
-	klog.Infof("Found storageConsumer for GetStorageConfig")
-
-	// Verify Status
-	switch consumerObj.Status.State {
-	case ocsv1alpha1.StorageConsumerStateNotEnabled:
-		return nil, status.Errorf(codes.FailedPrecondition, "storageConsumer is in not enabled")
-	case ocsv1alpha1.StorageConsumerStateFailed:
-		// TODO: get correct error message from the storageConsumer status
-		return nil, status.Errorf(codes.Internal, "storageConsumer status failed")
-	case ocsv1alpha1.StorageConsumerStateConfiguring:
-		return nil, status.Errorf(codes.Unavailable, "waiting for the rook resources to be provisioned")
-	case ocsv1alpha1.StorageConsumerStateDeleting:
-		return nil, status.Errorf(codes.NotFound, "storageConsumer is already in deleting phase")
-	case ocsv1alpha1.StorageConsumerStateReady:
-		kubeResources, err := s.getKubeResources(ctx, logger, consumerObj)
-		if err != nil {
-			klog.Errorf("failed to get kube resources: %v", err)
-			return nil, status.Errorf(codes.Internal, "failed to produce client state")
-		}
-
-		response := &pb.StorageConfigResponse{SystemAttributes: &pb.SystemAttributes{}}
-
-		for _, kubeResource := range kubeResources {
-			gvk, err := apiutil.GVKForObject(kubeResource, s.scheme)
-			if err != nil {
-				return nil, err
-			}
-			switch gvk {
-			case csiopv1.GroupVersion.WithKind("CephConnection"):
-				cephConn := kubeResource.(*csiopv1.CephConnection)
-				response.ExternalResource = append(
-					response.ExternalResource,
-					&pb.ExternalResource{
-						Name: cephConn.Name,
-						Kind: "CephConnection",
-						Data: util.JsonMustMarshal(cephConn.Spec),
-					},
-				)
-			case quotav1.SchemeGroupVersion.WithKind("ClusterResourceQuota"):
-				quota := kubeResource.(*quotav1.ClusterResourceQuota)
-				response.ExternalResource = append(
-					response.ExternalResource,
-					&pb.ExternalResource{
-						Name: quota.Name,
-						Kind: "ClusterResourceQuota",
-						Data: util.JsonMustMarshal(quota.Spec),
-					},
-				)
-			case csiopv1.GroupVersion.WithKind("ClientProfileMapping"):
-				clientProfileMapping := kubeResource.(*csiopv1.ClientProfileMapping)
-				response.ExternalResource = append(
-					response.ExternalResource,
-					&pb.ExternalResource{
-						Name: clientProfileMapping.Name,
-						Kind: "ClientProfileMapping",
-						Data: util.JsonMustMarshal(clientProfileMapping.Spec),
-					},
-				)
-			case nbv1.SchemeGroupVersion.WithKind("Noobaa"):
-				noobaa := kubeResource.(*nbv1.NooBaa)
-				response.ExternalResource = append(
-					response.ExternalResource,
-					&pb.ExternalResource{
-						Name: noobaa.Name,
-						Kind: "Noobaa",
-						Data: util.JsonMustMarshal(noobaa.Spec),
-					},
-				)
-			case corev1.SchemeGroupVersion.WithKind("Secret"):
-				secret := kubeResource.(*corev1.Secret)
-				if secret.Name == "noobaa-remote-join-secret" {
-					oldSecretFormat := map[string]string{}
-					for k, v := range secret.Data {
-						oldSecretFormat[k] = string(v)
-					}
-					response.ExternalResource = append(
-						response.ExternalResource,
-						&pb.ExternalResource{
-							Name: secret.Name,
-							Kind: "Secret",
-							Data: util.JsonMustMarshal(oldSecretFormat),
-						},
-					)
-				}
-			}
-		}
-
-		inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
-		if err != nil {
-			klog.Error(err)
-			return nil, status.Errorf(codes.Internal, "failed to produce client state")
-		}
-		response.SystemAttributes.SystemInMaintenanceMode = inMaintenanceMode
-
-		isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, consumerObj)
-		if err != nil {
-			klog.Error(err)
-			return nil, status.Errorf(codes.Internal, "failed to produce client state")
-		}
-		response.SystemAttributes.MirrorEnabled = isConsumerMirrorEnabled
-
-		channelName, err := s.getOCSSubscriptionChannel(ctx)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to produce client state")
-		}
-
-		storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
-		if err != nil {
-			return nil, err
-		}
-
-		desiredClientConfigHash := getDesiredClientConfigHash(
-			channelName,
-			consumerObj,
-			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
-			inMaintenanceMode,
-			isConsumerMirrorEnabled,
-		)
-
-		response.DesiredConfigHash = desiredClientConfigHash
-
-		klog.Infof("successfully returned the config details to the consumer.")
-		return response, nil
-	}
-
-	return nil, status.Errorf(codes.Unavailable, "storage consumer status is not set")
-}
-
 // GetDesiredClientState RPC call to generate the desired state of the client
 func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.GetDesiredClientStateRequest) (*pb.GetDesiredClientStateResponse, error) {
 	logger := klog.FromContext(ctx).WithName("GetDesiredClientState").WithValues("consumer", req.StorageConsumerUUID)
@@ -419,7 +275,6 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			kubeResource.GetObjectKind().SetGroupVersionKind(gvk)
 			sanitizeKubeResource(kubeResource)
 			kubeResourceBytes := util.JsonMustMarshal(kubeResource)
-			response.KubeResources = append(response.KubeResources, kubeResourceBytes)
 			response.KubeObjects = append(response.KubeObjects, &pb.KubeObject{Bytes: kubeResourceBytes})
 		}
 
@@ -645,26 +500,6 @@ func checkTicketExpiration(logger logr.Logger, ticketData *services.OnboardingTi
 	return nil
 }
 
-// FulfillStorageClaim RPC call to create the StorageClaim CR on
-// provider cluster.
-func (s *OCSProviderServer) FulfillStorageClaim(ctx context.Context, req *pb.FulfillStorageClaimRequest) (*pb.FulfillStorageClaimResponse, error) {
-	// returning empty response in case a upgrade scenario where provider is upgraded to 4.19 and an onboarded 4.18 client is calling FulFillStorageClaim,
-	// the client storageClaim reconciler will get stuck in FulFillStorageClaim if this function is returning an error,
-	// Empty response will make the client continue reconcile of storageClaim.
-	return &pb.FulfillStorageClaimResponse{}, nil
-}
-
-// RevokeStorageClaim RPC call to delete the StorageClaim CR on
-// provider cluster.
-func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.RevokeStorageClaimRequest) (*pb.RevokeStorageClaimResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
-}
-
-// GetStorageClaim RPC call to get the ceph resources for the StorageClaim.
-func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.StorageClaimConfigRequest) (*pb.StorageClaimConfigResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
-}
-
 // ReportStatus rpc call to check if a consumer can reach to the provider.
 func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStatusRequest) (*pb.ReportStatusResponse, error) {
 	logger := klog.FromContext(ctx).WithName("ReportStatus").WithValues("consumer", req.StorageConsumerUUID)
@@ -703,27 +538,10 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer resource: %v", err)
 	}
 
-	clientOperatorVersion, err := semver.Parse(req.ClientOperatorVersion)
+	channelName, err := s.getOCSSubscriptionChannel(ctx)
 	if err != nil {
-		logger.Error(err, "Failed to parse ClientOperatorVersion", "clientOperatorVersion", req.ClientOperatorVersion)
-		return nil, status.Errorf(codes.InvalidArgument, "Malformed ClientOperatorVersion: %v", err)
-	}
-
-	channelName := ""
-	_, notAdjusted := storageConsumer.GetAnnotations()[util.TicketAnnotation]
-	if notAdjusted && (clientOperatorVersion.Major == 4 && clientOperatorVersion.Minor == 18) {
-		// TODO (leelavg): need to be removed in 4.20
-		// We have a new controller which maps the resources from 4.18 to 4.19 way of management,
-		// until the resources are mapped we don't want connected client to be upgrading, we'll
-		// relax the condition on knowing the resources are mapped in a separate PR
-		channelName = "stable-4.18"
-	} else {
-		channel, err := s.getOCSSubscriptionChannel(ctx)
-		if err != nil {
-			logger.Error(err, "Failed to get OCS subscription channel")
-			return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
-		}
-		channelName = channel
+		logger.Error(err, "Failed to get OCS subscription channel")
+		return nil, status.Errorf(codes.Internal, "Failed to construct status response: %v", err)
 	}
 
 	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
