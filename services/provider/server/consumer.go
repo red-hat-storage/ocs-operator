@@ -86,7 +86,17 @@ func newConsumerManager(ctx context.Context, cl client.Client, namespace string)
 }
 
 // EnableStorageConsumer enables storageConsumer resource
-func (c *ocsConsumerManager) EnableStorageConsumer(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (string, error) {
+func (c *ocsConsumerManager) EnableStorageConsumer(
+	ctx context.Context,
+	consumer *ocsv1alpha1.StorageConsumer,
+	clientInfo ifaces.StorageClientOnboarding,
+) (string, error) {
+
+	// k8s spec and status are two different endpoints and we need to update them separately
+	fillStorageClientInfo(&consumer.Status, clientInfo)
+	if err := c.client.Status().Update(ctx, consumer); err != nil {
+		return "", fmt.Errorf("Failed to update status for StorageConsumer %v: %v", consumer.Name, err)
+	}
 	consumer.Spec.Enable = true
 	// update here acts as a synchronization point even if two api calls
 	// resolves to a single storageconsumer the resourceVersion of one of
@@ -145,19 +155,7 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 	if err != nil {
 		return err
 	}
-
-	if consumerObj.Status.Client == nil {
-		consumerObj.Status.Client = &ocsv1alpha1.ClientStatus{}
-	}
-
-	consumerObj.Status.LastHeartbeat = metav1.Now()
-	consumerObj.Status.Client.PlatformVersion = status.GetPlatformVersion()
-	consumerObj.Status.Client.OperatorVersion = status.GetOperatorVersion()
-	consumerObj.Status.Client.OperatorNamespace = status.GetOperatorNamespace()
-	consumerObj.Status.Client.ClusterID = status.GetClusterID()
-	consumerObj.Status.Client.Name = status.GetClientName()
-	consumerObj.Status.Client.ID = status.GetClientID()
-	consumerObj.Status.Client.ClusterName = status.GetClusterName()
+	fillStorageClientInfo(&consumerObj.Status, status)
 	consumerObj.Status.Client.StorageQuotaUtilizationRatio = status.GetStorageQuotaUtilizationRatio()
 
 	if err := c.client.Status().Update(ctx, consumerObj); err != nil {
@@ -268,4 +266,18 @@ func newStorageConsumerCache(namespace string) (ctrlcache.Cache, error) {
 		return nil, fmt.Errorf("failed to create new cache %w", err)
 	}
 	return cache, nil
+}
+
+func fillStorageClientInfo(consumerStatus *ocsv1alpha1.StorageConsumerStatus, clientInfo ifaces.StorageClientInfo) {
+	if consumerStatus.Client == nil {
+		consumerStatus.Client = &ocsv1alpha1.ClientStatus{}
+	}
+	consumerStatus.LastHeartbeat = metav1.Now()
+	consumerStatus.Client.PlatformVersion = clientInfo.GetClientPlatformVersion()
+	consumerStatus.Client.OperatorVersion = clientInfo.GetClientOperatorVersion()
+	consumerStatus.Client.OperatorNamespace = clientInfo.GetClientOperatorNamespace()
+	consumerStatus.Client.ID = clientInfo.GetClientID()
+	consumerStatus.Client.ClusterName = clientInfo.GetClusterName()
+	consumerStatus.Client.ClusterID = clientInfo.GetClusterID()
+	consumerStatus.Client.Name = clientInfo.GetClientName()
 }
