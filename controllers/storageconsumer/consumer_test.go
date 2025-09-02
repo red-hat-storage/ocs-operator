@@ -88,13 +88,6 @@ func TestNoobaaAccount(t *testing.T) {
 			ResourceNameMappingConfigMap: corev1.LocalObjectReference{Name: "provider"},
 		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
-			CephResources: []*ocsv1alpha1.CephResourcesSpec{
-				{
-					Kind:  "NooBaaAccount",
-					Name:  "consumer-acc",
-					Phase: "Ready",
-				},
-			},
 			Client: &ocsv1alpha1.ClientStatus{
 				ClusterID:       "provider",
 				OperatorVersion: "4.19.0",
@@ -161,18 +154,6 @@ func TestNoobaaAccount(t *testing.T) {
 	_, err = r.reconcilePhases()
 	assert.NoError(t, err)
 
-	want := &ocsv1alpha1.CephResourcesSpec{
-		Kind:  "NooBaaAccount",
-		Name:  "provider",
-		Phase: "Ready",
-	}
-
-	for i := range r.storageConsumer.Status.CephResources {
-		if r.storageConsumer.Status.CephResources[i].Kind == "NooBaaAccount" {
-			assert.Equal(t, want, r.storageConsumer.Status.CephResources[i])
-		}
-	}
-
 	// When StorageConsumer cr status in Error state
 	client = fake.NewClientBuilder().WithScheme(scheme).Build()
 	r.Client = client
@@ -192,13 +173,6 @@ func TestNoobaaAccount(t *testing.T) {
 			ResourceNameMappingConfigMap: corev1.LocalObjectReference{Name: "consumer"},
 		},
 		Status: ocsv1alpha1.StorageConsumerStatus{
-			CephResources: []*ocsv1alpha1.CephResourcesSpec{
-				{
-					Kind:  "NooBaaAccount",
-					Name:  "consumer",
-					Phase: "Error",
-				},
-			},
 			Client: &ocsv1alpha1.ClientStatus{
 				OperatorVersion: "4.19.0",
 			},
@@ -263,16 +237,4 @@ func TestNoobaaAccount(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = r.reconcilePhases()
 	assert.NoError(t, err)
-
-	want = &ocsv1alpha1.CephResourcesSpec{
-		Kind:  "NooBaaAccount",
-		Name:  "consumer",
-		Phase: "Rejected",
-	}
-
-	for i := range r.storageConsumer.Status.CephResources {
-		if r.storageConsumer.Status.CephResources[i].Kind == "NooBaaAccount" {
-			assert.Equal(t, want, r.storageConsumer.Status.CephResources[i])
-		}
-	}
 }
