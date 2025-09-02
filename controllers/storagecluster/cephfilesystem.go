@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
@@ -15,6 +16,12 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+var (
+	cephFilesystemSpecifiedDataPoolSpecPath        = []string{"spec", "managedResources", "cephFilesystems", "dataPoolSpec"}
+	cephFilesystemSpecifiedMetadataPoolSpecPath    = []string{"spec", "managedResources", "cephFilesystems", "metadataPoolSpec"}
+	cephFilesystemSpecifiedAdditionalDataPoolsPath = []string{"spec", "managedResources", "cephFilesystems", "additionalDataPools", ""}
 )
 
 type ocsCephFilesystems struct{}
@@ -68,11 +75,16 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 	for i := range ret.Spec.DataPools {
 		poolSpec := &ret.Spec.DataPools[i].PoolSpec
 		// Set default values in the poolSpec as necessary
-		setDefaultDataPoolSpec(poolSpec, initStorageCluster)
+		if i == 0 {
+			r.setDefaultDataPoolSpec(poolSpec, initStorageCluster, cephFilesystemSpecifiedDataPoolSpecPath)
+		} else {
+			cephFilesystemSpecifiedAdditionalDataPoolsPath[4] = strconv.Itoa(i - 1)
+			r.setDefaultDataPoolSpec(poolSpec, initStorageCluster, cephFilesystemSpecifiedAdditionalDataPoolsPath)
+		}
 	}
 
 	// Set default values in the metadata pool spec as necessary
-	setDefaultMetadataPoolSpec(&ret.Spec.MetadataPool.PoolSpec, initStorageCluster)
+	r.setDefaultMetadataPoolSpec(&ret.Spec.MetadataPool.PoolSpec, initStorageCluster, cephFilesystemSpecifiedMetadataPoolSpecPath)
 
 	err := controllerutil.SetControllerReference(initStorageCluster, ret, r.Scheme)
 	if err != nil {

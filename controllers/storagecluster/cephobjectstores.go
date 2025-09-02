@@ -18,6 +18,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+var (
+	cephObjectStoreSpecifiedDataPoolSpecPath     = []string{"spec", "managedResources", "cephObjectStores", "dataPoolSpec"}
+	cephObjectStoreSpecifiedMetadataPoolSpecPath = []string{"spec", "managedResources", "cephObjectStores", "metadataPoolSpec"}
+)
+
 type ocsCephObjectStores struct{}
 
 // ensureCreated ensures that CephObjectStore resources exist in the desired
@@ -216,10 +221,10 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 		}
 
 		// Set default values in the data pool spec as necessary
-		setDefaultDataPoolSpec(&obj.Spec.DataPool, initData)
+		r.setDefaultDataPoolSpec(&obj.Spec.DataPool, initData, cephObjectStoreSpecifiedDataPoolSpecPath)
 
 		// Set default values in the metadata pool spec as necessary
-		setDefaultMetadataPoolSpec(&obj.Spec.MetadataPool, initData)
+		r.setDefaultMetadataPoolSpec(&obj.Spec.MetadataPool, initData, cephObjectStoreSpecifiedMetadataPoolSpecPath)
 
 		// if kmsConfig is not 'nil', add the KMS details to ObjectStore spec
 		if kmsConfigMap != nil {

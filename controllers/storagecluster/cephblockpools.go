@@ -16,6 +16,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+var (
+	cephBlockPoolsSpecifiedPoolSpecPath = []string{"spec", "managedResources", "cephBlockPools", "poolSpec"}
+)
+
 type ocsCephBlockPools struct{}
 
 func (o *ocsCephBlockPools) deleteCephBlockPool(r *StorageClusterReconciler, cephBlockPool *cephv1.CephBlockPool) (reconcile.Result, error) {
@@ -71,7 +75,7 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 		}
 
 		// Set default values in the poolSpec as necessary
-		setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
+		r.setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster, cephBlockPoolsSpecifiedPoolSpecPath)
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)

@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -1529,8 +1530,13 @@ func isEncrptionSettingUpdated(clusterWideEncrytion bool, existingDeviceSet []ro
 }
 
 // setDefaultMetadataPoolSpec sets the common pool spec for all metadata pools as necessary
-func setDefaultMetadataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageCluster) {
-	poolSpec.EnableCrushUpdates = true
+func (r *StorageClusterReconciler) setDefaultMetadataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageCluster, specifiedPoolSpecPath []string) {
+	// Check if enableCrushUpdates is explicitly set in the unstructured obj else set to true
+	if val, found := getValueAtPath(r.unstructuredSC, append(specifiedPoolSpecPath, "enableCrushUpdates")); found {
+		poolSpec.EnableCrushUpdates = val.(bool)
+	} else {
+		poolSpec.EnableCrushUpdates = true
+	}
 	if poolSpec.DeviceClass == "" {
 		poolSpec.DeviceClass = sc.Status.DefaultCephDeviceClass
 	}
@@ -1552,8 +1558,13 @@ func setDefaultMetadataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.Storage
 }
 
 // setDefaultDataPoolSpec sets the common pool spec for all data pools as necessary
-func setDefaultDataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageCluster) {
-	poolSpec.EnableCrushUpdates = true
+func (r *StorageClusterReconciler) setDefaultDataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageCluster, specifiedPoolSpecPath []string) {
+	// Check if enableCrushUpdates is explicitly set in the unstructured obj else set to true
+	if val, found := getValueAtPath(r.unstructuredSC, append(specifiedPoolSpecPath, "enableCrushUpdates")); found {
+		poolSpec.EnableCrushUpdates = val.(bool)
+	} else {
+		poolSpec.EnableCrushUpdates = true
+	}
 	if poolSpec.DeviceClass == "" {
 		poolSpec.DeviceClass = sc.Status.DefaultCephDeviceClass
 	}
@@ -1575,6 +1586,33 @@ func setDefaultDataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageClus
 			poolSpec.Replicated.TargetSizeRatio = defaultReplicatedSpec.TargetSizeRatio
 		}
 	}
+}
+
+func getValueAtPath(unstructuredSC *unstructured.Unstructured, path []string) (any, bool) {
+	if unstructuredSC == nil || len(path) < 2 {
+		return nil, false
+	}
+	var current interface{} = unstructuredSC.Object
+	for i := range path {
+		if idx, err := strconv.Atoi(path[i]); err == nil {
+			slice, ok := current.([]interface{})
+			if !ok || idx < 0 || idx >= len(slice) {
+				return nil, false
+			}
+			current = slice[idx]
+		} else {
+			m, ok := current.(map[string]interface{})
+			if !ok {
+				return nil, false
+			}
+			v, found := m[path[i]]
+			if !found {
+				return nil, false
+			}
+			current = v
+		}
+	}
+	return current, true
 }
 
 func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string) rookCephv1.ReplicatedSpec {
