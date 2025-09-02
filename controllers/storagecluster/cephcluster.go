@@ -1608,6 +1608,7 @@ func getCephClusterCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageClus
 			"bdev_flock_retry":                   "20",
 			"bluestore_prefer_deferred_size_hdd": "0",
 			"bluestore_slow_ops_warn_lifetime":   "0",
+			"rbd_default_pool":                   util.GenerateNameForCephBlockPool(sc.Name),
 		},
 		"osd": {
 			"osd_memory_target_cgroup_limit_ratio": "0.8",

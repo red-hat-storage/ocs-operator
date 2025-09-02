@@ -1927,6 +1927,7 @@ func TestIsEncrptionSettingUpdated(t *testing.T) {
 }
 
 func TestGetCephClusterCephConfig(t *testing.T) {
+	var scName = "test-storagecluster"
 	var cases = []struct {
 		description    string
 		storageCluster *ocsv1.StorageCluster
@@ -1934,8 +1935,12 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 		expectedConfig map[string]map[string]string
 	}{
 		{
-			description:    "case 1: No cephConfig specified in CR - should use default values",
-			storageCluster: &ocsv1.StorageCluster{},
+			description: "case 1: No cephConfig specified in CR - should use default values",
+			storageCluster: &ocsv1.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: scName,
+				},
+			},
 			expectedConfig: map[string]map[string]string{
 				"global": {
 					"mon_max_pg_per_osd":                 "1000",
@@ -1945,6 +1950,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 					"bdev_flock_retry":                   "20",
 					"bluestore_prefer_deferred_size_hdd": "0",
 					"bluestore_slow_ops_warn_lifetime":   "0",
+					"rbd_default_pool":                   ocsutil.GenerateNameForCephBlockPool(scName),
 				},
 				"osd": {
 					"osd_memory_target_cgroup_limit_ratio": "0.8",
@@ -1954,6 +1960,9 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 		{
 			description: "case 2: TargetPGPerOsd & MaxPGPerOSD are specified on CR - should respect CR setting",
 			storageCluster: &ocsv1.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: scName,
+				},
 				Spec: ocsv1.StorageClusterSpec{
 					ManagedResources: ocsv1.ManagedResourcesSpec{
 						CephCluster: ocsv1.ManageCephCluster{
@@ -1976,6 +1985,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 					"bdev_flock_retry":                   "20",
 					"bluestore_prefer_deferred_size_hdd": "0",
 					"bluestore_slow_ops_warn_lifetime":   "0",
+					"rbd_default_pool":                   ocsutil.GenerateNameForCephBlockPool(scName),
 				},
 				"osd": {
 					"osd_memory_target_cgroup_limit_ratio": "0.8",
@@ -1985,6 +1995,9 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 		{
 			description: "case 3: Other CephConfigs are specified on CR - should merge default & CR specified values",
 			storageCluster: &ocsv1.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: scName,
+				},
 				Spec: ocsv1.StorageClusterSpec{
 					ManagedResources: ocsv1.ManagedResourcesSpec{
 						CephCluster: ocsv1.ManageCephCluster{
@@ -2006,6 +2019,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 					"bdev_flock_retry":                   "20",
 					"bluestore_prefer_deferred_size_hdd": "0",
 					"bluestore_slow_ops_warn_lifetime":   "0",
+					"rbd_default_pool":                   ocsutil.GenerateNameForCephBlockPool(scName),
 				},
 				"osd": {
 					"osd_memory_target_cgroup_limit_ratio": "0.8",
@@ -2016,6 +2030,9 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 		{
 			description: "case 4: ResourceProfile 'lean' should set mon_target_pg_per_osd to 100",
 			storageCluster: &ocsv1.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: scName,
+				},
 				Spec: ocsv1.StorageClusterSpec{
 					ResourceProfile: "lean",
 				},
@@ -2029,6 +2046,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 					"bdev_flock_retry":                   "20",
 					"bluestore_prefer_deferred_size_hdd": "0",
 					"bluestore_slow_ops_warn_lifetime":   "0",
+					"rbd_default_pool":                   ocsutil.GenerateNameForCephBlockPool(scName),
 				},
 				"osd": {
 					"osd_memory_target_cgroup_limit_ratio": "0.8",
@@ -2038,6 +2056,9 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 		{
 			description: "case 5: ResourceProfile 'performance' should set mon_target_pg_per_osd to 400",
 			storageCluster: &ocsv1.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: scName,
+				},
 				Spec: ocsv1.StorageClusterSpec{
 					ResourceProfile: "performance",
 				},
@@ -2051,6 +2072,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 					"bdev_flock_retry":                   "20",
 					"bluestore_prefer_deferred_size_hdd": "0",
 					"bluestore_slow_ops_warn_lifetime":   "0",
+					"rbd_default_pool":                   ocsutil.GenerateNameForCephBlockPool(scName),
 				},
 				"osd": {
 					"osd_memory_target_cgroup_limit_ratio": "0.8",
@@ -2060,6 +2082,9 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 		{
 			description: "case 6: CephNonResilientPools enabled should set mon_warn_on_pool_no_redundancy",
 			storageCluster: &ocsv1.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: scName,
+				},
 				Spec: ocsv1.StorageClusterSpec{
 					ManagedResources: ocsv1.ManagedResourcesSpec{
 						CephNonResilientPools: ocsv1.ManageCephNonResilientPools{
@@ -2078,6 +2103,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 					"bluestore_prefer_deferred_size_hdd": "0",
 					"bluestore_slow_ops_warn_lifetime":   "0",
 					"mon_warn_on_pool_no_redundancy":     "false",
+					"rbd_default_pool":                   ocsutil.GenerateNameForCephBlockPool(scName),
 				},
 				"osd": {
 					"osd_memory_target_cgroup_limit_ratio": "0.8",
@@ -2087,6 +2113,9 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 		{
 			description: "case 7: Network dualstack (not multus) should set public_network",
 			storageCluster: &ocsv1.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: scName,
+				},
 				Spec: ocsv1.StorageClusterSpec{
 					Network: &rookCephv1.NetworkSpec{
 						DualStack: true,
@@ -2112,6 +2141,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 					"bluestore_prefer_deferred_size_hdd": "0",
 					"bluestore_slow_ops_warn_lifetime":   "0",
 					"public_network":                     "10.128.0.0/14",
+					"rbd_default_pool":                   ocsutil.GenerateNameForCephBlockPool(scName),
 				},
 				"osd": {
 					"osd_memory_target_cgroup_limit_ratio": "0.8",
@@ -2121,7 +2151,9 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 		{
 			description: "case 8: RBD Mirror CR present should add debug configs",
 			storageCluster: &ocsv1.StorageCluster{
-				ObjectMeta: metav1.ObjectMeta{Namespace: "test-ns"},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "test-ns",
+					Name:      scName},
 			},
 			addObjs: []runtime.Object{
 				&rookCephv1.CephRBDMirror{
@@ -2140,6 +2172,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 					"bdev_flock_retry":                   "20",
 					"bluestore_prefer_deferred_size_hdd": "0",
 					"bluestore_slow_ops_warn_lifetime":   "0",
+					"rbd_default_pool":                   ocsutil.GenerateNameForCephBlockPool(scName),
 				},
 				"osd": {
 					"osd_memory_target_cgroup_limit_ratio": "0.8",
