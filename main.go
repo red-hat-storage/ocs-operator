@@ -254,14 +254,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.StorageConsumerUpgradeReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "StorageConsumerUpgrade")
-		os.Exit(1)
-	}
-
 	// shared event channel and sync map and scrapeInterval between the scraper and the reconciler
 	eventCh := make(chan event.GenericEvent)
 	syncMap := &sync.Map{}
