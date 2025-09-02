@@ -23,6 +23,12 @@ var (
 	DefaultNodeAffinity = &corev1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: getOcsNodeSelector(),
 	}
+	// MasterNodeToleration is a toleration for master node scheduling
+	MasterNodeToleration = corev1.Toleration{
+		Key:      "node-role.kubernetes.io/master",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
 	// DaemonPlacements map contains the default placement configs for the
 	// various OCS daemons
 	DaemonPlacements = map[string]rookCephv1.Placement{
@@ -30,6 +36,7 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 		},
 
 		"mon": {
@@ -40,13 +47,13 @@ var (
 
 		"osd": {
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{osdLabelSelector}, corev1.ScheduleAnyway),
+				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{osdLabelSelector}, corev1.DoNotSchedule),
 			},
 		},
 
-		"osd-prepare": {
+		"prepareosd": {
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{osdLabelSelector, osdPrepareLabelSelector}, corev1.ScheduleAnyway),
+				getTopologySpreadConstraint(1, appLabelSelectorKey, []string{osdLabelSelector, osdPrepareLabelSelector}, corev1.DoNotSchedule),
 			},
 		},
 
@@ -54,6 +61,7 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 				// leave the label value empty as it will be updated with the objectStore name later in getPlacement()
 				getTopologySpreadConstraint(1, "rook_object_store", []string{}, corev1.DoNotSchedule),
@@ -64,6 +72,7 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 				// leave the label value empty as it will be updated with the filesystem name later in getPlacement()
 				getTopologySpreadConstraint(1, "rook_file_system", []string{}, corev1.DoNotSchedule),
@@ -74,6 +83,7 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 				// leave the label value empty as it will be updated with the nfs name later in getPlacement()
 				getTopologySpreadConstraint(1, "ceph_nfs", []string{}, corev1.DoNotSchedule),
@@ -84,6 +94,7 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 		},
 
 		"noobaa-standalone": {
@@ -96,18 +107,28 @@ var (
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
+		},
+
+		"toolbox": {
+			Tolerations: []corev1.Toleration{
+				getOcsToleration(),
+			},
+			NodeAffinity: DefaultNodeAffinity,
 		},
 
 		APIServerKey: {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 		},
 
 		MetricsExporterKey: {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
+			NodeAffinity: DefaultNodeAffinity,
 		},
 	}
 )
