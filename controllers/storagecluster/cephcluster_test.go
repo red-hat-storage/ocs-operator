@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -2145,7 +2146,8 @@ func TestSetDefaultDataPoolSpec(t *testing.T) {
 				c.expects.Replicated.Size = generateCephReplicatedSpec(c.sc, "data").Size
 				c.expects.Replicated.ReplicasPerFailureDomain = generateCephReplicatedSpec(c.sc, "data").ReplicasPerFailureDomain
 			}
-			setDefaultDataPoolSpec(&pool, c.sc)
+			reconciler := createFakeStorageClusterReconciler(t, c.sc)
+			reconciler.setDefaultDataPoolSpec(&pool, c.sc, []string{})
 			// Only compare relevant fields
 			assert.Equal(t, pool.EnableCrushUpdates, c.expects.EnableCrushUpdates)
 			assert.Equal(t, pool.DeviceClass, c.expects.DeviceClass)
@@ -2261,13 +2263,256 @@ func TestSetDefaultMetadataPoolSpec(t *testing.T) {
 				c.expects.Replicated.Size = generateCephReplicatedSpec(c.sc, "metadata").Size
 				c.expects.Replicated.ReplicasPerFailureDomain = generateCephReplicatedSpec(c.sc, "metadata").ReplicasPerFailureDomain
 			}
-			setDefaultMetadataPoolSpec(&pool, c.sc)
+			reconciler := createFakeStorageClusterReconciler(t, c.sc)
+			reconciler.setDefaultMetadataPoolSpec(&pool, c.sc, []string{})
 			// Only compare relevant fields
 			assert.Equal(t, pool.EnableCrushUpdates, c.expects.EnableCrushUpdates)
 			assert.Equal(t, pool.DeviceClass, c.expects.DeviceClass)
 			assert.Equal(t, pool.FailureDomain, c.expects.FailureDomain)
 			assert.DeepEqual(t, pool.Replicated, c.expects.Replicated)
 			assert.DeepEqual(t, pool.ErasureCoded, c.expects.ErasureCoded)
+		})
+	}
+}
+
+func TestGetValueAtPath(t *testing.T) {
+	cases := []struct {
+		name           string
+		unstructuredSC *unstructured.Unstructured
+		path           []string
+		expectedValue  interface{}
+		expectedFound  bool
+	}{
+		// Edge cases
+		{
+			name:           "nil unstructured object",
+			unstructuredSC: nil,
+			path:           []string{"spec", "managedResources"},
+			expectedValue:  nil,
+			expectedFound:  false,
+		},
+		{
+			name: "path too short",
+			unstructuredSC: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": map[string]interface{}{},
+				},
+			},
+			path:          []string{"spec"},
+			expectedValue: nil,
+			expectedFound: false,
+		},
+
+		// CephBlockPools poolSpec fields - the main use case from the commit
+		{
+			name: "cephBlockPools poolSpec enableCrushUpdates explicitly set to false",
+			unstructuredSC: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "ocs.openshift.io/v1",
+					"kind":       "StorageCluster",
+					"spec": map[string]interface{}{
+						"managedResources": map[string]interface{}{
+							"cephBlockPools": map[string]interface{}{
+								"poolSpec": map[string]interface{}{
+									"enableCrushUpdates": false,
+								},
+							},
+						},
+					},
+				},
+			},
+			path:          []string{"spec", "managedResources", "cephBlockPools", "poolSpec", "enableCrushUpdates"},
+			expectedValue: false,
+			expectedFound: true,
+		},
+		{
+			name: "cephBlockPools poolSpec enableCrushUpdates not specified",
+			unstructuredSC: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "ocs.openshift.io/v1",
+					"kind":       "StorageCluster",
+					"spec": map[string]interface{}{
+						"managedResources": map[string]interface{}{
+							"cephBlockPools": map[string]interface{}{
+								"poolSpec": map[string]interface{}{
+									"deviceClass": "ssd",
+								},
+							},
+						},
+					},
+				},
+			},
+			path:          []string{"spec", "managedResources", "cephBlockPools", "poolSpec", "enableCrushUpdates"},
+			expectedValue: nil,
+			expectedFound: false,
+		},
+
+		// CephFilesystems metadataPoolSpec and dataPoolSpec fields
+		{
+			name: "cephFilesystems metadataPoolSpec enableCrushUpdates explicitly set to false",
+			unstructuredSC: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": map[string]interface{}{
+						"managedResources": map[string]interface{}{
+							"cephFilesystems": map[string]interface{}{
+								"metadataPoolSpec": map[string]interface{}{
+									"enableCrushUpdates": false,
+									"deviceClass":        "nvme",
+								},
+							},
+						},
+					},
+				},
+			},
+			path:          []string{"spec", "managedResources", "cephFilesystems", "metadataPoolSpec", "enableCrushUpdates"},
+			expectedValue: false,
+			expectedFound: true,
+		},
+		{
+			name: "cephFilesystems dataPoolSpec deviceClass empty string",
+			unstructuredSC: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": map[string]interface{}{
+						"managedResources": map[string]interface{}{
+							"cephFilesystems": map[string]interface{}{
+								"dataPoolSpec": map[string]interface{}{
+									"deviceClass": "",
+								},
+							},
+						},
+					},
+				},
+			},
+			path:          []string{"spec", "managedResources", "cephFilesystems", "dataPoolSpec", "deviceClass"},
+			expectedValue: "",
+			expectedFound: true,
+		},
+
+		// CephObjectStores metadataPoolSpec and dataPoolSpec fields
+		{
+			name: "cephObjectStores metadataPoolSpec enableCrushUpdates true",
+			unstructuredSC: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": map[string]interface{}{
+						"managedResources": map[string]interface{}{
+							"cephObjectStores": map[string]interface{}{
+								"metadataPoolSpec": map[string]interface{}{
+									"enableCrushUpdates": true,
+									"deviceClass":        "gold",
+								},
+							},
+						},
+					},
+				},
+			},
+			path:          []string{"spec", "managedResources", "cephObjectStores", "metadataPoolSpec", "enableCrushUpdates"},
+			expectedValue: true,
+			expectedFound: true,
+		},
+		{
+			name: "storageDeviceSets first device deviceClass",
+			unstructuredSC: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": map[string]interface{}{
+						"storageDeviceSets": []interface{}{
+							map[string]interface{}{
+								"name":        "set1",
+								"deviceClass": "ssd",
+								"count":       int64(3),
+							},
+							map[string]interface{}{
+								"name":        "set2",
+								"deviceClass": "hdd",
+								"count":       int64(2),
+							},
+						},
+					},
+				},
+			},
+			path:          []string{"spec", "storageDeviceSets", "0", "deviceClass"},
+			expectedValue: "ssd",
+			expectedFound: true,
+		},
+		{
+			name: "storageDeviceSets array out of bounds",
+			unstructuredSC: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": map[string]interface{}{
+						"storageDeviceSets": []interface{}{
+							map[string]interface{}{
+								"name": "set1",
+							},
+						},
+					},
+				},
+			},
+			path:          []string{"spec", "storageDeviceSets", "5", "name"},
+			expectedValue: nil,
+			expectedFound: false,
+		},
+		{
+			name: "hostNetwork field explicitly set to false",
+			unstructuredSC: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": map[string]interface{}{
+						"hostNetwork": false,
+					},
+				},
+			},
+			path:          []string{"spec", "hostNetwork"},
+			expectedValue: false,
+			expectedFound: true,
+		},
+		{
+			name: "flexibleScaling field not specified",
+			unstructuredSC: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": map[string]interface{}{
+						"hostNetwork": true,
+					},
+				},
+			},
+			path:          []string{"spec", "flexibleScaling"},
+			expectedValue: nil,
+			expectedFound: false,
+		},
+		{
+			name: "field does not exist",
+			unstructuredSC: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": map[string]interface{}{
+						"managedResources": map[string]interface{}{},
+					},
+				},
+			},
+			path:          []string{"spec", "managedResources", "nonExistentField"},
+			expectedValue: nil,
+			expectedFound: false,
+		},
+		{
+			name: "trying to access array index on non-array",
+			unstructuredSC: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": map[string]interface{}{
+						"hostNetwork": true,
+					},
+				},
+			},
+			path:          []string{"spec", "hostNetwork", "0"},
+			expectedValue: nil,
+			expectedFound: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			actualValue, actualFound := getValueAtPath(c.unstructuredSC, c.path)
+			assert.Equal(t, c.expectedFound, actualFound, "Expected found status to match")
+			if c.expectedFound {
+				assert.Equal(t, c.expectedValue, actualValue, "Expected value to match when found")
+			} else {
+				assert.Equal(t, nil, actualValue, "Expected nil value when not found")
+			}
 		})
 	}
 }
