@@ -76,22 +76,6 @@ func (cc *OCSProviderClient) OnboardConsumer(ctx context.Context, onboard ifaces
 	return cc.Client.OnboardConsumer(apiCtx, req)
 }
 
-// GetStorageConfig generates the json config for connecting to storage provider cluster
-func (cc *OCSProviderClient) GetStorageConfig(ctx context.Context, consumerUUID string) (*pb.StorageConfigResponse, error) {
-	if cc.Client == nil || cc.clientConn == nil {
-		return nil, fmt.Errorf("provider client is closed")
-	}
-
-	req := &pb.StorageConfigRequest{
-		StorageConsumerUUID: consumerUUID,
-	}
-
-	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
-	defer cancel()
-
-	return cc.Client.GetStorageConfig(apiCtx, req)
-}
-
 // GetDesiredClientState RPC call to generate the desired state of the client
 func (cc *OCSProviderClient) GetDesiredClientState(ctx context.Context, consumerUUID string) (*pb.GetDesiredClientStateResponse, error) {
 	if cc.Client == nil || cc.clientConn == nil {
@@ -122,92 +106,6 @@ func (cc *OCSProviderClient) OffboardConsumer(ctx context.Context, consumerUUID 
 	defer cancel()
 
 	return cc.Client.OffboardConsumer(apiCtx, req)
-}
-
-func (cc *OCSProviderClient) AcknowledgeOnboarding(ctx context.Context, consumerUUID string) (*pb.AcknowledgeOnboardingResponse, error) {
-	if cc.Client == nil || cc.clientConn == nil {
-		return nil, fmt.Errorf("provider client is closed")
-	}
-
-	req := &pb.AcknowledgeOnboardingRequest{
-		StorageConsumerUUID: consumerUUID,
-	}
-
-	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
-	defer cancel()
-
-	return cc.Client.AcknowledgeOnboarding(apiCtx, req)
-}
-
-type StorageType uint
-
-const (
-	StorageTypeBlock StorageType = iota
-	StorageTypeSharedFile
-)
-
-func (cc *OCSProviderClient) FulfillStorageClaim(
-	ctx context.Context,
-	consumerUUID string,
-	storageClaimName string,
-	storageType StorageType,
-	storageProfile string,
-	encryptionMethod string,
-) (*pb.FulfillStorageClaimResponse, error) {
-	if cc.Client == nil || cc.clientConn == nil {
-		return nil, fmt.Errorf("provider client is closed")
-	}
-	var st pb.FulfillStorageClaimRequest_StorageType
-	if storageType == StorageTypeSharedFile {
-		st = pb.FulfillStorageClaimRequest_SHAREDFILE
-	} else if storageType == StorageTypeBlock {
-		st = pb.FulfillStorageClaimRequest_BLOCK
-	}
-
-	req := &pb.FulfillStorageClaimRequest{
-		StorageConsumerUUID: consumerUUID,
-		StorageClaimName:    storageClaimName,
-		EncryptionMethod:    encryptionMethod,
-		StorageType:         st,
-		StorageProfile:      storageProfile,
-	}
-
-	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
-	defer cancel()
-
-	return cc.Client.FulfillStorageClaim(apiCtx, req)
-}
-
-func (cc *OCSProviderClient) RevokeStorageClaim(ctx context.Context, consumerUUID, storageClaimName string) (*pb.RevokeStorageClaimResponse, error) {
-	if cc.Client == nil || cc.clientConn == nil {
-		return nil, fmt.Errorf("provider client is closed")
-	}
-
-	req := &pb.RevokeStorageClaimRequest{
-		StorageConsumerUUID: consumerUUID,
-		StorageClaimName:    storageClaimName,
-	}
-
-	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
-	defer cancel()
-
-	return cc.Client.RevokeStorageClaim(apiCtx, req)
-}
-
-func (cc *OCSProviderClient) GetStorageClaimConfig(ctx context.Context, consumerUUID, storageClaimName string) (*pb.StorageClaimConfigResponse, error) {
-	if cc.Client == nil || cc.clientConn == nil {
-		return nil, fmt.Errorf("provider client is closed")
-	}
-
-	req := &pb.StorageClaimConfigRequest{
-		StorageConsumerUUID: consumerUUID,
-		StorageClaimName:    storageClaimName,
-	}
-
-	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
-	defer cancel()
-
-	return cc.Client.GetStorageClaimConfig(apiCtx, req)
 }
 
 func NewStorageClientStatus() ifaces.StorageClientStatus {
