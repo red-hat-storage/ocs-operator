@@ -45,8 +45,10 @@ func NewDefaultRbdSnapshotClass(
 		Driver: RbdDriverName,
 		Parameters: map[string]string{
 			"clusterID": clusterID,
-			"csi.storage.k8s.io/snapshotter-secret-name":      provisionerSecret,
-			"csi.storage.k8s.io/snapshotter-secret-namespace": namespace,
+			"csi.storage.k8s.io/snapshotter-secret-name":           provisionerSecret,
+			"csi.storage.k8s.io/snapshotter-secret-namespace":      namespace,
+			"csi.storage.k8s.io/snapshotter-list-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/snapshotter-list-secret-namespace": namespace,
 		},
 		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
 	}
@@ -71,8 +73,10 @@ func NewDefaultCephFsSnapshotClass(
 		Driver: CephFSDriverName,
 		Parameters: map[string]string{
 			"clusterID": clusterID,
-			"csi.storage.k8s.io/snapshotter-secret-name":      provisionerSecret,
-			"csi.storage.k8s.io/snapshotter-secret-namespace": namespace,
+			"csi.storage.k8s.io/snapshotter-secret-name":           provisionerSecret,
+			"csi.storage.k8s.io/snapshotter-secret-namespace":      namespace,
+			"csi.storage.k8s.io/snapshotter-list-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/snapshotter-list-secret-namespace": namespace,
 		},
 		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
 	}
@@ -148,6 +152,8 @@ func VolumeSnapshotClassFromExisting(
 	params["clusterID"] = clientProfileName
 	params["csi.storage.k8s.io/snapshotter-secret-name"] = provisionerSecretName
 	params["csi.storage.k8s.io/snapshotter-secret-namespace"] = operatorNamespace
+	params["csi.storage.k8s.io/snapshotter-list-secret-name"] = provisionerSecretName
+	params["csi.storage.k8s.io/snapshotter-list-secret-namespace"] = operatorNamespace
 	AddLabel(snapshotClass, storageIdLabelKey, storageId)
 	return snapshotClass, nil
 }
