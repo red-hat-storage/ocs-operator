@@ -17,6 +17,10 @@ var rack0 = "rack0"
 var rack1 = "rack1"
 var rack2 = "rack2"
 
+const (
+	WorkerAffinityKey = "node-role.kubernetes.io/worker"
+)
+
 var workerAffinityNode = corev1.Node{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "workAffinityNode",

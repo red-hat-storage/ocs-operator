@@ -147,10 +147,10 @@ var (
 )
 
 func createDefaultStorageCluster() *api.StorageCluster {
-	return createStorageCluster("ocsinit", "zone", []string{"zone1", "zone2", "zone3"})
+	return createStorageCluster("ocsinit", "zone", "topology.kubernetes.io/zone", []string{"zone1", "zone2", "zone3"})
 }
 
-func createStorageCluster(scName, failureDomainName string,
+func createStorageCluster(scName, failureDomainName string, failureDomainKey string,
 	zoneTopologyLabels []string) *api.StorageCluster {
 	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -171,7 +171,7 @@ func createStorageCluster(scName, failureDomainName string,
 		},
 		Status: api.StorageClusterStatus{
 			FailureDomain:    failureDomainName,
-			FailureDomainKey: v1.LabelZoneFailureDomainStable, // Set based on zone failure domain
+			FailureDomainKey: failureDomainKey,
 			NodeTopologies: &api.NodeTopologyMap{
 				Labels: map[string]api.TopologyLabelValues{
 					zoneTopologyLabel: zoneTopologyLabels,

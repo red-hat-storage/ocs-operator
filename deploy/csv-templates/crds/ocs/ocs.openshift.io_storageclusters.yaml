@@ -5185,8 +5185,10 @@ spec:
                         type: object
                       type: array
                   type: object
-                description: Placement is optional and used to specify placements
-                  of OCS components explicitly
+                description: |-
+                  Placement is optional and used to specify placements of OCS components(except csi) explicitly
+                  The specified placement here will be selectively merged with the default placement for the components
+                  For example, if only tolerations are specified, the default node affinity or TSC etc will be applied if applicable
                 type: object
               providerAPIServerServiceType:
                 description: |-
@@ -8556,12 +8558,6 @@ spec:
                             More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                           type: object
                       type: object
-                    topologyKey:
-                      description: |-
-                        TopologyKey is the Kubernetes topology label that the
-                        StorageClassDeviceSets will be distributed across. Ignored if
-                        Placement is set
-                      type: string
                     walPVCTemplate:
                       description: PersistentVolumeClaim is a user's request for and
                         claim to a persistent volume
