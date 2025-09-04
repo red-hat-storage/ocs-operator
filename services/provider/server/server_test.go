@@ -1,14 +1,27 @@
 package server
 
 import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
 	"reflect"
 	"testing"
+	"time"
 
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
+	"github.com/red-hat-storage/ocs-operator/v4/services"
+	"github.com/red-hat-storage/ocs-operator/v4/version"
 
+	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestReplaceMsgr1PortWithMsgr2(t *testing.T) {
@@ -111,6 +124,612 @@ func TestGetKubeResourcesForClass(t *testing.T) {
 			wantObj.Name = expName
 			if !equality.Semantic.DeepEqual(gotObj, wantObj) {
 				t.Fatalf("expected %v to be deep equal to %v", gotObj, wantObj)
+			}
+		})
+	}
+}
+
+func TestOnboardConsumer(t *testing.T) {
+	tests := []struct {
+		name                  string
+		consumer              *ocsv1a1.StorageConsumer
+		clientOperatorVersion string
+		updateCache           func(t *testing.T, consumerManager *ocsConsumerManager)
+		onboardingTicket      func(t *testing.T, fakeClient client.Client) string
+		expectError           bool
+		expectedGRPCCode      codes.Code
+		expectedErrorMessage  string
+		expectedConsumerUID   string
+	}{
+		{
+			name:                  "empty client operator version",
+			consumer:              nil,
+			clientOperatorVersion: "",
+			expectError:           true,
+			expectedGRPCCode:      codes.InvalidArgument,
+			expectedErrorMessage:  "malformed ClientOperatorVersion",
+		},
+		{
+			name:                  "malformed client operator version",
+			consumer:              nil,
+			clientOperatorVersion: "invalid-version",
+			expectError:           true,
+			expectedGRPCCode:      codes.InvalidArgument,
+			expectedErrorMessage:  "malformed ClientOperatorVersion",
+		},
+		{
+			name:                  "version mismatch - major version different",
+			consumer:              nil,
+			clientOperatorVersion: "3.15.0",
+			expectError:           true,
+			expectedGRPCCode:      codes.FailedPrecondition,
+			expectedErrorMessage:  "major and minor versions should match",
+		},
+		{
+			name:                  "version mismatch - minor version different",
+			consumer:              nil,
+			clientOperatorVersion: "4.14.0",
+			expectError:           true,
+			expectedGRPCCode:      codes.FailedPrecondition,
+			expectedErrorMessage:  "major and minor versions should match",
+		},
+		{
+			name:                  "onboarding key secret not found",
+			consumer:              nil,
+			clientOperatorVersion: version.Version,
+			expectError:           true,
+			expectedGRPCCode:      codes.Internal,
+			expectedErrorMessage:  "failed to get public key",
+		},
+		{
+			name:                  "empty consumer name",
+			consumer:              nil,
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+				return "test-ticket"
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.InvalidArgument,
+			expectedErrorMessage: "onboarding ticket is not valid",
+		},
+		{
+			name:                  "empty onboarding ticket",
+			consumer:              nil,
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+				return ""
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.InvalidArgument,
+			expectedErrorMessage: "onboarding ticket is not valid",
+		},
+		{
+			name: "invalid ticket format - no dot separator",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-consumer-uid-123",
+				},
+			},
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+				return "invalid-ticket-no-dot"
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.InvalidArgument,
+			expectedErrorMessage: "onboarding ticket is not valid",
+		},
+		{
+			name: "invalid ticket format - multiple dots",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-consumer-uid-123",
+				},
+			},
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+				return "part1.part2.part3"
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.InvalidArgument,
+			expectedErrorMessage: "onboarding ticket is not valid",
+		},
+		{
+			name: "invalid base64 in ticket",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-consumer-uid-123",
+				},
+			},
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+				return "invalid-base64!@#.signature"
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.InvalidArgument,
+			expectedErrorMessage: "onboarding ticket is not valid",
+		},
+		{
+			name: "invalid JSON in ticket",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-consumer-uid-123",
+				},
+			},
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+				// Create valid base64 but invalid JSON
+				invalidJSON := "{invalid-json"
+				encodedJSON := base64.StdEncoding.EncodeToString([]byte(invalidJSON))
+				return encodedJSON + ".signature"
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.InvalidArgument,
+			expectedErrorMessage: "onboarding ticket is not valid",
+		},
+		{
+			name: "ticket with peer role instead of client role",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-consumer-uid-123",
+				},
+			},
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+
+				ticket := services.OnboardingTicket{
+					ID:             "test-consumer",
+					ExpirationDate: time.Now().Add(24 * time.Hour).Unix(),
+					SubjectRole:    services.PeerRole,
+				}
+
+				return signOnboardingTicket(t, keyPair.privateKey, ticket)
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.InvalidArgument,
+			expectedErrorMessage: "expecting role ocs-client found role ocs-peer",
+		},
+		{
+			name: "ticket with invalid role",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-consumer-uid-123",
+				},
+			},
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+
+				ticket := services.OnboardingTicket{
+					ID:             "test-consumer",
+					ExpirationDate: time.Now().Add(24 * time.Hour).Unix(),
+					SubjectRole:    "invalid-role",
+				}
+
+				return signOnboardingTicket(t, keyPair.privateKey, ticket)
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.InvalidArgument,
+			expectedErrorMessage: "onboarding ticket is not valid",
+		},
+		{
+			name: "expired ticket",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-consumer-uid-123",
+				},
+			},
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+
+				ticket := services.OnboardingTicket{
+					ID:             "test-consumer",
+					ExpirationDate: time.Now().Add(-24 * time.Hour).Unix(),
+					SubjectRole:    services.ClientRole,
+				}
+
+				return signOnboardingTicket(t, keyPair.privateKey, ticket)
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.InvalidArgument,
+			expectedErrorMessage: "onboarding ticket is not valid",
+		},
+		{
+			name: "invalid signature in ticket",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-consumer-uid-123",
+				},
+			},
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+
+				ticket := services.OnboardingTicket{
+					ID:             "test-consumer",
+					ExpirationDate: time.Now().Add(24 * time.Hour).Unix(),
+					SubjectRole:    services.ClientRole,
+				}
+
+				// Create ticket with valid JSON but invalid signature
+				ticketJSON, _ := json.Marshal(ticket)
+				encodedJSON := base64.StdEncoding.EncodeToString(ticketJSON)
+				invalidSignature := base64.StdEncoding.EncodeToString([]byte("invalid-signature"))
+				return encodedJSON + "." + invalidSignature
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.InvalidArgument,
+			expectedErrorMessage: "onboarding ticket is not valid",
+		},
+		{
+			name:                  "consumer not found",
+			consumer:              nil,
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+
+				ticket := services.OnboardingTicket{
+					ID:             "non-existent-consumer",
+					ExpirationDate: time.Now().Add(24 * time.Hour).Unix(),
+					SubjectRole:    services.ClientRole,
+				}
+
+				return signOnboardingTicket(t, keyPair.privateKey, ticket)
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.Internal,
+			expectedErrorMessage: "failed to get storageconsumer",
+		},
+		{
+			name: "consumer already enabled",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-consumer-uid-123",
+				},
+				Spec: ocsv1a1.StorageConsumerSpec{
+					Enable: true, // Already enabled
+				},
+			},
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+
+				// Create and sign ticket
+				ticket := services.OnboardingTicket{
+					ID:             "test-consumer",
+					ExpirationDate: time.Now().Add(24 * time.Hour).Unix(),
+					SubjectRole:    services.ClientRole,
+				}
+				signedTicket := signOnboardingTicket(t, keyPair.privateKey, ticket)
+
+				// Create onboarding secret
+				createOnboardingSecret(t, fakeClient, "test-consumer-uid-123", signedTicket)
+
+				return signedTicket
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.InvalidArgument,
+			expectedErrorMessage: "refusing to onboard onto storageconsumer",
+		},
+		{
+			name: "onboarding secret not found",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-consumer-uid-123",
+				},
+			},
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+
+				ticket := services.OnboardingTicket{
+					ID:             "test-consumer",
+					ExpirationDate: time.Now().Add(24 * time.Hour).Unix(),
+					SubjectRole:    services.ClientRole,
+				}
+
+				// NOTE: Intentionally NOT creating the onboarding-token secret
+				// This test case verifies the "onboarding secret not found" error
+				return signOnboardingTicket(t, keyPair.privateKey, ticket)
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.Internal,
+			expectedErrorMessage: "failed to get onboarding secret",
+		},
+		{
+			name: "ticket mismatch with secret",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-consumer-uid-123",
+				},
+			},
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+
+				// Create consumer secret with a different ticket than what we'll return
+				createOnboardingSecret(t, fakeClient, "test-consumer-uid-123", "stored-ticket")
+
+				// Create a valid ticket with different content than what's stored in the secret
+				differentTicket := services.OnboardingTicket{
+					ID:             "test-consumer",
+					ExpirationDate: time.Now().Add(48 * time.Hour).Unix(), // Different expiration
+					SubjectRole:    services.ClientRole,
+				}
+
+				return signOnboardingTicket(t, keyPair.privateKey, differentTicket)
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.InvalidArgument,
+			expectedErrorMessage: "supplied onboarding ticket does not match mapped secret",
+		},
+		{
+			name: "successful onboarding with complete flow",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-consumer-uid-123",
+				},
+			},
+			clientOperatorVersion: version.Version,
+			onboardingTicket: func(t *testing.T, fakeClient client.Client) string {
+				keyPair := generateTestKeyPair(t)
+
+				createOnboardingKeySecret(t, fakeClient, keyPair.publicPEM)
+
+				// Create and sign ticket
+				ticket := services.OnboardingTicket{
+					ID:             "test-consumer",
+					ExpirationDate: time.Now().Add(24 * time.Hour).Unix(),
+					SubjectRole:    services.ClientRole,
+				}
+				signedTicket := signOnboardingTicket(t, keyPair.privateKey, ticket)
+
+				// Create onboarding secret
+				createOnboardingSecret(t, fakeClient, "test-consumer-uid-123", signedTicket)
+
+				return signedTicket
+			},
+			updateCache: func(t *testing.T, consumerManager *ocsConsumerManager) {
+				consumerManager.nameByUID[types.UID("test-consumer-uid-123")] = "test-consumer"
+			},
+			expectedConsumerUID: "test-consumer-uid-123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheme, err := newScheme()
+			assert.NoError(t, err)
+
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithStatusSubresource(&ocsv1a1.StorageConsumer{}).
+				Build()
+
+			consumerManager := &ocsConsumerManager{
+				client:    fakeClient,
+				namespace: testNamespace,
+				nameByUID: make(map[types.UID]string),
+			}
+
+			server := &OCSProviderServer{
+				client:          fakeClient,
+				namespace:       testNamespace,
+				consumerManager: consumerManager,
+			}
+
+			if tt.updateCache != nil {
+				tt.updateCache(t, server.consumerManager)
+			}
+
+			consumerName := ""
+			if tt.consumer != nil {
+				err := fakeClient.Create(context.Background(), tt.consumer)
+				assert.NoError(t, err)
+				consumerName = tt.consumer.Name
+			} else if tt.name == "consumer not found" {
+				// Special case: ticket references non-existent consumer
+				consumerName = "non-existent-consumer"
+			}
+
+			// Get the onboarding ticket from the function
+			onboardingTicket := ""
+			if tt.onboardingTicket != nil {
+				onboardingTicket = tt.onboardingTicket(t, fakeClient)
+			}
+
+			req := &pb.OnboardConsumerRequest{
+				ConsumerName:          consumerName,
+				ClientOperatorVersion: tt.clientOperatorVersion,
+				OnboardingTicket:      onboardingTicket,
+			}
+
+			resp, err := server.OnboardConsumer(context.TODO(), req)
+
+			if !tt.expectError {
+				assert.NoError(t, err)
+				assert.NotNil(t, resp)
+				assert.Equal(t, tt.expectedConsumerUID, resp.GetStorageConsumerUUID())
+
+				// Verify consumer was enabled
+				consumer := &ocsv1a1.StorageConsumer{}
+				consumer.Name = tt.consumer.Name
+				consumer.Namespace = testNamespace
+				err = fakeClient.Get(context.TODO(), client.ObjectKeyFromObject(consumer), consumer)
+				assert.NoError(t, err)
+				assert.True(t, consumer.Spec.Enable)
+			} else {
+				assert.Error(t, err)
+				assert.Nil(t, resp)
+
+				st, ok := status.FromError(err)
+				assert.True(t, ok, "Error should be a gRPC status error")
+				assert.Equal(t, tt.expectedGRPCCode, st.Code())
+				assert.Contains(t, err.Error(), tt.expectedErrorMessage)
+			}
+		})
+	}
+}
+
+func TestOffboardConsumer(t *testing.T) {
+	tests := []struct {
+		name                 string
+		storageConsumerUUID  string
+		consumer             *ocsv1a1.StorageConsumer
+		updateCache          func(t *testing.T, consumerManager *ocsConsumerManager)
+		expectError          bool
+		expectedGRPCCode     codes.Code
+		expectedErrorMessage string
+	}{
+		{
+			name:                 "empty storage consumer UUID",
+			storageConsumerUUID:  "",
+			consumer:             nil,
+			expectError:          true,
+			expectedGRPCCode:     codes.Internal,
+			expectedErrorMessage: "failed to offboard storageConsumer",
+		},
+		{
+			name:                 "consumer not found in cache",
+			storageConsumerUUID:  "non-existent-uid",
+			consumer:             nil,
+			expectError:          true,
+			expectedGRPCCode:     codes.Internal,
+			expectedErrorMessage: "failed to offboard storageConsumer",
+		},
+		{
+			name:                "consumer not found in cluster",
+			storageConsumerUUID: "test-uid-123",
+			consumer:            nil,
+			updateCache: func(t *testing.T, consumerManager *ocsConsumerManager) {
+				consumerManager.nameByUID[types.UID("test-uid-123")] = "test-consumer"
+			},
+			expectError:          true,
+			expectedGRPCCode:     codes.Internal,
+			expectedErrorMessage: "failed to offboard storageConsumer",
+		},
+		{
+			name:                "successful offboard with client information",
+			storageConsumerUUID: "test-uid-123",
+			consumer: &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-consumer",
+					Namespace: testNamespace,
+					UID:       "test-uid-123",
+				},
+				Status: ocsv1a1.StorageConsumerStatus{
+					Client: &ocsv1a1.ClientStatus{
+						ID:   "client-123",
+						Name: "client-name",
+					},
+				},
+			},
+			updateCache: func(t *testing.T, consumerManager *ocsConsumerManager) {
+				consumerManager.nameByUID[types.UID("test-uid-123")] = "test-consumer"
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheme, err := newScheme()
+			assert.NoError(t, err)
+
+			var existingObjects []client.Object
+			if tt.consumer != nil {
+				existingObjects = append(existingObjects, tt.consumer)
+			}
+
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithStatusSubresource(&ocsv1a1.StorageConsumer{}).
+				WithObjects(existingObjects...).
+				Build()
+
+			consumerManager := createTestConsumerManager(fakeClient)
+			server := &OCSProviderServer{
+				client:          fakeClient,
+				namespace:       testNamespace,
+				consumerManager: consumerManager,
+			}
+
+			if tt.updateCache != nil {
+				tt.updateCache(t, consumerManager)
+			}
+
+			req := &pb.OffboardConsumerRequest{
+				StorageConsumerUUID: tt.storageConsumerUUID,
+			}
+
+			resp, err := server.OffboardConsumer(context.TODO(), req)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, resp)
+
+				// Check gRPC error code and message
+				st, ok := status.FromError(err)
+				assert.True(t, ok)
+				assert.Equal(t, tt.expectedGRPCCode, st.Code())
+				assert.Contains(t, st.Message(), tt.expectedErrorMessage)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, resp)
+
+				// Verify that client information was cleared
+				if tt.consumer != nil {
+					actualConsumer := &ocsv1a1.StorageConsumer{}
+					err := fakeClient.Get(context.TODO(), client.ObjectKeyFromObject(tt.consumer), actualConsumer)
+					assert.NoError(t, err)
+					assert.Nil(t, actualConsumer.Status.Client, "Client information should be cleared")
+				}
 			}
 		})
 	}
