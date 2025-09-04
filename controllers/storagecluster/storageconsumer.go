@@ -45,12 +45,6 @@ var _ resourceManager = &storageConsumer{}
 
 func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
 
-	//TODO: This code is to be removed in 4.20 when AllowRemoteStorageConsumers is removed. This is for the Storage Cluster
-	// reconciler to wait so that it doesn't create StorageConsumer with wrong names
-	if storageCluster.Spec.AllowRemoteStorageConsumers && len(storageCluster.GetAnnotations()[util.BackwardCompatabilityInfoAnnotationKey]) <= 0 {
-		return ctrl.Result{}, fmt.Errorf("invalid Configuration, allowRemoteStorageConsumers is set while missing a compatibility mode annotation on the storage cluster")
-	}
-
 	storageClassesSpec, err := getLocalStorageClassNames(r.ctx, r.Client, storageCluster)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to generate storageclasses list for distribution: %v", err)

@@ -137,10 +137,6 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 }
 
 func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) {
-	if _, notAdjusted := r.storageConsumer.GetAnnotations()[util.TicketAnnotation]; notAdjusted {
-		r.Log.Info("waiting for StorageConsumer to be adjusted for 4.19")
-		return reconcile.Result{}, nil
-	}
 
 	if _, exist := r.storageConsumer.GetLabels()[util.CreatedAtDfVersionLabelKey]; !exist {
 		majorAndMinorVersion, err := version.GetMajorAndMinorVersion()
@@ -154,7 +150,6 @@ func (r *StorageConsumerReconciler) reconcilePhases() (reconcile.Result, error) 
 		}
 	}
 
-	r.storageConsumer.Status.CephResources = []*ocsv1alpha1.CephResourcesSpec{}
 	if r.storageConsumer.Spec.Enable {
 		return r.reconcileEnabledPhases()
 	} else {
@@ -310,17 +305,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 			}
 		}
 
-		cephResourcesReady := true
-		for _, cephResource := range r.storageConsumer.Status.CephResources {
-			if cephResource.Phase != "Ready" {
-				cephResourcesReady = false
-				break
-			}
-		}
-
-		if cephResourcesReady {
-			r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateReady
-		}
+		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateReady
 
 	} else {
 		r.storageConsumer.Status.State = v1alpha1.StorageConsumerStateDeleting
@@ -818,22 +803,7 @@ func (r *StorageConsumerReconciler) reconcileNoobaaAccount() error {
 		return fmt.Errorf("failed to create noobaa account for storageConsumer %v: %v", r.storageConsumer.Name, err)
 	}
 
-	phase := string(noobaaAccount.Status.Phase)
-	r.setCephResourceStatus(noobaaAccount.Name, "NooBaaAccount", phase, nil)
 	return nil
-}
-
-func (r *StorageConsumerReconciler) setCephResourceStatus(name string, kind string, phase string, cephClients map[string]string) {
-	cephResourceSpec := ocsv1alpha1.CephResourcesSpec{
-		Name:        name,
-		Kind:        kind,
-		Phase:       phase,
-		CephClients: cephClients,
-	}
-	r.storageConsumer.Status.CephResources = append(
-		r.storageConsumer.Status.CephResources,
-		&cephResourceSpec,
-	)
 }
 
 func (r *StorageConsumerReconciler) get(obj client.Object) error {
