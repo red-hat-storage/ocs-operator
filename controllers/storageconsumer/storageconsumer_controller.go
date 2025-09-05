@@ -255,6 +255,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 				}
 				if err := r.reconcileCephClientCephFSProvisioner(
 					util.GenerateCsiCephFsProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
+					util.GenerateNameForCephFilesystem(storageCluster.Name),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
 					csiCephUserCurrGen,
@@ -264,6 +265,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 
 				if err := r.reconcileCephClientCephFSNode(
 					util.GenerateCsiCephFsNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
+					util.GenerateNameForCephFilesystem(storageCluster.Name),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
 					csiCephUserCurrGen,
@@ -275,6 +277,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 			if availableServices.Nfs {
 				if err := r.reconcileCephClientNfsProvisioner(
 					util.GenerateCsiNfsProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
+					util.GenerateNameForCephFilesystem(storageCluster.Name),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
 					csiCephUserCurrGen,
@@ -283,6 +286,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 				}
 				if err := r.reconcileCephClientNfsNode(
 					util.GenerateCsiNfsNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
+					util.GenerateNameForCephFilesystem(storageCluster.Name),
 					consumerResources.GetSubVolumeGroupName(),
 					consumerConfigMap,
 					csiCephUserCurrGen,
@@ -678,6 +682,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDNode(
 
 func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
 	cephClientName string,
+	cephFileSystemName string,
 	subVolumeGroupName string,
 	additionalOwner client.Object,
 	csiCephUserGeneration int64,
@@ -697,7 +702,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
 		cephClient.Spec.Caps = map[string]string{
 			"mon": "allow r, allow command 'osd blocklist'",
 			"mgr": "allow rw",
-			"osd": "allow rw tag cephfs metadata=*",
+			"osd": fmt.Sprintf("allow rw tag cephfs metadata=%s", cephFileSystemName),
 			"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
 		}
 		return nil
@@ -709,6 +714,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
 
 func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode(
 	cephClientName string,
+	cephFileSystemName string,
 	subVolumeGroupName string,
 	additionalOwner client.Object,
 	csiCephUserGeneration int64,
@@ -728,7 +734,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode(
 		cephClient.Spec.Caps = map[string]string{
 			"mon": "allow r",
 			"mgr": "allow rw",
-			"osd": "allow rw tag cephfs *=*",
+			"osd": fmt.Sprintf("allow rw tag cephfs *=%s", cephFileSystemName),
 			"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
 		}
 		return nil
@@ -740,6 +746,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode(
 
 func (r *StorageConsumerReconciler) reconcileCephClientNfsProvisioner(
 	cephClientName string,
+	cephFileSystemName string,
 	subVolumeGroupName string,
 	additionalOwner client.Object,
 	csiCephUserGeneration int64,
@@ -759,7 +766,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientNfsProvisioner(
 		cephClient.Spec.Caps = map[string]string{
 			"mon": "allow r, allow command 'osd blocklist'",
 			"mgr": "allow rw",
-			"osd": "allow rw tag cephfs metadata=*",
+			"osd": fmt.Sprintf("allow rw tag cephfs metadata=%s", cephFileSystemName),
 			"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
 		}
 		return nil
@@ -771,6 +778,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientNfsProvisioner(
 
 func (r *StorageConsumerReconciler) reconcileCephClientNfsNode(
 	cephClientName string,
+	cephFileSystemName string,
 	subVolumeGroupName string,
 	additionalOwner client.Object,
 	csiCephUserGeneration int64,
@@ -790,7 +798,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientNfsNode(
 		cephClient.Spec.Caps = map[string]string{
 			"mon": "allow r",
 			"mgr": "allow rw",
-			"osd": "allow rw tag cephfs *=*",
+			"osd": fmt.Sprintf("allow rw tag cephfs *=%s", cephFileSystemName),
 			"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
 		}
 		return nil
