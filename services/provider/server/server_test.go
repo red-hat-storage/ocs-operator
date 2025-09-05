@@ -8,6 +8,7 @@ import (
 
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -82,6 +83,7 @@ func TestGetKubeResourcesForClass(t *testing.T) {
 	}
 
 	objs := getKubeResourcesForClass(
+		klog.Background(),
 		consumer.Spec.StorageClasses,
 		"StorageClass",
 		genClassFn,
