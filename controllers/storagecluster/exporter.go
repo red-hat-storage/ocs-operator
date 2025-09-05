@@ -395,7 +395,6 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 								Protocol:      corev1.ProtocolTCP,
 							},
 						},
-						Image: r.images.KubeRBACProxy,
 						Args: []string{
 							"--secure-listen-address", "0.0.0.0:8443",
 							"--upstream", "http://127.0.0.1:8080/",
@@ -434,7 +433,6 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 								Protocol:      corev1.ProtocolTCP,
 							},
 						},
-						Image: r.images.KubeRBACProxy,
 						Args: []string{
 							"--secure-listen-address", "0.0.0.0:9443",
 							"--upstream", "http://127.0.0.1:8081/",
