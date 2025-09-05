@@ -114,6 +114,7 @@ var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 // +kubebuilder:rbac:groups=objectbucket.io,resources=objectbuckets;objectbucketclaims,verbs=get;list;watch
 // +kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create
 // +kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=create
+// +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,resourceNames=hostnetwork-v2,verbs=use
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
