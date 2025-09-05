@@ -144,6 +144,31 @@ var (
 			},
 		}
 	}
+	createRookCephOperatorCSV = func(namespace string) *opv1a1.ClusterServiceVersion {
+		return &opv1a1.ClusterServiceVersion{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-operator-csv",
+				Namespace: namespace,
+				Labels: map[string]string{
+					fmt.Sprintf("operators.coreos.com/rook-ceph-operator.%s", namespace): "",
+				},
+			},
+			Spec: opv1a1.ClusterServiceVersionSpec{
+				InstallStrategy: opv1a1.NamedInstallStrategy{
+					StrategySpec: opv1a1.StrategyDetailsDeployment{
+						DeploymentSpecs: []opv1a1.StrategyDeploymentSpec{
+							{
+								Name: "rook-ceph-operator",
+							},
+						},
+					},
+				},
+			},
+			Status: opv1a1.ClusterServiceVersionStatus{
+				Phase: opv1a1.CSVPhaseSucceeded,
+			},
+		}
+	}
 )
 
 func createDefaultStorageCluster() *api.StorageCluster {
@@ -446,6 +471,7 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		createStorageClientCRD(),
 		createVolumeGroupSnapshotClassCRD(),
 		createOdfVolumeGroupSnapshotClassCRD(),
+		createRookCephOperatorCSV(sc.Namespace),
 	)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
