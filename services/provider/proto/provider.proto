@@ -12,32 +12,13 @@ service OCSProvider {
   // resource on the StorageProvider cluster
   rpc OnboardConsumer (OnboardConsumerRequest)
   returns (OnboardConsumerResponse) {}
-  // GetStorageConfig RPC call to generate the json config for connecting to storage provider cluster
-  rpc GetStorageConfig(StorageConfigRequest)
-  returns (StorageConfigResponse){}
+
   // GetDesiredClientState RPC call to generate the desired state of the client
   rpc GetDesiredClientState(GetDesiredClientStateRequest)
   returns (GetDesiredClientStateResponse){}
   // OffboardConsumer RPC call to delete StorageConsumer CR on the storage provider cluster.
   rpc OffboardConsumer (OffboardConsumerRequest)
   returns (OffboardConsumerResponse) {}
-
-  // AcknowledgeOnboarding RPC call acknowledge the onboarding
-  rpc AcknowledgeOnboarding(AcknowledgeOnboardingRequest)
-  returns (AcknowledgeOnboardingResponse){}
-
-  // FulfillStorageClaim RPC call to create the StorageClaim CR on
-  // provider cluster.
-  rpc FulfillStorageClaim(FulfillStorageClaimRequest)
-  returns (FulfillStorageClaimResponse){}
-  // RevokeStorageClaim RPC call to delete the StorageClaim CR
-  // on provider cluster.
-  rpc RevokeStorageClaim(RevokeStorageClaimRequest)
-  returns (RevokeStorageClaimResponse){}
-  // GetStorageClaimConfig RPC call to generate the json config for claim
-  // specific resources.
-  rpc GetStorageClaimConfig(StorageClaimConfigRequest)
-  returns (StorageClaimConfigResponse){}
 
   rpc ReportStatus(ReportStatusRequest)
   returns (ReportStatusResponse){}
@@ -86,47 +67,10 @@ message OnboardConsumerResponse{
     string storageConsumerUUID = 1;
 }
 
-
-// StorageConfigRequest holds the information required generate the json config for connecting to storage provider cluster
-message StorageConfigRequest{
-    // K8s UID (UUID) of the consumer cluster
-    string storageConsumerUUID = 1;
-}
-
 // GetDesiredClientStateRequest holds the information required generate the desired state for connecting to storage consumer
 message GetDesiredClientStateRequest{
   // K8s UID of the storage consumer
   string storageConsumerUUID = 1;
-}
-
-
- // ExternalResource holds the configuration data of the resources in external storage cluster
-message ExternalResource {
-    // Name of the external storage cluster resource
-    string Name = 1;
-    // Kind of the external storage cluster resource
-    string kind = 2;
-    // Data contains the contents of the external cluster resource
-    bytes Data = 3;
-    // Labels contains the labels of the external cluster resource
-    map<string, string> Labels = 4;
-    // Annotations contains the annotations of the external cluster resource
-    map<string, string> Annotations = 5;
-}
-
-message SystemAttributes {
-  bool SystemInMaintenanceMode = 1;
-  bool MirrorEnabled = 2;
-}
-
-// StorageConfigResponse holds the response for the GetStorageConfig API request
-message StorageConfigResponse{
-    // ExternalResource holds the configuration data of external storage cluster
-    repeated ExternalResource externalResource = 1;
-    // Contains hash of desired config
-    string desiredConfigHash = 2;
-
-    SystemAttributes systemAttributes = 3;
 }
 
 // KubeObject holds information about a kube object needed for its reconciliation by the 
@@ -144,9 +88,8 @@ message RbdDriverRequirements {
 
 // GetDesiredClientStateResponse holds the response for the GetDesiredClientState API request
 message GetDesiredClientStateResponse{
-    // kubeResources holds the definition of all kube objects to be reconciled by the client operator
-    // Deprecated in favor of kubeObjects and will be removed in a near future update
-    repeated bytes kubeResources = 1;
+    // Note: kubeResources name is reserved till 4.20
+    reserved 1;
     // desiredStateHash is a hash for representing the latest desired state corresponding to 
     // this message
     string desiredStateHash = 2;
@@ -175,68 +118,6 @@ message OffboardConsumerRequest{
 // OffboardConsumerResponse holds the response for the OffboardConsumer API request
 message OffboardConsumerResponse{
 
-}
-
-// AcknowledgeOnboardingRequest holds the information required to acknowledge the onboarding
-message AcknowledgeOnboardingRequest{
-    // K8s UID (UUID) of the consumer cluster
-    string storageConsumerUUID = 1;
-}
-
-// AcknowledgeOnboardingResponse holds the response for the AcknowledgeOnboarding API request
-message AcknowledgeOnboardingResponse{
-
-}
-
-// FulfillStorageClaimRequest holds the information required to
-// create the StorageClaim CR on provider cluster.
-message FulfillStorageClaimRequest{
-    // name of the storageClaim on the consumer cluster.
-    string storageClaimName = 1;
-    // K8s UID (UUID) of the consumer cluster.
-    string storageConsumerUUID = 2;
-    // encryption method of the storageClaim.
-    string encryptionMethod = 3;
-    // StorageType of the storageClaim
-    enum StorageType {
-      SHAREDFILE = 0;
-      BLOCK = 1;
-    }
-    StorageType storageType = 4;
-    // storageProfile of the storageClaim.
-    string storageProfile = 5;
-}
-
-// FulfillStorageClaimResponse holds the response for the FulfillStorageClaim API request.
-message FulfillStorageClaimResponse{
-}
-
-// RevokeStorageClaimRequest holds the information required to delete the
-// StorageClaim CR on provider cluster.
-message RevokeStorageClaimRequest{
-    // name of the storageClaim on the consumer cluster.
-    string storageClaimName = 1;
-    // K8s UID (UUID) of the consumer cluster.
-    string storageConsumerUUID = 2;
-}
-
-// RevokeStorageClaimResponse holds the response for the RevokeStorageClaim API request.
-message RevokeStorageClaimResponse{
-}
-
-// StorageClaimConfigRequest holds the information required to generate the
-// json config for StorageClaim specific resources.
-message StorageClaimConfigRequest{
-    // name of the storageClaim on the consumer cluster.
-    string storageClaimName = 1;
-    // K8s UID (UUID) of the consumer cluster.
-    string storageConsumerUUID = 2;
-}
-
-// StorageClaimConfigResponse holds the response for the StorageClaimConfig API request.
-message StorageClaimConfigResponse{
-    // ExternalResource holds the configuration data of external storage cluster
-    repeated ExternalResource externalResource = 1;
 }
 
 message ReportStatusRequest{
