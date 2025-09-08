@@ -340,9 +340,9 @@ func (r *StorageConsumerUpgradeReconciler) reconcileStorageConsumer(
 		}
 
 		rbdGroupSnapClassSpec := ocsv1alpha1.VolumeGroupSnapshotClassSpec{}
-		rbdGroupSnapClassSpec.Name = util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)
+		rbdGroupSnapClassSpec.Name = util.GenerateNameForGroupSnapshotClass(storageCluster.Name, util.RbdGroupSnapshotter)
 		cephFsGroupSnapClassSpec := ocsv1alpha1.VolumeGroupSnapshotClassSpec{}
-		cephFsGroupSnapClassSpec.Name = util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)
+		cephFsGroupSnapClassSpec.Name = util.GenerateNameForGroupSnapshotClass(storageCluster.Name, util.CephfsGroupSnapshotter)
 		spec.VolumeGroupSnapshotClasses = []ocsv1alpha1.VolumeGroupSnapshotClassSpec{
 			rbdGroupSnapClassSpec,
 			cephFsGroupSnapClassSpec,

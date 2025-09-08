@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -20,11 +19,11 @@ const (
 	CephfsGroupSnapshotter GroupSnapshotterType = "cephfs"
 )
 
-func GenerateNameForGroupSnapshotClass(initData *ocsv1.StorageCluster, groupSnapshotType GroupSnapshotterType) string {
+func GenerateNameForGroupSnapshotClass(storageClusterName string, groupSnapshotType GroupSnapshotterType) string {
 	if groupSnapshotType == RbdGroupSnapshotter {
-		return fmt.Sprintf("%s-ceph-%s-groupsnapclass", initData.Name, groupSnapshotType)
+		return fmt.Sprintf("%s-ceph-%s-groupsnapclass", storageClusterName, groupSnapshotType)
 	}
-	return fmt.Sprintf("%s-%s-groupsnapclass", initData.Name, groupSnapshotType)
+	return fmt.Sprintf("%s-%s-groupsnapclass", storageClusterName, groupSnapshotType)
 }
 
 func NewDefaultRbdGroupSnapshotClass(
