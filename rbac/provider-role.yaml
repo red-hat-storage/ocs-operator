@@ -15,10 +15,12 @@ rules:
       - ceph.rook.io
     resources:
       - cephfilesystemsubvolumegroups
+      - cephfilesystems
       - cephblockpoolradosnamespaces
       - cephblockpools
       - cephrbdmirrors
       - cephclusters
+      - cephnfses
     verbs:
       - get
       - list
@@ -98,6 +100,13 @@ rules:
       - template.openshift.io
     resources:
       - templates
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - noobaa.io
+    resources:
+      - noobaas
     verbs:
       - get
       - list
