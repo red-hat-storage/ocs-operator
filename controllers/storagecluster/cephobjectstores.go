@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -187,8 +188,8 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 					return cephv1.PoolSpec{}
 				}(),
 				Gateway: cephv1.GatewaySpec{
-					Port:       80,
-					SecurePort: 443,
+					Port:       getPort(initData),
+					SecurePort: getSecurePort(initData),
 					Service: &cephv1.RGWServiceSpec{
 						Annotations: map[string]string{
 							"service.beta.openshift.io/serving-cert-secret-name": fmt.Sprintf("%s-%s-%s", initData.Name, "cos", cephRgwTLSSecretKey),
@@ -211,7 +212,10 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			return nil, err
 		}
 
-		if initData.Spec.ManagedResources.CephObjectStores.HostNetwork != nil {
+		// when using non default hostNetwork Object Store should use hostNetwork
+		if shouldUseHostNetworking(initData) {
+			obj.Spec.Gateway.HostNetwork = ptr.To(true)
+		} else if initData.Spec.ManagedResources.CephObjectStores.HostNetwork != nil {
 			obj.Spec.Gateway.HostNetwork = initData.Spec.ManagedResources.CephObjectStores.HostNetwork
 		}
 
@@ -282,4 +286,24 @@ func hasNonPortableOSD(sc *ocsv1.StorageCluster) bool {
 		}
 	}
 	return true
+}
+
+// when using non default hostNetwork Object Store should run on hostNetwork and use different port to avoid port collision
+func getPort(sc *ocsv1.StorageCluster) int32 {
+	if sc.Spec.ManagedResources.CephObjectStores.Port != 0 {
+		return int32(sc.Spec.ManagedResources.CephObjectStores.Port)
+	} else if shouldUseHostNetworking(sc) {
+		return 31080
+	}
+	return 80
+}
+
+// when using non default hostNetwork Object Store should run on hostNetwork and use different secure port to avoid port collision
+func getSecurePort(sc *ocsv1.StorageCluster) int32 {
+	if sc.Spec.ManagedResources.CephObjectStores.SecurePort != 0 {
+		return int32(sc.Spec.ManagedResources.CephObjectStores.SecurePort)
+	} else if shouldUseHostNetworking(sc) {
+		return 31044
+	}
+	return 443
 }
