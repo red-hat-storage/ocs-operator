@@ -90,5 +90,3 @@ PROTOC_GEN_GO_GRPC="${GRPC_BIN}/protoc-gen-go-grpc"
 
 # gRPC services
 SERVICES=("provider")
-
-DESIRED_CEPHX_KEY_GEN="${DESIRED_CEPHX_KEY_GEN:-2}"
