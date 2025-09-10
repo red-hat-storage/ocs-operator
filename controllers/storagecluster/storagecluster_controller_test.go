@@ -1136,6 +1136,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 
 	os.Setenv(providerAPIServerImage, "fake-image")
 	os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
+	t.Setenv(desiredCephxKeyGenEnvVarName, "2")
 
 	ocsProviderServiceDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName, Namespace: namespace},
@@ -1371,8 +1372,9 @@ func TestStorageClusterOnMultus(t *testing.T) {
 
 func assertCephClusterNetwork(t assert.TestingT, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	request.Name = "ocsinit-cephcluster"
-	cephCluster := newCephCluster(&reconciler, cr, nil)
-	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, cephCluster)
+	cephCluster, err := newCephCluster(&reconciler, cr, nil)
+	assert.NoError(t, err)
+	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, cephCluster)
 	assert.NoError(t, err)
 	if cr.Spec.Network == nil {
 		assert.Equal(t, "", cephCluster.Spec.Network.Provider)
