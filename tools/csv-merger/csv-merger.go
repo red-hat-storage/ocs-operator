@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -51,6 +52,8 @@ var (
 	uxBackendOauthImage      = flag.String("ux-backend-oauth-image", "", "ux backend oauth container image")
 	ocsMustGatherImage       = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
 	rookCsiAddonsImage       = flag.String("rook-csiaddons-image", "", "csi-addons container image")
+
+	desiredCephxKeyGen = flag.Int("desired-cephx-key-gen", 2, "desired cephx keys generation")
 
 	inputCrdsDir      = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
 	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
@@ -163,6 +166,10 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 			{
 				Name:  "ONBOARDING_SECRET_GENERATOR_IMAGE",
 				Value: *ocsContainerImage,
+			},
+			{
+				Name:  "DESIRED_CEPHX_KEY_GEN",
+				Value: strconv.Itoa(*desiredCephxKeyGen),
 			},
 			{
 				Name: util.OperatorNamespaceEnvVar,
