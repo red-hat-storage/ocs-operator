@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -42,6 +43,8 @@ var (
 	blackboxExporterImage    = flag.String("blackbox-exporter-image", "", "blackbox exporter container image")
 	ocsMustGatherImage       = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
 	kubeRbacProxyImage       = flag.String("kube-rbac-proxy-image", "", "kube-rbac-proxy container image")
+
+	desiredCephxKeyGen = flag.Int("desired-cephx-key-gen", 2, "desired cephx keys generation")
 
 	inputCrdsDir      = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
 	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
@@ -158,6 +161,10 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 			{
 				Name:  "ONBOARDING_VALIDATION_KEYS_GENERATOR_IMAGE",
 				Value: *ocsContainerImage,
+			},
+			{
+				Name:  "DESIRED_CEPHX_KEY_GEN",
+				Value: strconv.Itoa(*desiredCephxKeyGen),
 			},
 			{
 				Name: util.OperatorNamespaceEnvVar,
