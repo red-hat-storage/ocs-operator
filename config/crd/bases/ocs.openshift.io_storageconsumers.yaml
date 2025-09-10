@@ -42,6 +42,21 @@ spec:
               enable:
                 description: Enable flag ignores a reconcile if set to false
                 type: boolean
+              networkFenceClasses:
+                items:
+                  properties:
+                    aliases:
+                      items:
+                        type: string
+                      type: array
+                    name:
+                      type: string
+                    rename:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               resourceNameMappingConfigMap:
                 description: |-
                   LocalObjectReference contains enough information to let you locate the
