@@ -106,3 +106,5 @@ OUTDIR_PROTO_GOOGLE="build/_output/grpc/google/protobuf"
 
 # gRPC services
 declare -a SERVICES=("provider")
+
+DESIRED_CEPHX_KEY_GEN="${DESIRED_CEPHX_KEY_GEN:-2}"
