@@ -214,6 +214,9 @@ type ManageCephCluster struct {
 	// CleanupPolicy defines the cleanup policy for the Rook Ceph cluster.
 	// +optional
 	CleanupPolicy *rookCephv1.CleanupPolicySpec `json:"cleanupPolicy,omitempty"`
+
+	// Security represents security settings for ceph cluster
+	Security *rookCephv1.ClusterSecuritySpec `json:"security,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
