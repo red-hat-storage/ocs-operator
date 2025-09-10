@@ -231,12 +231,6 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 			return reconcile.Result{}, err
 		}
 
-		err = r.reconcilePrometheusKubeRBACConfigMap(instance)
-		if err != nil {
-			r.Log.Error(err, "Failed to ensure kubeRBACConfig config map")
-			return reconcile.Result{}, err
-		}
-
 		err = r.reconcilePrometheusService(instance)
 		if err != nil {
 			r.Log.Error(err, "Failed to ensure prometheus service")
@@ -645,27 +639,6 @@ func (r *OCSInitializationReconciler) reconcileUXBackendService(initialData *ocs
 	return nil
 }
 
-func (r *OCSInitializationReconciler) reconcilePrometheusKubeRBACConfigMap(initialData *ocsv1.OCSInitialization) error {
-	prometheusKubeRBACConfigMap := &corev1.ConfigMap{}
-	prometheusKubeRBACConfigMap.Name = templates.PrometheusKubeRBACProxyConfigMapName
-	prometheusKubeRBACConfigMap.Namespace = initialData.Namespace
-
-	_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, prometheusKubeRBACConfigMap, func() error {
-		if err := ctrl.SetControllerReference(initialData, prometheusKubeRBACConfigMap, r.Scheme); err != nil {
-			return err
-		}
-		prometheusKubeRBACConfigMap.Data = templates.KubeRBACProxyConfigMap.Data
-		return nil
-	})
-
-	if err != nil {
-		r.Log.Error(err, "Failed to create/update prometheus kube-rbac-proxy config map")
-		return err
-	}
-	r.Log.Info("Prometheus kube-rbac-proxy config map creation succeeded", "Name", prometheusKubeRBACConfigMap.Name)
-	return nil
-}
-
 func (r *OCSInitializationReconciler) reconcilePrometheusService(initialData *ocsv1.OCSInitialization) error {
 	prometheusService := &corev1.Service{}
 	prometheusService.Name = "prometheus"
@@ -686,10 +659,10 @@ func (r *OCSInitializationReconciler) reconcilePrometheusService(initialData *oc
 		}
 		prometheusService.Spec.Ports = []corev1.ServicePort{
 			{
-				Name:       "https",
+				Name:       "web",
 				Protocol:   corev1.ProtocolTCP,
-				Port:       int32(templates.KubeRBACProxyPortNumber),
-				TargetPort: intstr.FromString("https"),
+				Port:       9090,
+				TargetPort: intstr.FromInt(9090),
 			},
 		}
 		return nil

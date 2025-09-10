@@ -618,8 +618,6 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                - name: KUBE_RBAC_PROXY_IMAGE
-                  value: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
                 - name: OCS_METRICS_EXPORTER_IMAGE
                   value: quay.io/ocs-dev/ocs-metrics-exporter:latest
                 - name: ROOK_CEPH_IMAGE
@@ -809,6 +807,4 @@ spec:
     name: ocs-metrics-exporter
   - image: quay.io/openshift/origin-oauth-proxy:4.20.0
     name: ux-backend-oauth-image
-  - image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
-    name: kube-rbac-proxy
   version: 4.20.0
