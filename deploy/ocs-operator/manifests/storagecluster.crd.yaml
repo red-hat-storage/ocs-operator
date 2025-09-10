@@ -761,7 +761,12 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: The algorithm for erasure coding
+                                description: |-
+                                  The algorithm for erasure coding.
+                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                                enum:
+                                - isa
+                                - jerasure
                                 type: string
                               codingChunks:
                                 description: |-
@@ -1545,7 +1550,12 @@ spec:
                               description: The erasure code settings
                               properties:
                                 algorithm:
-                                  description: The algorithm for erasure coding
+                                  description: |-
+                                    The algorithm for erasure coding.
+                                    If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                                  enum:
+                                  - isa
+                                  - jerasure
                                   type: string
                                 codingChunks:
                                   description: |-
@@ -1767,7 +1777,12 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: The algorithm for erasure coding
+                                description: |-
+                                  The algorithm for erasure coding.
+                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                                enum:
+                                - isa
+                                - jerasure
                                 type: string
                               codingChunks:
                                 description: |-
@@ -1984,7 +1999,12 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: The algorithm for erasure coding
+                                description: |-
+                                  The algorithm for erasure coding.
+                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                                enum:
+                                - isa
+                                - jerasure
                                 type: string
                               codingChunks:
                                 description: |-
@@ -2746,7 +2766,12 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: The algorithm for erasure coding
+                                description: |-
+                                  The algorithm for erasure coding.
+                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                                enum:
+                                - isa
+                                - jerasure
                                 type: string
                               codingChunks:
                                 description: |-
@@ -2969,7 +2994,12 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: The algorithm for erasure coding
+                                description: |-
+                                  The algorithm for erasure coding.
+                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                                enum:
+                                - isa
+                                - jerasure
                                 type: string
                               codingChunks:
                                 description: |-
