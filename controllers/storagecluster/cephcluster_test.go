@@ -91,7 +91,8 @@ func TestEnsureCephCluster(t *testing.T) {
 
 		reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
-		expected := newCephCluster(&reconciler, mockStorageCluster.DeepCopy(), nil)
+		expected, err := newCephCluster(&reconciler, mockStorageCluster.DeepCopy(), nil)
+		assert.NilError(t, err)
 		expected.Status.State = c.cephClusterState
 
 		if !c.shouldCreate {
@@ -124,7 +125,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		}
 
 		var obj ocsCephCluster
-		_, err := obj.ensureCreated(&reconciler, sc)
+		_, err = obj.ensureCreated(&reconciler, sc)
 		assert.NilError(t, err)
 
 		actual := &rookCephv1.CephCluster{}
@@ -205,7 +206,8 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		_, err := obj.ensureCreated(&reconciler, sc)
 		assert.NilError(t, err)
 
-		cc := newCephCluster(&reconciler, sc, nil)
+		cc, err := newCephCluster(&reconciler, sc, nil)
+		assert.NilError(t, err)
 		err = reconciler.Client.Get(context.TODO(), mockCephClusterNamespacedName, cc)
 		assert.NilError(t, err)
 		if c.platform == configv1.IBMCloudPlatformType {
@@ -272,7 +274,8 @@ func TestNewCephClusterMonData(t *testing.T) {
 		c.sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 
 		reconciler := createFakeStorageClusterReconciler(t)
-		actual := newCephCluster(&reconciler, c.sc, nil)
+		actual, err := newCephCluster(&reconciler, c.sc, nil)
+		assert.NilError(t, err)
 		assert.Equal(t, ocsutil.GenerateNameForCephCluster(c.sc), actual.Name)
 		assert.Equal(t, c.sc.Namespace, actual.Namespace)
 		assert.Equal(t, c.expectedMonDataPath, actual.Spec.DataDirHostPath)
@@ -1486,18 +1489,21 @@ func TestLogCollector(t *testing.T) {
 
 	sc.Spec.LogCollector = &defaultLogCollector
 
-	actual := newCephCluster(&reconciler, sc, nil)
+	actual, err := newCephCluster(&reconciler, sc, nil)
+	assert.NilError(t, err)
 	assert.DeepEqual(t, actual.Spec.LogCollector, defaultLogCollector)
 
 	// when disabled in storageCluster
 	sc.Spec.LogCollector = &rookCephv1.LogCollectorSpec{}
-	actual = newCephCluster(&reconciler, sc, nil)
+	actual, err = newCephCluster(&reconciler, sc, nil)
+	assert.NilError(t, err)
 	assert.DeepEqual(t, actual.Spec.LogCollector, defaultLogCollector)
 
 	maxLogSize = resource.MustParse("6Gi")
 	sc.Spec.LogCollector.MaxLogSize = &maxLogSize
 
-	actual = newCephCluster(&reconciler, sc, nil)
+	actual, err = newCephCluster(&reconciler, sc, nil)
+	assert.NilError(t, err)
 	assert.DeepEqual(t, actual.Spec.LogCollector.MaxLogSize, &maxLogSize)
 }
 
@@ -1643,7 +1649,8 @@ func TestCephClusterNetworkConnectionsSpec(t *testing.T) {
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Spec.Network = testCase.scSpec.Network
 		testCase.ccSpec.Network.Connections.RequireMsgr2 = true
-		cc := newCephCluster(&reconciler, sc, nil)
+		cc, err := newCephCluster(&reconciler, sc, nil)
+		assert.NilError(t, err)
 		assert.DeepEqual(t, cc.Spec.Network.Connections, testCase.ccSpec.Network.Connections)
 	}
 }
@@ -1719,10 +1726,11 @@ func TestEnsureRDRMigration(t *testing.T) {
 	sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
 	reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
-	expected := newCephCluster(&reconciler, mockStorageCluster.DeepCopy(), nil)
+	expected, err := newCephCluster(&reconciler, mockStorageCluster.DeepCopy(), nil)
+	assert.NilError(t, err)
 
 	expected.Spec.Storage.Store.Type = string(rookCephv1.StoreTypeBlueStoreRDR)
-	err := reconciler.Client.Create(context.TODO(), expected)
+	err = reconciler.Client.Create(context.TODO(), expected)
 	assert.NilError(t, err)
 
 	// Ensure bluestore-rdr store type is reset to bluestore
@@ -1748,7 +1756,8 @@ func TestEnsureUpgradeReliabilityParams(t *testing.T) {
 	sc.Spec.ManagedResources.CephCluster.WaitTimeoutForHealthyOSDInMinutes = 20 * time.Minute
 	sc.Spec.ManagedResources.CephCluster.OsdMaintenanceTimeout = 45 * time.Minute
 
-	expected := newCephCluster(&reconciler, sc, nil)
+	expected, err := newCephCluster(&reconciler, sc, nil)
+	assert.NilError(t, err)
 	assert.Equal(t, true, expected.Spec.ContinueUpgradeAfterChecksEvenIfNotHealthy)
 	assert.Equal(t, true, expected.Spec.SkipUpgradeChecks)
 	assert.Equal(t, true, expected.Spec.UpgradeOSDRequiresHealthyPGs)
@@ -1794,7 +1803,8 @@ func TestHealthCheckConfiguration(t *testing.T) {
 		StartupProbe:  probeMap,
 		LivenessProbe: probeMap,
 	}
-	expected := newCephCluster(&reconciler, sc, nil)
+	expected, err := newCephCluster(&reconciler, sc, nil)
+	assert.NilError(t, err)
 
 	assert.Equal(t, "11", expected.Spec.HealthCheck.DaemonHealth.Status.Timeout)
 	assert.Equal(t, false, expected.Spec.HealthCheck.DaemonHealth.Status.Disabled)
