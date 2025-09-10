@@ -3177,8 +3177,12 @@ spec:
                             type: object
                             x-kubernetes-preserve-unknown-fields: true
                         type: object
+                      port:
+                        type: integer
                       reconcileStrategy:
                         type: string
+                      securePort:
+                        type: integer
                       storageClassName:
                         description: StorageClassName specifies the name of the storage
                           class created for ceph obc's
