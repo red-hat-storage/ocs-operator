@@ -285,10 +285,13 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 		}
 		response.ClientOperatorChannel = channelName
 
-		inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
-		if err != nil {
-			logger.Error(err, "failed to produce client state")
-			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		var inMaintenanceMode bool
+		if util.IsClusterConfiguredForRDR(ctx, s.client, s.namespace) {
+			inMaintenanceMode, err = s.isSystemInMaintenanceMode(ctx)
+			if err != nil {
+				logger.Error(err, "failed to produce client state")
+				return nil, status.Errorf(codes.Internal, "failed to produce client state")
+			}
 		}
 		response.MaintenanceMode = inMaintenanceMode
 
@@ -550,10 +553,13 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, err
 	}
 
-	inMaintenanceMode, err := s.isSystemInMaintenanceMode(ctx)
-	if err != nil {
-		logger.Error(err, "Failed to get maintenance mode status")
-		return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+	var inMaintenanceMode bool
+	if util.IsClusterConfiguredForRDR(ctx, s.client, s.namespace) {
+		inMaintenanceMode, err = s.isSystemInMaintenanceMode(ctx)
+		if err != nil {
+			logger.Error(err, "Failed to get maintenance mode status")
+			return nil, status.Errorf(codes.Internal, "Failed to get maintenance mode status.")
+		}
 	}
 
 	isConsumerMirrorEnabled, err := s.isConsumerMirrorEnabled(ctx, storageConsumer)
