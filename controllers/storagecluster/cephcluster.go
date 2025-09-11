@@ -515,6 +515,10 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 				KeyRotationPolicy: rookCephv1.KeyGenerationCephxKeyRotationPolicy,
 				KeyGeneration:     uint32(desiredCephxKeyGen),
 			},
+			AllowedCiphers: []rookCephv1.CephxKeyType{
+				rookCephv1.CephxKeyTypeAes,
+				rookCephv1.CephxKeyTypeAes256k,
+			},
 		},
 	}
 
@@ -612,6 +616,10 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 
 	if sc.Spec.ManagedResources.CephCluster.HealthCheck != nil {
 		cephCluster.Spec.HealthCheck = *sc.Spec.ManagedResources.CephCluster.HealthCheck
+	}
+
+	if sc.Spec.ManagedResources.CephCluster.Security != nil && len(sc.Spec.ManagedResources.CephCluster.Security.CephX.AllowedCiphers) != 0 {
+		cephCluster.Spec.Security.CephX.AllowedCiphers = sc.Spec.ManagedResources.CephCluster.Security.CephX.AllowedCiphers
 	}
 
 	if sc.Spec.LogCollector != nil {
