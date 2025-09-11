@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/imdario/mergo"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -1080,6 +1081,13 @@ func (r *StorageClusterReconciler) createMetricsExporterCephClient(instance *ocs
 	cephClient.Name = util.OcsMetricsExporterCephClientName
 	cephClient.Namespace = instance.Namespace
 
+	desiredCephxKeyGenAsString := util.MustGetEnv(desiredCephxKeyGenEnvVarName)
+	desiredCephxKeyGen, err := strconv.Atoi(desiredCephxKeyGenAsString)
+	if err != nil {
+		err = fmt.Errorf("could not convert the value %q of env var %q", desiredCephxKeyGenAsString, desiredCephxKeyGenEnvVarName)
+		return err
+	}
+
 	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cephClient, func() error {
 		if err := controllerutil.SetControllerReference(instance, cephClient, r.Scheme); err != nil {
 			return err
@@ -1090,6 +1098,10 @@ func (r *StorageClusterReconciler) createMetricsExporterCephClient(instance *ocs
 			"mgr": "allow rw",
 			"osd": "profile rbd",
 			"mds": "allow *",
+		}
+		cephClient.Spec.Security.CephX = rookCephv1.CephxConfig{
+			KeyRotationPolicy: rookCephv1.KeyGenerationCephxKeyRotationPolicy,
+			KeyGeneration:     uint32(desiredCephxKeyGen),
 		}
 		return nil
 	}); err != nil {
