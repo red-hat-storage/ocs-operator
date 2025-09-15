@@ -1091,6 +1091,7 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 		storageCluster,
 		rbdStorageId,
 		cephFsStorageId,
+		mirroringTargetInfo.RbdStorageID,
 	)
 	if err != nil {
 		return nil, err
@@ -1474,6 +1475,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 	storageCluster *ocsv1.StorageCluster,
 	rbdStorageId,
 	cephFsStorageId string,
+	remoteRbdStorageId string,
 ) ([]client.Object, error) {
 	scMap := map[string]func() *storagev1.StorageClass{}
 	if consumerConfig.GetRbdClientProfileName() != "" {
@@ -1485,6 +1487,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
+				remoteRbdStorageId,
 				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
 			)
 		}
@@ -1496,6 +1499,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
+				remoteRbdStorageId,
 				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultVirtualizationStorageClass,
 			)
 		}
@@ -1521,6 +1525,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
+				remoteRbdStorageId,
 			)
 		}
 	}
@@ -1567,6 +1572,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 					rbdStorageId,
 					cephFsStorageId,
 					cephFsStorageId,
+					remoteRbdStorageId,
 				)
 			}
 		},
