@@ -551,6 +551,7 @@ func TestErasureCodedExternalResources(t *testing.T) {
 					"rook-csi-rbd-node",
 					cr.Namespace,
 					"",
+					"",
 					cr.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
 				),
 				isClusterExternal: true,
