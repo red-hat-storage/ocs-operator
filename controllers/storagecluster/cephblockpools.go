@@ -66,14 +66,20 @@ func (o *ocsCephBlockPools) reconcileCephBlockPool(r *StorageClusterReconciler, 
 	}
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
+		// Preserve the Mirroring spec, it's handled by the mirroring controller
+		existingMirroring := cephBlockPool.Spec.PoolSpec.Mirroring
+
 		// Pass the poolSpec from the storageCluster CR
 		if storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec != nil {
 			cephBlockPool.Spec.PoolSpec = *storageCluster.Spec.ManagedResources.CephBlockPools.PoolSpec
+		} else {
+			cephBlockPool.Spec.PoolSpec = cephv1.PoolSpec{}
 		}
 
 		// Set default values in the poolSpec as necessary
 		setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
+		cephBlockPool.Spec.PoolSpec.Mirroring = existingMirroring
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
 	})
@@ -118,6 +124,7 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		cephBlockPool.Spec.Name = ".mgr"
+		cephBlockPool.Spec.PoolSpec = cephv1.PoolSpec{}
 
 		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
 		// Pass the Replicated Size Spec for the default cephBlockPool spec if specified
@@ -177,6 +184,8 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 		cephBlockPool.Spec.Name = ".nfs"
+		cephBlockPool.Spec.PoolSpec = cephv1.PoolSpec{}
+
 		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
 		// Pass the Replicated Size Spec for the default cephBlockPool spec if specified
 		manageCBPSpec := &storageCluster.Spec.ManagedResources.CephBlockPools
