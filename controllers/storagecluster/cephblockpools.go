@@ -126,13 +126,22 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 		cephBlockPool.Spec.Name = ".mgr"
 		cephBlockPool.Spec.PoolSpec = cephv1.PoolSpec{}
 
-		// Pass the Replicated Size Spec for the default CephBlockPool from the storageCluster CR
+		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
+		// Pass the Replicated Size Spec for the default cephBlockPool spec if specified
 		manageCBPSpec := &storageCluster.Spec.ManagedResources.CephBlockPools
 		if manageCBPSpec.PoolSpec != nil && manageCBPSpec.PoolSpec.Replicated.Size != 0 {
 			cephBlockPool.Spec.Replicated.Size = manageCBPSpec.PoolSpec.Replicated.Size
 		}
 
 		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
+		// Pass the EnableCrushUpdates for the default cephBlockPool spec if specified
+		if manageCBPSpec.PoolSpec != nil && manageCBPSpec.PoolSpec.EnableCrushUpdates != nil {
+			cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = manageCBPSpec.PoolSpec.EnableCrushUpdates
+		}
+		// Pass the DeviceClass for the default cephBlockPool spec if specified
+		if manageCBPSpec.PoolSpec != nil && manageCBPSpec.PoolSpec.DeviceClass != "" {
+			cephBlockPool.Spec.PoolSpec.DeviceClass = manageCBPSpec.PoolSpec.DeviceClass
+		}
 		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 
 		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
@@ -180,6 +189,19 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 		cephBlockPool.Spec.PoolSpec = cephv1.PoolSpec{}
 
 		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
+		// Pass the Replicated Size Spec for the default cephBlockPool spec if specified
+		manageCBPSpec := &storageCluster.Spec.ManagedResources.CephBlockPools
+		if manageCBPSpec.PoolSpec != nil && manageCBPSpec.PoolSpec.Replicated.Size != 0 {
+			cephBlockPool.Spec.Replicated.Size = manageCBPSpec.PoolSpec.Replicated.Size
+		}
+		// Pass the EnableCrushUpdates for the default cephBlockPool spec if specified
+		if manageCBPSpec.PoolSpec != nil && manageCBPSpec.PoolSpec.EnableCrushUpdates != nil {
+			cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = manageCBPSpec.PoolSpec.EnableCrushUpdates
+		}
+		// Pass the DeviceClass for the default cephBlockPool spec if specified
+		if manageCBPSpec.PoolSpec != nil && manageCBPSpec.PoolSpec.DeviceClass != "" {
+			cephBlockPool.Spec.PoolSpec.DeviceClass = manageCBPSpec.PoolSpec.DeviceClass
+		}
 		cephBlockPool.Spec.PoolSpec.EnableRBDStats = true
 		util.AddLabel(cephBlockPool, util.ForbidMirroringLabel, "true")
 
