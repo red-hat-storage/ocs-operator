@@ -364,7 +364,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 				},
 				Containers: []corev1.Container{
 					{
-						Resources: defaults.MonitoringResources["kube-rbac-proxy"],
+						Resources: defaults.GetDaemonResources("kube-rbac-proxy-main", instance.Spec.Resources),
 						Name:      "kube-rbac-proxy-main",
 						SecurityContext: &corev1.SecurityContext{
 							Capabilities: &corev1.Capabilities{
@@ -403,7 +403,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 						},
 					},
 					{
-						Resources: defaults.MonitoringResources["kube-rbac-proxy"],
+						Resources: defaults.GetDaemonResources("kube-rbac-proxy-self", instance.Spec.Resources),
 						Name:      "kube-rbac-proxy-self",
 						SecurityContext: &corev1.SecurityContext{
 							Capabilities: &corev1.Capabilities{
