@@ -2022,7 +2022,9 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 				klog.Warningf("%s with name %s doesn't exist in the cluster", classDisplayName, srcName)
 			} else if errors.Is(err, util.UnsupportedProvisioner) {
 				klog.Warningf("Encountered unsupported provisioner in %s: %s", classDisplayName, srcName)
-			} else if srcKubeObj == nil {
+			} else if errors.Is(err, util.UnsupportedDriver) {
+				klog.Warningf("Encountered unsupported driver in %s: %s", classDisplayName, srcName)
+			} else if reflect.ValueOf(srcKubeObj).IsNil() {
 				klog.Warningf("The name %s does not points to a builtin or an existing %s, skipping", classDisplayName, srcName)
 			} else if srcKubeObj.GetLabels()[util.ExternalClassLabelKey] == "true" {
 				klog.Warningf("The %s is an external %s, skipping", srcName, classDisplayName)
@@ -2030,7 +2032,7 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 				srcClassCache[srcName] = srcKubeObj
 			}
 		}
-		if srcKubeObj != nil {
+		if _, exist := srcClassCache[srcName]; exist {
 			distKubeObj := srcKubeObj.DeepCopyObject().(client.Object)
 			distKubeObj.SetName(destName)
 			kubeResources = append(kubeResources, distKubeObj)
