@@ -25,6 +25,14 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	if component == "osd" || component == "prepareosd" {
 		specified = false
 	}
+
+	// In noobaa-standalone mode or external mode the default ocs labels are not added to the nodes
+	// so we should not add the default ocs node affinity for these modes
+	if (sc.Spec.MultiCloudGateway != nil && ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy) == ReconcileStrategyStandalone) ||
+		sc.Spec.ExternalStorage.Enable {
+		defaultPlacement.NodeAffinity = nil
+	}
+
 	// If some placement is specified, merge it with the default placement
 	if specified {
 		placement = mergePlacements(defaultPlacement, specifiedPlacement)
