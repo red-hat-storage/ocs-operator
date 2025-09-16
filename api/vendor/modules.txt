@@ -257,7 +257,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rook/rook/pkg/apis v0.0.0-20250731081113-fd2b4333e8b5
+# github.com/rook/rook/pkg/apis v0.0.0-20250915194743-ccbac6de987f
 ## explicit; go 1.24.3
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1

@@ -349,8 +349,10 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 
 	cnfs := &cephv1.CephNFS{
 		ObjectMeta: metav1.ObjectMeta{Name: "ocsinit-cephnfs"},
-		Status: &cephv1.Status{
-			Phase: util.PhaseReady,
+		Status: &cephv1.NFSStatus{
+			Status: cephv1.Status{
+				Phase: util.PhaseReady,
+			},
 		},
 	}
 
