@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -218,7 +219,7 @@ func (o *ocsCephBlockPools) reconcileNonResilientCephBlockPool(r *StorageCluster
 		_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 			poolSpec := &cephBlockPool.Spec.PoolSpec
 			poolSpec.DeviceClass = failureDomainValue
-			poolSpec.EnableCrushUpdates = true
+			poolSpec.EnableCrushUpdates = ptr.To(true)
 			poolSpec.FailureDomain = getFailureDomain(storageCluster)
 			poolSpec.Parameters = storageCluster.Spec.ManagedResources.CephNonResilientPools.Parameters
 			if poolSpec.Parameters == nil {
