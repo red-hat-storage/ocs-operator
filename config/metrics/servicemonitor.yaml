@@ -1,0 +1,13 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ocs-operator-metrics
+  namespace: openshift-storage
+spec:
+  selector:
+    matchLabels:
+      name: ocs-operator
+  endpoints:
+  - port: metrics
+    interval: 30s
+    scheme: http 

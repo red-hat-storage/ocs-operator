@@ -27,6 +27,7 @@ spec:
         args:
         - --enable-leader-election
         - "--health-probe-bind-address=:8081"
+        - --metrics-addr=0.0.0.0:8080
         image: ocs-dev/ocs-operator:latest
         imagePullPolicy: Always
         name: ocs-operator
@@ -35,6 +36,13 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
+        ports:
+          - containerPort: 8080
+            name: metrics
+            protocol: TCP
+          - containerPort: 8081
+            name: healthz
+            protocol: TCP
         readinessProbe:
           httpGet:
             path: /readyz

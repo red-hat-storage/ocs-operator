@@ -89,12 +89,6 @@ func (r *StorageClusterReconciler) enableMetricsExporter(
 		return err
 	}
 
-	// create/update the secret needed for the exporter deployment
-	if err := createMetricsExporterSecret(ctx, r, instance); err != nil {
-		r.Log.Error(err, "failed to create secret for metrics exporter")
-		return err
-	}
-
 	// create the metrics exporter deployment
 	if err := deployMetricsExporter(ctx, r, instance); err != nil {
 		r.Log.Error(err, "failed to create ocs-metric-exporter deployment")
@@ -380,89 +374,27 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 				HostNetwork: shouldUseHostNetworking(instance),
 				Containers: []corev1.Container{
 					{
-						Resources: defaults.MonitoringResources["kube-rbac-proxy"],
-						Name:      "kube-rbac-proxy-main",
-						SecurityContext: &corev1.SecurityContext{
-							Capabilities: &corev1.Capabilities{
-								Drop: []corev1.Capability{"ALL"},
-							},
-							AllowPrivilegeEscalation: ptr.To(false),
+						Args: []string{
+							"--namespaces", instance.Namespace,
+							"--ceph-auth-namespace", r.OperatorNamespace,
+							"--metrics-addr=0.0.0.0:8443",
+							"--health-probe-bind-address=:8081",
 						},
+						Command: []string{"/usr/local/bin/metrics-exporter"},
+						Image:   r.images.OCSMetricsExporter,
+						Name:    metricsExporterName,
 						Ports: []corev1.ContainerPort{
 							{
 								Name:          "https-main",
 								ContainerPort: 8443,
 								Protocol:      corev1.ProtocolTCP,
 							},
-						},
-						Args: []string{
-							"--secure-listen-address", "0.0.0.0:8443",
-							"--upstream", "http://127.0.0.1:8080/",
-							"--tls-cert-file", "/etc/tls/private/tls.crt",
-							"--tls-private-key-file", "/etc/tls/private/tls.key",
-							"--tls-cipher-suites", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
-							"--config-file", "/etc/kube-rbac-policy/config.yaml",
-							"--v", "10",
-						},
-						VolumeMounts: []corev1.VolumeMount{
 							{
-								Name:      "ocs-metrics-exporter-tls",
-								MountPath: "/etc/tls/private",
-								ReadOnly:  true,
-							},
-							{
-								Name:      "ocs-metrics-exporter-kube-rbac-proxy-config",
-								MountPath: "/etc/kube-rbac-policy",
-								ReadOnly:  true,
-							},
-						},
-					},
-					{
-						Resources: defaults.MonitoringResources["kube-rbac-proxy"],
-						Name:      "kube-rbac-proxy-self",
-						SecurityContext: &corev1.SecurityContext{
-							Capabilities: &corev1.Capabilities{
-								Drop: []corev1.Capability{"ALL"},
-							},
-							AllowPrivilegeEscalation: ptr.To(false),
-						},
-						Ports: []corev1.ContainerPort{
-							{
-								Name:          "https-self",
-								ContainerPort: 9443,
+								Name:          "healthz",
+								ContainerPort: 8081,
 								Protocol:      corev1.ProtocolTCP,
 							},
 						},
-						Args: []string{
-							"--secure-listen-address", "0.0.0.0:9443",
-							"--upstream", "http://127.0.0.1:8081/",
-							"--tls-cert-file", "/etc/tls/private/tls.crt",
-							"--tls-private-key-file", "/etc/tls/private/tls.key",
-							"--tls-cipher-suites", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
-							"--config-file", "/etc/kube-rbac-policy/config.yaml",
-							"--v", "10",
-						},
-						VolumeMounts: []corev1.VolumeMount{
-							{
-								Name:      "ocs-metrics-exporter-tls",
-								MountPath: "/etc/tls/private",
-								ReadOnly:  true,
-							},
-							{
-								Name:      "ocs-metrics-exporter-kube-rbac-proxy-config",
-								MountPath: "/etc/kube-rbac-policy",
-								ReadOnly:  true,
-							},
-						},
-					},
-					{
-						Args: []string{
-							"--namespaces", instance.Namespace,
-							"--ceph-auth-namespace", r.OperatorNamespace,
-						},
-						Command: []string{"/usr/local/bin/metrics-exporter"},
-						Image:   r.images.OCSMetricsExporter,
-						Name:    metricsExporterName,
 						LivenessProbe: &corev1.Probe{
 							ProbeHandler: corev1.ProbeHandler{
 								HTTPGet: &corev1.HTTPGetAction{
@@ -496,11 +428,18 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 								Type: corev1.SeccompProfileTypeRuntimeDefault,
 							},
 						},
-						VolumeMounts: []corev1.VolumeMount{{
-							Name:      "ceph-config",
-							MountPath: "/etc/ceph",
-							ReadOnly:  true,
-						}},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "ceph-config",
+								MountPath: "/etc/ceph",
+								ReadOnly:  true,
+							},
+							{
+								Name:      "ocs-metrics-exporter-tls",
+								MountPath: "/etc/tls/private",
+								ReadOnly:  true,
+							},
+						},
 					},
 				},
 				PriorityClassName:  systemClusterCritical,
@@ -521,14 +460,6 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: "ocs-metrics-exporter-tls",
-							},
-						},
-					},
-					{
-						Name: "ocs-metrics-exporter-kube-rbac-proxy-config",
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: "ocs-metrics-exporter-kube-rbac-proxy-config",
 							},
 						},
 					},
@@ -659,46 +590,6 @@ auth_client_required = cephx
 			"keyring": "",
 		}
 
-		return nil
-	})
-
-	return err
-}
-
-func createMetricsExporterSecret(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
-	currentSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ocs-metrics-exporter-kube-rbac-proxy-config",
-			Namespace: instance.Namespace,
-		},
-	}
-
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentSecret, func() error {
-		currentSecret.ObjectMeta = metav1.ObjectMeta{
-			Name:      "ocs-metrics-exporter-kube-rbac-proxy-config",
-			Namespace: instance.Namespace,
-			Labels: map[string]string{
-				componentLabel: exporterLabels[componentLabel],
-				nameLabel:      exporterLabels[nameLabel],
-				versionLabel:   version.Version,
-			},
-		}
-		currentSecret.StringData = map[string]string{
-			"config.yaml": `
-"authorization":
-  "static":
-  - "path": "/metrics"
-    "resourceRequest": false
-    "user":
-        "name": "system:serviceaccount:openshift-monitoring:prometheus-k8s"
-    "verb": "get"
-  - "path": "/metrics/rbd-mirror"
-    "resourceRequest": false
-    "user":
-        "name": "system:serviceaccount:openshift-monitoring:prometheus-k8s"
-    "verb": "get"
-`,
-		}
 		return nil
 	})
 
