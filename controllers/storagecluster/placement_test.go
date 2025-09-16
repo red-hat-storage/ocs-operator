@@ -634,10 +634,6 @@ func TestGetPlacement(t *testing.T) {
 							{
 								MatchExpressions: []corev1.NodeSelectorRequirement{
 									{
-										Key:      "cluster.ocs.openshift.io/openshift-storage",
-										Operator: corev1.NodeSelectorOpExists,
-									},
-									{
 										Key:      "custom-label",
 										Operator: corev1.NodeSelectorOpIn,
 										Values:   []string{"custom-value"},
@@ -646,6 +642,15 @@ func TestGetPlacement(t *testing.T) {
 							},
 						},
 					},
+				},
+			},
+		},
+		{
+			name:      "component with empty label selector",
+			component: "all",
+			expected: rookCephv1.Placement{
+				Tolerations: []corev1.Toleration{
+					getOcsToleration(),
 				},
 			},
 		},
@@ -693,6 +698,9 @@ func TestGetPlacement(t *testing.T) {
 						},
 					},
 				}
+			}
+			if tt.name == "component with empty label selector" {
+				sc.Spec.LabelSelector = &metav1.LabelSelector{}
 			}
 			result := getPlacement(sc, tt.component)
 			assert.Equal(t, tt.expected, result)
