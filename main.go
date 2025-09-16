@@ -62,6 +62,7 @@ import (
 	apiclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	filters "sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/mirroring"
@@ -164,8 +165,11 @@ func main() {
 
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:                  scheme,
-		Metrics:                 metrics.Options{BindAddress: metricsAddr},
+		Scheme: scheme,
+		Metrics: metrics.Options{
+			BindAddress:    metricsAddr,
+			FilterProvider: filters.WithAuthenticationAndAuthorization,
+		},
 		HealthProbeBindAddress:  probeAddr,
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "ab76f4c9.openshift.io",
