@@ -25,10 +25,10 @@ spec:
       containers:
       - resources:
           limits:
-            cpu: 10m
+            cpu: 50m
             memory: 40Mi
           requests:
-            cpu: 10m
+            cpu: 50m
             memory: 40Mi
         name: kube-rbac-proxy-main
         securityContext:
@@ -59,10 +59,10 @@ spec:
           mountPath: /etc/kube-rbac-policy
       - resources:
           limits:
-            cpu: 10m
+            cpu: 50m
             memory: 40Mi
           requests:
-            cpu: 10m
+            cpu: 50m
             memory: 40Mi
         name: kube-rbac-proxy-self
         securityContext:
