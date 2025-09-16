@@ -330,6 +330,12 @@ type ClusterCephxConfig struct {
 	// Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
 	Daemon CephxConfig `json:"daemon,omitempty"`
 
+	// RBDMirrorPeer configures CephX key settings of the `rbd-mirror-peer` user that is used for creating
+	// bootstrap peer token used connect peer clusters. Rotating the `rbd-mirror-peer` user key will update
+	// the mirror peer token.
+	// Rotation will affect any existing peers connected to this cluster, so take care when exercising this option.
+	RBDMirrorPeer CephxConfig `json:"rbdMirrorPeer,omitempty"`
+
 	// CSI configures CephX key rotation settings for the Ceph-CSI daemons in the current Kubernetes cluster.
 	// CSI key rotation can affect existing PV connections, so take care when exercising this option.
 	CSI CephXConfigWithPriorCount `json:"csi,omitempty"`
@@ -510,14 +516,14 @@ type CephExporterSpec struct {
 
 // ClusterStatus represents the status of a Ceph cluster
 type ClusterStatus struct {
-	State       ClusterState        `json:"state,omitempty"`
-	Phase       ConditionType       `json:"phase,omitempty"`
-	Message     string              `json:"message,omitempty"`
-	Conditions  []Condition         `json:"conditions,omitempty"`
-	CephStatus  *CephStatus         `json:"ceph,omitempty"`
-	Cephx       *ClusterCephxStatus `json:"cephx,omitempty"`
-	CephStorage *CephStorage        `json:"storage,omitempty"`
-	CephVersion *ClusterVersion     `json:"version,omitempty"`
+	State       ClusterState       `json:"state,omitempty"`
+	Phase       ConditionType      `json:"phase,omitempty"`
+	Message     string             `json:"message,omitempty"`
+	Conditions  []Condition        `json:"conditions,omitempty"`
+	CephStatus  *CephStatus        `json:"ceph,omitempty"`
+	Cephx       ClusterCephxStatus `json:"cephx,omitempty"`
+	CephStorage *CephStorage       `json:"storage,omitempty"`
+	CephVersion *ClusterVersion    `json:"version,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -742,14 +748,22 @@ type LocalCephxStatus struct {
 
 // ClusterCephxStatus defines the cephx key rotation status of various daemons on the cephCluster resource
 type ClusterCephxStatus struct {
+	// Admin shows the CephX key status for the client.admin key
+	Admin CephxStatus `json:"admin,omitempty"`
+	// Mon represents the CephX key status of the Monitor daemons
+	Mon CephxStatus `json:"mon,omitempty"`
 	// Mgr represents the cephx key rotation status of the ceph manager daemon
-	Mgr *CephxStatus `json:"mgr,omitempty"`
-	// RBDMirrorPeer represents the cephx key rotation status of the `rbd-mirror-peer` user
-	RBDMirrorPeer *CephxStatus `json:"rbdMirrorPeer,omitempty"`
+	Mgr CephxStatus `json:"mgr,omitempty"`
+	// OSD shows the CephX key status of of OSDs
+	OSD CephxStatus `json:"osd,omitempty"`
 	// CSI shows the CephX key status for Ceph-CSI components.
-	CSI *CephxStatusWithKeyCount `json:"csi,omitempty"`
+	CSI CephxStatusWithKeyCount `json:"csi,omitempty"`
+	// RBDMirrorPeer represents the cephx key rotation status of the `rbd-mirror-peer` user
+	RBDMirrorPeer CephxStatus `json:"rbdMirrorPeer,omitempty"`
 	// Crash Collector represents the cephx key rotation status of the crash collector daemon
-	CrashCollector *CephxStatus `json:"crashCollector,omitempty"`
+	CrashCollector CephxStatus `json:"crashCollector,omitempty"`
+	// Ceph Exporter represents the cephx key rotation status of the ceph exporter daemon
+	CephExporter CephxStatus `json:"cephExporter,omitempty"`
 }
 
 // MonSpec represents the specification of the monitor
@@ -934,8 +948,9 @@ type PoolSpec struct {
 	DeviceClass string `json:"deviceClass,omitempty"`
 
 	// Allow rook operator to change the pool CRUSH tunables once the pool is created
+	// +nullable
 	// +optional
-	EnableCrushUpdates bool `json:"enableCrushUpdates,omitempty"`
+	EnableCrushUpdates *bool `json:"enableCrushUpdates,omitempty"`
 
 	// DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force"
 	// The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)
@@ -1011,6 +1026,8 @@ type CephBlockPoolStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	Cephx PeerTokenCephxStatus `json:"cephx,omitempty"`
+	// +optional
 	MirroringStatus *MirroringStatusSpec `json:"mirroringStatus,omitempty"`
 	// +optional
 	MirroringInfo *MirroringInfoSpec `json:"mirroringInfo,omitempty"`
@@ -1025,6 +1042,12 @@ type CephBlockPoolStatus struct {
 	// +optional
 	ObservedGeneration int64       `json:"observedGeneration,omitempty"`
 	Conditions         []Condition `json:"conditions,omitempty"`
+}
+
+// PeerTokenCephxStatus represents the cephx key rotation status for peer tokens
+type PeerTokenCephxStatus struct {
+	// PeerToken shows the rotation status of the peer token associated with the `rbd-mirror-peer` user.
+	PeerToken CephxStatus `json:"peerToken,omitempty"`
 }
 
 // MirroringStatusSpec is the status of the pool/radosNamespace mirroring
@@ -1311,7 +1334,9 @@ type ErasureCodedSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	DataChunks uint `json:"dataChunks"`
 
-	// The algorithm for erasure coding
+	// The algorithm for erasure coding.
+	// If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+	// +kubebuilder:validation:Enum=isa;jerasure
 	// +optional
 	Algorithm string `json:"algorithm,omitempty"`
 }
@@ -1649,6 +1674,7 @@ type CephObjectStoreList struct {
 }
 
 // ObjectStoreSpec represent the spec of a pool
+// +kubebuilder:validation:XValidation:rule="!(has(self.defaultRealm) && self.defaultRealm == true && has(self.zone) && size(self.zone.name) > 0)",message="defaultRealm must not be true when zone.name is set (multisite configuration)"
 type ObjectStoreSpec struct {
 	// The metadata pool settings
 	// +optional
@@ -1712,6 +1738,13 @@ type ObjectStoreSpec struct {
 	// +nullable
 	// +optional
 	Hosting *ObjectStoreHostingSpec `json:"hosting,omitempty"`
+
+	// Set this realm as the default in Ceph. Only one realm should be default.
+	// Do not set this true on more than one CephObjectStore.
+	// This may not be set when zone is also specified; in this case, the realm
+	// referenced by the zone's zonegroup should configure defaulting behavior.
+	// +optional
+	DefaultRealm bool `json:"defaultRealm,omitempty"`
 }
 
 // ObjectSharedPoolsSpec represents object store pool info when configuring RADOS namespaces in existing pools.
@@ -2336,6 +2369,10 @@ type CephObjectRealmList struct {
 // ObjectRealmSpec represent the spec of an ObjectRealm
 type ObjectRealmSpec struct {
 	Pull PullSpec `json:"pull,omitempty"`
+
+	// Set this realm as the default in Ceph. Only one realm should be default.
+	// +optional
+	DefaultRealm bool `json:"defaultRealm,omitempty"`
 }
 
 // PullSpec represents the pulling specification of a Ceph Object Storage Gateway Realm
@@ -2667,7 +2704,13 @@ type CephNFS struct {
 	Spec              NFSGaneshaSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	Status *Status `json:"status,omitempty"`
+	Status *NFSStatus `json:"status,omitempty"`
+}
+
+// NFSStatus represents the status of Ceph NFS
+type NFSStatus struct {
+	Status `json:",inline"`
+	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
 }
 
 // CephNFSList represents a list Ceph NFSes
@@ -3227,7 +3270,13 @@ type CephRBDMirror struct {
 	Spec              RBDMirroringSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	Status *Status `json:"status,omitempty"`
+	Status *RBDMirrorStatus `json:"status,omitempty"`
+}
+
+// RBDMirrorStatus represents the status of the RBD mirror resource
+type RBDMirrorStatus struct {
+	Status `json:",inline"`
+	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
 }
 
 // CephRBDMirrorList represents a list Ceph RBD Mirrors
@@ -3299,7 +3348,13 @@ type CephFilesystemMirror struct {
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              FilesystemMirroringSpec `json:"spec"`
 	// +optional
-	Status *Status `json:"status,omitempty"`
+	Status *FileMirrorStatus `json:"status,omitempty"`
+}
+
+// FileMirrorStatus represents the status of the FileSystem mirror resource
+type FileMirrorStatus struct {
+	Status `json:",inline"`
+	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

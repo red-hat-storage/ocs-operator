@@ -750,6 +750,7 @@ spec:
                           enableCrushUpdates:
                             description: Allow rook operator to change the pool CRUSH
                               tunables once the pool is created
+                            nullable: true
                             type: boolean
                           enableRBDStats:
                             description: EnableRBDStats is used to enable gathering
@@ -759,7 +760,12 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: The algorithm for erasure coding
+                                description: |-
+                                  The algorithm for erasure coding.
+                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                                enum:
+                                - isa
+                                - jerasure
                                 type: string
                               codingChunks:
                                 description: |-
@@ -1534,6 +1540,7 @@ spec:
                             enableCrushUpdates:
                               description: Allow rook operator to change the pool
                                 CRUSH tunables once the pool is created
+                              nullable: true
                               type: boolean
                             enableRBDStats:
                               description: EnableRBDStats is used to enable gathering
@@ -1543,7 +1550,12 @@ spec:
                               description: The erasure code settings
                               properties:
                                 algorithm:
-                                  description: The algorithm for erasure coding
+                                  description: |-
+                                    The algorithm for erasure coding.
+                                    If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                                  enum:
+                                  - isa
+                                  - jerasure
                                   type: string
                                 codingChunks:
                                   description: |-
@@ -1756,6 +1768,7 @@ spec:
                           enableCrushUpdates:
                             description: Allow rook operator to change the pool CRUSH
                               tunables once the pool is created
+                            nullable: true
                             type: boolean
                           enableRBDStats:
                             description: EnableRBDStats is used to enable gathering
@@ -1765,7 +1778,12 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: The algorithm for erasure coding
+                                description: |-
+                                  The algorithm for erasure coding.
+                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                                enum:
+                                - isa
+                                - jerasure
                                 type: string
                               codingChunks:
                                 description: |-
@@ -1973,6 +1991,7 @@ spec:
                           enableCrushUpdates:
                             description: Allow rook operator to change the pool CRUSH
                               tunables once the pool is created
+                            nullable: true
                             type: boolean
                           enableRBDStats:
                             description: EnableRBDStats is used to enable gathering
@@ -1982,7 +2001,12 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: The algorithm for erasure coding
+                                description: |-
+                                  The algorithm for erasure coding.
+                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                                enum:
+                                - isa
+                                - jerasure
                                 type: string
                               codingChunks:
                                 description: |-
@@ -2735,6 +2759,7 @@ spec:
                           enableCrushUpdates:
                             description: Allow rook operator to change the pool CRUSH
                               tunables once the pool is created
+                            nullable: true
                             type: boolean
                           enableRBDStats:
                             description: EnableRBDStats is used to enable gathering
@@ -2744,7 +2769,12 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: The algorithm for erasure coding
+                                description: |-
+                                  The algorithm for erasure coding.
+                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                                enum:
+                                - isa
+                                - jerasure
                                 type: string
                               codingChunks:
                                 description: |-
@@ -2958,6 +2988,7 @@ spec:
                           enableCrushUpdates:
                             description: Allow rook operator to change the pool CRUSH
                               tunables once the pool is created
+                            nullable: true
                             type: boolean
                           enableRBDStats:
                             description: EnableRBDStats is used to enable gathering
@@ -2967,7 +2998,12 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: The algorithm for erasure coding
+                                description: |-
+                                  The algorithm for erasure coding.
+                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+                                enum:
+                                - isa
+                                - jerasure
                                 type: string
                               codingChunks:
                                 description: |-

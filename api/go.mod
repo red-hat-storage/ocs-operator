@@ -8,7 +8,7 @@ require (
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20250728100218-5f4046180bd7
 	github.com/openshift/api v0.0.0-20250731015415-ed654edbd7c6
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
-	github.com/rook/rook/pkg/apis v0.0.0-20250731081113-fd2b4333e8b5
+	github.com/rook/rook/pkg/apis v0.0.0-20250915194743-ccbac6de987f
 	k8s.io/api v0.33.3
 	k8s.io/apimachinery v0.33.3
 )

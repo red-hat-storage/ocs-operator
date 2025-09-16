@@ -10,6 +10,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -64,7 +65,7 @@ func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr 
 		Spec: cephv1.NamedBlockPoolSpec{
 			PoolSpec: cephv1.PoolSpec{
 				DeviceClass:        cr.Status.DefaultCephDeviceClass,
-				EnableCrushUpdates: true,
+				EnableCrushUpdates: ptr.To(true),
 				FailureDomain:      getFailureDomain(cr),
 				Replicated:         generateCephReplicatedSpec(cr, poolTypeData),
 				EnableRBDStats:     true,
@@ -111,7 +112,7 @@ func assertCephNFSBlockPool(t *testing.T, reconciler StorageClusterReconciler, c
 		Spec: cephv1.NamedBlockPoolSpec{
 			PoolSpec: cephv1.PoolSpec{
 				DeviceClass:        cr.Status.DefaultCephDeviceClass,
-				EnableCrushUpdates: true,
+				EnableCrushUpdates: ptr.To(true),
 				FailureDomain:      getFailureDomain(cr),
 				Replicated:         generateCephReplicatedSpec(cr, poolTypeMetadata),
 				EnableRBDStats:     true,
