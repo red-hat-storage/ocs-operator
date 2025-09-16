@@ -44,9 +44,6 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 				// set PriorityClassName for the MDS pods
 				PriorityClassName: systemClusterCritical,
 				Labels:            cephv1.Labels{defaults.ODFResourceProfileKey: initStorageCluster.Spec.ResourceProfile},
-				LivenessProbe: &cephv1.ProbeSpec{
-					Disabled: true,
-				},
 			},
 		},
 	}
