@@ -66,8 +66,8 @@ var (
 		},
 		"ocs-metrics-exporter": {
 			Requests: corev1.ResourceList{
-				"memory": resource.MustParse("512Mi"),
-				"cpu":    resource.MustParse("250m"),
+				"memory": resource.MustParse("250Mi"),
+				"cpu":    resource.MustParse("100m"),
 			},
 			Limits: corev1.ResourceList{
 				"memory": resource.MustParse("1.5Gi"),
