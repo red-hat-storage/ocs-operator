@@ -25,20 +25,28 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	if component == "osd" || component == "prepareosd" {
 		specified = false
 	}
+
+	// In noobaa-standalone mode or external mode the default ocs labels are not added to the nodes
+	// so we should not add the default ocs node affinity for these modes
+	if (sc.Spec.MultiCloudGateway != nil && ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy) == ReconcileStrategyStandalone) ||
+		sc.Spec.ExternalStorage.Enable {
+		defaultPlacement.NodeAffinity = nil
+	}
+
+	// If the StorageCluster specifies a label selector, use it & do not use the default node affinity
+	if sc.Spec.LabelSelector != nil {
+		defaultPlacement.NodeAffinity = nil
+		reqs := convertLabelToNodeSelectorRequirements(*sc.Spec.LabelSelector)
+		if len(reqs) != 0 {
+			appendNodeRequirements(&defaultPlacement, reqs...)
+		}
+	}
+
 	// If some placement is specified, merge it with the default placement
 	if specified {
 		placement = mergePlacements(defaultPlacement, specifiedPlacement)
 	} else {
 		placement = defaultPlacement
-	}
-
-	// If the StorageCluster specifies a label selector, append it to the
-	// node affinity, creating it if it doesn't exist.
-	if sc.Spec.LabelSelector != nil {
-		reqs := convertLabelToNodeSelectorRequirements(*sc.Spec.LabelSelector)
-		if len(reqs) != 0 {
-			appendNodeRequirements(&placement, reqs...)
-		}
 	}
 
 	if component == "arbiter" && !sc.Spec.Arbiter.DisableMasterNodeToleration {
