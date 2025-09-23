@@ -84,7 +84,6 @@ func NewDefaultRbdStorageClass(
 	storageId string,
 	isDefaultStorageClass bool,
 ) *storagev1.StorageClass {
-
 	sc := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
@@ -102,12 +101,14 @@ func NewDefaultRbdStorageClass(
 			"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 			"csi.storage.k8s.io/fstype": "ext4",
 			"imageFormat":               "2",
-			"csi.storage.k8s.io/provisioner-secret-name":            provisionerSecret,
-			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
-			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
-			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
-			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
-			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+			"csi.storage.k8s.io/provisioner-secret-name":             provisionerSecret,
+			"csi.storage.k8s.io/node-stage-secret-name":              nodeSecret,
+			"csi.storage.k8s.io/controller-expand-secret-name":       provisionerSecret,
+			"csi.storage.k8s.io/provisioner-secret-namespace":        namespace,
+			"csi.storage.k8s.io/node-stage-secret-namespace":         namespace,
+			"csi.storage.k8s.io/controller-expand-secret-namespace":  namespace,
+			"csi.storage.k8s.io/controller-publish-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/controller-publish-secret-namespace": namespace,
 		},
 	}
 
@@ -129,7 +130,6 @@ func NewDefaultVirtRbdStorageClass(
 	storageId string,
 	isDefaultVirtStorageClass bool,
 ) *storagev1.StorageClass {
-
 	sc := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
@@ -149,12 +149,14 @@ func NewDefaultVirtRbdStorageClass(
 			"imageFormat":               "2",
 			"mounter":                   "rbd",
 			"mapOptions":                "krbd:rxbounce",
-			"csi.storage.k8s.io/provisioner-secret-name":            provisionerSecret,
-			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
-			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
-			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
-			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
-			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+			"csi.storage.k8s.io/provisioner-secret-name":             provisionerSecret,
+			"csi.storage.k8s.io/node-stage-secret-name":              nodeSecret,
+			"csi.storage.k8s.io/controller-expand-secret-name":       provisionerSecret,
+			"csi.storage.k8s.io/provisioner-secret-namespace":        namespace,
+			"csi.storage.k8s.io/node-stage-secret-namespace":         namespace,
+			"csi.storage.k8s.io/controller-expand-secret-namespace":  namespace,
+			"csi.storage.k8s.io/controller-publish-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/controller-publish-secret-namespace": namespace,
 		},
 	}
 
@@ -177,7 +179,6 @@ func NewDefaultEncryptedRbdStorageClass(
 	encryptionServiceName string,
 	KeyRotationAnnotationValue string,
 ) *storagev1.StorageClass {
-
 	sc := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
@@ -199,12 +200,14 @@ func NewDefaultEncryptedRbdStorageClass(
 			"imageFormat":               "2",
 			"encrypted":                 "true",
 			"encryptionKMSID":           encryptionServiceName,
-			"csi.storage.k8s.io/provisioner-secret-name":            provisionerSecret,
-			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
-			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
-			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
-			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
-			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+			"csi.storage.k8s.io/provisioner-secret-name":             provisionerSecret,
+			"csi.storage.k8s.io/node-stage-secret-name":              nodeSecret,
+			"csi.storage.k8s.io/controller-expand-secret-name":       provisionerSecret,
+			"csi.storage.k8s.io/provisioner-secret-namespace":        namespace,
+			"csi.storage.k8s.io/node-stage-secret-namespace":         namespace,
+			"csi.storage.k8s.io/controller-expand-secret-namespace":  namespace,
+			"csi.storage.k8s.io/controller-publish-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/controller-publish-secret-namespace": namespace,
 		},
 	}
 	if KeyRotationAnnotationValue != "" {
@@ -221,7 +224,6 @@ func NewDefaultNonResilientRbdStorageClass(
 	namespace,
 	storageId string,
 ) *storagev1.StorageClass {
-
 	sc := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
@@ -240,12 +242,14 @@ func NewDefaultNonResilientRbdStorageClass(
 			"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 			"csi.storage.k8s.io/fstype": "ext4",
 			"imageFormat":               "2",
-			"csi.storage.k8s.io/provisioner-secret-name":            provisionerSecret,
-			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
-			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
-			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
-			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
-			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+			"csi.storage.k8s.io/provisioner-secret-name":             provisionerSecret,
+			"csi.storage.k8s.io/node-stage-secret-name":              nodeSecret,
+			"csi.storage.k8s.io/controller-expand-secret-name":       provisionerSecret,
+			"csi.storage.k8s.io/provisioner-secret-namespace":        namespace,
+			"csi.storage.k8s.io/node-stage-secret-namespace":         namespace,
+			"csi.storage.k8s.io/controller-expand-secret-namespace":  namespace,
+			"csi.storage.k8s.io/controller-publish-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/controller-publish-secret-namespace": namespace,
 		},
 	}
 	if storageId != "" {
@@ -262,7 +266,6 @@ func NewDefaultCephFsStorageClass(
 	namespace,
 	storageId string,
 ) *storagev1.StorageClass {
-
 	sc := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
@@ -276,12 +279,14 @@ func NewDefaultCephFsStorageClass(
 		Parameters: map[string]string{
 			"clusterID": clusterID,
 			"fsName":    fsName,
-			"csi.storage.k8s.io/provisioner-secret-name":            provisionerSecret,
-			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
-			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
-			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
-			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
-			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+			"csi.storage.k8s.io/provisioner-secret-name":             provisionerSecret,
+			"csi.storage.k8s.io/node-stage-secret-name":              nodeSecret,
+			"csi.storage.k8s.io/controller-expand-secret-name":       provisionerSecret,
+			"csi.storage.k8s.io/provisioner-secret-namespace":        namespace,
+			"csi.storage.k8s.io/node-stage-secret-namespace":         namespace,
+			"csi.storage.k8s.io/controller-expand-secret-namespace":  namespace,
+			"csi.storage.k8s.io/controller-publish-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/controller-publish-secret-namespace": namespace,
 		},
 	}
 
@@ -400,6 +405,8 @@ func StorageClassFromExisting(
 	params["csi.storage.k8s.io/node-stage-secret-namespace"] = operatorNamespace
 	params["csi.storage.k8s.io/controller-expand-secret-name"] = provisionerSecretName
 	params["csi.storage.k8s.io/controller-expand-secret-namespace"] = operatorNamespace
+	params["csi.storage.k8s.io/controller-publish-secret-name"] = provisionerSecretName
+	params["csi.storage.k8s.io/controller-publish-secret-namespace"] = operatorNamespace
 	AddLabel(storageClass, storageIdLabelKey, storageId)
 	return storageClass, nil
 }
