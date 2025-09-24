@@ -168,8 +168,20 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		klog.Errorf("failed to get storageconsumer referred by the supplied token: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to get storageconsumer. %v", err)
 	} else if storageConsumer.Spec.Enable {
+		if storageConsumer.Status.Client != nil && storageConsumer.Status.Client.ID == req.ClientID {
+			fillStorageClientInfo(&storageConsumer.Status, req)
+			if err := s.client.Status().Update(ctx, storageConsumer); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to update storageconsumer status: %v", err)
+			}
+			return &pb.OnboardConsumerResponse{StorageConsumerUUID: string(storageConsumer.UID)}, nil
+		}
 		klog.Errorf("storageconsumer is already enabled %s", storageConsumer.Name)
 		return nil, status.Errorf(codes.InvalidArgument, "refusing to onboard onto storageconsumer with supplied token")
+	}
+
+	if err := checkTicketExpiration(onboardingTicket); err != nil {
+		klog.Errorf("onboarding ticket expired for consumer %q. %v", req.ConsumerName, err)
+		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is expired. %v", err)
 	}
 
 	onboardingSecret := &corev1.Secret{}
@@ -184,7 +196,7 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.InvalidArgument, "supplied onboarding ticket does not match mapped secret")
 	}
 
-	storageConsumerUUID, err := s.consumerManager.EnableStorageConsumer(ctx, storageConsumer)
+	storageConsumerUUID, err := s.consumerManager.EnableStorageConsumer(ctx, storageConsumer, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to onboard on storageConsumer resource. %v", err)
 	}
@@ -585,13 +597,16 @@ func decodeAndValidateTicket(ticket string, pubKey *rsa.PublicKey) (*services.On
 		return nil, fmt.Errorf("failed to verify onboarding ticket signature. %v", err)
 	}
 
-	if ticketData.ExpirationDate < time.Now().Unix() {
-		return nil, fmt.Errorf("onboarding ticket %s is expired", ticketData.ID)
-	}
-
 	klog.Infof("onboarding ticket %s has been verified successfully", ticketData.ID)
-
 	return &ticketData, nil
+}
+
+func checkTicketExpiration(ticketData *services.OnboardingTicket) error {
+	if ticketData.ExpirationDate < time.Now().Unix() {
+		return fmt.Errorf("onboarding ticket %s is expired", ticketData.ID)
+	}
+	klog.Infof("onboarding ticket for %s is valid", ticketData.ID)
+	return nil
 }
 
 // FulfillStorageClaim RPC call to create the StorageClaim CR on
@@ -884,8 +899,13 @@ func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.Peer
 
 	onboardingToken, err := decodeAndValidateTicket(req.OnboardingToken, pubKey)
 	if err != nil {
-		klog.Errorf("Invalid onboarding token. %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, "invalid onboarding ticket")
+		klog.Errorf("failed to validate onboarding ticket signature for %q. %v", req.StorageClusterUID, err)
+		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket signature is not valid. %v", err)
+	}
+
+	if err := checkTicketExpiration(onboardingToken); err != nil {
+		klog.Errorf("onboarding ticket expired for %q. %v", req.StorageClusterUID, err)
+		return nil, status.Errorf(codes.InvalidArgument, "onboarding ticket is expired. %v", err)
 	}
 
 	if onboardingToken.SubjectRole != services.PeerRole {
