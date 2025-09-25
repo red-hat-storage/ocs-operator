@@ -7,10 +7,10 @@ import (
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	providerClient "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/client"
 	"github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -19,7 +19,6 @@ func createTestConsumerManager(client client.Client) *ocsConsumerManager {
 	return &ocsConsumerManager{
 		client:    client,
 		namespace: testNamespace,
-		nameByUID: make(map[types.UID]string),
 	}
 }
 
@@ -180,7 +179,6 @@ func TestGet(t *testing.T) {
 		name         string
 		consumerID   string
 		existingObjs []client.Object
-		setupFunc    func(*ocsConsumerManager)
 		expectError  bool
 		expectedName string
 	}{
@@ -196,15 +194,12 @@ func TestGet(t *testing.T) {
 					},
 				},
 			},
-			setupFunc: func(testConsumerManager *ocsConsumerManager) {
-				testConsumerManager.nameByUID[types.UID("test-uid-123")] = "test-consumer"
-			},
 			expectError:  false,
 			expectedName: "test-consumer",
 		},
 		{
-			name:       "consumer not found in cache",
-			consumerID: "test-uid-123",
+			name:       "consumer with different UID",
+			consumerID: "test-uid-456",
 			existingObjs: []client.Object{
 				&ocsv1a1.StorageConsumer{
 					ObjectMeta: metav1.ObjectMeta{
@@ -214,40 +209,19 @@ func TestGet(t *testing.T) {
 					},
 				},
 			},
-			setupFunc:   nil,
 			expectError: true,
 		},
 		{
 			name:         "consumer not found in cluster",
 			consumerID:   "non-existing-uid",
 			existingObjs: []client.Object{},
-			setupFunc: func(testConsumerManager *ocsConsumerManager) {
-				testConsumerManager.nameByUID[types.UID("non-existing-uid")] = "non-existing-consumer"
-			},
-			expectError: true,
+			expectError:  true,
 		},
 		{
 			name:         "empty consumer ID",
 			consumerID:   "",
 			existingObjs: []client.Object{},
 			expectError:  true,
-		},
-		{
-			name:       "consumer name in cache but UID mismatch",
-			consumerID: "test-uid-123",
-			existingObjs: []client.Object{
-				&ocsv1a1.StorageConsumer{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-consumer",
-						Namespace: testNamespace,
-						UID:       "different-uid",
-					},
-				},
-			},
-			setupFunc: func(testConsumerManager *ocsConsumerManager) {
-				testConsumerManager.nameByUID[types.UID("test-uid-123")] = "test-consumer"
-			},
-			expectError: true,
 		},
 	}
 
@@ -256,12 +230,12 @@ func TestGet(t *testing.T) {
 			scheme, err := newScheme()
 			assert.NoError(t, err)
 
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.existingObjs...).Build()
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.existingObjs...).
+				WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
+				Build()
 			testConsumerManager := createTestConsumerManager(fakeClient)
-
-			if tt.setupFunc != nil {
-				tt.setupFunc(testConsumerManager)
-			}
 
 			result, err := testConsumerManager.Get(context.TODO(), tt.consumerID)
 
@@ -282,7 +256,6 @@ func TestUpdateConsumerStatus(t *testing.T) {
 		name         string
 		consumerID   string
 		existingObjs []client.Object
-		setupFunc    func(*ocsConsumerManager)
 		status       interfaces.StorageClientStatus
 		expectError  bool
 	}{
@@ -297,9 +270,6 @@ func TestUpdateConsumerStatus(t *testing.T) {
 						UID:       "test-uid-123",
 					},
 				},
-			},
-			setupFunc: func(testConsumerManager *ocsConsumerManager) {
-				testConsumerManager.nameByUID[types.UID("test-uid-123")] = "test-consumer"
 			},
 
 			status: func() interfaces.StorageClientStatus {
@@ -320,7 +290,6 @@ func TestUpdateConsumerStatus(t *testing.T) {
 			name:         "consumer not found",
 			consumerID:   "non-existing-uid",
 			existingObjs: []client.Object{},
-			setupFunc:    nil,
 			status:       nil,
 			expectError:  true,
 		},
@@ -335,12 +304,9 @@ func TestUpdateConsumerStatus(t *testing.T) {
 				WithScheme(scheme).
 				WithStatusSubresource(&ocsv1a1.StorageConsumer{}).
 				WithObjects(tt.existingObjs...).
+				WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
 				Build()
 			testConsumerManager := createTestConsumerManager(fakeClient)
-
-			if tt.setupFunc != nil {
-				tt.setupFunc(testConsumerManager)
-			}
 
 			err = testConsumerManager.UpdateConsumerStatus(context.TODO(), tt.consumerID, tt.status)
 
@@ -358,7 +324,6 @@ func TestAddAnnotation(t *testing.T) {
 		name         string
 		consumerID   string
 		existingObjs []client.Object
-		setupFunc    func(*ocsConsumerManager)
 		key          string
 		value        string
 		expectError  bool
@@ -375,9 +340,6 @@ func TestAddAnnotation(t *testing.T) {
 					},
 				},
 			},
-			setupFunc: func(testConsumerManager *ocsConsumerManager) {
-				testConsumerManager.nameByUID[types.UID("test-uid-123")] = "test-consumer"
-			},
 			key:         "test-key",
 			value:       "test-value",
 			expectError: false,
@@ -386,7 +348,6 @@ func TestAddAnnotation(t *testing.T) {
 			name:         "consumer not found",
 			consumerID:   "non-existing-uid",
 			existingObjs: []client.Object{},
-			setupFunc:    nil,
 			key:          "test-key",
 			value:        "test-value",
 			expectError:  true,
@@ -406,9 +367,6 @@ func TestAddAnnotation(t *testing.T) {
 					},
 				},
 			},
-			setupFunc: func(testConsumerManager *ocsConsumerManager) {
-				testConsumerManager.nameByUID[types.UID("test-uid-123")] = "test-consumer"
-			},
 			key:         "existing-key",
 			value:       "new-value",
 			expectError: false,
@@ -420,12 +378,12 @@ func TestAddAnnotation(t *testing.T) {
 			scheme, err := newScheme()
 			assert.NoError(t, err)
 
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.existingObjs...).Build()
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.existingObjs...).
+				WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
+				Build()
 			testConsumerManager := createTestConsumerManager(fakeClient)
-
-			if tt.setupFunc != nil {
-				tt.setupFunc(testConsumerManager)
-			}
 
 			err = testConsumerManager.AddAnnotation(context.TODO(), tt.consumerID, tt.key, tt.value)
 
@@ -449,7 +407,6 @@ func TestRemoveAnnotation(t *testing.T) {
 		name         string
 		consumerID   string
 		existingObjs []client.Object
-		setupFunc    func(*ocsConsumerManager)
 		key          string
 		expectError  bool
 	}{
@@ -468,9 +425,6 @@ func TestRemoveAnnotation(t *testing.T) {
 						},
 					},
 				},
-			},
-			setupFunc: func(testConsumerManager *ocsConsumerManager) {
-				testConsumerManager.nameByUID[types.UID("test-uid-123")] = "test-consumer"
 			},
 			key:         "test-key",
 			expectError: false,
@@ -491,9 +445,6 @@ func TestRemoveAnnotation(t *testing.T) {
 					},
 				},
 			},
-			setupFunc: func(testConsumerManager *ocsConsumerManager) {
-				testConsumerManager.nameByUID[types.UID("test-uid-123")] = "test-consumer"
-			},
 			key:         "non-existing-key",
 			expectError: false,
 		},
@@ -501,7 +452,6 @@ func TestRemoveAnnotation(t *testing.T) {
 			name:         "consumer not found",
 			consumerID:   "non-existing-uid",
 			existingObjs: []client.Object{},
-			setupFunc:    nil,
 			key:          "test-key",
 			expectError:  true,
 		},
@@ -512,12 +462,12 @@ func TestRemoveAnnotation(t *testing.T) {
 			scheme, err := newScheme()
 			assert.NoError(t, err)
 
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.existingObjs...).Build()
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.existingObjs...).
+				WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
+				Build()
 			testConsumerManager := createTestConsumerManager(fakeClient)
-
-			if tt.setupFunc != nil {
-				tt.setupFunc(testConsumerManager)
-			}
 
 			err = testConsumerManager.RemoveAnnotation(context.TODO(), tt.consumerID, tt.key)
 
@@ -654,23 +604,18 @@ func TestClearClientInformation(t *testing.T) {
 		name         string
 		consumerID   string
 		existingObjs []client.Object
-		setupFunc    func(*ocsConsumerManager)
 		expectError  bool
 	}{
 		{
 			name:         "successful clear client information",
 			consumerID:   "test-uid-123",
 			existingObjs: []client.Object{consumer},
-			setupFunc: func(testConsumerManager *ocsConsumerManager) {
-				testConsumerManager.nameByUID[types.UID("test-uid-123")] = "test-consumer"
-			},
-			expectError: false,
+			expectError:  false,
 		},
 		{
 			name:         "consumer not found",
 			consumerID:   "non-existing-uid",
 			existingObjs: []client.Object{},
-			setupFunc:    nil,
 			expectError:  true,
 		},
 	}
@@ -684,12 +629,9 @@ func TestClearClientInformation(t *testing.T) {
 				WithScheme(scheme).
 				WithStatusSubresource(&ocsv1a1.StorageConsumer{}).
 				WithObjects(tt.existingObjs...).
+				WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
 				Build()
 			testConsumerManager := createTestConsumerManager(fakeClient)
-
-			if tt.setupFunc != nil {
-				tt.setupFunc(testConsumerManager)
-			}
 
 			err = testConsumerManager.ClearClientInformation(context.TODO(), tt.consumerID)
 
