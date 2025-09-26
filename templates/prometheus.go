@@ -11,8 +11,12 @@ import (
 )
 
 var ruleSelector = metav1.LabelSelector{
-	MatchLabels: map[string]string{
-		"prometheus": "rook-prometheus",
+	MatchExpressions: []metav1.LabelSelectorRequirement{
+		{
+			Key:      "prometheus",
+			Operator: metav1.LabelSelectorOpIn,
+			Values:   []string{"rook-prometheus", "ocs-prometheus"},
+		},
 	},
 }
 
