@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -81,7 +82,8 @@ func NewDefaultRbdStorageClass(
 	provisionerSecret,
 	nodeSecret,
 	namespace,
-	storageId string,
+	storageId,
+	remoteRbdStorageId string,
 	isDefaultStorageClass bool,
 ) *storagev1.StorageClass {
 
@@ -117,6 +119,22 @@ func NewDefaultRbdStorageClass(
 	if storageId != "" {
 		AddLabel(sc, storageIdLabelKey, storageId)
 	}
+
+	if storageId != "" && remoteRbdStorageId != "" {
+		poolName := sc.Parameters["pool"]
+		replicationID := ""
+		groupReplicationID := ""
+		if strings.Compare(storageId, remoteRbdStorageId) <= 0 {
+			replicationID = CalculateMD5Hash([]string{storageId, remoteRbdStorageId})
+			groupReplicationID = CalculateMD5Hash([]string{storageId, remoteRbdStorageId, poolName})
+		} else {
+			replicationID = CalculateMD5Hash([]string{remoteRbdStorageId, storageId})
+			groupReplicationID = CalculateMD5Hash([]string{remoteRbdStorageId, storageId, poolName})
+		}
+		AddLabel(sc, ramenDRReplicationIDLabelKey, replicationID)
+		AddLabel(sc, ramenDRGroupReplicationIDLabelKey, groupReplicationID)
+	}
+
 	return sc
 }
 
@@ -126,7 +144,8 @@ func NewDefaultVirtRbdStorageClass(
 	provisionerSecret,
 	nodeSecret,
 	namespace,
-	storageId string,
+	storageId,
+	remoteRbdStorageId string,
 	isDefaultVirtStorageClass bool,
 ) *storagev1.StorageClass {
 
@@ -164,6 +183,21 @@ func NewDefaultVirtRbdStorageClass(
 
 	if storageId != "" {
 		AddLabel(sc, storageIdLabelKey, storageId)
+	}
+
+	if storageId != "" && remoteRbdStorageId != "" {
+		poolName := sc.Parameters["pool"]
+		replicationID := ""
+		groupReplicationID := ""
+		if strings.Compare(storageId, remoteRbdStorageId) <= 0 {
+			replicationID = CalculateMD5Hash([]string{storageId, remoteRbdStorageId})
+			groupReplicationID = CalculateMD5Hash([]string{storageId, remoteRbdStorageId, poolName})
+		} else {
+			replicationID = CalculateMD5Hash([]string{remoteRbdStorageId, storageId})
+			groupReplicationID = CalculateMD5Hash([]string{remoteRbdStorageId, storageId, poolName})
+		}
+		AddLabel(sc, ramenDRReplicationIDLabelKey, replicationID)
+		AddLabel(sc, ramenDRGroupReplicationIDLabelKey, groupReplicationID)
 	}
 	return sc
 }
@@ -220,6 +254,7 @@ func NewDefaultNonResilientRbdStorageClass(
 	nodeSecret,
 	namespace,
 	storageId string,
+	remoteRbdStorageId string,
 ) *storagev1.StorageClass {
 
 	sc := &storagev1.StorageClass{
@@ -250,6 +285,20 @@ func NewDefaultNonResilientRbdStorageClass(
 	}
 	if storageId != "" {
 		AddLabel(sc, storageIdLabelKey, storageId)
+	}
+	if storageId != "" && remoteRbdStorageId != "" {
+		poolName := sc.Parameters["pool"]
+		replicationID := ""
+		groupReplicationID := ""
+		if strings.Compare(storageId, remoteRbdStorageId) <= 0 {
+			replicationID = CalculateMD5Hash([]string{storageId, remoteRbdStorageId})
+			groupReplicationID = CalculateMD5Hash([]string{storageId, remoteRbdStorageId, poolName})
+		} else {
+			replicationID = CalculateMD5Hash([]string{remoteRbdStorageId, storageId})
+			groupReplicationID = CalculateMD5Hash([]string{remoteRbdStorageId, storageId, poolName})
+		}
+		AddLabel(sc, ramenDRReplicationIDLabelKey, replicationID)
+		AddLabel(sc, ramenDRGroupReplicationIDLabelKey, groupReplicationID)
 	}
 	return sc
 }
@@ -356,7 +405,8 @@ func StorageClassFromExisting(
 	consumerConfig StorageConsumerResources,
 	rbdStorageId,
 	cephFsStorageId,
-	nfsStorageId string,
+	nfsStorageId,
+	remoteRbdStorageId string,
 ) (*storagev1.StorageClass, error) {
 	storageClass := &storagev1.StorageClass{}
 	storageClass.Name = storageClassName
@@ -367,6 +417,8 @@ func StorageClassFromExisting(
 	provisionerSecretName := ""
 	nodeSecretName := ""
 	storageId := ""
+	replicationID := ""
+	groupReplicationID := ""
 	operatorNamespace := consumer.Status.Client.OperatorNamespace
 	switch storageClass.Provisioner {
 	case RbdDriverName:
@@ -374,6 +426,18 @@ func StorageClassFromExisting(
 		provisionerSecretName = consumerConfig.GetCsiRbdProvisionerCephUserName()
 		nodeSecretName = consumerConfig.GetCsiRbdNodeCephUserName()
 		storageId = rbdStorageId
+
+		if remoteRbdStorageId != "" {
+			poolName := storageClass.Parameters["pool"]
+			if strings.Compare(storageId, remoteRbdStorageId) <= 0 {
+				replicationID = CalculateMD5Hash([]string{storageId, remoteRbdStorageId})
+				groupReplicationID = CalculateMD5Hash([]string{storageId, remoteRbdStorageId, poolName})
+			} else {
+				replicationID = CalculateMD5Hash([]string{remoteRbdStorageId, storageId})
+				groupReplicationID = CalculateMD5Hash([]string{remoteRbdStorageId, storageId, poolName})
+			}
+		}
+
 	case CephFSDriverName:
 		clientProfileName = consumerConfig.GetCephFsClientProfileName()
 		provisionerSecretName = consumerConfig.GetCsiCephFsProvisionerCephUserName()
@@ -400,6 +464,12 @@ func StorageClassFromExisting(
 	params["csi.storage.k8s.io/node-stage-secret-namespace"] = operatorNamespace
 	params["csi.storage.k8s.io/controller-expand-secret-name"] = provisionerSecretName
 	params["csi.storage.k8s.io/controller-expand-secret-namespace"] = operatorNamespace
-	AddLabel(storageClass, storageIdLabelKey, storageId)
+	AddLabel(storageClass, ramenDRStorageIDLabelKey, storageId)
+	if replicationID != "" {
+		AddLabel(storageClass, ramenDRReplicationIDLabelKey, replicationID)
+	}
+	if groupReplicationID != "" {
+		AddLabel(storageClass, ramenDRGroupReplicationIDLabelKey, groupReplicationID)
+	}
 	return storageClass, nil
 }
