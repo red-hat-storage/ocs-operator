@@ -5,6 +5,7 @@ import (
 
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -55,6 +56,7 @@ func (obj *rookCephCsvHostNetwork) ensureCreated(r *StorageClusterReconciler, in
 			}
 			// Enable host network for rook-ceph-operator
 			deployment.Spec.Template.Spec.HostNetwork = shouldUseHostNetworking(instance)
+			deployment.Spec.Template.Spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
 			if err := r.Client.Update(r.ctx, rookCSV); err != nil {
 				r.Log.Error(err, "Failed to update rook-ceph-operator CSV.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 				return reconcile.Result{}, err
