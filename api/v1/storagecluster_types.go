@@ -17,14 +17,12 @@ limitations under the License.
 package v1
 
 import (
-	"os"
 	"time"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -705,97 +703,4 @@ type OverprovisionControlSpec struct {
 	QuotaName        string                               `json:"quotaName,omitempty"`
 	Capacity         resource.Quantity                    `json:"capacity,omitempty"`
 	Selector         quotav1.ClusterResourceQuotaSelector `json:"selector,omitempty"`
-}
-
-func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration, nodeAffinity *corev1.NodeAffinity) *appsv1.Deployment {
-
-	var replicaOne int32 = 1
-
-	name := "rook-ceph-tools"
-	namespace := r.ObjectMeta.Namespace
-	rookImage := os.Getenv("ROOK_CEPH_IMAGE")
-	runAsNonRoot := true
-	var runAsUser, runAsGroup int64 = 2016, 2016
-	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicaOne,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": "rook-ceph-tools",
-				},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app": "rook-ceph-tools",
-					},
-				},
-				Spec: corev1.PodSpec{
-					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
-					ServiceAccountName: "rook-ceph-default",
-					Containers: []corev1.Container{
-						{
-							Name:    name,
-							Image:   rookImage,
-							Command: []string{"/bin/bash"},
-							Args: []string{
-								"-m",
-								"-c",
-								"/usr/local/bin/toolbox.sh",
-							},
-							TTY: true,
-							Env: []corev1.EnvVar{
-								{
-									Name: "ROOK_CEPH_USERNAME",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
-											Key:                  "ceph-username",
-										},
-									},
-								},
-								{
-									Name: "ROOK_CEPH_SECRET",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
-											Key:                  "ceph-secret",
-										},
-									},
-								},
-							},
-							SecurityContext: &corev1.SecurityContext{
-								RunAsNonRoot: &runAsNonRoot,
-								RunAsUser:    &runAsUser,
-								RunAsGroup:   &runAsGroup,
-							},
-							VolumeMounts: []corev1.VolumeMount{
-								{Name: "ceph-config", MountPath: "/etc/ceph"},
-								{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
-							},
-						},
-					},
-					Tolerations: tolerations,
-					Affinity: &corev1.Affinity{
-						NodeAffinity: nodeAffinity,
-					},
-					Volumes: []corev1.Volume{
-						{Name: "ceph-config", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
-						{Name: "mon-endpoint-volume", VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon-endpoints"},
-								Items: []corev1.KeyToPath{
-									{Key: "data", Path: "mon-endpoints"},
-								},
-							},
-						},
-						},
-					},
-				},
-			},
-		},
-	}
 }
