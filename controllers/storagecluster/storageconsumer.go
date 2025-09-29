@@ -12,6 +12,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -58,6 +59,11 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		return ctrl.Result{}, fmt.Errorf("failed to generate volumegroupsnapshotclasses list for distribution: %v", err)
 	}
 
+	networkFenceClassesSpec, err := getLocalNetworkFenceClassNames(r.ctx, r.Client, storageCluster)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to generate networkFenceClasses list for distribution: %v", err)
+	}
+
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = defaults.LocalStorageConsumerName
 	storageConsumer.Namespace = storageCluster.Namespace
@@ -69,6 +75,7 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		spec.ResourceNameMappingConfigMap.Name = defaults.LocalStorageConsumerConfigMapName
 		spec.StorageClasses = storageClassesSpec
 		spec.VolumeSnapshotClasses = volumeSnapshotClassesSpec
+		spec.NetworkFenceClasses = networkFenceClassesSpec
 		// TODO: this is to support upgraded 4.18 provider mode cluster and should be retired in 4.20
 		if dfVersion := storageConsumer.GetLabels()[util.CreatedAtDfVersionLabelKey]; dfVersion == "4.18" {
 			for idx := range spec.VolumeSnapshotClasses {
@@ -362,4 +369,36 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 		vgscSpec = append(vgscSpec, vgscItem)
 	}
 	return vgscSpec, nil
+}
+
+func getLocalNetworkFenceClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster) (
+	[]ocsv1a1.NetworkFenceClassesSpec, error) {
+
+	networkFenceClassNames := map[string]bool{}
+	networkFenceClassNames[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.RbdNetworkFenceClass)] = true
+	networkFenceClassNames[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.CephfsNetworkFenceClass)] = true
+
+	// for day2 networkFenceClasses
+	networkFenceClassesInCluster := &csiaddonsv1alpha1.NetworkFenceClassList{}
+	if err := kubeClient.List(ctx, networkFenceClassesInCluster, &client.MatchingLabelsSelector{
+		// not select networkFenceClasses with external labels
+		Selector: getExternalClassesBlaclistSelector(),
+	}); err != nil {
+		return nil, err
+	}
+	for idx := range networkFenceClassesInCluster.Items {
+		// TODO: skip networkFenceClasses that are from external mode if both internal & external mode is enabled
+		nfc := &networkFenceClassesInCluster.Items[idx]
+		if slices.Contains(supportedCsiDrivers, nfc.Spec.Provisioner) {
+			networkFenceClassNames[nfc.Name] = true
+		}
+	}
+
+	nfcSpec := make([]ocsv1a1.NetworkFenceClassesSpec, 0, len(networkFenceClassNames))
+	for nfcName := range maps.Keys(networkFenceClassNames) {
+		nfcItem := ocsv1a1.NetworkFenceClassesSpec{}
+		nfcItem.Name = nfcName
+		nfcSpec = append(nfcSpec, nfcItem)
+	}
+	return nfcSpec, nil
 }
