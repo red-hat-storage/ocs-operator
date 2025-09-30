@@ -752,6 +752,16 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 							RunAsNonRoot:           ptr.To(true),
 							ReadOnlyRootFilesystem: ptr.To(true),
 						},
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("5m"),
+								corev1.ResourceMemory: resource.MustParse("50Mi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("25m"),
+								corev1.ResourceMemory: resource.MustParse("256Mi"),
+							},
+						},
 					},
 				},
 				Volumes: []corev1.Volume{

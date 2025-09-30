@@ -48,6 +48,9 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 		return err
 	}
 
+	// Add default resource requirements, or respect custom resource definitions under storagecluster spec.
+	toolsDeployment.Spec.Template.Spec.Containers[0].Resources = getDaemonResources("rook-ceph-tools", sc)
+
 	if sc.Spec.EnableCephTools {
 		// Create or Update if ceph tools is enabled.
 
