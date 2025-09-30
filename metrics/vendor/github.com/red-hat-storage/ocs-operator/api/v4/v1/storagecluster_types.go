@@ -777,16 +777,6 @@ func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration, nod
 								{Name: "ceph-config", MountPath: "/etc/ceph"},
 								{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
 							},
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("50m"),
-									corev1.ResourceMemory: resource.MustParse("128Mi"),
-								},
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("250m"),
-									corev1.ResourceMemory: resource.MustParse("256Mi"),
-								},
-							},
 						},
 					},
 					Tolerations: tolerations,
