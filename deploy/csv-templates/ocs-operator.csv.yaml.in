@@ -573,6 +573,15 @@ spec:
           - storageclasses
           verbs:
           - create
+          - get
+          - list
+        - apiGroups:
+          - objectbucket.io
+          resources:
+          - objectbuckets
+          verbs:
+          - get
+          - list
         serviceAccountName: ux-backend-server
       deployments:
       - name: ocs-operator

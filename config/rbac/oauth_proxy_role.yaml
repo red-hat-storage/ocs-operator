@@ -10,6 +10,7 @@ rules:
 - apiGroups: ["authorization.k8s.io"]
   resources:
   - subjectaccessreviews
+  - selfsubjectaccessreviews
   verbs: ["create"]
 - apiGroups:
   - storage.k8s.io
@@ -17,3 +18,12 @@ rules:
   - storageclasses
   verbs:
   - create
+  - get
+  - list
+- apiGroups:
+  - objectbucket.io
+  resources:
+  - objectbuckets
+  verbs:
+  - get
+  - list

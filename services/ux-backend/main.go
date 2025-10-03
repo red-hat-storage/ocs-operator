@@ -9,7 +9,9 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/bucketorigin"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/expandstorage"
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/featureflags"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/peertokens"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -79,12 +81,24 @@ func main() {
 		klog.Exitf("failed to create kube client: %v", err)
 	}
 
+	// Authenticated + Authorized endpoints (require both authentication and authorization)
+
 	http.HandleFunc("/onboarding/peer-tokens", func(w http.ResponseWriter, r *http.Request) {
 		peertokens.HandleMessage(w, r, config.tokenLifetimeInHours, cl, namespace)
 	})
 
 	http.HandleFunc("/expandstorage", func(w http.ResponseWriter, r *http.Request) {
 		expandstorage.HandleMessage(w, r, cl, namespace)
+	})
+
+	// Authenticated endpoints (require authentication but not authorization)
+
+	http.HandleFunc("/auth/featureflags", func(w http.ResponseWriter, r *http.Request) {
+		featureflags.HandleMessage(w, r, cl, namespace)
+	})
+
+	http.HandleFunc("/auth/bucket-origin", func(w http.ResponseWriter, r *http.Request) {
+		bucketorigin.HandleMessage(w, r, cl)
 	})
 
 	klog.Info("ux backend server listening on port ", config.listenPort)
