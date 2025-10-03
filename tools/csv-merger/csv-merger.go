@@ -737,7 +737,7 @@ func getUXBackendServerDeployment() appsv1.DeploymentSpec {
 							"-tls-key=/etc/tls/private/tls.key",
 							"-cookie-secret-file=/etc/proxy/secrets/session_secret",
 							"-openshift-service-account=ux-backend-server",
-							`-openshift-delegate-urls={"/":{"group":"ocs.openshift.io","resource":"storageclusters","namespace":"openshift-storage","verb":"create"}}`,
+							`-openshift-delegate-urls={"/":{"group":"ocs.openshift.io","resource":"storageclusters","namespace":"openshift-storage","verb":"create"},"/info/":{"group":"authorization.k8s.io","resource":"selfsubjectaccessreviews","verb":"create"}}`,
 							"-openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"},
 						Ports: []corev1.ContainerPort{
 							{
