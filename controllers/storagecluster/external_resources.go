@@ -29,6 +29,7 @@ import (
 
 const (
 	externalClusterDetailsSecret                = "rook-ceph-external-cluster-details"
+	monEndpointConfigMapName                    = "rook-ceph-mon-endpoints"
 	externalClusterDetailsKey                   = "external_cluster_details"
 	cephFsStorageClassName                      = "cephfs"
 	cephRbdStorageClassName                     = "ceph-rbd"
@@ -609,7 +610,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterConfigMap(cm *cor
 	}
 	// update the found ConfigMap's Data with the latest changes,
 	// if they don't match
-	if !reflect.DeepEqual(found.Data, cm.Data) {
+	if cm.ObjectMeta.Name != monEndpointConfigMapName && !reflect.DeepEqual(found.Data, cm.Data) {
 		found.Data = cm.DeepCopy().Data
 		if err = r.Client.Update(context.TODO(), found); err != nil {
 			return err
