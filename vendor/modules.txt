@@ -53,6 +53,7 @@ github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
 # github.com/csi-addons/kubernetes-csi-addons v0.12.0
 ## explicit; go 1.23.0
+github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1
 github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1
 # github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 ## explicit

@@ -31,6 +31,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
 	"github.com/go-logr/logr"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
@@ -441,6 +442,9 @@ func newScheme() (*runtime.Scheme, error) {
 		return nil, fmt.Errorf("failed to add quotav1 to scheme. %v", err)
 	}
 	if err = nbapis.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add nbapis to scheme. %v", err)
+	}
+	if err = csiaddonsv1alpha1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add nbapis to scheme. %v", err)
 	}
 
@@ -1165,6 +1169,20 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 		return nil, err
 	}
 
+	kubeResources, err = s.appendNetworkFenceClassKubeResources(
+		ctx,
+		logger,
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+		rbdStorageId,
+		cephFsStorageId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	kubeResources, err = s.appendVolumeReplicationClassKubeResources(
 		ctx,
 		logger,
@@ -1774,6 +1792,44 @@ func (s *OCSProviderServer) appendOdfVolumeGroupSnapshotClassKubeResources(
 					consumerConfig,
 					cephFsStorageId,
 				)
+			}
+		},
+	)
+	kubeResources = append(kubeResources, resources...)
+
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendNetworkFenceClassKubeResources(
+	ctx context.Context,
+	logger logr.Logger,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	rbdStorageId,
+	cephFsStorageId string,
+) ([]client.Object, error) {
+	nfcMap := map[string]func() *csiaddonsv1alpha1.NetworkFenceClass{}
+	if consumerConfig.GetRbdClientProfileName() != "" {
+		nfcMap[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.RbdNetworkFenceClass)] = func() *csiaddonsv1alpha1.NetworkFenceClass {
+			return util.NewDefaultRbdNetworkFenceClass(
+				consumerConfig.GetCsiRbdProvisionerCephUserName(),
+				consumer.Status.Client.OperatorNamespace,
+				rbdStorageId,
+			)
+		}
+	}
+
+	resources := getKubeResourcesForClass(
+		logger,
+		consumer.Spec.NetworkFenceClasses,
+		"networkfenceclass",
+		func(nfcName string) (client.Object, error) {
+			if nfcGen, fnExist := nfcMap[nfcName]; fnExist {
+				return nfcGen(), nil
+			} else {
+				return nil, nil
 			}
 		},
 	)

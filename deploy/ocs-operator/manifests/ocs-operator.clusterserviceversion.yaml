@@ -56,7 +56,7 @@ metadata:
     capabilities: Deep Insights
     categories: Storage
     containerImage: quay.io/ocs-dev/ocs-operator:latest
-    createdAt: "2025-09-17T09:50:56Z"
+    createdAt: "2025-10-09T10:47:52Z"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     external.features.ocs.openshift.io/supported-platforms: '["BareMetal", "None",
@@ -322,6 +322,17 @@ spec:
           verbs:
           - get
         - apiGroups:
+          - csiaddons.openshift.io
+          resources:
+          - networkfenceclasses
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
           - groupsnapshot.storage.k8s.io
           - groupsnapshot.storage.openshift.io
           resources:
@@ -569,6 +580,13 @@ spec:
           - groupsnapshot.storage.k8s.io
           resources:
           - volumegroupsnapshotclasses
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - csiaddons.openshift.io
+          resources:
+          - networkfenceclasses
           verbs:
           - get
           - list
