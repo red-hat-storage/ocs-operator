@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	ramenDRStorageIDLabelKey     = "ramendr.openshift.io/storageid"
-	ramenDRReplicationIDLabelKey = "ramendr.openshift.io/replicationid"
+	ramenDRStorageIDLabelKey          = "ramendr.openshift.io/storageid"
+	ramenDRReplicationIDLabelKey      = "ramendr.openshift.io/replicationid"
+	ramenDRGroupReplicationIDLabelKey = "ramendr.openshift.io/groupreplicationid"
 )
 
 func VolumeGroupReplicationClassFromTemplate(
@@ -56,18 +57,18 @@ func VolumeGroupReplicationClassFromTemplate(
 	case RbdDriverName:
 		// For VGRC the replicationID will be a combination of RBDStorageID, RemoteRBDStorageID and the poolName
 		// pool name is added to the VGRC's template
-		var replicationID string
+		var groupReplicationID string
 		poolName := vgrc.Spec.Parameters["pool"]
 		if strings.Compare(rbdStorageId, remoteRbdStorageId) <= 0 {
-			replicationID = CalculateMD5Hash([]string{rbdStorageId, remoteRbdStorageId, poolName})
+			groupReplicationID = CalculateMD5Hash([]string{rbdStorageId, remoteRbdStorageId, poolName})
 		} else {
-			replicationID = CalculateMD5Hash([]string{remoteRbdStorageId, rbdStorageId, poolName})
+			groupReplicationID = CalculateMD5Hash([]string{remoteRbdStorageId, rbdStorageId, poolName})
 		}
 		vgrc.Spec.Parameters["replication.storage.openshift.io/group-replication-secret-name"] = consumerConfig.GetCsiRbdProvisionerCephUserName()
 		vgrc.Spec.Parameters["replication.storage.openshift.io/group-replication-secret-namespace"] = consumer.Status.Client.OperatorNamespace
 		vgrc.Spec.Parameters["clusterID"] = consumerConfig.GetRbdClientProfileName()
 		AddLabel(vgrc, ramenDRStorageIDLabelKey, rbdStorageId)
-		AddLabel(vgrc, ramenDRReplicationIDLabelKey, replicationID)
+		AddLabel(vgrc, ramenDRGroupReplicationIDLabelKey, groupReplicationID)
 	default:
 		return nil, fmt.Errorf("unsupported Provisioner for VolumeGroupReplicationClass")
 	}
