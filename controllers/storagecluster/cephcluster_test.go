@@ -921,6 +921,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				"crashcollector": defaults.DaemonResources["crashcollector"],
 				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
+				"mgr-sidecar":    defaults.DaemonResources["mgr-sidecar"],
 			},
 		},
 		{
@@ -937,6 +938,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				"crashcollector": defaults.DaemonResources["crashcollector"],
 				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
+				"mgr-sidecar":    defaults.DaemonResources["mgr-sidecar"],
 			},
 		},
 		{
@@ -953,6 +955,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				"crashcollector": defaults.DaemonResources["crashcollector"],
 				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
+				"mgr-sidecar":    defaults.DaemonResources["mgr-sidecar"],
 			},
 		},
 		{
@@ -969,6 +972,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				"crashcollector": defaults.DaemonResources["crashcollector"],
 				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
+				"mgr-sidecar":    defaults.DaemonResources["mgr-sidecar"],
 			},
 		},
 		{
@@ -1004,6 +1008,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				"crashcollector": defaults.DaemonResources["crashcollector"],
 				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
+				"mgr-sidecar":    defaults.DaemonResources["mgr-sidecar"],
 			},
 		},
 		{
@@ -1040,6 +1045,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				"crashcollector": defaults.DaemonResources["crashcollector"],
 				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
+				"mgr-sidecar":    defaults.DaemonResources["mgr-sidecar"],
 			},
 		},
 		{
@@ -1075,6 +1081,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				},
 				"logcollector": defaults.DaemonResources["logcollector"],
 				"exporter":     defaults.DaemonResources["exporter"],
+				"mgr-sidecar":  defaults.DaemonResources["mgr-sidecar"],
 			},
 		},
 		{
@@ -1111,6 +1118,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				},
 				"logcollector": defaults.DaemonResources["logcollector"],
 				"exporter":     defaults.DaemonResources["exporter"],
+				"mgr-sidecar":  defaults.DaemonResources["mgr-sidecar"],
 			},
 		},
 		{
@@ -1191,6 +1199,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				"crashcollector": defaults.DaemonResources["crashcollector"],
 				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
+				"mgr-sidecar":    defaults.DaemonResources["mgr-sidecar"],
 			},
 		},
 		{
@@ -1234,6 +1243,7 @@ func TestNewCephDaemonResources(t *testing.T) {
 				"crashcollector": defaults.DaemonResources["crashcollector"],
 				"logcollector":   defaults.DaemonResources["logcollector"],
 				"exporter":       defaults.DaemonResources["exporter"],
+				"mgr-sidecar":    defaults.DaemonResources["mgr-sidecar"],
 			},
 		},
 	}

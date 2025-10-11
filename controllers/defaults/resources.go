@@ -66,8 +66,8 @@ var (
 		},
 		"ocs-metrics-exporter": {
 			Requests: corev1.ResourceList{
-				"memory": resource.MustParse("512Mi"),
-				"cpu":    resource.MustParse("250m"),
+				"memory": resource.MustParse("250Mi"),
+				"cpu":    resource.MustParse("100m"),
 			},
 			Limits: corev1.ResourceList{
 				"memory": resource.MustParse("1.5Gi"),
@@ -122,6 +122,36 @@ var (
 			Limits: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("0.05"),
 				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+		},
+		"ocs-provider-server": {
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("10m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("50m"),
+				corev1.ResourceMemory: resource.MustParse("512Mi"),
+			},
+		},
+		"mgr-sidecar": {
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("50m"),
+				corev1.ResourceMemory: resource.MustParse("75Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("200m"),
+				corev1.ResourceMemory: resource.MustParse("256Mi"),
+			},
+		},
+		"rook-ceph-tools": {
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("50m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("250m"),
+				corev1.ResourceMemory: resource.MustParse("256Mi"),
 			},
 		},
 	}

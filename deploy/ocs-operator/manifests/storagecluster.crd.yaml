@@ -2954,6 +2954,10 @@ spec:
                         type: boolean
                       gatewayInstances:
                         type: integer
+                      gatewayPort:
+                        type: integer
+                      gatewaySecurePort:
+                        type: integer
                       hostNetwork:
                         type: boolean
                       metadataPoolSpec:

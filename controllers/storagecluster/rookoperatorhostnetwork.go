@@ -2,9 +2,11 @@ package storagecluster
 
 import (
 	"fmt"
+	"slices"
 
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,21 +48,27 @@ func (obj *rookCephCsvHostNetwork) ensureCreated(r *StorageClusterReconciler, in
 		return reconcile.Result{}, fmt.Errorf("no rook-ceph-operator CSV found in Succeeded phase")
 	}
 
-	// Update the rook-ceph-operator deployment in CSV to enable host network
-	for i := range rookCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs {
-		deployment := &rookCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[i]
-		if deployment.Name == "rook-ceph-operator" {
-			if deployment.Spec.Template.Spec.HostNetwork == shouldUseHostNetworking(instance) {
-				return reconcile.Result{}, nil
-			}
-			// Enable host network for rook-ceph-operator
-			deployment.Spec.Template.Spec.HostNetwork = shouldUseHostNetworking(instance)
-			if err := r.Client.Update(r.ctx, rookCSV); err != nil {
-				r.Log.Error(err, "Failed to update rook-ceph-operator CSV.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
-				return reconcile.Result{}, err
-			}
-			break
-		}
+	deployments := rookCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs
+	index := slices.IndexFunc(deployments, func(d opv1a1.StrategyDeploymentSpec) bool {
+		return d.Name == "rook-ceph-operator"
+	})
+
+	if index == -1 {
+		return reconcile.Result{}, fmt.Errorf("rook-ceph-operator deployment not found in CSV")
+	}
+
+	deployment := &rookCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[index]
+	if shouldUseHostNetworking(instance) {
+		deployment.Spec.Template.Spec.HostNetwork = true
+		deployment.Spec.Template.Spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
+	} else {
+		deployment.Spec.Template.Spec.HostNetwork = false
+		deployment.Spec.Template.Spec.DNSPolicy = corev1.DNSClusterFirst
+	}
+
+	if err := r.Client.Update(r.ctx, rookCSV); err != nil {
+		r.Log.Error(err, "Failed to update rook-ceph-operator CSV.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
+		return reconcile.Result{}, err
 	}
 
 	return reconcile.Result{}, nil

@@ -310,6 +310,21 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 		}
 
+		availableServices, err := util.GetAvailableServices(ctx, s.client, storageCluster)
+		if err != nil {
+			logger.Error(err, "failed to get available services")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+		if availableServices.Rbd {
+			response.RbdDriverRequirements = &pb.RbdDriverRequirements{}
+		}
+		if availableServices.CephFs {
+			response.CephFsDriverRequirements = &pb.CephFsDriverRequirements{}
+		}
+		if availableServices.Nfs {
+			response.NfsDriverRequirements = &pb.NfsDriverRequirements{}
+		}
+
 		topologyKey := consumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
 		if topologyKey != "" {
 			response.RbdDriverRequirements = &pb.RbdDriverRequirements{
@@ -326,6 +341,9 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			isConsumerMirrorEnabled,
 			topologyKey,
 			ocsVersion.Version,
+			availableServices.Rbd,
+			availableServices.CephFs,
+			availableServices.Nfs,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -570,6 +588,12 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 
 	topologyKey := storageConsumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
 
+	availableServices, err := util.GetAvailableServices(ctx, s.client, storageCluster)
+	if err != nil {
+		logger.Error(err, "Failed to get available services")
+		return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
+	}
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
@@ -579,6 +603,9 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		isConsumerMirrorEnabled,
 		topologyKey,
 		ocsVersion.Version,
+		availableServices.Rbd,
+		availableServices.CephFs,
+		availableServices.Nfs,
 	)
 
 	logger.Info("Successfully processed status report")
@@ -1091,6 +1118,7 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 		storageCluster,
 		rbdStorageId,
 		cephFsStorageId,
+		mirroringTargetInfo.RbdStorageID,
 	)
 	if err != nil {
 		return nil, err
@@ -1474,6 +1502,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 	storageCluster *ocsv1.StorageCluster,
 	rbdStorageId,
 	cephFsStorageId string,
+	remoteRbdStorageId string,
 ) ([]client.Object, error) {
 	scMap := map[string]func() *storagev1.StorageClass{}
 	if consumerConfig.GetRbdClientProfileName() != "" {
@@ -1485,6 +1514,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
+				remoteRbdStorageId,
 				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
 			)
 		}
@@ -1496,6 +1526,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
+				remoteRbdStorageId,
 				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultVirtualizationStorageClass,
 			)
 		}
@@ -1521,6 +1552,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
+				remoteRbdStorageId,
 			)
 		}
 	}
@@ -1567,6 +1599,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 					rbdStorageId,
 					cephFsStorageId,
 					cephFsStorageId,
+					remoteRbdStorageId,
 				)
 			}
 		},

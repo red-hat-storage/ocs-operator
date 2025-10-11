@@ -212,9 +212,70 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 
 		isPrimaryConsumer := primaryConsumerUID == string(r.storageConsumer.UID)
 
-		if isPrimaryConsumer {
-			consumerResources := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+		consumerResources := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
 
+		if availableServices.Rbd {
+			if err := r.reconcileCephClientRBDProvisioner(
+				util.GenerateCsiRbdProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
+				consumerResources.GetRbdRadosNamespaceName(),
+				consumerConfigMap,
+				csiCephUserCurrGen,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+			if err := r.reconcileCephClientRBDNode(
+				util.GenerateCsiRbdNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
+				consumerResources.GetRbdRadosNamespaceName(),
+				consumerConfigMap,
+				csiCephUserCurrGen,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
+		if availableServices.CephFs {
+			if err := r.reconcileCephClientCephFSProvisioner(
+				util.GenerateCsiCephFsProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				consumerResources.GetSubVolumeGroupName(),
+				consumerConfigMap,
+				csiCephUserCurrGen,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+			if err := r.reconcileCephClientCephFSNode(
+				util.GenerateCsiCephFsNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				consumerResources.GetSubVolumeGroupName(),
+				consumerConfigMap,
+				csiCephUserCurrGen,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
+		if availableServices.Nfs {
+			if err := r.reconcileCephClientNfsProvisioner(
+				util.GenerateCsiNfsProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				consumerResources.GetSubVolumeGroupName(),
+				consumerConfigMap,
+				csiCephUserCurrGen,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+			if err := r.reconcileCephClientNfsNode(
+				util.GenerateCsiNfsNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
+				consumerResources.GetSubVolumeGroupName(),
+				consumerConfigMap,
+				csiCephUserCurrGen,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
+		if isPrimaryConsumer {
 			if availableServices.Rbd {
 				if err := r.reconcileCephRadosNamespace(
 					consumerResources.GetRbdRadosNamespaceName(),
@@ -222,24 +283,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 				); err != nil {
 					return reconcile.Result{}, err
 				}
-				if err := r.reconcileCephClientRBDProvisioner(
-					util.GenerateCsiRbdProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
-					consumerResources.GetRbdRadosNamespaceName(),
-					consumerConfigMap,
-					csiCephUserCurrGen,
-				); err != nil {
-					return reconcile.Result{}, err
-				}
-				if err := r.reconcileCephClientRBDNode(
-					util.GenerateCsiRbdNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
-					consumerResources.GetRbdRadosNamespaceName(),
-					consumerConfigMap,
-					csiCephUserCurrGen,
-				); err != nil {
-					return reconcile.Result{}, err
-				}
 			}
-
 			if availableServices.CephFs {
 				if err := r.reconcileCephFilesystemSubVolumeGroup(
 					util.GenerateNameForCephFilesystem(storageCluster.Name),
@@ -248,48 +292,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 				); err != nil {
 					return reconcile.Result{}, err
 				}
-				if err := r.reconcileCephClientCephFSProvisioner(
-					util.GenerateCsiCephFsProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
-					util.GenerateNameForCephFilesystem(storageCluster.Name),
-					consumerResources.GetSubVolumeGroupName(),
-					consumerConfigMap,
-					csiCephUserCurrGen,
-				); err != nil {
-					return reconcile.Result{}, err
-				}
-
-				if err := r.reconcileCephClientCephFSNode(
-					util.GenerateCsiCephFsNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
-					util.GenerateNameForCephFilesystem(storageCluster.Name),
-					consumerResources.GetSubVolumeGroupName(),
-					consumerConfigMap,
-					csiCephUserCurrGen,
-				); err != nil {
-					return reconcile.Result{}, err
-				}
 			}
-
-			if availableServices.Nfs {
-				if err := r.reconcileCephClientNfsProvisioner(
-					util.GenerateCsiNfsProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
-					util.GenerateNameForCephFilesystem(storageCluster.Name),
-					consumerResources.GetSubVolumeGroupName(),
-					consumerConfigMap,
-					csiCephUserCurrGen,
-				); err != nil {
-					return reconcile.Result{}, err
-				}
-				if err := r.reconcileCephClientNfsNode(
-					util.GenerateCsiNfsNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
-					util.GenerateNameForCephFilesystem(storageCluster.Name),
-					consumerResources.GetSubVolumeGroupName(),
-					consumerConfigMap,
-					csiCephUserCurrGen,
-				); err != nil {
-					return reconcile.Result{}, err
-				}
-			}
-
 		}
 
 		clientStatus := r.storageConsumer.Status.Client

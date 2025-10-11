@@ -303,6 +303,7 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 									ReadOnly:  true,
 								},
 							},
+							Resources: getDaemonResources(ocsProviderServerName, instance),
 						},
 					},
 					Volumes: []corev1.Volume{

@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -187,8 +188,8 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 					return cephv1.PoolSpec{}
 				}(),
 				Gateway: cephv1.GatewaySpec{
-					Port:       80,
-					SecurePort: 443,
+					Port:       getRGWPort(initData),
+					SecurePort: getRGWSecurePort(initData),
 					Service: &cephv1.RGWServiceSpec{
 						Annotations: map[string]string{
 							"service.beta.openshift.io/serving-cert-secret-name": fmt.Sprintf("%s-%s-%s", initData.Name, "cos", cephRgwTLSSecretKey),
@@ -211,9 +212,8 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			return nil, err
 		}
 
-		if initData.Spec.ManagedResources.CephObjectStores.HostNetwork != nil {
-			obj.Spec.Gateway.HostNetwork = initData.Spec.ManagedResources.CephObjectStores.HostNetwork
-		}
+		// when using non default hostNetwork Object Store should use hostNetwork
+		obj.Spec.Gateway.HostNetwork = ptr.To(shouldUseHostNetworking(initData) || ptr.Deref(initData.Spec.ManagedResources.CephObjectStores.HostNetwork, false))
 
 		// Set default values in the data pool spec as necessary
 		setDefaultDataPoolSpec(&obj.Spec.DataPool, initData)
@@ -259,7 +259,6 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 		if hasNonPortableOSD(initData) {
 			obj.Spec.Gateway.ReadAffinity = &cephv1.RgwReadAffinity{Type: "localize"}
 		}
-
 	}
 	return ret, nil
 }
@@ -282,4 +281,24 @@ func hasNonPortableOSD(sc *ocsv1.StorageCluster) bool {
 		}
 	}
 	return true
+}
+
+// when using non default hostNetwork Object Store should run on hostNetwork and use different port to avoid port collision
+func getRGWPort(sc *ocsv1.StorageCluster) int32 {
+	if sc.Spec.ManagedResources.CephObjectStores.GatewayPort != 0 {
+		return int32(sc.Spec.ManagedResources.CephObjectStores.GatewayPort)
+	} else if shouldUseHostNetworking(sc) {
+		return 50080
+	}
+	return 80
+}
+
+// when using non default hostNetwork Object Store should run on hostNetwork and use different secure port to avoid port collision
+func getRGWSecurePort(sc *ocsv1.StorageCluster) int32 {
+	if sc.Spec.ManagedResources.CephObjectStores.GatewaySecurePort != 0 {
+		return int32(sc.Spec.ManagedResources.CephObjectStores.GatewaySecurePort)
+	} else if shouldUseHostNetworking(sc) {
+		return 50443
+	}
+	return 443
 }
