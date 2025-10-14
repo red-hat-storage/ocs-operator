@@ -1539,6 +1539,9 @@ func getCephClusterCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageClus
 		"osd": {
 			"osd_memory_target_cgroup_limit_ratio": "0.8",
 		},
+		"mgr": {
+			"mgr/pg_autoscaler/threshold": "1.0",
+		},
 	}
 
 	// Set mon_target_pg_per_osd based on the resource profile
