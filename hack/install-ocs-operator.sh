@@ -24,12 +24,7 @@ metadata:
   namespace: openshift-storage
 data:
   ROOK_CURRENT_NAMESPACE_ONLY: "true"
-  CSI_CLUSTER_NAME: "test"
-  CSI_ENABLE_TOPOLOGY: "test"
-  CSI_TOPOLOGY_DOMAIN_LABELS: "test"
-  ROOK_CSI_ENABLE_NFS: "false"
   ROOK_CSI_DISABLE_DRIVER: "true"
-  ROOK_CSI_ENABLE_CEPHFS: "false"
 EOF
 
 patch_ocs_client_operator_config_configmap() {
