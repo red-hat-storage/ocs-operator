@@ -207,7 +207,6 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		SecurityClient:    secv1client.NewForConfigOrDie(mgr.GetConfig()),
 		OperatorNamespace: operatorNamespace,
-		AvailableCrds:     availCrds,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OCSInitialization")
 		os.Exit(1)

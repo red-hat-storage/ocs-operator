@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
@@ -31,11 +32,14 @@ import (
 	"open-cluster-management.io/api/cluster/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // operatorNamespace is the namespace the operator is running in
@@ -69,7 +73,10 @@ type OCSInitializationReconciler struct {
 	Scheme            *runtime.Scheme
 	SecurityClient    secv1client.SecurityV1Interface
 	OperatorNamespace string
-	AvailableCrds     map[string]bool
+
+	cache            cache.Cache
+	controller       controller.Controller
+	crdsBeingWatched sync.Map
 }
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
@@ -92,15 +99,6 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 	r.ctx = ctx
 
 	r.Log.Info("Reconciling OCSInitialization.", "OCSInitialization", klog.KRef(request.Namespace, request.Name))
-
-	crd := &metav1.PartialObjectMetadata{}
-	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
-	crd.Name = ClusterClaimCrdName
-	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
-		r.Log.Error(err, "Failed to get CRD", "CRD", ClusterClaimCrdName)
-		return reconcile.Result{}, err
-	}
-	util.AssertEqual(r.AvailableCrds[ClusterClaimCrdName], crd.UID != "", util.ExitCodeThatShouldRestartTheProcess)
 
 	initNamespacedName := InitNamespacedName()
 	instance := &ocsv1.OCSInitialization{}
@@ -149,6 +147,10 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
+	if err := r.reconcileDynamicWatches(); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	if instance.Status.Conditions == nil {
 		reason := ocsv1.ReconcileInit
 		message := "Initializing OCSInitialization resource"
@@ -189,7 +191,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
-	if r.AvailableCrds[ClusterClaimCrdName] {
+	if val, _ := r.crdsBeingWatched.Load(ClusterClaimCrdName); val.(bool) {
 		err = r.ensureClusterClaimExists()
 		if err != nil {
 			r.Log.Error(err, "Failed to ensure odf-info namespacedname ClusterClaim")
@@ -272,6 +274,45 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 	return reconcile.Result{}, err
 }
 
+func (r *OCSInitializationReconciler) reconcileDynamicWatches() error {
+	if watchExists, foundCrd := r.crdsBeingWatched.Load(ClusterClaimCrdName); !foundCrd || watchExists.(bool) {
+		return nil
+	}
+
+	crd := &metav1.PartialObjectMetadata{}
+	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
+	crd.Name = ClusterClaimCrdName
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
+		return err
+	}
+	// CRD doesn't exist in the cluster
+	if crd.UID == "" {
+		return nil
+	}
+
+	// establish a watch
+	if err := r.controller.Watch(
+		source.Kind(
+			r.cache,
+			client.Object(&v1alpha1.ClusterClaim{}),
+			handler.EnqueueRequestsFromMapFunc(
+				func(context context.Context, obj client.Object) []reconcile.Request {
+					return []reconcile.Request{{
+						NamespacedName: InitNamespacedName(),
+					}}
+				},
+			),
+			util.NamePredicate(util.OdfInfoNamespacedNameClaimName),
+			predicate.GenerationChangedPredicate{},
+		),
+	); err != nil {
+		return fmt.Errorf("failed to setup dynamic watch on %s: %v", crd.Name, err)
+	}
+
+	r.crdsBeingWatched.Store(ClusterClaimCrdName, true)
+	return nil
+}
+
 // SetupWithManager sets up a controller with a manager
 func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	operatorNamespace = r.OperatorNamespace
@@ -289,7 +330,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	)
 
-	ocsInitializationController := ctrl.NewControllerManagedBy(mgr).
+	controller, err := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.OCSInitialization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
@@ -351,28 +392,21 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&extv1.CustomResourceDefinition{},
 			enqueueOCSInit,
 			builder.WithPredicates(
-				util.NamePredicate(ClusterClaimCrdName),
-				util.EventTypePredicate(
-					!r.AvailableCrds[ClusterClaimCrdName],
-					false,
-					true,
-					false,
-				),
+				predicate.NewPredicateFuncs(func(obj client.Object) bool {
+					_, ok := r.crdsBeingWatched.Load(obj.GetName())
+					return ok
+				}),
+				util.EventTypePredicate(true, false, false, false),
 			),
 			builder.OnlyMetadata,
-		)
+		).
+		Build(r)
 
-	if r.AvailableCrds[ClusterClaimCrdName] {
-		ocsInitializationController = ocsInitializationController.Watches(
-			&v1alpha1.ClusterClaim{},
-			enqueueOCSInit,
-			builder.WithPredicates(
-				util.NamePredicate(util.OdfInfoNamespacedNameClaimName),
-				predicate.GenerationChangedPredicate{},
-			),
-		)
-	}
-	return ocsInitializationController.Complete(r)
+	r.controller = controller
+	r.cache = mgr.GetCache()
+	r.crdsBeingWatched.Store(ClusterClaimCrdName, false)
+
+	return err
 }
 
 func (r *OCSInitializationReconciler) ensureClusterClaimExists() error {

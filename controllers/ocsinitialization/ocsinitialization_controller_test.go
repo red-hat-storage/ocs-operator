@@ -37,7 +37,7 @@ var successfulReconcileConditions = map[conditionsv1.ConditionType]corev1.Condit
 	v1.ConditionReconcileComplete:     corev1.ConditionTrue,
 }
 
-func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reconcile.Request, OCSInitializationReconciler) {
+func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reconcile.Request, *OCSInitializationReconciler) {
 	var request reconcile.Request
 	if mockNamespace {
 		request = reconcile.Request{
@@ -68,19 +68,22 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reco
 	return ocs, request, reconciler
 }
 
-func getReconciler(t *testing.T, objs ...client.Object) OCSInitializationReconciler {
+func getReconciler(t *testing.T, objs ...client.Object) *OCSInitializationReconciler {
 	ocsinit := &v1.OCSInitialization{}
 	scheme := createFakeScheme(t)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).WithStatusSubresource(ocsinit).Build()
 	secClient := &fakeSecClient.FakeSecurityV1{Fake: &testingClient.Fake{}}
 	log := logf.Log.WithName("controller_storagecluster_test")
 
-	return OCSInitializationReconciler{
-		Scheme:         scheme,
+	r := &OCSInitializationReconciler{
 		Client:         client,
 		SecurityClient: secClient,
+		Scheme:         scheme,
 		Log:            log,
 	}
+	r.crdsBeingWatched.Store(ClusterClaimCrdName, false)
+
+	return r
 }
 
 func createFakeScheme(t *testing.T) *runtime.Scheme {
