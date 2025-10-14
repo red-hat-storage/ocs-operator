@@ -68,7 +68,7 @@ func (r *StorageClusterReconciler) createOdfGroupSnapshotClasses(vgsc OdfGroupSn
 }
 
 func (obj *ocsOdfGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
-	if !r.AvailableCrds[OdfVolumeGroupSnapshotClassCrdName] {
+	if val, _ := r.crdsBeingWatched.Load(OdfVolumeGroupSnapshotClassCrdName); !val.(bool) {
 		r.Log.Info("OdfVolumeGroupSnapshotClass CRD is not available")
 		return reconcile.Result{}, nil
 	}
@@ -107,8 +107,8 @@ func (obj *ocsOdfGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, 
 }
 
 func (obj *ocsOdfGroupSnapshotClass) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
-	if !r.AvailableCrds[OdfVolumeGroupSnapshotClassCrdName] {
-		r.Log.Info("OdfVolumeGroupSnapshotClass CRD doesn't exist")
+	if val, _ := r.crdsBeingWatched.Load(OdfVolumeGroupSnapshotClassCrdName); !val.(bool) {
+		r.Log.Info("OdfVolumeGroupSnapshotClass CRD is not available")
 		return reconcile.Result{}, nil
 	}
 

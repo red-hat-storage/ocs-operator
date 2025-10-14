@@ -37,7 +37,7 @@ func TestCephObjectStoreUsers(t *testing.T) {
 	}
 }
 
-func assertCephObjectStoreUsers(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
+func assertCephObjectStoreUsers(t *testing.T, reconciler *StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	expectedCosu, err := reconciler.newCephObjectStoreUserInstances(cr)
 	assert.NoError(t, err)
 

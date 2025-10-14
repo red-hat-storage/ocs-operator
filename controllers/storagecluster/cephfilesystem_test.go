@@ -37,7 +37,7 @@ func TestCephFileSystem(t *testing.T) {
 	}
 }
 
-func assertCephFileSystem(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
+func assertCephFileSystem(t *testing.T, reconciler *StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	actualFs := &cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephfilesystem",
@@ -242,7 +242,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 					ManagedResources: api.ManagedResourcesSpec{
 						CephFilesystems: api.ManageCephFilesystems{
 							DataPoolSpec: &cephv1.PoolSpec{
-								DeviceClass: "gold",
+								DeviceClass:        "gold",
 								EnableCrushUpdates: ptr.To(false),
 								Replicated: cephv1.ReplicatedSpec{
 									TargetSizeRatio: 0.1,
