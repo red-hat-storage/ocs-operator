@@ -357,6 +357,27 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			response.NfsDriverRequirements = &pb.NfsDriverRequirements{}
 		}
 
+		storageClassesResourceVersion, err := s.getStorageClassesResourceVersion(ctx)
+		if err != nil {
+			logger.Error(err, "failed to get storage class resource version")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+		vSClassesResourceVersion, err := s.getVolumeSnapshotClassesResourceVersion(ctx)
+		if err != nil {
+			logger.Error(err, "failed to get volume snapshot class resource version")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+		vGSClassesResourceVersion, err := s.getVolumeGroupSnapshotClassesResourceVersion(ctx)
+		if err != nil {
+			logger.Error(err, "failed to get volume group snapshot class resource version")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+		odfVGSClassesResourceVersion, err := s.getOdfVolumeGroupSnapshotClassesResourceVersion(ctx)
+		if err != nil {
+			logger.Error(err, "failed to get odf volume group class resource version")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+
 		topologyKey := consumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
 		if topologyKey != "" {
 			response.RbdDriverRequirements = &pb.RbdDriverRequirements{
@@ -376,6 +397,10 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			availableServices.Rbd,
 			availableServices.CephFs,
 			availableServices.Nfs,
+			storageClassesResourceVersion,
+			vSClassesResourceVersion,
+			vGSClassesResourceVersion,
+			odfVGSClassesResourceVersion,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -629,6 +654,27 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
 	}
 
+	storageClassesResourceVersion, err := s.getStorageClassesResourceVersion(ctx)
+	if err != nil {
+		logger.Error(err, "failed to get storage class resource version")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state")
+	}
+	vSClassesResourceVersion, err := s.getVolumeSnapshotClassesResourceVersion(ctx)
+	if err != nil {
+		logger.Error(err, "failed to get volume snapshot class resource version")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state")
+	}
+	vGSClassesResourceVersion, err := s.getVolumeGroupSnapshotClassesResourceVersion(ctx)
+	if err != nil {
+		logger.Error(err, "failed to get volume group snapshot class resource version")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state")
+	}
+	odfVGSClassesResourceVersion, err := s.getOdfVolumeGroupSnapshotClassesResourceVersion(ctx)
+	if err != nil {
+		logger.Error(err, "failed to get odf volume group class resource version")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state")
+	}
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
@@ -641,6 +687,10 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		availableServices.Rbd,
 		availableServices.CephFs,
 		availableServices.Nfs,
+		storageClassesResourceVersion,
+		vSClassesResourceVersion,
+		vGSClassesResourceVersion,
+		odfVGSClassesResourceVersion,
 	)
 
 	logger.Info("Successfully processed status report")
@@ -2078,6 +2128,90 @@ func (s *OCSProviderServer) appendNoobaaKubeResources(
 	)
 
 	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) getStorageClassesResourceVersion(ctx context.Context) ([]string, error) {
+	storageClassesInCluster := &storagev1.StorageClassList{}
+	if err := s.client.List(ctx, storageClassesInCluster, &client.MatchingLabelsSelector{
+		// not select storageclass with external labels
+		Selector: util.GetExternalClassesBlacklistSelector(),
+	}); err != nil {
+		return nil, err
+	}
+	slices.SortFunc(storageClassesInCluster.Items, func(a, b storagev1.StorageClass) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	resourceVersions := []string{}
+	for idx := range storageClassesInCluster.Items {
+		sc := &storageClassesInCluster.Items[idx]
+		if slices.Contains(util.SupportedCsiDrivers, sc.Provisioner) {
+			resourceVersions = append(resourceVersions, sc.ResourceVersion)
+		}
+	}
+	return resourceVersions, nil
+}
+
+func (s *OCSProviderServer) getVolumeSnapshotClassesResourceVersion(ctx context.Context) ([]string, error) {
+	vsclasses := &snapapi.VolumeSnapshotClassList{}
+	if err := s.client.List(ctx, vsclasses, &client.MatchingLabelsSelector{
+		// not select snapshotclass with external labels
+		Selector: util.GetExternalClassesBlacklistSelector(),
+	}); err != nil {
+		return nil, err
+	}
+	slices.SortFunc(vsclasses.Items, func(a, b snapapi.VolumeSnapshotClass) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	resourceVersions := []string{}
+	for idx := range vsclasses.Items {
+		sc := &vsclasses.Items[idx]
+		if slices.Contains(util.SupportedCsiDrivers, sc.Driver) {
+			resourceVersions = append(resourceVersions, sc.ResourceVersion)
+		}
+	}
+	return resourceVersions, nil
+}
+
+func (s *OCSProviderServer) getVolumeGroupSnapshotClassesResourceVersion(ctx context.Context) ([]string, error) {
+	vgsclasses := &groupsnapapi.VolumeGroupSnapshotClassList{}
+	if err := s.client.List(ctx, vgsclasses, &client.MatchingLabelsSelector{
+		// not select groupsnapshotclass with external labels
+		Selector: util.GetExternalClassesBlacklistSelector(),
+	}); err != nil {
+		return nil, err
+	}
+	slices.SortFunc(vgsclasses.Items, func(a, b groupsnapapi.VolumeGroupSnapshotClass) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	resourceVersions := []string{}
+	for idx := range vgsclasses.Items {
+		sc := &vgsclasses.Items[idx]
+		if slices.Contains(util.SupportedCsiDrivers, sc.Driver) {
+			resourceVersions = append(resourceVersions, sc.ResourceVersion)
+		}
+	}
+	return resourceVersions, nil
+}
+
+func (s *OCSProviderServer) getOdfVolumeGroupSnapshotClassesResourceVersion(ctx context.Context) ([]string, error) {
+	vgsclasses := &odfgsapiv1b1.VolumeGroupSnapshotClassList{}
+	if err := s.client.List(ctx, vgsclasses, &client.MatchingLabelsSelector{
+		// not select odfgroupsnapshotclass with external labels
+		Selector: util.GetExternalClassesBlacklistSelector(),
+	}); err != nil {
+		return nil, err
+	}
+	slices.SortFunc(vgsclasses.Items, func(a, b odfgsapiv1b1.VolumeGroupSnapshotClass) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	resourceVersions := []string{}
+	for idx := range vgsclasses.Items {
+		sc := &vgsclasses.Items[idx]
+		if slices.Contains(util.SupportedCsiDrivers, sc.Driver) {
+			resourceVersions = append(resourceVersions, sc.ResourceVersion)
+		}
+	}
+	return resourceVersions, nil
 }
 
 func sanitizeKubeResource(obj client.Object) {

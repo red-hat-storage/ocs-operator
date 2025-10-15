@@ -7,3 +7,11 @@ const (
 	NfsDriverName                = StorageClassDriverNamePrefix + ".nfs.csi.ceph.com"
 	ObcDriverName                = StorageClassDriverNamePrefix + ".ceph.rook.io/bucket"
 )
+
+var (
+	SupportedCsiDrivers = []string{
+		RbdDriverName,
+		CephFSDriverName,
+		NfsDriverName,
+	}
+)
