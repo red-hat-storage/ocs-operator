@@ -11,6 +11,8 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 )
 
 const OcsMetricsExporterCephClientName = "ocs-metrics-exporter-ceph-auth"
@@ -150,4 +152,17 @@ func JsonMustMarshal[T any](value T) []byte {
 		panic("failed to marshal")
 	}
 	return newData
+}
+
+func GetExternalClassesBlacklistSelector() labels.Selector {
+	blackListRequirement, err := labels.NewRequirement(
+		ExternalClassLabelKey,
+		selection.NotEquals,
+		[]string{"true"},
+	)
+	if err != nil {
+		panic(fmt.Sprintf("Error in external class label selector definition: %v", err))
+	}
+
+	return labels.NewSelector().Add(*blackListRequirement)
 }

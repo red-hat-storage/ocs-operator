@@ -19,8 +19,6 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,14 +27,6 @@ import (
 
 const (
 	subVolumeGroupName = "csi"
-)
-
-var (
-	supportedCsiDrivers = []string{
-		util.RbdDriverName,
-		util.CephFSDriverName,
-		util.NfsDriverName,
-	}
 )
 
 type storageConsumer struct{}
@@ -223,19 +213,6 @@ func (s *storageConsumer) ensureDeleted(r *StorageClusterReconciler, storageClus
 	return ctrl.Result{}, nil
 }
 
-func getExternalClassesBlaclistSelector() labels.Selector {
-	blackListRequirement, err := labels.NewRequirement(
-		util.ExternalClassLabelKey,
-		selection.NotEquals,
-		[]string{"true"},
-	)
-	if err != nil {
-		panic(fmt.Sprintf("Error in external class label selector definition: %v", err))
-	}
-
-	return labels.NewSelector().Add(*blackListRequirement)
-}
-
 func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster) (
 	[]ocsv1a1.StorageClassSpec, error) {
 
@@ -269,13 +246,13 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 	storageClassesInCluster := &storagev1.StorageClassList{}
 	if err := kubeClient.List(ctx, storageClassesInCluster, &client.MatchingLabelsSelector{
 		// not select storageclass with external labels
-		Selector: getExternalClassesBlaclistSelector(),
+		Selector: util.GetExternalClassesBlacklistSelector(),
 	}); err != nil {
 		return nil, err
 	}
 	for idx := range storageClassesInCluster.Items {
 		sc := &storageClassesInCluster.Items[idx]
-		if slices.Contains(supportedCsiDrivers, sc.Provisioner) {
+		if slices.Contains(util.SupportedCsiDrivers, sc.Provisioner) {
 			storageClassNames[sc.Name] = true
 		}
 	}
@@ -306,14 +283,14 @@ func getLocalVolumeSnapshotClassNames(ctx context.Context, kubeClient client.Cli
 	volumeSnapshotClassesInCluster := &snapapi.VolumeSnapshotClassList{}
 	if err := kubeClient.List(ctx, volumeSnapshotClassesInCluster, &client.MatchingLabelsSelector{
 		// not select snapshotclasses with external labels
-		Selector: getExternalClassesBlaclistSelector(),
+		Selector: util.GetExternalClassesBlacklistSelector(),
 	}); err != nil {
 		return nil, err
 	}
 	for idx := range volumeSnapshotClassesInCluster.Items {
 		// TODO: skip volumesnapshotclasses that are from external mode if both internal & external mode is enabled
 		vsc := &volumeSnapshotClassesInCluster.Items[idx]
-		if slices.Contains(supportedCsiDrivers, vsc.Driver) {
+		if slices.Contains(util.SupportedCsiDrivers, vsc.Driver) {
 			volumeSnapshotClassNames[vsc.Name] = true
 		}
 	}
@@ -345,14 +322,14 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 		volumeGroupSnapshotClassesInCluster := &groupsnapapi.VolumeGroupSnapshotClassList{}
 		if err := kubeClient.List(ctx, volumeGroupSnapshotClassesInCluster, &client.MatchingLabelsSelector{
 			// not select groupsnapshotclasses with external labels
-			Selector: getExternalClassesBlaclistSelector(),
+			Selector: util.GetExternalClassesBlacklistSelector(),
 		}); err != nil {
 			return nil, err
 		}
 		for idx := range volumeGroupSnapshotClassesInCluster.Items {
 			// TODO: skip volumegroupsnapshotclasses that are from external mode if both internal & external mode is enabled
 			vgsc := &volumeGroupSnapshotClassesInCluster.Items[idx]
-			if slices.Contains(supportedCsiDrivers, vgsc.Driver) {
+			if slices.Contains(util.SupportedCsiDrivers, vgsc.Driver) {
 				volumeGroupSnapshotClassNames[vgsc.Name] = true
 			}
 		}
