@@ -35,7 +35,7 @@ func TestCephNFS(t *testing.T) {
 	}
 }
 
-func assertCephNFS(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
+func assertCephNFS(t *testing.T, reconciler *StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	actualNfs := &cephv1.CephNFS{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephnfs",
@@ -54,7 +54,7 @@ func assertCephNFS(t *testing.T, reconciler StorageClusterReconciler, cr *api.St
 	assert.Equal(t, expectedAf[0].Spec, actualNfs.Spec)
 }
 
-func assertCephNFSService(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
+func assertCephNFSService(t *testing.T, reconciler *StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	actualNFSService := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephnfs-service",

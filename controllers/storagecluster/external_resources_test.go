@@ -104,12 +104,12 @@ func createExternalCephClusterSecret(extResources []ExternalResource) (*corev1.S
 	return externalSecret, err
 }
 
-func createExternalClusterReconciler(t *testing.T) StorageClusterReconciler {
+func createExternalClusterReconciler(t *testing.T) *StorageClusterReconciler {
 	return createExternalClusterReconcilerFromCustomResources(t, globalTestExternalResources)
 }
 
 func createExternalClusterReconcilerFromCustomResources(
-	t *testing.T, extResources []ExternalResource) StorageClusterReconciler {
+	t *testing.T, extResources []ExternalResource) *StorageClusterReconciler {
 	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit",
@@ -155,7 +155,7 @@ func createExternalClusterReconcilerFromCustomResources(
 	return reconciler
 }
 
-func assertExpectedExternalResources(t *testing.T, reconciler StorageClusterReconciler) {
+func assertExpectedExternalResources(t *testing.T, reconciler *StorageClusterReconciler) {
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",
@@ -306,7 +306,7 @@ func TestOptionalExternalStorageClusterResources(t *testing.T) {
 	}
 }
 
-func assertMissingExternalResource(t *testing.T, reconciler StorageClusterReconciler, resourceName string) {
+func assertMissingExternalResource(t *testing.T, reconciler *StorageClusterReconciler, resourceName string) {
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",
@@ -334,7 +334,7 @@ func assertMissingExternalResource(t *testing.T, reconciler StorageClusterReconc
 	assert.Error(t, err)
 }
 
-func assertCephObjectStore(t *testing.T, reconciler StorageClusterReconciler, removedResource string) {
+func assertCephObjectStore(t *testing.T, reconciler *StorageClusterReconciler, removedResource string) {
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",
@@ -381,7 +381,7 @@ func TestExternalResourceReconcile(t *testing.T) {
 	assertReconciliationOfExternalResource(t, reconciler)
 }
 
-func assertReconciliationOfExternalResource(t *testing.T, reconciler StorageClusterReconciler) {
+func assertReconciliationOfExternalResource(t *testing.T, reconciler *StorageClusterReconciler) {
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",

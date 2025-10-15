@@ -195,12 +195,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	availCrds, err := getAvailableCRDNames(context.Background(), apiClient)
-	if err != nil {
-		setupLog.Error(err, "Unable get a list of available CRD names")
-		os.Exit(1)
-	}
-
 	if err = (&ocsinitialization.OCSInitializationReconciler{
 		Client:            mgr.GetClient(),
 		Log:               ctrl.Log.WithName("controllers").WithName("OCSInitialization"),
@@ -218,7 +212,6 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		OperatorNamespace: operatorNamespace,
 		OperatorCondition: condition,
-		AvailableCrds:     availCrds,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageCluster")
 		os.Exit(1)
@@ -345,18 +338,4 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-}
-
-func getAvailableCRDNames(ctx context.Context, cl apiclient.Client) (map[string]bool, error) {
-	crdExist := map[string]bool{}
-	crdList := &metav1.PartialObjectMetadataList{}
-	crdList.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinitionList"))
-	if err := cl.List(ctx, crdList); err != nil {
-		return nil, fmt.Errorf("error listing CRDs, %v", err)
-	}
-	// Iterate over the list and populate the map
-	for i := range crdList.Items {
-		crdExist[crdList.Items[i].Name] = true
-	}
-	return crdExist, nil
 }

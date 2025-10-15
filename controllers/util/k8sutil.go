@@ -62,8 +62,7 @@ const (
 	AnnotationIndexName = "annotation"
 	ObjectUidIndexName  = "objectUID"
 
-	OdfInfoNamespacedNameClaimName      = "odfinfo.odf.openshift.io"
-	ExitCodeThatShouldRestartTheProcess = 42
+	OdfInfoNamespacedNameClaimName = "odfinfo.odf.openshift.io"
 
 	//ForbidMirroringLabel is used to forbid mirroring for ceph resources such as CephBlockPool
 	ForbidMirroringLabel                   = "ocs.openshift.io/forbid-mirroring"
