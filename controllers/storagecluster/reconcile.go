@@ -9,24 +9,28 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
 
 	"github.com/blang/semver/v4"
 	"github.com/go-logr/logr"
+	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/operator-framework/operator-lib/conditions"
+	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // ReconcileStrategy is a string representing how we want to reconcile
@@ -115,6 +119,7 @@ var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 // +kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create
 // +kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=create
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,resourceNames=hostnetwork-v2,verbs=use
+// +kubebuilder:rbac:groups=csiaddons.openshift.io,resources=networkfenceclasses,verbs=get;list;watch;create;update;delete
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
@@ -127,17 +132,6 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 	defer func() { r.Log = prevLogger }()
 	r.Log = r.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.ctx = ctrllog.IntoContext(ctx, r.Log)
-
-	for _, crdName := range []string{VirtualMachineCrdName, StorageClientCrdName, VolumeGroupSnapshotClassCrdName, OdfVolumeGroupSnapshotClassCrdName} {
-		crd := &metav1.PartialObjectMetadata{}
-		crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
-		crd.Name = crdName
-		if err := r.Client.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
-			r.Log.Error(err, "Failed to get CRD", "CRD", crd.Name)
-			return reconcile.Result{}, err
-		}
-		util.AssertEqual(r.AvailableCrds[crd.Name], crd.UID != "", util.ExitCodeThatShouldRestartTheProcess)
-	}
 
 	// Fetch the StorageCluster instance
 	sc := &ocsv1.StorageCluster{}
@@ -281,9 +275,78 @@ func (r *StorageClusterReconciler) validateStorageClusterSpec(instance *ocsv1.St
 	return nil
 }
 
+func (r *StorageClusterReconciler) reconcileDynamicWatches() error {
+
+	if err := r.reconcileCrdWatches(&groupsnapapi.VolumeGroupSnapshotClass{}, VolumeGroupSnapshotClassCrdName); err != nil {
+		return err
+	}
+
+	if err := r.reconcileCrdWatches(&odfgsapiv1b1.VolumeGroupSnapshotClass{}, OdfVolumeGroupSnapshotClassCrdName); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *StorageClusterReconciler) reconcileCrdWatches(obj client.Object, crdName string) error {
+	if watchExists, foundCrd := r.crdsBeingWatched.Load(crdName); !foundCrd || watchExists.(bool) {
+		return nil
+	}
+
+	crd := &metav1.PartialObjectMetadata{}
+	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
+	crd.Name = crdName
+	if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
+		return err
+	}
+	// CRD doesn't exist in the cluster
+	if crd.UID == "" {
+		return nil
+	}
+
+	// establish a watch
+	if err := r.controller.Watch(
+		source.Kind(
+			r.cache,
+			obj,
+			handler.EnqueueRequestsFromMapFunc(
+				func(context context.Context, obj client.Object) []reconcile.Request {
+					// Get the StorageCluster objects
+					scList := &ocsv1.StorageClusterList{}
+					if err := r.Client.List(context, scList, &client.ListOptions{Namespace: obj.GetNamespace()}); err != nil {
+						r.Log.Error(err, "Unable to list StorageCluster objects")
+						return []reconcile.Request{}
+					}
+
+					// Return name and namespace of the StorageClusters object
+					request := []reconcile.Request{}
+					for _, sc := range scList.Items {
+						request = append(request, reconcile.Request{
+							NamespacedName: types.NamespacedName{
+								Namespace: sc.Namespace,
+								Name:      sc.Name,
+							},
+						})
+					}
+
+					return request
+				},
+			),
+		),
+	); err != nil {
+		return fmt.Errorf("failed to setup dynamic watch on %s: %v", crd.Name, err)
+	}
+	r.Log.Info("Successfully added a watch on CRD", "CRD", crd.Name)
+	r.crdsBeingWatched.Store(crdName, true)
+	return nil
+}
+
 func (r *StorageClusterReconciler) reconcilePhases(
 	ctx context.Context,
 	instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+
+	if err := r.reconcileDynamicWatches(); err != nil {
+		return reconcile.Result{}, err
+	}
 
 	if instance.Spec.ExternalStorage.Enable {
 		r.Log.Info("Reconciling external StorageCluster.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))

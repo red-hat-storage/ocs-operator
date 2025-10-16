@@ -58,6 +58,8 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		return ctrl.Result{}, fmt.Errorf("failed to generate volumegroupsnapshotclasses list for distribution: %v", err)
 	}
 
+	networkFenceClassesSpec := getLocalNetworkFenceClassNames(storageCluster)
+
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = defaults.LocalStorageConsumerName
 	storageConsumer.Namespace = storageCluster.Namespace
@@ -69,6 +71,7 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		spec.ResourceNameMappingConfigMap.Name = defaults.LocalStorageConsumerConfigMapName
 		spec.StorageClasses = storageClassesSpec
 		spec.VolumeSnapshotClasses = volumeSnapshotClassesSpec
+		spec.NetworkFenceClasses = networkFenceClassesSpec
 		// TODO: this is to support upgraded 4.18 provider mode cluster and should be retired in 4.20
 		if dfVersion := storageConsumer.GetLabels()[util.CreatedAtDfVersionLabelKey]; dfVersion == "4.18" {
 			for idx := range spec.VolumeSnapshotClasses {
@@ -362,4 +365,18 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 		vgscSpec = append(vgscSpec, vgscItem)
 	}
 	return vgscSpec, nil
+}
+
+func getLocalNetworkFenceClassNames(storageCluster *ocsv1.StorageCluster) []ocsv1a1.NetworkFenceClassesSpec {
+
+	networkFenceClassNames := map[string]bool{}
+	networkFenceClassNames[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.RbdNetworkFenceClass)] = true
+
+	nfcSpec := make([]ocsv1a1.NetworkFenceClassesSpec, 0, len(networkFenceClassNames))
+	for nfcName := range maps.Keys(networkFenceClassNames) {
+		nfcItem := ocsv1a1.NetworkFenceClassesSpec{}
+		nfcItem.Name = nfcName
+		nfcSpec = append(nfcSpec, nfcItem)
+	}
+	return nfcSpec
 }

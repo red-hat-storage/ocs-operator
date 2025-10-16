@@ -240,7 +240,7 @@ func TestEnsureToolsDeploymentUpdate(t *testing.T) {
 	}
 }
 
-func getTestParams(mockNamespace bool, t *testing.T) (v1.StorageCluster, reconcile.Request, StorageClusterReconciler) {
+func getTestParams(mockNamespace bool, t *testing.T) (v1.StorageCluster, reconcile.Request, *StorageClusterReconciler) {
 	var request reconcile.Request
 	if mockNamespace {
 		request = reconcile.Request{
@@ -276,12 +276,12 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.StorageCluster, reconci
 	return ocs, request, reconciler
 }
 
-func getTheReconciler(t *testing.T, objs ...runtime.Object) StorageClusterReconciler {
+func getTheReconciler(t *testing.T, objs ...runtime.Object) *StorageClusterReconciler {
 	sc := &v1.StorageCluster{}
 	scheme := createFakeScheme(t)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objs...).WithStatusSubresource(sc).Build()
 
-	return StorageClusterReconciler{
+	return &StorageClusterReconciler{
 		Scheme: scheme,
 		Client: client,
 	}

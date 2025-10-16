@@ -128,12 +128,6 @@ func FnvHash(s string) uint32 {
 	return h.Sum32()
 }
 
-func AssertEqual[T comparable](actual T, expected T, exitCode int) {
-	if actual != expected {
-		os.Exit(exitCode)
-	}
-}
-
 func IsClusterOrDeviceSetEncrypted(sc *ocsv1.StorageCluster) bool {
 	// If cluster-wide encryption is enabled
 	if sc.Spec.Encryption.Enable || sc.Spec.Encryption.ClusterWide {

@@ -90,7 +90,7 @@ func TestOdfInfoConfig(t *testing.T) {
 
 		assert.Equal(t, r.OperatorNamespace, namespace)
 		odfInfoConfigReconciler := &odfInfoConfig{}
-		_, err := odfInfoConfigReconciler.ensureCreated(&r, sc)
+		_, err := odfInfoConfigReconciler.ensureCreated(r, sc)
 		assert.NilError(t, err)
 		// get the output
 		err = r.Client.Get(r.ctx, client.ObjectKeyFromObject(configMap), configMap)

@@ -15,6 +15,7 @@ import (
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 
 	"github.com/blang/semver/v4"
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -649,7 +650,7 @@ func TestIsActiveStorageCluster(t *testing.T) {
 
 	for _, tc := range testcases {
 
-		var reconciler StorageClusterReconciler
+		var reconciler *StorageClusterReconciler
 		if tc.storageCluster1 != nil && tc.storageCluster2 != nil {
 			reconciler = createFakeStorageClusterReconciler(t, tc.storageCluster1, tc.storageCluster2)
 		} else {
@@ -1078,7 +1079,7 @@ func assertCondition(conditions []conditionsv1.Condition, conditionType conditio
 	return false
 }
 
-func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) StorageClusterReconciler {
+func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *StorageClusterReconciler {
 	sc := &api.StorageCluster{}
 	scheme := createFakeScheme(t)
 	name := mockStorageClusterRequest.NamespacedName.Name
@@ -1187,11 +1188,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 	frecorder := record.NewFakeRecorder(1024)
 	reporter := statusutil.NewEventReporter(frecorder)
 
-	availCrds := map[string]bool{
-		StorageClientCrdName: true,
-	}
-
-	return StorageClusterReconciler{
+	r := &StorageClusterReconciler{
 		recorder:          reporter,
 		Client:            client,
 		Scheme:            scheme,
@@ -1199,8 +1196,12 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
 		clusters:          clusters,
 		OperatorNamespace: operatorNamespace,
-		AvailableCrds:     availCrds,
 	}
+
+	r.crdsBeingWatched.Store(VolumeGroupSnapshotClassCrdName, true)
+	r.crdsBeingWatched.Store(OdfVolumeGroupSnapshotClassCrdName, true)
+
+	return r
 }
 
 func createFakeScheme(t *testing.T) *runtime.Scheme {
@@ -1294,6 +1295,11 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 		assert.Fail(t, "unable to add rbacv1 to scheme")
 	}
 
+	err = csiaddonsv1alpha1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "unable to add rbacv1 to scheme")
+	}
+
 	return scheme
 }
 
@@ -1369,9 +1375,9 @@ func TestStorageClusterOnMultus(t *testing.T) {
 	}
 }
 
-func assertCephClusterNetwork(t assert.TestingT, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
+func assertCephClusterNetwork(t assert.TestingT, reconciler *StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	request.Name = "ocsinit-cephcluster"
-	cephCluster := newCephCluster(&reconciler, cr, nil)
+	cephCluster := newCephCluster(reconciler, cr, nil)
 	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, cephCluster)
 	assert.NoError(t, err)
 	if cr.Spec.Network == nil {

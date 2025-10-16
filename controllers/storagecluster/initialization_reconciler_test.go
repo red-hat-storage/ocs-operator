@@ -289,7 +289,7 @@ func createUpdateRuntimeObjects(t *testing.T) []client.Object {
 }
 
 func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []client.Object,
-	customSpec *api.StorageClusterSpec) (*testing.T, StorageClusterReconciler,
+	customSpec *api.StorageClusterSpec) (*testing.T, *StorageClusterReconciler,
 	*api.StorageCluster, reconcile.Request) {
 	cr := createDefaultStorageCluster()
 	if customSpec != nil {
@@ -331,7 +331,7 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 	return t, reconciler, cr, requestOCSInit
 }
 
-func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) StorageClusterReconciler {
+func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *StorageClusterReconciler {
 	sc := &api.StorageCluster{}
 	scheme := createFakeScheme(t)
 	cfs := &cephv1.CephFilesystem{
@@ -474,18 +474,13 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 	)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
-	availCrds := map[string]bool{
-		VirtualMachineCrdName:              true,
-		StorageClientCrdName:               true,
-		VolumeGroupSnapshotClassCrdName:    true,
-		OdfVolumeGroupSnapshotClassCrdName: true,
-	}
-
-	return StorageClusterReconciler{
+	r := &StorageClusterReconciler{
 		Client:            client,
 		Scheme:            scheme,
 		OperatorCondition: newStubOperatorCondition(),
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
-		AvailableCrds:     availCrds,
 	}
+	r.crdsBeingWatched.Store(VolumeGroupSnapshotClassCrdName, true)
+	r.crdsBeingWatched.Store(OdfVolumeGroupSnapshotClassCrdName, true)
+	return r
 }

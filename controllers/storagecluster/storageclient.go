@@ -35,10 +35,6 @@ var _ resourceManager = &storageClient{}
 
 func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluster *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	if !r.AvailableCrds[StorageClientCrdName] {
-		return reconcile.Result{}, fmt.Errorf("StorageClient CRD is not available")
-	}
-
 	if err := s.updateClientConfigMap(r, storagecluster.Namespace, storagecluster.Spec.HostNetwork); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -92,10 +88,6 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 }
 
 func (s *storageClient) ensureDeleted(r *StorageClusterReconciler, storagecluster *ocsv1.StorageCluster) (reconcile.Result, error) {
-	if !r.AvailableCrds[StorageClientCrdName] {
-		r.Log.Info("StorageClient CRD doesn't exist and not proceeding with deletion of storageclient CR (if any)")
-		return reconcile.Result{}, nil
-	}
 	storageClient := &ocsclientv1a1.StorageClient{}
 	storageClient.Name = storagecluster.Name
 	if err := r.Get(r.ctx, client.ObjectKeyFromObject(storageClient), storageClient); client.IgnoreNotFound(err) != nil {

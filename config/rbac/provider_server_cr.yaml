@@ -11,6 +11,7 @@ rules:
   verbs:
   - get
   - list
+  - watch
 - apiGroups:
   - snapshot.storage.k8s.io
   resources:
@@ -18,10 +19,21 @@ rules:
   verbs:
   - get
   - list
+  - watch
 - apiGroups:
   - groupsnapshot.storage.k8s.io
+  - groupsnapshot.storage.openshift.io
   resources:
   - volumegroupsnapshotclasses
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+    - csiaddons.openshift.io
+  resources:
+    - networkfenceclasses
+  verbs:
+    - get
+    - list
+    - watch

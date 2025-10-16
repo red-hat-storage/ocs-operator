@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	nadscheme "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/scheme"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
@@ -109,6 +110,7 @@ func init() {
 	utilruntime.Must(operatorsv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(nadscheme.AddToScheme(scheme))
 	utilruntime.Must(ocsclientv1a1.AddToScheme(scheme))
+	utilruntime.Must(csiaddonsv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -193,19 +195,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	availCrds, err := getAvailableCRDNames(context.Background(), apiClient)
-	if err != nil {
-		setupLog.Error(err, "Unable get a list of available CRD names")
-		os.Exit(1)
-	}
-
 	if err = (&ocsinitialization.OCSInitializationReconciler{
 		Client:            mgr.GetClient(),
 		Log:               ctrl.Log.WithName("controllers").WithName("OCSInitialization"),
 		Scheme:            mgr.GetScheme(),
 		SecurityClient:    secv1client.NewForConfigOrDie(mgr.GetConfig()),
 		OperatorNamespace: operatorNamespace,
-		AvailableCrds:     availCrds,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "OCSInitialization")
 		os.Exit(1)
@@ -217,7 +212,6 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		OperatorNamespace: operatorNamespace,
 		OperatorCondition: condition,
-		AvailableCrds:     availCrds,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageCluster")
 		os.Exit(1)
@@ -344,18 +338,4 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-}
-
-func getAvailableCRDNames(ctx context.Context, cl apiclient.Client) (map[string]bool, error) {
-	crdExist := map[string]bool{}
-	crdList := &metav1.PartialObjectMetadataList{}
-	crdList.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinitionList"))
-	if err := cl.List(ctx, crdList); err != nil {
-		return nil, fmt.Errorf("error listing CRDs, %v", err)
-	}
-	// Iterate over the list and populate the map
-	for i := range crdList.Items {
-		crdExist[crdList.Items[i].Name] = true
-	}
-	return crdExist, nil
 }

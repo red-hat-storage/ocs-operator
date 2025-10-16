@@ -5,6 +5,11 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sync"
+
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
@@ -15,9 +20,6 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/operator-framework/operator-lib/conditions"
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
-	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -27,7 +29,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -95,7 +99,10 @@ type StorageClusterReconciler struct {
 	IsMultipleStorageClusters bool
 	clusters                  *util.Clusters
 	OperatorNamespace         string
-	AvailableCrds             map[string]bool
+
+	cache            cache.Cache
+	controller       controller.Controller
+	crdsBeingWatched sync.Map
 }
 
 // SetupWithManager sets up a controller with manager
@@ -233,20 +240,11 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&extv1.CustomResourceDefinition{},
 			enqueueStorageClusterRequest,
 			builder.WithPredicates(
-				predicate.Or(
-					util.NamePredicate(VirtualMachineCrdName),
-					util.NamePredicate(StorageClientCrdName),
-					util.NamePredicate(VolumeGroupSnapshotClassCrdName),
-					util.NamePredicate(OdfVolumeGroupSnapshotClassCrdName),
-				),
-				util.EventTypePredicate(
-					// the values in the below map are filled before controller watches are setup and these conditions
-					// will just be evaluated to a boolean by the time builder completes setting up watches.
-					!r.AvailableCrds[VirtualMachineCrdName] || !r.AvailableCrds[StorageClientCrdName] || !r.AvailableCrds[VolumeGroupSnapshotClassCrdName] || !r.AvailableCrds[OdfVolumeGroupSnapshotClassCrdName],
-					false,
-					true,
-					false,
-				),
+				predicate.NewPredicateFuncs(func(obj client.Object) bool {
+					_, ok := r.crdsBeingWatched.Load(obj.GetName())
+					return ok
+				}),
+				util.EventTypePredicate(true, false, false, false),
 			),
 			builder.OnlyMetadata,
 		).
@@ -261,14 +259,18 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				util.NamePredicate(OdfInfoConfigMapName),
 				util.NamespacePredicate(r.OperatorNamespace),
 			),
-		)
+		).
+		Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest)
 
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
 		build.Owns(&nbv1.NooBaa{}, builder.WithPredicates(noobaaIgnoreTimeUpdatePredicate))
 	}
-	if r.AvailableCrds[StorageClientCrdName] {
-		build.Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest)
-	}
 
-	return build.Complete(r)
+	controller, err := build.Build(r)
+	r.controller = controller
+	r.cache = mgr.GetCache()
+	r.crdsBeingWatched.Store(VolumeGroupSnapshotClassCrdName, false)
+	r.crdsBeingWatched.Store(OdfVolumeGroupSnapshotClassCrdName, false)
+
+	return err
 }

@@ -39,7 +39,7 @@ func TestCephRGWRoutes(t *testing.T) {
 		platform.UnsetFakePlatformInstanceForTesting()
 	}
 }
-func assertCephRGWRoutes(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
+func assertCephRGWRoutes(t *testing.T, reconciler *StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	expectedCos, err := reconciler.newCephRGWRoutes(cr)
 	assert.NoError(t, err)
 	actualCos := &routev1.Route{}

@@ -50,7 +50,7 @@ func TestReconcileUninstallAnnotations(t *testing.T) {
 }
 
 func assertStorageClusterUninstallAnnotation(
-	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster,
+	t *testing.T, reconciler *StorageClusterReconciler, sc *ocsv1.StorageCluster,
 	CleanupPolicy CleanupPolicyType, UninstallMode UninstallModeType, ShouldSCUpdate bool) {
 
 	wasSCUpdated := reconciler.checkAndSetUninstallAnnotations(sc)
@@ -100,7 +100,7 @@ func TestSetRookUninstallandCleanupPolicy(t *testing.T) {
 }
 
 func assertCephClusterCleanupPolicy(
-	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster,
+	t *testing.T, reconciler *StorageClusterReconciler, sc *ocsv1.StorageCluster,
 	CleanupPolicyConfirmation cephv1.CleanupConfirmationProperty, AllowUninstallWithVolumes bool) {
 
 	var err error
@@ -141,7 +141,7 @@ func TestDeleteNodeAffinityKeyFromNodes(t *testing.T) {
 }
 
 func assertTestDeleteNodeAffinityKeyFromNodes(
-	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, createUserDefinedKey bool) {
+	t *testing.T, reconciler *StorageClusterReconciler, sc *ocsv1.StorageCluster, createUserDefinedKey bool) {
 
 	if createUserDefinedKey {
 		addFakeNodeAffinityKeyOnNodesAndSC(t, reconciler, sc)
@@ -174,7 +174,7 @@ func assertTestDeleteNodeAffinityKeyFromNodes(
 	}
 }
 
-func addFakeNodeAffinityKeyOnNodesAndSC(t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster) {
+func addFakeNodeAffinityKeyOnNodesAndSC(t *testing.T, reconciler *StorageClusterReconciler, sc *ocsv1.StorageCluster) {
 	// create user defined key and val and apply it on SC
 	fakeKey, fakeVal := "fakeKey", "fakeVal"
 	sc.Spec.LabelSelector = metav1.AddLabelToSelector(&metav1.LabelSelector{}, fakeKey, fakeVal)
@@ -227,7 +227,7 @@ func TestDeleteNodeTaint(t *testing.T) {
 }
 
 func assertTestDeleteNodeTaint(
-	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, createDefaultNodeTaint bool) {
+	t *testing.T, reconciler *StorageClusterReconciler, sc *ocsv1.StorageCluster, createDefaultNodeTaint bool) {
 
 	if createDefaultNodeTaint {
 		addDefaultNodeTaintOnNodes(t, reconciler, sc)
@@ -249,7 +249,7 @@ func assertTestDeleteNodeTaint(
 	}
 }
 
-func addDefaultNodeTaintOnNodes(t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster) {
+func addDefaultNodeTaintOnNodes(t *testing.T, reconciler *StorageClusterReconciler, sc *ocsv1.StorageCluster) {
 
 	nodes, err := reconciler.getStorageClusterEligibleNodes(sc)
 	assert.NoError(t, err)
@@ -297,12 +297,12 @@ func TestDeleteCephCluster(t *testing.T) {
 }
 
 func assertTestDeleteCephCluster(
-	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, cephClusterExist bool) {
+	t *testing.T, reconciler *StorageClusterReconciler, sc *ocsv1.StorageCluster, cephClusterExist bool) {
 
 	var obj ocsCephCluster
 
 	if !cephClusterExist {
-		_, err := obj.ensureDeleted(&reconciler, sc)
+		_, err := obj.ensureDeleted(reconciler, sc)
 		assert.NoError(t, err)
 	}
 
@@ -316,7 +316,7 @@ func assertTestDeleteCephCluster(
 		assert.True(t, errors.IsNotFound(err))
 	}
 
-	_, err = obj.ensureDeleted(&reconciler, sc)
+	_, err = obj.ensureDeleted(reconciler, sc)
 	assert.NoError(t, err)
 
 	cephCluster = &cephv1.CephCluster{}
@@ -349,12 +349,12 @@ func TestDeleteCephFilesystems(t *testing.T) {
 }
 
 func assertTestDeleteCephFilesystems(
-	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, cephFilesystemsExist bool) {
+	t *testing.T, reconciler *StorageClusterReconciler, sc *ocsv1.StorageCluster, cephFilesystemsExist bool) {
 
 	var obj ocsCephFilesystems
 
 	if !cephFilesystemsExist {
-		_, err := obj.ensureDeleted(&reconciler, sc)
+		_, err := obj.ensureDeleted(reconciler, sc)
 		assert.NoError(t, err)
 	}
 
@@ -373,7 +373,7 @@ func assertTestDeleteCephFilesystems(
 		}
 	}
 
-	_, err = obj.ensureDeleted(&reconciler, sc)
+	_, err = obj.ensureDeleted(reconciler, sc)
 	assert.NoError(t, err)
 
 	for _, cephFilesystem := range cephFilesystems {
@@ -410,7 +410,7 @@ func TestDeleteCephBlockPools(t *testing.T) {
 }
 
 func assertTestDeleteCephBlockPools(
-	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, cephBlockPoolsExist bool) {
+	t *testing.T, reconciler *StorageClusterReconciler, sc *ocsv1.StorageCluster, cephBlockPoolsExist bool) {
 
 	var obj ocsCephBlockPools
 
@@ -431,7 +431,7 @@ func assertTestDeleteCephBlockPools(
 	deletionTime := metav1.Now()
 	sc.SetDeletionTimestamp(&deletionTime)
 
-	_, err := obj.ensureDeleted(&reconciler, sc)
+	_, err := obj.ensureDeleted(reconciler, sc)
 	assert.NoError(t, err)
 
 	for _, cephBlockPool := range cephBlockPools {
@@ -500,12 +500,12 @@ func TestDeleteCephObjectStoreUsers(t *testing.T) {
 }
 
 func assertTestDeleteCephObjectStoreUsers(
-	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, CephObjectStoreUsersExist bool) {
+	t *testing.T, reconciler *StorageClusterReconciler, sc *ocsv1.StorageCluster, CephObjectStoreUsersExist bool) {
 
 	var obj ocsCephObjectStoreUsers
 
 	if !CephObjectStoreUsersExist {
-		_, err := obj.ensureDeleted(&reconciler, sc)
+		_, err := obj.ensureDeleted(reconciler, sc)
 		assert.NoError(t, err)
 	}
 
@@ -524,7 +524,7 @@ func assertTestDeleteCephObjectStoreUsers(
 		}
 	}
 
-	_, err = obj.ensureDeleted(&reconciler, sc)
+	_, err = obj.ensureDeleted(reconciler, sc)
 	assert.NoError(t, err)
 
 	for _, cephStoreUser := range cephStoreUsers {
@@ -600,12 +600,12 @@ func TestDeleteCephObjectStores(t *testing.T) {
 }
 
 func assertTestDeleteCephObjectStores(
-	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster, CephObjectStoreExist bool) {
+	t *testing.T, reconciler *StorageClusterReconciler, sc *ocsv1.StorageCluster, CephObjectStoreExist bool) {
 
 	var obj ocsCephObjectStores
 
 	if !CephObjectStoreExist {
-		_, err := obj.ensureDeleted(&reconciler, sc)
+		_, err := obj.ensureDeleted(reconciler, sc)
 		assert.NoError(t, err)
 	}
 
@@ -624,7 +624,7 @@ func assertTestDeleteCephObjectStores(
 		}
 	}
 
-	_, err = obj.ensureDeleted(&reconciler, sc)
+	_, err = obj.ensureDeleted(reconciler, sc)
 	assert.NoError(t, err)
 
 	for _, cephStore := range cephStores {
@@ -681,7 +681,7 @@ func TestSetNoobaaUninstallMode(t *testing.T) {
 }
 
 func assertTestSetNoobaaUninstallMode(
-	t *testing.T, reconciler StorageClusterReconciler, sc *ocsv1.StorageCluster,
+	t *testing.T, reconciler *StorageClusterReconciler, sc *ocsv1.StorageCluster,
 	UninstallMode UninstallModeType, NoobaaUninstallMode nbv1.CleanupConfirmationProperty) {
 
 	_ = reconciler.checkAndSetUninstallAnnotations(sc)

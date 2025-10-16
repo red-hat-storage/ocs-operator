@@ -60,9 +60,9 @@ const (
 	// This is the name for the FieldIndex
 	OwnerUIDIndexName   = "ownerUID"
 	AnnotationIndexName = "annotation"
+	ObjectUidIndexName  = "objectUID"
 
-	OdfInfoNamespacedNameClaimName      = "odfinfo.odf.openshift.io"
-	ExitCodeThatShouldRestartTheProcess = 42
+	OdfInfoNamespacedNameClaimName = "odfinfo.odf.openshift.io"
 
 	//ForbidMirroringLabel is used to forbid mirroring for ceph resources such as CephBlockPool
 	ForbidMirroringLabel                   = "ocs.openshift.io/forbid-mirroring"
@@ -196,6 +196,10 @@ func OwnersIndexFieldFunc(obj client.Object) []string {
 
 func AnnotationIndexFieldFunc(obj client.Object) []string {
 	return maps.Keys(obj.GetAnnotations())
+}
+
+func ObjectUidIndexFieldFunc(obj client.Object) []string {
+	return []string{string(obj.GetUID())}
 }
 
 func GetTopologyConstrainedPools(storageCluster *ocsv1.StorageCluster) string {

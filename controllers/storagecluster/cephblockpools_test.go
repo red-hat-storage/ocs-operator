@@ -42,7 +42,7 @@ func TestCephBlockPools(t *testing.T) {
 	}
 }
 
-func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request, mirroringEnabled bool, validSecret bool) {
+func assertCephBlockPools(t *testing.T, reconciler *StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request, mirroringEnabled bool, validSecret bool) {
 	actualCbp := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephblockpool",
@@ -89,7 +89,7 @@ func assertCephBlockPools(t *testing.T, reconciler StorageClusterReconciler, cr 
 	assert.Equal(t, expectedCbp.Spec, actualCbp.Spec)
 }
 
-func assertCephNFSBlockPool(t *testing.T, reconciler StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
+func assertCephNFSBlockPool(t *testing.T, reconciler *StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	actualNFSBlockPool := &cephv1.CephBlockPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ocsinit-cephnfs-builtin-pool",

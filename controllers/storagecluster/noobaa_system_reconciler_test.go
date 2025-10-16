@@ -404,7 +404,7 @@ func TestNoobaaSystemInExternalClusterMode(t *testing.T) {
 	assertNoobaaResource(t, reconciler)
 }
 
-func assertNoobaaResource(t *testing.T, reconciler StorageClusterReconciler) {
+func assertNoobaaResource(t *testing.T, reconciler *StorageClusterReconciler) {
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",
@@ -429,7 +429,7 @@ func assertNoobaaResource(t *testing.T, reconciler StorageClusterReconciler) {
 	err = reconciler.Client.Update(context.TODO(), foundCeph)
 	assert.NoError(t, err)
 	// calling 'ensureNoobaaSystem()' function and the expectation is that 'Noobaa' system is not be created
-	_, err = obj.ensureCreated(&reconciler, cr)
+	_, err = obj.ensureCreated(reconciler, cr)
 	assert.NoError(t, err)
 	fNoobaa := &nbv1.NooBaa{}
 	request.Name = "noobaa"
@@ -443,7 +443,7 @@ func assertNoobaaResource(t *testing.T, reconciler StorageClusterReconciler) {
 	assert.NoError(t, err)
 	// call 'ensureNoobaaSystem()' to make sure it takes appropriate action
 	// when ceph cluster is connected to an external cluster
-	_, err = obj.ensureCreated(&reconciler, cr)
+	_, err = obj.ensureCreated(reconciler, cr)
 	assert.NoError(t, err)
 	fNoobaa = &nbv1.NooBaa{}
 	request.Name = "noobaa"
@@ -549,7 +549,7 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 
 	var obj ocsCephCluster
 
-	_, err := obj.ensureCreated(&reconciler, cr)
+	_, err := obj.ensureCreated(reconciler, cr)
 	if kmsArgs.failureExpected && err == nil {
 		// case 1: if we are expecting a failure and returned error is 'nil'
 		t.Errorf("Expecting the cephcluster creation to fail")
@@ -577,7 +577,7 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 
 	var objNoobaa ocsNoobaaSystem
 
-	_, err = objNoobaa.ensureCreated(&reconciler, cr)
+	_, err = objNoobaa.ensureCreated(reconciler, cr)
 	assert.NoError(t, err, fmt.Sprintf("Failed to ensure Noobaa system: %v, %v", err, kmsArgs.testLabel))
 	nb := &nbv1.NooBaa{}
 	err = reconciler.Client.Get(ctxTodo, types.NamespacedName{Name: "noobaa"}, nb)

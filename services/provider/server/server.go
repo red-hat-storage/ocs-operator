@@ -31,6 +31,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	csiopv1 "github.com/ceph/ceph-csi-operator/api/v1"
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
 	"github.com/go-logr/logr"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
@@ -60,8 +61,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -105,26 +108,55 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		return nil, fmt.Errorf("failed to create new scheme. %v", err)
 	}
 
-	client, err := util.NewK8sClient(scheme)
+	config, err := config.GetConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new client. %v", err)
+		return nil, err
 	}
 
-	consumerManager, err := newConsumerManager(ctx, client, namespace)
+	cache, err := ctrlcache.New(config, ctrlcache.Options{
+		Scheme: scheme,
+		DefaultNamespaces: map[string]ctrlcache.Config{
+			namespace: {},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := client.New(config, client.Options{
+		Scheme: scheme,
+		Cache: &client.CacheOptions{
+			Reader: cache,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	logger := klog.FromContext(ctx).WithName("NewOCSProviderServer")
+
+	consumerManager, err := newConsumerManager(ctx, client, cache, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new OCSConumer instance. %v", err)
 	}
 
-	storageClusterPeerManager, err := newStorageClusterPeerManager(client, namespace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new StorageClusterPeer instance. %v", err)
+	logger.Info("starting cache")
+	go func() {
+		if err := cache.Start(ctx); err != nil {
+			logger.Error(err, "failed to start cache")
+			os.Exit(1)
+		}
+	}()
+
+	if !cache.WaitForCacheSync(ctx) {
+		panic("cache did not sync")
 	}
 
 	return &OCSProviderServer{
 		client:                    client,
 		scheme:                    scheme,
 		consumerManager:           consumerManager,
-		storageClusterPeerManager: storageClusterPeerManager,
+		storageClusterPeerManager: newStorageClusterPeerManager(client, namespace),
 		namespace:                 namespace,
 	}, nil
 }
@@ -441,6 +473,9 @@ func newScheme() (*runtime.Scheme, error) {
 		return nil, fmt.Errorf("failed to add quotav1 to scheme. %v", err)
 	}
 	if err = nbapis.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add nbapis to scheme. %v", err)
+	}
+	if err = csiaddonsv1alpha1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add nbapis to scheme. %v", err)
 	}
 
@@ -1165,6 +1200,20 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 		return nil, err
 	}
 
+	kubeResources, err = s.appendNetworkFenceClassKubeResources(
+		ctx,
+		logger,
+		kubeResources,
+		consumer,
+		consumerConfig,
+		storageCluster,
+		rbdStorageId,
+		cephFsStorageId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	kubeResources, err = s.appendVolumeReplicationClassKubeResources(
 		ctx,
 		logger,
@@ -1774,6 +1823,44 @@ func (s *OCSProviderServer) appendOdfVolumeGroupSnapshotClassKubeResources(
 					consumerConfig,
 					cephFsStorageId,
 				)
+			}
+		},
+	)
+	kubeResources = append(kubeResources, resources...)
+
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendNetworkFenceClassKubeResources(
+	ctx context.Context,
+	logger logr.Logger,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+	rbdStorageId,
+	cephFsStorageId string,
+) ([]client.Object, error) {
+	nfcMap := map[string]func() *csiaddonsv1alpha1.NetworkFenceClass{}
+	if consumerConfig.GetRbdClientProfileName() != "" {
+		nfcMap[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.RbdNetworkFenceClass)] = func() *csiaddonsv1alpha1.NetworkFenceClass {
+			return util.NewDefaultRbdNetworkFenceClass(
+				consumerConfig.GetCsiRbdProvisionerCephUserName(),
+				consumer.Status.Client.OperatorNamespace,
+				rbdStorageId,
+			)
+		}
+	}
+
+	resources := getKubeResourcesForClass(
+		logger,
+		consumer.Spec.NetworkFenceClasses,
+		"networkfenceclass",
+		func(nfcName string) (client.Object, error) {
+			if nfcGen, fnExist := nfcMap[nfcName]; fnExist {
+				return nfcGen(), nil
+			} else {
+				return nil, nil
 			}
 		},
 	)
