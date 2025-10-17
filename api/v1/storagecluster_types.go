@@ -249,6 +249,13 @@ type ManageCephBlockPools struct {
 // ManageCephNonResilientPools defines how to reconcile ceph non-resilient pools
 type ManageCephNonResilientPools struct {
 	Enable bool `json:"enable,omitempty"`
+	// UseExistingOsds is set when pools has to use existing OSDs
+	UseExistingOsds bool `json:"useExistingOsds,omitempty"`
+	// PoolNamePrefix is prefix string used in the replica-1 pools names
+	// +optional
+	PoolNamePrefix string `json:"poolNamePrefix,omitempty"`
+	// +optional
+	AutoCreateStorageclass bool `json:"autoCreateStorageclass,omitempty"`
 	// Count is the number of devices in this set
 	// +kubebuilder:validation:Minimum=1
 	Count int `json:"count,omitempty"`

@@ -2193,6 +2193,8 @@ spec:
                     description: ManageCephNonResilientPools defines how to reconcile
                       ceph non-resilient pools
                     properties:
+                      autoCreateStorageclass:
+                        type: boolean
                       count:
                         description: Count is the number of devices in this set
                         minimum: 1
@@ -2207,6 +2209,10 @@ spec:
                         nullable: true
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
+                      poolNamePrefix:
+                        description: PoolNamePrefix is prefix string used in the replica-1
+                          pools names
+                        type: string
                       resources:
                         description: ResourceRequirements (requests/limits) for the
                           devices
@@ -2273,6 +2279,10 @@ spec:
                         maxLength: 253
                         pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string
+                      useExistingOsds:
+                        description: UseExistingOsds is set when pools has to use
+                          existing OSDs
+                        type: boolean
                       volumeClaimTemplate:
                         description: VolumeClaimTemplates is a PVC template for the
                           underlying storage devices
