@@ -443,7 +443,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		}
 	}
 
-	err = r.enableCsiDrivers(availableSCCs)
+	err = r.configureCsiDrivers(availableSCCs, instance)
 	if err != nil {
 		r.Log.Error(err, "Failed to enable CSI drivers.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		return err
@@ -710,7 +710,38 @@ func getTopologyConstrainedPoolsExternalMode(data map[string]string) (string, er
 	return string(topologyConstrainedPoolsStr), nil
 }
 
-func (r *StorageClusterReconciler) enableCsiDrivers(availableSCCs []StorageClassConfiguration) error {
+// getTopologyFailureDomainConfig retrieves the topology failure domain label and values from external resources
+func (r *StorageClusterReconciler) getTopologyFailureDomainConfig(uid types.UID) (string, string, error) {
+	data, ok := externalOCSResources[uid]
+	if !ok {
+		return "", "", fmt.Errorf("unable to retrieve external resource from externalOCSResources")
+	}
+
+	// Look for the topologyFailureDomainLabel and topologyFailureDomainValues in the external resources
+	for _, d := range data {
+		if d.Kind == "StorageClass" && d.Name == cephRbdTopologyStorageClassName {
+			label, labelExists := d.Data["topologyFailureDomainLabel"]
+			values, valuesExist := d.Data["topologyFailureDomainValues"]
+
+			// Both label and values must be present together, or neither
+			if labelExists && valuesExist {
+				if label != "" && values != "" {
+					r.Log.Info("Found topology failure domain config from external resources", "label", label, "values", values)
+					return label, values, nil
+				}
+				return "", "", fmt.Errorf("both topologyFailureDomainLabel and topologyFailureDomainValues must have non-empty values")
+			} else if labelExists || valuesExist {
+				// Only one is present - this is an error
+				return "", "", fmt.Errorf("both topologyFailureDomainLabel and topologyFailureDomainValues must be provided together")
+			}
+		}
+	}
+
+	r.Log.Info("No topology failure domain config found in external resources")
+	return "", "", nil
+}
+
+func (r *StorageClusterReconciler) configureCsiDrivers(availableSCCs []StorageClassConfiguration, instance *ocsv1.StorageCluster) error {
 	clientConfig := &corev1.ConfigMap{}
 	clientConfig.Name = ocsClientConfigMapName
 	clientConfig.Namespace = r.OperatorNamespace
@@ -737,6 +768,23 @@ func (r *StorageClusterReconciler) enableCsiDrivers(availableSCCs []StorageClass
 			r.Log.Info("not enabling driver for: %s", scc.storageClass.Provisioner)
 		}
 
+	}
+
+	// Read topology-failure-domain-label and topology-failure-domain-values from external resources and update ConfigMap
+	if instance.Spec.ExternalStorage.Enable {
+		topologyDomainLabel, topologyDomainValues, err := r.getTopologyFailureDomainConfig(instance.UID)
+		if err != nil {
+			r.Log.Error(err, "failed to get topology failure domain config from external resources")
+			return err
+		} else {
+			if topologyDomainLabel != "" && topologyDomainValues != "" {
+				clientConfig.Data["TOPOLOGY_FAILURE_DOMAIN_LABEL"] = topologyDomainLabel
+				clientConfig.Data["TOPOLOGY_FAILURE_DOMAIN_VALUES"] = topologyDomainValues
+
+				r.Log.Info("Updated ocs-client-operator-config with topology failure domain config",
+					"label", topologyDomainLabel, "values", topologyDomainValues)
+			}
+		}
 	}
 
 	if !maps.Equal(clientConfig.Data, existingData) {

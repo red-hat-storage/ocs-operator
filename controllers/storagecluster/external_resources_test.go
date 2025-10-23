@@ -569,3 +569,319 @@ func TestErasureCodedExternalResources(t *testing.T) {
 		})
 	}
 }
+
+func TestGetTopologyFailureDomainConfig(t *testing.T) {
+	testCases := []struct {
+		label             string
+		externalResources []ExternalResource
+		expectedLabel     string
+		expectedValues    string
+		expectError       bool
+	}{
+		{
+			label: "ValidTopologyConfig",
+			externalResources: []ExternalResource{
+				{
+					Kind: "StorageClass",
+					Data: map[string]string{
+						"topologyFailureDomainLabel":  "zone",
+						"topologyFailureDomainValues": "zone1,zone2,zone3",
+						"topologyPools":               "pool1,pool2,pool3",
+					},
+					Name: "ceph-rbd-topology",
+				},
+			},
+			expectedLabel:  "zone",
+			expectedValues: "zone1,zone2,zone3",
+			expectError:    false,
+		},
+		{
+			label: "OnlyLabelPresent",
+			externalResources: []ExternalResource{
+				{
+					Kind: "StorageClass",
+					Data: map[string]string{
+						"topologyFailureDomainLabel": "rack",
+						"topologyPools":              "pool1,pool2",
+					},
+					Name: "ceph-rbd-topology",
+				},
+			},
+			expectedLabel:  "",
+			expectedValues: "",
+			expectError:    true,
+		},
+		{
+			label: "OnlyValuesPresent",
+			externalResources: []ExternalResource{
+				{
+					Kind: "StorageClass",
+					Data: map[string]string{
+						"topologyFailureDomainValues": "node1,node2",
+						"topologyPools":               "pool1,pool2",
+					},
+					Name: "ceph-rbd-topology",
+				},
+			},
+			expectedLabel:  "",
+			expectedValues: "",
+			expectError:    true,
+		},
+		{
+			label: "BothPresentButLabelEmpty",
+			externalResources: []ExternalResource{
+				{
+					Kind: "StorageClass",
+					Data: map[string]string{
+						"topologyFailureDomainLabel":  "",
+						"topologyFailureDomainValues": "zone1,zone2",
+						"topologyPools":               "pool1,pool2",
+					},
+					Name: "ceph-rbd-topology",
+				},
+			},
+			expectedLabel:  "",
+			expectedValues: "",
+			expectError:    true,
+		},
+		{
+			label: "BothPresentButValuesEmpty",
+			externalResources: []ExternalResource{
+				{
+					Kind: "StorageClass",
+					Data: map[string]string{
+						"topologyFailureDomainLabel":  "zone",
+						"topologyFailureDomainValues": "",
+						"topologyPools":               "pool1,pool2",
+					},
+					Name: "ceph-rbd-topology",
+				},
+			},
+			expectedLabel:  "",
+			expectedValues: "",
+			expectError:    true,
+		},
+		{
+			label: "NoTopologyStorageClass",
+			externalResources: []ExternalResource{
+				{
+					Kind: "StorageClass",
+					Data: map[string]string{
+						"pool": "device_health_metrics",
+					},
+					Name: "ceph-rbd",
+				},
+			},
+			expectedLabel:  "",
+			expectedValues: "",
+			expectError:    false,
+		},
+		{
+			label: "NoTopologyConfigInTopologyStorageClass",
+			externalResources: []ExternalResource{
+				{
+					Kind: "StorageClass",
+					Data: map[string]string{
+						"pool": "some-pool",
+					},
+					Name: "ceph-rbd-topology",
+				},
+			},
+			expectedLabel:  "",
+			expectedValues: "",
+			expectError:    false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.label, func(t *testing.T) {
+			sc := &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cluster",
+					Namespace: "openshift-storage",
+					UID:       types.UID("test-uid"),
+				},
+				Spec: api.StorageClusterSpec{
+					ExternalStorage: api.ExternalStorageClusterSpec{
+						Enable: true,
+					},
+				},
+			}
+
+			externalOCSResources[sc.UID] = tc.externalResources
+
+			reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
+
+			label, values, err := reconciler.getTopologyFailureDomainConfig(sc.UID)
+
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedLabel, label)
+				assert.Equal(t, tc.expectedValues, values)
+			}
+
+			// Cleanup
+			delete(externalOCSResources, sc.UID)
+		})
+	}
+}
+
+func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
+	testCases := []struct {
+		label                     string
+		externalResources         []ExternalResource
+		expectedLabelInConfigMap  string
+		expectedValuesInConfigMap string
+		shouldHaveTopologyKeys    bool
+		expectError               bool
+	}{
+		{
+			label: "WithTopologyConfig",
+			externalResources: []ExternalResource{
+				{
+					Kind: "StorageClass",
+					Data: map[string]string{
+						"topologyFailureDomainLabel":  "zone",
+						"topologyFailureDomainValues": "zone1,zone2,zone3",
+						"topologyPools":               "pool1,pool2,pool3",
+					},
+					Name: "ceph-rbd-topology",
+				},
+				{
+					Kind: "StorageClass",
+					Data: map[string]string{
+						"pool": "device_health_metrics",
+					},
+					Name: "ceph-rbd",
+				},
+			},
+			expectedLabelInConfigMap:  "zone",
+			expectedValuesInConfigMap: "zone1,zone2,zone3",
+			shouldHaveTopologyKeys:    true,
+			expectError:               false,
+		},
+		{
+			label: "WithoutTopologyConfig",
+			externalResources: []ExternalResource{
+				{
+					Kind: "StorageClass",
+					Data: map[string]string{
+						"pool": "device_health_metrics",
+					},
+					Name: "ceph-rbd",
+				},
+			},
+			expectedLabelInConfigMap:  "",
+			expectedValuesInConfigMap: "",
+			shouldHaveTopologyKeys:    false,
+			expectError:               false,
+		},
+		{
+			label: "WithPartialTopologyConfig_ShouldFail",
+			externalResources: []ExternalResource{
+				{
+					Kind: "StorageClass",
+					Data: map[string]string{
+						"topologyFailureDomainLabel": "rack",
+						"topologyPools":              "pool1,pool2",
+					},
+					Name: "ceph-rbd-topology",
+				},
+			},
+			expectedLabelInConfigMap:  "",
+			expectedValuesInConfigMap: "",
+			shouldHaveTopologyKeys:    false,
+			expectError:               true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.label, func(t *testing.T) {
+			sc := &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cluster",
+					Namespace: "openshift-storage",
+					UID:       types.UID("test-uid-" + tc.label),
+				},
+				Spec: api.StorageClusterSpec{
+					ExternalStorage: api.ExternalStorageClusterSpec{
+						Enable: true,
+					},
+				},
+			}
+
+			externalOCSResources[sc.UID] = tc.externalResources
+
+			clientConfigMap := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      ocsClientConfigMapName,
+					Namespace: sc.Namespace,
+				},
+				Data: map[string]string{},
+			}
+
+			reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
+			reconciler.OperatorNamespace = sc.Namespace
+
+			err := reconciler.Client.Create(context.TODO(), clientConfigMap)
+			assert.NoError(t, err)
+
+			// Build storage class configurations
+			availableSCCs := []StorageClassConfiguration{}
+			for _, extRes := range tc.externalResources {
+				if extRes.Kind == "StorageClass" {
+					sc := &storagev1.StorageClass{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: extRes.Name,
+						},
+						Provisioner: util.RbdDriverName,
+					}
+					availableSCCs = append(availableSCCs, StorageClassConfiguration{
+						storageClass:      sc,
+						reconcileStrategy: ReconcileStrategyInit,
+						isClusterExternal: true,
+					})
+				}
+			}
+
+			err = reconciler.configureCsiDrivers(availableSCCs, sc)
+
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+
+				// Verify the ConfigMap was updated correctly
+				updatedConfigMap := &corev1.ConfigMap{}
+				err = reconciler.Client.Get(context.TODO(),
+					types.NamespacedName{Name: ocsClientConfigMapName, Namespace: sc.Namespace},
+					updatedConfigMap)
+				assert.NoError(t, err)
+
+				if tc.shouldHaveTopologyKeys {
+					if tc.expectedLabelInConfigMap != "" {
+						assert.Equal(t, tc.expectedLabelInConfigMap, updatedConfigMap.Data["TOPOLOGY_FAILURE_DOMAIN_LABEL"])
+					}
+					if tc.expectedValuesInConfigMap != "" {
+						assert.Equal(t, tc.expectedValuesInConfigMap, updatedConfigMap.Data["TOPOLOGY_FAILURE_DOMAIN_VALUES"])
+					}
+				} else {
+					// If no topology config, these keys should not be present or be empty
+					_, labelExists := updatedConfigMap.Data["TOPOLOGY_FAILURE_DOMAIN_LABEL"]
+					_, valuesExist := updatedConfigMap.Data["TOPOLOGY_FAILURE_DOMAIN_VALUES"]
+					if labelExists {
+						assert.Empty(t, updatedConfigMap.Data["TOPOLOGY_FAILURE_DOMAIN_LABEL"])
+					}
+					if valuesExist {
+						assert.Empty(t, updatedConfigMap.Data["TOPOLOGY_FAILURE_DOMAIN_VALUES"])
+					}
+				}
+
+				// Verify that CSI driver keys are set correctly
+				assert.Equal(t, "true", updatedConfigMap.Data[enableRbdDriverKey])
+			}
+		})
+	}
+}
