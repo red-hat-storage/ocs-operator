@@ -20,7 +20,6 @@ import (
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,8 +65,7 @@ func InitNamespacedName() types.NamespacedName {
 // nolint:revive
 type OCSInitializationReconciler struct {
 	client.Client
-	ctx      context.Context
-	clusters *util.Clusters
+	ctx context.Context
 
 	Log               logr.Logger
 	Scheme            *runtime.Scheme
@@ -77,6 +75,85 @@ type OCSInitializationReconciler struct {
 	cache            cache.Cache
 	controller       controller.Controller
 	crdsBeingWatched sync.Map
+}
+
+// SetupWithManager sets up a controller with a manager
+func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	operatorNamespace = r.OperatorNamespace
+	prometheusPredicate := predicate.NewPredicateFuncs(
+		func(client client.Object) bool {
+			return strings.HasPrefix(client.GetName(), PrometheusOperatorCSVNamePrefix)
+		},
+	)
+
+	enqueueOCSInit := handler.EnqueueRequestsFromMapFunc(
+		func(context context.Context, obj client.Object) []reconcile.Request {
+			return []reconcile.Request{{
+				NamespacedName: InitNamespacedName(),
+			}}
+		},
+	)
+
+	controller, err := ctrl.NewControllerManagedBy(mgr).
+		For(&ocsv1.OCSInitialization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&corev1.Service{}).
+		Owns(&corev1.Secret{}).
+		Owns(&promv1.Prometheus{}).
+		Owns(&corev1.ConfigMap{}).
+		Owns(&promv1.Alertmanager{}).
+		Owns(&promv1.ServiceMonitor{}).
+		// Watcher for storagecluster required to update
+		// ocs-operator-config configmap if storagecluster is created or deleted
+		Watches(
+			&ocsv1.StorageCluster{},
+			enqueueOCSInit,
+			builder.WithPredicates(util.EventTypePredicate(true, false, true, false)),
+		).
+		// Watcher for rook-ceph-operator-config cm
+		Watches(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      util.RookCephOperatorConfigName,
+					Namespace: r.OperatorNamespace,
+				},
+			},
+			enqueueOCSInit,
+		).
+		// Watcher for ocs-operator-config cm
+		Watches(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      util.OcsOperatorConfigName,
+					Namespace: r.OperatorNamespace,
+				},
+			},
+			enqueueOCSInit,
+		).
+		// Watcher for prometheus operator csv
+		Watches(
+			&opv1a1.ClusterServiceVersion{},
+			enqueueOCSInit,
+			builder.WithPredicates(prometheusPredicate),
+		).
+		Watches(
+			&extv1.CustomResourceDefinition{},
+			enqueueOCSInit,
+			builder.WithPredicates(
+				predicate.NewPredicateFuncs(func(obj client.Object) bool {
+					_, ok := r.crdsBeingWatched.Load(obj.GetName())
+					return ok
+				}),
+				util.EventTypePredicate(true, false, false, false),
+			),
+			builder.OnlyMetadata,
+		).
+		Build(r)
+
+	r.controller = controller
+	r.cache = mgr.GetCache()
+	r.crdsBeingWatched.Store(ClusterClaimCrdName, false)
+
+	return err
 }
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
@@ -162,12 +239,6 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 			r.Log.Error(err, "Failed to add conditions to status of OCSInitialization resource.", "OCSInitialization", klog.KRef(instance.Namespace, instance.Name))
 			return reconcile.Result{}, err
 		}
-	}
-
-	r.clusters, err = util.GetClusters(ctx, r.Client)
-	if err != nil {
-		r.Log.Error(err, "Failed to get clusters")
-		return reconcile.Result{}, err
 	}
 
 	err = r.ensureSCCs(instance)
@@ -313,102 +384,6 @@ func (r *OCSInitializationReconciler) reconcileDynamicWatches() error {
 	return nil
 }
 
-// SetupWithManager sets up a controller with a manager
-func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	operatorNamespace = r.OperatorNamespace
-	prometheusPredicate := predicate.NewPredicateFuncs(
-		func(client client.Object) bool {
-			return strings.HasPrefix(client.GetName(), PrometheusOperatorCSVNamePrefix)
-		},
-	)
-
-	enqueueOCSInit := handler.EnqueueRequestsFromMapFunc(
-		func(context context.Context, obj client.Object) []reconcile.Request {
-			return []reconcile.Request{{
-				NamespacedName: InitNamespacedName(),
-			}}
-		},
-	)
-
-	controller, err := ctrl.NewControllerManagedBy(mgr).
-		For(&ocsv1.OCSInitialization{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Owns(&corev1.Service{}).
-		Owns(&corev1.Secret{}).
-		Owns(&promv1.Prometheus{}).
-		Owns(&corev1.ConfigMap{}).
-		Owns(&promv1.Alertmanager{}).
-		Owns(&promv1.ServiceMonitor{}).
-		// Watcher for storagecluster required to update
-		// ocs-operator-config configmap if storagecluster spec changes
-		Watches(
-			&ocsv1.StorageCluster{},
-			enqueueOCSInit,
-			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
-		).
-		// Watcher for storageClass required to update values related to replica-1
-		// in ocs-operator-config configmap, if storageClass changes
-		Watches(
-			&storagev1.StorageClass{},
-			handler.EnqueueRequestsFromMapFunc(
-				func(context context.Context, obj client.Object) []reconcile.Request {
-					// Only reconcile if the storageClass has topologyConstrainedPools set
-					sc := obj.(*storagev1.StorageClass)
-					if sc.Parameters["topologyConstrainedPools"] != "" {
-						return []reconcile.Request{{
-							NamespacedName: InitNamespacedName(),
-						}}
-					}
-					return []reconcile.Request{}
-				},
-			),
-		).
-		// Watcher for rook-ceph-operator-config cm
-		Watches(
-			&corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      util.RookCephOperatorConfigName,
-					Namespace: r.OperatorNamespace,
-				},
-			},
-			enqueueOCSInit,
-		).
-		// Watcher for ocs-operator-config cm
-		Watches(
-			&corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      util.OcsOperatorConfigName,
-					Namespace: r.OperatorNamespace,
-				},
-			},
-			enqueueOCSInit,
-		).
-		// Watcher for prometheus operator csv
-		Watches(
-			&opv1a1.ClusterServiceVersion{},
-			enqueueOCSInit,
-			builder.WithPredicates(prometheusPredicate),
-		).
-		Watches(
-			&extv1.CustomResourceDefinition{},
-			enqueueOCSInit,
-			builder.WithPredicates(
-				predicate.NewPredicateFuncs(func(obj client.Object) bool {
-					_, ok := r.crdsBeingWatched.Load(obj.GetName())
-					return ok
-				}),
-				util.EventTypePredicate(true, false, false, false),
-			),
-			builder.OnlyMetadata,
-		).
-		Build(r)
-
-	r.controller = controller
-	r.cache = mgr.GetCache()
-	r.crdsBeingWatched.Store(ClusterClaimCrdName, false)
-
-	return err
-}
-
 func (r *OCSInitializationReconciler) ensureClusterClaimExists() error {
 	operatorNamespace, err := util.GetOperatorNamespace()
 	if err != nil {
@@ -467,19 +442,13 @@ func (r *OCSInitializationReconciler) ensureRookCephOperatorConfigExists(initial
 // When any value in the configmap is updated, the rook-ceph-operator pod is restarted to pick up the new values.
 func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData *ocsv1.OCSInitialization) error {
 
-	enableCephfsVal, err := r.getEnableCephfsKeyValue()
-	if err != nil {
-		r.Log.Error(err, "Failed to get enableCephfsKeyValue")
+	storageClusterList := &ocsv1.StorageClusterList{}
+	if err := r.List(r.ctx, storageClusterList); err != nil {
 		return err
 	}
 
 	ocsOperatorConfigData := map[string]string{
-		util.ClusterNameKey:              util.GetClusterID(r.ctx, r.Client, &r.Log),
-		util.RookCurrentNamespaceOnlyKey: strconv.FormatBool(!(len(r.clusters.GetStorageClusters()) > 1)),
-		util.EnableTopologyKey:           r.getEnableTopologyKeyValue(),
-		util.TopologyDomainLabelsKey:     r.getTopologyDomainLabelsKeyValue(),
-		util.EnableNFSKey:                r.getEnableNFSKeyValue(),
-		util.EnableCephfsKey:             enableCephfsVal,
+		util.RookCurrentNamespaceOnlyKey: strconv.FormatBool(!(len(storageClusterList.Items) > 1)),
 		util.DisableCSIDriverKey:         strconv.FormatBool(true),
 	}
 
@@ -516,89 +485,6 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 	}
 
 	return nil
-}
-
-func (r *OCSInitializationReconciler) getEnableTopologyKeyValue() string {
-
-	for _, sc := range r.clusters.GetStorageClusters() {
-		if !sc.Spec.ExternalStorage.Enable && sc.Spec.ManagedResources.CephNonResilientPools.Enable {
-			// In internal mode return true even if one of the storageCluster has enabled it via the CR
-			return "true"
-		} else if sc.Spec.ExternalStorage.Enable {
-			// In external mode, check if the non-resilient storageClass exists
-			scName := util.GenerateNameForNonResilientCephBlockPoolStorageClass(&sc)
-			storageClass := util.GetStorageClassWithName(r.ctx, r.Client, scName)
-			if storageClass != nil {
-				return "true"
-			}
-		}
-	}
-
-	return "false"
-}
-
-// In case of multiple storageClusters when replica-1 is enabled for both an internal and an external cluster, different failure domain keys can lead to complications.
-// To prevent this, when gathering information for the external cluster, ensure that the failure domain is specified to match that of the internal cluster (sc.Status.FailureDomain).
-func (r *OCSInitializationReconciler) getTopologyDomainLabelsKeyValue() string {
-
-	for _, sc := range r.clusters.GetStorageClusters() {
-		if !sc.Spec.ExternalStorage.Enable && sc.Spec.ManagedResources.CephNonResilientPools.Enable {
-			// In internal mode return the failure domain key directly from the storageCluster
-			return sc.Status.FailureDomainKey
-		} else if sc.Spec.ExternalStorage.Enable {
-			// In external mode, check if the non-resilient storageClass exists
-			// determine the failure domain key from the storageClass parameter
-			scName := util.GenerateNameForNonResilientCephBlockPoolStorageClass(&sc)
-			storageClass := util.GetStorageClassWithName(r.ctx, r.Client, scName)
-			if storageClass != nil {
-				return getFailureDomainKeyFromStorageClassParameter(storageClass)
-			}
-		}
-	}
-
-	return ""
-}
-
-func (r *OCSInitializationReconciler) getEnableNFSKeyValue() string {
-
-	// return true even if one of the storagecluster is using NFS
-	for _, sc := range r.clusters.GetStorageClusters() {
-		if sc.Spec.NFS != nil && sc.Spec.NFS.Enable {
-			return "true"
-		}
-	}
-
-	return "false"
-}
-
-func (r *OCSInitializationReconciler) getEnableCephfsKeyValue() (string, error) {
-
-	// list all storage classes and check if any of them is using cephfs
-	storageClasses := &storagev1.StorageClassList{}
-	if err := r.Client.List(r.ctx, storageClasses); err != nil {
-		r.Log.Error(err, "Failed to list storage classes")
-		return "", err
-	}
-
-	for _, sc := range storageClasses.Items {
-		if strings.HasSuffix(sc.Provisioner, "cephfs.csi.ceph.com") {
-			return "true", nil
-		}
-	}
-
-	return "false", nil
-}
-
-func getFailureDomainKeyFromStorageClassParameter(sc *storagev1.StorageClass) string {
-	failuredomain := sc.Parameters["topologyFailureDomainLabel"]
-	if failuredomain == "zone" {
-		return "topology.kubernetes.io/zone"
-	} else if failuredomain == "rack" {
-		return "topology.rook.io/rack"
-	} else if failuredomain == "hostname" || failuredomain == "host" {
-		return "kubernetes.io/hostname"
-	}
-	return ""
 }
 
 func (r *OCSInitializationReconciler) reconcileUXBackendSecret(initialData *ocsv1.OCSInitialization) error {
