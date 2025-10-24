@@ -9,8 +9,11 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/bucket"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/expandstorage"
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/featureflags"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/peertokens"
+	noobaaapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	storagev1 "k8s.io/api/storage/v1"
 
@@ -73,11 +76,16 @@ func main() {
 	if err := storagev1.AddToScheme(scheme); err != nil {
 		klog.Exitf("failed to add storagev1 to scheme. %v", err)
 	}
+	if err := noobaaapis.AddToScheme(scheme); err != nil {
+		klog.Exitf("failed to add noobaaapis to scheme. %v", err)
+	}
 
 	cl, err := util.NewK8sClient(scheme)
 	if err != nil {
 		klog.Exitf("failed to create kube client: %v", err)
 	}
+
+	// Authenticated + Authorized endpoints (require both authentication and authorization)
 
 	http.HandleFunc("/onboarding/peer-tokens", func(w http.ResponseWriter, r *http.Request) {
 		peertokens.HandleMessage(w, r, config.tokenLifetimeInHours, cl, namespace)
@@ -85,6 +93,16 @@ func main() {
 
 	http.HandleFunc("/expandstorage", func(w http.ResponseWriter, r *http.Request) {
 		expandstorage.HandleMessage(w, r, cl, namespace)
+	})
+
+	// Authenticated endpoints (require authentication but not authorization)
+
+	http.HandleFunc("/auth/featureflags", func(w http.ResponseWriter, r *http.Request) {
+		featureflags.HandleMessage(w, r, cl, namespace)
+	})
+
+	http.HandleFunc("/auth/bucket/", func(w http.ResponseWriter, r *http.Request) {
+		bucket.HandleMessage(w, r, cl)
 	})
 
 	klog.Info("ux backend server listening on port ", config.listenPort)
