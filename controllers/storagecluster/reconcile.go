@@ -647,15 +647,8 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				return reconcile.Result{}, returnErr
 			}
 		}
-		if instance.Status.Phase != statusutil.PhaseClusterExpanding &&
-			!instance.Spec.ExternalStorage.Enable {
-			if conditionsv1.IsStatusConditionTrue(instance.Status.Conditions, conditionsv1.ConditionProgressing) {
-				instance.Status.Phase = statusutil.PhaseProgressing
-			} else if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
-				instance.Status.Phase = statusutil.PhaseNotReady
-			} else {
-				instance.Status.Phase = statusutil.PhaseError
-			}
+		if conditionsv1.IsStatusConditionTrue(instance.Status.Conditions, conditionsv1.ConditionProgressing) {
+			instance.Status.Phase = statusutil.PhaseProgressing
 		}
 	}
 
