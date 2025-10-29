@@ -332,16 +332,13 @@ rules:
   - securitycontextconstraints
   verbs:
   - create
+  - delete
   - get
+  - list
+  - patch
   - update
-- apiGroups:
-  - security.openshift.io
-  resourceNames:
-  - hostnetwork-v2
-  resources:
-  - securitycontextconstraints
-  verbs:
   - use
+  - watch
 - apiGroups:
   - security.openshift.io
   resourceNames:
