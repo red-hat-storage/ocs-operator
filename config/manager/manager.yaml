@@ -67,6 +67,7 @@ spec:
       terminationGracePeriodSeconds: 10
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1001
       volumes:
       - name: onboarding-private-key
         secret:
