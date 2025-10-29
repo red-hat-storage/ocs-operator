@@ -48,6 +48,7 @@ func (r *StorageClusterReconciler) initializeImageVars() error {
 	r.images.NooBaaDB = os.Getenv("NOOBAA_DB_IMAGE")
 	r.images.OCSMetricsExporter = os.Getenv("OCS_METRICS_EXPORTER_IMAGE")
 	r.images.KubeRBACProxy = os.Getenv("KUBE_RBAC_PROXY_IMAGE")
+	r.images.BlackboxExporter = os.Getenv("BLACKBOX_EXPORTER_IMAGE")
 
 	if r.images.Ceph == "" {
 		err := fmt.Errorf("CEPH_IMAGE environment variable not found")
@@ -69,6 +70,9 @@ func (r *StorageClusterReconciler) initializeImageVars() error {
 		err := fmt.Errorf("KUBE_RBAC_PROXY_IMAGE environment variable not found")
 		r.Log.Error(err, "Missing KUBE_RBAC_PROXY_IMAGE environment variable for ocs initialization.")
 		return err
+	} else if r.images.BlackboxExporter == "" {
+		err := fmt.Errorf("BLACKBOX_EXPORTER_IMAGE environment variable not found")
+		r.Log.Error(err, "Missing BLACKBOX_EXPORTER_IMAGE environment variable for ocs initialization.")
 	}
 	return nil
 }
@@ -79,6 +83,7 @@ type ImageMap struct {
 	NooBaaCore         string
 	NooBaaDB           string
 	OCSMetricsExporter string
+	BlackboxExporter   string
 	KubeRBACProxy      string
 }
 
