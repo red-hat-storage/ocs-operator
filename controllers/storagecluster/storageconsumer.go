@@ -334,8 +334,8 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 	[]ocsv1a1.VolumeGroupSnapshotClassSpec, error) {
 
 	volumeGroupSnapshotClassNames := map[string]bool{}
-	volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)] = true
-	volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = true
+	volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster.Name, util.RbdGroupSnapshotter)] = true
+	volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster.Name, util.CephfsGroupSnapshotter)] = true
 
 	crd := &metav1.PartialObjectMetadata{}
 	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
