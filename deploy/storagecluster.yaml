@@ -4,6 +4,8 @@ metadata:
   name: ocs-storagecluster
   namespace: openshift-storage
 spec:
+  monitoring:
+    enableBlackboxExporter: true
   storageDeviceSets:
     - name: gp3-csi
       dataPVCTemplate:
