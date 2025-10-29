@@ -277,8 +277,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	}
 
 	if platform == configv1.IBMCloudPlatformType {
-		r.Log.Info("Increasing Mon failover timeout to 15m.", "Platform", platform)
-		cephCluster.Spec.HealthCheck.DaemonHealth.Monitor.Timeout = "15m"
+		healthCheck := sc.Spec.ManagedResources.CephCluster.HealthCheck
+		if healthCheck == nil || healthCheck.DaemonHealth.Monitor.Timeout == "" {
+			r.Log.Info("Setting defaults for Mon failover timeout to 15m.", "Platform", platform)
+			cephCluster.Spec.HealthCheck.DaemonHealth.Monitor.Timeout = "15m"
+		}
 	}
 
 	ipFamily, isDualStack, err := getIPFamilyConfig(r.Client)
