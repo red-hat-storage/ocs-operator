@@ -74,6 +74,16 @@ var (
 				"cpu":    resource.MustParse("1"),
 			},
 		},
+		"odf-blackbox-exporter": {
+			Requests: corev1.ResourceList{
+				"memory": resource.MustParse("50Mi"),
+				"cpu":    resource.MustParse("100m"),
+			},
+			Limits: corev1.ResourceList{
+				"memory": resource.MustParse("50Mi"),
+				"cpu":    resource.MustParse("100m"),
+			},
+		},
 		"kube-rbac-proxy-main": {
 			Requests: corev1.ResourceList{
 				"memory": resource.MustParse("40Mi"),

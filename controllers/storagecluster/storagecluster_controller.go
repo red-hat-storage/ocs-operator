@@ -9,6 +9,7 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	"github.com/go-logr/logr"
@@ -17,6 +18,7 @@ import (
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
+	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/operator-framework/operator-lib/conditions"
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
@@ -72,7 +74,7 @@ func (r *StorageClusterReconciler) initializeImageVars() error {
 		return err
 	} else if r.images.BlackboxExporter == "" {
 		err := fmt.Errorf("BLACKBOX_EXPORTER_IMAGE environment variable not found")
-		r.Log.Error(err, "Missing BLACKBOX_EXPORTER_IMAGE environment variable for ocs initialization.")
+		r.Log.Error(err, "BLACKBOX_EXPORTER_IMAGE environment variable not set; will use default image")
 	}
 	return nil
 }
@@ -104,6 +106,7 @@ type StorageClusterReconciler struct {
 	IsMultipleStorageClusters bool
 	clusters                  *util.Clusters
 	OperatorNamespace         string
+	SecurityClient            secv1client.SecurityV1Interface
 
 	cache            cache.Cache
 	controller       controller.Controller
@@ -223,6 +226,28 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	}
 
+	ocsNodeLabelPredicate := predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			_, hasLabel := e.Object.GetLabels()[defaults.NodeAffinityKey]
+			return hasLabel
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			_, hasLabel := e.Object.GetLabels()[defaults.NodeAffinityKey]
+			return hasLabel
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld == nil || e.ObjectNew == nil {
+				return false
+			}
+			_, oldHasLabeled := e.ObjectOld.GetLabels()[defaults.NodeAffinityKey]
+			_, newHasLabeled := e.ObjectNew.GetLabels()[defaults.NodeAffinityKey]
+			return oldHasLabeled != newHasLabeled // label added or removed
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	}
+
 	build := ctrl.NewControllerManagedBy(mgr).
 		For(&ocsv1.StorageCluster{}, builder.WithPredicates(scPredicate)).
 		Owns(&cephv1.CephCluster{}, builder.WithPredicates(cephClusterIgnoreTimeUpdatePredicate)).
@@ -265,7 +290,9 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				util.NamespacePredicate(r.OperatorNamespace),
 			),
 		).
-		Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest)
+		Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest).
+		// Watch Nodes with OCS label to trigger Blackbox Probe updates
+		Watches(&corev1.Node{}, enqueueStorageClusterRequest, builder.WithPredicates(ocsNodeLabelPredicate))
 
 	if os.Getenv("SKIP_NOOBAA_CRD_WATCH") != "true" {
 		build.Owns(&nbv1.NooBaa{}, builder.WithPredicates(noobaaIgnoreTimeUpdatePredicate))
