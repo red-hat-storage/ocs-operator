@@ -481,6 +481,9 @@ type MonitoringSpec struct {
 	// Labels to add to monitoring resources created by operator.
 	// These labels are used as LabelSelector for Prometheus
 	Labels map[string]string `json:"labels,omitempty"`
+	// EnableBlackboxExporter enables deployment of Blackbox Exporter for network health checks
+	// +optional
+	EnableBlackboxExporter bool `json:"enableBlackboxExporter,omitempty"`
 }
 
 // EncryptionSpec defines if encryption should be enabled for the Storage Cluster
