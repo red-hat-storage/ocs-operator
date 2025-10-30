@@ -443,9 +443,9 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		}
 	}
 
-	err = r.enableCsiDrivers(availableSCCs)
+	err = r.configureCsiDrivers(availableSCCs, instance)
 	if err != nil {
-		r.Log.Error(err, "Failed to enable CSI drivers.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
+		r.Log.Error(err, "Failed to configure CSI drivers.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		return err
 	}
 
@@ -710,7 +710,117 @@ func getTopologyConstrainedPoolsExternalMode(data map[string]string) (string, er
 	return string(topologyConstrainedPoolsStr), nil
 }
 
-func (r *StorageClusterReconciler) enableCsiDrivers(availableSCCs []StorageClassConfiguration) error {
+// getTopologyFailureDomainConfig retrieves the topology failure domain label and values from external resources
+func (r *StorageClusterReconciler) getTopologyFailureDomainConfig(uid types.UID) (string, string, error) {
+	data, ok := externalOCSResources[uid]
+	if !ok {
+		return "", "", fmt.Errorf("unable to retrieve external resource from externalOCSResources")
+	}
+
+	// Look for the topologyFailureDomainLabel and topologyFailureDomainValues in the external resources
+	for _, d := range data {
+		if d.Kind == "StorageClass" && d.Name == cephRbdTopologyStorageClassName {
+			label := d.Data["topologyFailureDomainLabel"]
+			values := d.Data["topologyFailureDomainValues"]
+
+			// Both label and values must be present together, or neither
+			if len(label) > 0 && len(values) > 0 {
+				// Validate that the topology domain label and values exist on Kubernetes nodes
+				if err := r.validateTopologyConfig(label, values); err != nil {
+					return "", "", fmt.Errorf("Topology configuration validation failed: %w", err)
+				}
+				r.Log.Info("Found and validated topology failure domain config from external resources", "label", label, "values", values)
+				return label, values, nil
+			} else if len(label) > 0 || len(values) > 0 {
+				return "", "", fmt.Errorf("both topologyFailureDomainLabel and topologyFailureDomainValues must be provided together")
+			}
+			break
+		}
+	}
+
+	r.Log.Info("No topology failure domain config found in external resources")
+	return "", "", nil
+}
+
+// validateTopologyConfig validates that the topology domain label exists on nodes and the values are valid
+func (r *StorageClusterReconciler) validateTopologyConfig(label, values string) error {
+	// Convert the topology label to the expected Kubernetes node label format
+	nodeLabel := r.convertToNodeLabel(label)
+
+	// Get all nodes
+	nodeList := &corev1.NodeList{}
+	if err := r.Client.List(r.ctx, nodeList); err != nil {
+		return fmt.Errorf("failed to list nodes: %w", err)
+	}
+
+	if len(nodeList.Items) == 0 {
+		return fmt.Errorf("no nodes found in the cluster")
+	}
+
+	// Check if the label exists on at least one node
+	labelFound := false
+	validValues := make(map[string]bool)
+
+	for _, node := range nodeList.Items {
+		if labelValue, exists := node.Labels[nodeLabel]; exists {
+			labelFound = true
+			validValues[labelValue] = true
+		}
+	}
+
+	if !labelFound {
+		return fmt.Errorf("topology label %q not found on any node (searched for node label: %q)", label, nodeLabel)
+	}
+
+	// Validate that the provided values exist on nodes
+	providedValues := strings.Split(values, ",")
+	invalidValues := []string{}
+
+	for _, value := range providedValues {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if !validValues[value] {
+			invalidValues = append(invalidValues, value)
+		}
+	}
+
+	if len(invalidValues) > 0 {
+		return fmt.Errorf("topology values %v not found on any node with label %q. Available values: %v",
+			invalidValues, nodeLabel, getKeys(validValues))
+	}
+
+	r.Log.Info("Topology configuration validated successfully",
+		"label", label, "nodeLabel", nodeLabel, "values", values, "validValues", getKeys(validValues))
+	return nil
+}
+
+// convertToNodeLabel converts topology label to Kubernetes node label format
+func (r *StorageClusterReconciler) convertToNodeLabel(label string) string {
+	// Map common topology labels to their Kubernetes node label equivalents
+	switch strings.ToLower(label) {
+	case "zone":
+		return "topology.kubernetes.io/zone"
+	case "rack":
+		return "topology.rook.io/rack"
+	case "host", "hostname":
+		return "kubernetes.io/hostname"
+	default:
+		return label
+	}
+}
+
+// getKeys returns the keys of a map as a slice
+func getKeys(m map[string]bool) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (r *StorageClusterReconciler) configureCsiDrivers(availableSCCs []StorageClassConfiguration, instance *ocsv1.StorageCluster) error {
 	clientConfig := &corev1.ConfigMap{}
 	clientConfig.Name = ocsClientConfigMapName
 	clientConfig.Namespace = r.OperatorNamespace
@@ -737,6 +847,18 @@ func (r *StorageClusterReconciler) enableCsiDrivers(availableSCCs []StorageClass
 			r.Log.Info("not enabling driver for: %s", scc.storageClass.Provisioner)
 		}
 
+	}
+
+	// Read topology-failure-domain-label and topology-failure-domain-values from external resources and update ConfigMap
+	if instance.Spec.ExternalStorage.Enable {
+		topologyDomainLabel, _, err := r.getTopologyFailureDomainConfig(instance.UID)
+		if err != nil {
+			r.Log.Error(err, "failed to get topology failure domain config from external resources")
+			return err
+		}
+		if topologyDomainLabel != "" {
+			clientConfig.Data["TOPOLOGY_FAILURE_DOMAIN_LABEL"] = topologyDomainLabel
+		}
 	}
 
 	if !maps.Equal(clientConfig.Data, existingData) {
