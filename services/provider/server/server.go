@@ -53,6 +53,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -357,6 +358,27 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			response.NfsDriverRequirements = &pb.NfsDriverRequirements{}
 		}
 
+		storageClassesResourceVersion, err := s.getStorageClassesResourceVersion(ctx)
+		if err != nil {
+			logger.Error(err, "failed to get storage class resource version")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+		vSClassesResourceVersion, err := s.getVolumeSnapshotClassesResourceVersion(ctx)
+		if err != nil {
+			logger.Error(err, "failed to get volume snapshot class resource version")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+		vGSClassesResourceVersion, err := s.getVolumeGroupSnapshotClassesResourceVersion(ctx)
+		if err != nil {
+			logger.Error(err, "failed to get volume group snapshot class resource version")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+		odfVGSClassesResourceVersion, err := s.getOdfVolumeGroupSnapshotClassesResourceVersion(ctx)
+		if err != nil {
+			logger.Error(err, "failed to get odf volume group class resource version")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+
 		topologyKey := consumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
 		if topologyKey != "" {
 			response.RbdDriverRequirements = &pb.RbdDriverRequirements{
@@ -376,6 +398,10 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			availableServices.Rbd,
 			availableServices.CephFs,
 			availableServices.Nfs,
+			storageClassesResourceVersion,
+			vSClassesResourceVersion,
+			vGSClassesResourceVersion,
+			odfVGSClassesResourceVersion,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -629,6 +655,27 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
 	}
 
+	storageClassesResourceVersion, err := s.getStorageClassesResourceVersion(ctx)
+	if err != nil {
+		logger.Error(err, "failed to get storage class resource version")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state")
+	}
+	vSClassesResourceVersion, err := s.getVolumeSnapshotClassesResourceVersion(ctx)
+	if err != nil {
+		logger.Error(err, "failed to get volume snapshot class resource version")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state")
+	}
+	vGSClassesResourceVersion, err := s.getVolumeGroupSnapshotClassesResourceVersion(ctx)
+	if err != nil {
+		logger.Error(err, "failed to get volume group snapshot class resource version")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state")
+	}
+	odfVGSClassesResourceVersion, err := s.getOdfVolumeGroupSnapshotClassesResourceVersion(ctx)
+	if err != nil {
+		logger.Error(err, "failed to get odf volume group class resource version")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state")
+	}
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
@@ -641,6 +688,10 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		availableServices.Rbd,
 		availableServices.CephFs,
 		availableServices.Nfs,
+		storageClassesResourceVersion,
+		vSClassesResourceVersion,
+		vGSClassesResourceVersion,
+		odfVGSClassesResourceVersion,
 	)
 
 	logger.Info("Successfully processed status report")
@@ -2078,6 +2129,75 @@ func (s *OCSProviderServer) appendNoobaaKubeResources(
 	)
 
 	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) getResourceVersions(
+	ctx context.Context,
+	list client.ObjectList,
+	filterAndCollect func() []string,
+) ([]string, error) {
+	if err := s.client.List(ctx, list, &client.MatchingLabelsSelector{
+		Selector: util.GetExternalClassesBlacklistSelector(),
+	}); meta.IsNoMatchError(err) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	resourceVersions := filterAndCollect()
+	slices.Sort(resourceVersions)
+	return resourceVersions, nil
+}
+
+func (s *OCSProviderServer) getStorageClassesResourceVersion(ctx context.Context) ([]string, error) {
+	list := &storagev1.StorageClassList{}
+	return s.getResourceVersions(ctx, list, func() []string {
+		var versions []string
+		for i := range list.Items {
+			if slices.Contains(util.SupportedCsiDrivers, list.Items[i].Provisioner) {
+				versions = append(versions, list.Items[i].ResourceVersion)
+			}
+		}
+		return versions
+	})
+}
+
+func (s *OCSProviderServer) getVolumeSnapshotClassesResourceVersion(ctx context.Context) ([]string, error) {
+	list := &snapapi.VolumeSnapshotClassList{}
+	return s.getResourceVersions(ctx, list, func() []string {
+		var versions []string
+		for i := range list.Items {
+			if slices.Contains(util.SupportedCsiDrivers, list.Items[i].Driver) {
+				versions = append(versions, list.Items[i].ResourceVersion)
+			}
+		}
+		return versions
+	})
+}
+
+func (s *OCSProviderServer) getVolumeGroupSnapshotClassesResourceVersion(ctx context.Context) ([]string, error) {
+	list := &groupsnapapi.VolumeGroupSnapshotClassList{}
+	return s.getResourceVersions(ctx, list, func() []string {
+		var versions []string
+		for i := range list.Items {
+			if slices.Contains(util.SupportedCsiDrivers, list.Items[i].Driver) {
+				versions = append(versions, list.Items[i].ResourceVersion)
+			}
+		}
+		return versions
+	})
+}
+
+func (s *OCSProviderServer) getOdfVolumeGroupSnapshotClassesResourceVersion(ctx context.Context) ([]string, error) {
+	list := &odfgsapiv1b1.VolumeGroupSnapshotClassList{}
+	return s.getResourceVersions(ctx, list, func() []string {
+		var versions []string
+		for i := range list.Items {
+			if slices.Contains(util.SupportedCsiDrivers, list.Items[i].Driver) {
+				versions = append(versions, list.Items[i].ResourceVersion)
+			}
+		}
+		return versions
+	})
 }
 
 func sanitizeKubeResource(obj client.Object) {
