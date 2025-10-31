@@ -642,7 +642,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 		// If for any reason we marked ourselves !upgradeable...then unset readiness
 		if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
-			returnErr := r.SetOperatorConditions("StorageCluster is not ready.", "NotReady", metav1.ConditionFalse, nil)
+			returnErr := r.SetOperatorConditions(conditionsv1.FindStatusCondition(instance.Status.Conditions, conditionsv1.ConditionUpgradeable).Message, conditionsv1.FindStatusCondition(instance.Status.Conditions, conditionsv1.ConditionUpgradeable).Reason, metav1.ConditionFalse, nil)
 			if returnErr != nil {
 				return reconcile.Result{}, returnErr
 			}
