@@ -102,6 +102,16 @@ func enableCephBlocklistMirrorStore(opts *options.Options) {
 	go reflector.Run(opts.StopCh)
 }
 
+var cephFSPVStore *internalcache.CephFSPVStore
+
+func enableCephFSPVStore(opts *options.Options) {
+	cephFSPVStore = internalcache.NewCephFSPVStore(opts)
+	client := clientset.NewForConfigOrDie(opts.Kubeconfig)
+	lw := internalcache.CreatePersistentVolumeListWatch(client, "")
+	reflector := cache.NewReflector(lw, &corev1.PersistentVolume{}, cephFSPVStore, 7*24*time.Hour)
+	go reflector.Run(opts.StopCh)
+}
+
 // RegisterPersistentVolumeAttributesCollector registers PV attribute collector to registry
 func RegisterPersistentVolumeAttributesCollector(registry *prometheus.Registry, opts *options.Options) {
 	if !pvStoreEnabled {
@@ -134,4 +144,10 @@ func RegisterCephRBDChildrenCollector(registry *prometheus.Registry, opts *optio
 	childrenCollector := NewCephRBDChildrenCollector(pvStore, opts)
 	go childrenCollector.Run(opts.StopCh)
 	registry.MustRegister(childrenCollector)
+}
+
+func RegisterCephFSMetricsCollector(registry *prometheus.Registry, opts *options.Options) {
+	enableCephFSPVStore(opts)
+	cephFSMetricsCollector := NewCephFSSubvolumeCountCollector(cephFSPVStore, opts)
+	registry.MustRegister(cephFSMetricsCollector)
 }
