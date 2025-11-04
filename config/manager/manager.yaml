@@ -30,6 +30,9 @@ spec:
         image: ocs-dev/ocs-operator:latest
         imagePullPolicy: Always
         name: ocs-operator
+        ports:
+          - name: healthz
+            containerPort: 8081
         env:
           - name: WATCH_NAMESPACE
             valueFrom:
@@ -38,13 +41,23 @@ spec:
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 8081
+            port: healthz
           initialDelaySeconds: 5
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
-              drop:
+            drop:
               - all
           readOnlyRootFilesystem: true
         terminationMessagePolicy: FallbackToLogsOnError
