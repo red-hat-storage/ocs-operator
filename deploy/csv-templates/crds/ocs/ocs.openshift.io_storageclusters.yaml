@@ -1023,6 +1023,10 @@ spec:
                               was reinstalled but OSD disk still contains the metadata from previous ceph cluster.
                             type: boolean
                         type: object
+                      clearDefaultTargetSizeRatio:
+                        description: If set to true, ocs-operator will not set the
+                          default target size ratio for the data pools it creates.
+                        type: boolean
                       continueUpgradeAfterChecksEvenIfNotHealthy:
                         description: Whether or not continue if PGs are not clean
                           during an upgrade

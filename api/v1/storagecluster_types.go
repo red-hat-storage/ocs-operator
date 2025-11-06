@@ -214,6 +214,9 @@ type ManageCephCluster struct {
 	// CleanupPolicy defines the cleanup policy for the Rook Ceph cluster.
 	// +optional
 	CleanupPolicy *rookCephv1.CleanupPolicySpec `json:"cleanupPolicy,omitempty"`
+
+	// If set to true, ocs-operator will not set the default target size ratio for the data pools it creates.
+	ClearDefaultTargetSizeRatio bool `json:"clearDefaultTargetSizeRatio,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
