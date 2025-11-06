@@ -1,6 +1,7 @@
 package collectors
 
 import (
+	operatorv2 "github.com/operator-framework/api/pkg/operators/v2"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
@@ -55,6 +56,28 @@ func GetOcsV1Client(opts *options.Options) (*rest.RESTClient, error) {
 		return nil, err
 	}
 	return ocsClient, nil
+}
+
+func GetOperatorV2Client(opts *options.Options) (*rest.RESTClient, error) {
+	config, err := clientcmd.BuildConfigFromFlags("", opts.KubeconfigPath)
+	if err != nil {
+		return nil, err
+	}
+	scheme := runtime.NewScheme()
+	utilruntime.Must(operatorv2.AddToScheme(scheme))
+	codecs := serializer.NewCodecFactory(scheme)
+	config.GroupVersion = &operatorv2.GroupVersion
+	config.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: codecs}
+	config.APIPath = "/apis"
+	config.ContentType = runtime.ContentTypeJSON
+	if config.UserAgent == "" {
+		config.UserAgent = rest.DefaultKubernetesUserAgent()
+	}
+	client, err := rest.RESTClientFor(config)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 type StorageConsumerLister interface {
@@ -113,4 +136,19 @@ func (s *storageAutoScalerLister) List(selector labels.Selector) (storageAutoSca
 
 func NewStorageAutoScalerLister(indexer cache.Indexer) Lister[ocsv1.StorageAutoScaler] {
 	return &storageAutoScalerLister{indexer: indexer}
+}
+
+type operatorConditionLister struct {
+	indexer cache.Indexer
+}
+
+func NewOperatorConditionLister(indexer cache.Indexer) Lister[operatorv2.OperatorCondition] {
+	return &operatorConditionLister{indexer: indexer}
+}
+
+func (o *operatorConditionLister) List(selector labels.Selector) (ret []*operatorv2.OperatorCondition, err error) {
+	err = cache.ListAll(o.indexer, selector, func(m interface{}) {
+		ret = append(ret, m.(*operatorv2.OperatorCondition))
+	})
+	return ret, err
 }

@@ -39,6 +39,7 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 	OBMetricsCollector := NewObjectBucketCollector(opts)
 	clusterAdvanceFeatureCollector := NewClusterAdvancedFeatureCollector(opts)
 	storageConsumerCollector := NewStorageConsumerCollector(opts)
+	operatorConditionCollector := NewOperatorConditionCollector(opts)
 	cephObjectStoreCollector.Run(opts.StopCh)
 	cephBlockPoolCollector.Run(opts.StopCh)
 	cephClusterCollector.Run(opts.StopCh)
@@ -64,6 +65,10 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 	if storageAutoScalerCollector != nil {
 		storageAutoScalerCollector.Run(opts.StopCh)
 		registry.MustRegister(storageAutoScalerCollector)
+	}
+	if operatorConditionCollector != nil {
+		operatorConditionCollector.Run(opts.StopCh)
+		registry.MustRegister(operatorConditionCollector)
 	}
 
 }
