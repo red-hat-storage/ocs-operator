@@ -1505,7 +1505,7 @@ func setDefaultDataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageClus
 		if poolSpec.Replicated.ReplicasPerFailureDomain == 0 || arbiterEnabled(sc) {
 			poolSpec.Replicated.ReplicasPerFailureDomain = defaultReplicatedSpec.ReplicasPerFailureDomain
 		}
-		if poolSpec.Replicated.TargetSizeRatio == 0.0 {
+		if poolSpec.Replicated.TargetSizeRatio == 0.0 && !sc.Spec.ManagedResources.CephCluster.ClearDefaultTargetSizeRatio {
 			poolSpec.Replicated.TargetSizeRatio = defaultReplicatedSpec.TargetSizeRatio
 		}
 	}
