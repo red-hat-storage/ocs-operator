@@ -475,3 +475,16 @@ spec:
       for: 30s
       labels:
         severity: warning
+  - name: ceph-fs-stale-subvolume.rules
+    rules:
+    - alert: CephFSStaleSubvolume
+      annotations:
+        description: Number of CephFS subvolumes do not match the number of PersistentVolumes in the cluster for namespace {{ $labels.namespace }}.
+        message: There could be stale subvolumes that are not claimed or utilized. Please investigate for possible stale or orphaned subvolumes.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephFSStaleSubvolume.md
+        severity_level: warning
+      expr: |
+        ocs_cephfs_pv_count != ocs_cephfs_subvolume_count
+      for: 2h
+      labels:
+        severity: warning
