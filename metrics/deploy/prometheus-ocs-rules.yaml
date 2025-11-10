@@ -488,3 +488,22 @@ spec:
       for: 60s
       labels:
         severity: warning
+  - name: ceph-fs-stale-subvolume.rules
+    rules:
+    - alert: CephFSStaleSubvolume
+      annotations:
+        description: Number of CephFS subvolumes are greater than the number of PersistentVolumes in the cluster.
+        message: There could be stale subvolumes that are not claimed or utilized. Please investigate for possible stale or orphaned subvolumes.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephFSStaleSubvolume.md
+        severity_level: warning
+      expr: |
+        sum(ocs_cephfs_subvolume_count) >
+        sum(
+          count by (provisioner) (
+            kube_persistentvolume_info
+            * on (storageclass) group_left(provisioner)
+            kube_storageclass_info{provisioner=~".*cephfs.csi.ceph.com"}
+          )
+        )
+      labels:
+        severity: warning
