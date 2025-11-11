@@ -249,12 +249,29 @@ type ManageCephBlockPools struct {
 // ManageCephNonResilientPools defines how to reconcile ceph non-resilient pools
 type ManageCephNonResilientPools struct {
 	Enable bool `json:"enable,omitempty"`
+	// UseExistingOsds is set when pools has to use existing OSDs
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="useExistingOsds field cannot be modified once set"
+	// +nullable
+	UseExistingOsds *bool `json:"useExistingOsds,omitempty"`
+	// PoolNamePrefix is prefix string used in the replica-1 pools names
+	// +kubebuilder:validation:MaxLength=200
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="poolNamePrefix field cannot be modified once set"
+	// +optional
+	// +nullable
+	PoolNamePrefix *string `json:"poolNamePrefix,omitempty"`
+	// SkipCreateStorageclass if set will skip the default replica-1 topological storageclass creation
+	// +optional
+	// +nullable
+	SkipCreateStorageclass *bool `json:"skipCreateStorageclass,omitempty"`
 	// Count is the number of devices in this set
+	// only relevant if UseExistingOsds is set to false
 	// +kubebuilder:validation:Minimum=1
 	Count int `json:"count,omitempty"`
 	// ResourceRequirements (requests/limits) for the devices
+	// only relevant if UseExistingOsds is set to false
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 	// VolumeClaimTemplates is a PVC template for the underlying storage devices
+	// only relevant if UseExistingOsds is set to false
 	VolumeClaimTemplate *corev1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph non-resilient pools
 	// +kubebuilder:validation:MaxLength=253
