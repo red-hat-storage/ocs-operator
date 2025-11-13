@@ -62,7 +62,7 @@ spec:
           mountPropagation: HostToContainer
           name: run-udev
       priorityClassName: ${PRIORITY_CLASS_NAME}
-      serviceAccountName: ocs-operator-controller-manager
+      serviceAccountName: ocs-devicefinder-sa
       volumes:
       - hostPath:
           path: /dev
