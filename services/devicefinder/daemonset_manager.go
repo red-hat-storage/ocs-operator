@@ -14,7 +14,7 @@ import (
 
 const (
 	DeviceFinderDiscovery    = "devicefinder-discovery"
-	defaultDeviceFinderImage = "quay.io/red-hat-storage/ocs-operator:latest"
+	defaultDeviceFinderImage = "quay.io/ocs-dev/ocs-devicefinder:latest"
 )
 
 // CreateDeviceFinderDaemonSet creates a daemonset for device discovery
