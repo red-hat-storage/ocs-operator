@@ -1,0 +1,65 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ocs-devicefinder-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ocs-devicefinder-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - get
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ocs-devicefinder-rolebinding
+subjects:
+- kind: ServiceAccount
+  name: ocs-devicefinder-sa
+  namespace: openshift-storage
+roleRef:
+  kind: Role
+  name: ocs-devicefinder-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: devicefinder-scc
+allowPrivilegedContainer: true
+allowHostDirVolumePlugin: true
+allowHostNetwork: false
+allowHostPorts: false
+allowHostPID: false
+allowHostIPC: false
+readOnlyRootFilesystem: false
+# Capabilities needed for udev operations
+allowedCapabilities:
+  - SYS_ADMIN
+requiredDropCapabilities:
+  - ALL
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+fsGroup:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+volumes:
+  - configMap
+  - projected
+  - emptyDir
+  - hostPath
+  - secret
+users:
+  - system:serviceaccount:openshift-storage:ocs-devicefinder-sa
