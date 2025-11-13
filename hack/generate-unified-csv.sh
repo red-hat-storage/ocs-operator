@@ -50,6 +50,7 @@ $CSV_MERGER \
 	--noobaa-db-image="$NOOBAA_DB_IMAGE" \
 	--ocs-image="$OCS_IMAGE" \
 	--ocs-metrics-exporter-image="$OCS_METRICS_EXPORTER_IMAGE" \
+	--devicefinder-image="$DEVICEFINDER_IMAGE" \
 	--blackbox-exporter-image="$BLACKBOX_EXPORTER_IMAGE" \
 	--kube-rbac-proxy-image="$KUBE_RBAC_PROXY_IMAGE" \
 	--ux-backend-oauth-image="$UX_BACKEND_OAUTH_IMAGE" \
