@@ -384,3 +384,10 @@ rules:
   - list
   - update
   - watch
+- apiGroups:
+    - keda.sh
+  resources:
+    - scaledjobs
+  verbs: 
+    - get
+    - list
