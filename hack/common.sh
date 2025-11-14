@@ -29,6 +29,7 @@ LATEST_NOOBAA_DB_IMAGE="quay.io/sclorg/postgresql-15-c9s" # Ref-https://github.c
 KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1"
 UX_BACKEND_OAUTH_FULL_IMAGE_NAME="quay.io/openshift/origin-oauth-proxy:4.20.0"
 LATEST_MUST_GATHER_IMAGE="quay.io/ocs-dev/ocs-must-gather:latest"
+LATEST_BLACKBOX_EXPORTER_IMAGE="quay.io/prometheus/blackbox-exporter:latest"
 
 # Images built in our repo
 IMAGE_REGISTRY="${IMAGE_REGISTRY:=quay.io}"
