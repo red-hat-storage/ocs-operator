@@ -225,7 +225,7 @@ type ClusterSpec struct {
 	// Security represents security settings
 	// +optional
 	// +nullable
-	Security ClusterSecuritySpec `json:"security,omitempty"`
+	Security SecuritySpec `json:"security,omitempty"`
 
 	// Logging represents loggings settings
 	// +optional
@@ -308,55 +308,6 @@ type SecuritySpec struct {
 	// +nullable
 	KeyRotation KeyRotationSpec `json:"keyRotation,omitempty"`
 }
-
-// ClusterSecuritySpec is the CephCluster security spec to include various security items such as kms
-type ClusterSecuritySpec struct {
-	// KeyManagementService is the main Key Management option
-	// +optional
-	// +nullable
-	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
-	// KeyRotation defines options for rotation of OSD disk encryption keys.
-	// +optional
-	// +nullable
-	KeyRotation KeyRotationSpec `json:"keyRotation,omitempty"`
-
-	// CephX configures CephX key settings. More: https://docs.ceph.com/en/latest/dev/cephx/
-	// +optional
-	CephX ClusterCephxConfig `json:"cephx,omitempty"`
-}
-
-type ClusterCephxConfig struct {
-	// Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
-	// Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
-	Daemon CephxConfig `json:"daemon,omitempty"`
-}
-
-type CephxConfig struct {
-	// KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
-	// One of Disabled, or KeyGeneration. Default Disabled.
-	// +optional
-	// +kubebuilder:validation:Enum="";Disabled;KeyGeneration
-	KeyRotationPolicy CephxKeyRotationPolicy `json:"keyRotationPolicy,omitempty"`
-
-	// KeyGeneration specifies the desired CephX key generation. This is used when KeyRotationPolicy
-	// is KeyGeneration and ignored for other policies. If this is set to greater than the current
-	// key generation, relevant keys will be rotated, and the generation value will be updated to
-	// this new value (generation values are not necessarily incremental, though that is the
-	// intended use case). If this is set to less than or equal to the current key generation, keys
-	// are not rotated.
-	// +optional
-	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=4294967295
-	// +kubebuilder:validation:XValidation:message="keyGeneration cannot be decreased",rule="self >= oldSelf"
-	KeyGeneration uint32 `json:"keyGeneration,omitempty"`
-}
-
-type CephxKeyRotationPolicy string
-
-const (
-	DisabledCephxKeyRotationPolicy      CephxKeyRotationPolicy = "Disabled"
-	KeyGenerationCephxKeyRotationPolicy CephxKeyRotationPolicy = "KeyGeneration"
-)
 
 // ObjectStoreSecuritySpec is spec to define security features like encryption
 type ObjectStoreSecuritySpec struct {
@@ -685,33 +636,6 @@ const (
 	ClusterStateError ClusterState = "Error"
 )
 
-type CephxStatus struct {
-	// KeyGeneration represents the CephX key generation for the last successful reconcile.
-	// For all newly-created resources, this field is set to `1`.
-	// When keys are rotated due to any rotation policy, the generation is incremented or updated to
-	// the configured policy generation.
-	// Generation `0` indicates that keys existed prior to the implementation of key tracking.
-	KeyGeneration uint32 `json:"keyGeneration,omitempty"`
-
-	// KeyCephVersion reports the Ceph version that created the current generation's keys. This is
-	// same string format as reported by `CephCluster.status.version.version` to allow them to be
-	// compared. E.g., `20.2.0-0`.
-	// For all newly-created resources, this field set to the version of Ceph that created the key.
-	// The special value "Uninitialized" indicates that keys are being created for the first time.
-	// An empty string indicates that the version is unknown, as expected in brownfield deployments.
-	KeyCephVersion string `json:"keyCephVersion,omitempty"`
-}
-
-// UninitializedCephxKeyCephVersion is a special value for CephxStatus.KeyCephVersion that is
-// applied when a resource status is first initialized. Rook replaces this value with the current
-// Ceph version after keys are first created and the resource is reconciled successfully.
-const UninitializedCephxKeyCephVersion string = "Uninitialized"
-
-type LocalCephxStatus struct {
-	// Daemon shows the CephX key status for local Ceph daemons associated with this resources.
-	Daemon CephxStatus `json:"daemon,omitempty"`
-}
-
 // MonSpec represents the specification of the monitor
 // +kubebuilder:validation:XValidation:message="zones must be less than or equal to count",rule="!has(self.zones) || (has(self.zones) && (size(self.zones) <= self.count))"
 // +kubebuilder:validation:XValidation:message="stretchCluster zones must be equal to 3",rule="!has(self.stretchCluster) || (has(self.stretchCluster) && (size(self.stretchCluster.zones) > 0) && (size(self.stretchCluster.zones) == 3))"
@@ -894,8 +818,9 @@ type PoolSpec struct {
 	DeviceClass string `json:"deviceClass,omitempty"`
 
 	// Allow rook operator to change the pool CRUSH tunables once the pool is created
+	// +nullable
 	// +optional
-	EnableCrushUpdates bool `json:"enableCrushUpdates,omitempty"`
+	EnableCrushUpdates *bool `json:"enableCrushUpdates,omitempty"`
 
 	// DEPRECATED: use Parameters instead, e.g., Parameters["compression_mode"] = "force"
 	// The inline compression mode in Bluestore OSD to set to (options are: none, passive, aggressive, force)
@@ -1271,7 +1196,9 @@ type ErasureCodedSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	DataChunks uint `json:"dataChunks"`
 
-	// The algorithm for erasure coding
+	// The algorithm for erasure coding.
+	// If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
+	// +kubebuilder:validation:Enum=isa;jerasure
 	// +optional
 	Algorithm string `json:"algorithm,omitempty"`
 }
@@ -1608,6 +1535,7 @@ type CephObjectStoreList struct {
 }
 
 // ObjectStoreSpec represent the spec of a pool
+// +kubebuilder:validation:XValidation:rule="!(has(self.defaultRealm) && self.defaultRealm == true && has(self.zone) && size(self.zone.name) > 0)",message="defaultRealm must not be true when zone.name is set (multisite configuration)"
 type ObjectStoreSpec struct {
 	// The metadata pool settings
 	// +optional
@@ -1671,6 +1599,13 @@ type ObjectStoreSpec struct {
 	// +nullable
 	// +optional
 	Hosting *ObjectStoreHostingSpec `json:"hosting,omitempty"`
+
+	// Set this realm as the default in Ceph. Only one realm should be default.
+	// Do not set this true on more than one CephObjectStore.
+	// This may not be set when zone is also specified; in this case, the realm
+	// referenced by the zone's zonegroup should configure defaulting behavior.
+	// +optional
+	DefaultRealm bool `json:"defaultRealm,omitempty"`
 }
 
 // ObjectSharedPoolsSpec represents object store pool info when configuring RADOS namespaces in existing pools.
@@ -2043,7 +1978,6 @@ type ObjectStoreStatus struct {
 	// +optional
 	// +nullable
 	Info       map[string]string `json:"info,omitempty"`
-	Cephx      LocalCephxStatus  `json:"cephx,omitempty"`
 	Conditions []Condition       `json:"conditions,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
@@ -2154,7 +2088,7 @@ type ObjectStoreUserSpec struct {
 	// The store the user will be created in
 	// +optional
 	Store string `json:"store,omitempty"`
-	// The display name for the ceph users
+	// The display name for the ceph user.
 	// +optional
 	DisplayName string `json:"displayName,omitempty"`
 	// +optional
@@ -2295,6 +2229,10 @@ type CephObjectRealmList struct {
 // ObjectRealmSpec represent the spec of an ObjectRealm
 type ObjectRealmSpec struct {
 	Pull PullSpec `json:"pull,omitempty"`
+
+	// Set this realm as the default in Ceph. Only one realm should be default.
+	// +optional
+	DefaultRealm bool `json:"defaultRealm,omitempty"`
 }
 
 // PullSpec represents the pulling specification of a Ceph Object Storage Gateway Realm
@@ -2331,7 +2269,7 @@ type CephObjectZoneGroupList struct {
 
 // ObjectZoneGroupSpec represent the spec of an ObjectZoneGroup
 type ObjectZoneGroupSpec struct {
-	// The display name for the ceph users
+	// The name of the realm the zone group is a member of.
 	Realm string `json:"realm"`
 }
 
@@ -2363,7 +2301,7 @@ type CephObjectZoneList struct {
 
 // ObjectZoneSpec represent the spec of an ObjectZone
 type ObjectZoneSpec struct {
-	// The display name for the ceph users
+	// The name of the zone group the zone is a member of.
 	ZoneGroup string `json:"zoneGroup"`
 
 	// The metadata pool settings

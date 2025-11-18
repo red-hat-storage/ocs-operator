@@ -1,5 +1,5 @@
-# github.com/aws/aws-sdk-go-v2 v1.36.0
-## explicit; go 1.21
+# github.com/aws/aws-sdk-go-v2 v1.36.3
+## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/aws
 github.com/aws/aws-sdk-go-v2/aws/middleware
 github.com/aws/aws-sdk-go-v2/aws/signer/internal/v4
@@ -9,11 +9,11 @@ github.com/aws/aws-sdk-go-v2/internal/rand
 github.com/aws/aws-sdk-go-v2/internal/sdk
 github.com/aws/aws-sdk-go-v2/internal/strings
 github.com/aws/aws-sdk-go-v2/internal/sync/singleflight
-# github.com/aws/aws-sdk-go-v2/credentials v1.17.57
-## explicit; go 1.21
+# github.com/aws/aws-sdk-go-v2/credentials v1.17.67
+## explicit; go 1.22
 github.com/aws/aws-sdk-go-v2/credentials
-# github.com/aws/smithy-go v1.22.2
-## explicit; go 1.21
+# github.com/aws/smithy-go v1.22.3
+## explicit; go 1.22
 github.com/aws/smithy-go
 github.com/aws/smithy-go/auth
 github.com/aws/smithy-go/auth/bearer
@@ -38,8 +38,8 @@ github.com/blang/semver/v4
 # github.com/cenkalti/backoff/v4 v4.3.0
 ## explicit; go 1.18
 github.com/cenkalti/backoff/v4
-# github.com/ceph/go-ceph v0.32.0
-## explicit; go 1.21
+# github.com/ceph/go-ceph v0.34.0
+## explicit; go 1.23.0
 github.com/ceph/go-ceph/rgw/admin
 # github.com/cespare/xxhash/v2 v2.3.0
 ## explicit; go 1.11
@@ -97,8 +97,8 @@ github.com/fsnotify/fsnotify/internal
 # github.com/fxamacker/cbor/v2 v2.7.0
 ## explicit; go 1.17
 github.com/fxamacker/cbor/v2
-# github.com/go-jose/go-jose/v4 v4.0.5
-## explicit; go 1.21
+# github.com/go-jose/go-jose/v4 v4.1.1
+## explicit; go 1.23.0
 github.com/go-jose/go-jose/v4
 github.com/go-jose/go-jose/v4/cipher
 github.com/go-jose/go-jose/v4/json
@@ -170,13 +170,13 @@ github.com/hashicorp/go-cleanhttp
 # github.com/hashicorp/go-multierror v1.1.1
 ## explicit; go 1.13
 github.com/hashicorp/go-multierror
-# github.com/hashicorp/go-retryablehttp v0.7.7
-## explicit; go 1.19
+# github.com/hashicorp/go-retryablehttp v0.7.8
+## explicit; go 1.23
 github.com/hashicorp/go-retryablehttp
 # github.com/hashicorp/go-rootcerts v1.0.2
 ## explicit; go 1.12
 github.com/hashicorp/go-rootcerts
-# github.com/hashicorp/go-secure-stdlib/parseutil v0.1.8
+# github.com/hashicorp/go-secure-stdlib/parseutil v0.2.0
 ## explicit; go 1.20
 github.com/hashicorp/go-secure-stdlib/parseutil
 # github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
@@ -196,8 +196,8 @@ github.com/hashicorp/hcl/hcl/token
 github.com/hashicorp/hcl/json/parser
 github.com/hashicorp/hcl/json/scanner
 github.com/hashicorp/hcl/json/token
-# github.com/hashicorp/vault/api v1.16.0
-## explicit; go 1.21
+# github.com/hashicorp/vault/api v1.20.0
+## explicit; go 1.23.0
 github.com/hashicorp/vault/api
 # github.com/hashicorp/vault/api/auth/approle v0.8.0
 ## explicit; go 1.21
@@ -332,7 +332,7 @@ github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.80.1
+# github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.81.0
 ## explicit; go 1.23.0
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1
@@ -366,13 +366,13 @@ github.com/red-hat-storage/ocs-operator/v4/controllers/defaults
 github.com/red-hat-storage/ocs-operator/v4/controllers/util
 github.com/red-hat-storage/ocs-operator/v4/services
 github.com/red-hat-storage/ocs-operator/v4/version
-# github.com/rook/rook v1.16.0-alpha.0.0.20250303190112-9a5bf16247ce
+# github.com/rook/rook v1.17.10-0.20251118180359-e53ebb180836
 ## explicit; go 1.23.0
 github.com/rook/rook/pkg/client/clientset/versioned
 github.com/rook/rook/pkg/client/clientset/versioned/scheme
 github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1
 github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1
-# github.com/rook/rook/pkg/apis v0.0.0-20250627200304-5094b1f5e6a6
+# github.com/rook/rook/pkg/apis v0.0.0-20251118180359-e53ebb180836
 ## explicit; go 1.23.0
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
@@ -406,13 +406,13 @@ go.uber.org/zap/internal/exit
 go.uber.org/zap/internal/pool
 go.uber.org/zap/internal/stacktrace
 go.uber.org/zap/zapcore
-# golang.org/x/crypto v0.36.0
+# golang.org/x/crypto v0.40.0
 ## explicit; go 1.23.0
 golang.org/x/crypto/pbkdf2
 # golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 ## explicit; go 1.23.0
 golang.org/x/exp/maps
-# golang.org/x/net v0.38.0
+# golang.org/x/net v0.42.0
 ## explicit; go 1.23.0
 golang.org/x/net/context
 golang.org/x/net/html
@@ -430,18 +430,18 @@ golang.org/x/net/websocket
 ## explicit; go 1.23.0
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sync v0.12.0
+# golang.org/x/sync v0.16.0
 ## explicit; go 1.23.0
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.31.0
+# golang.org/x/sys v0.34.0
 ## explicit; go 1.23.0
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.30.0
+# golang.org/x/term v0.33.0
 ## explicit; go 1.23.0
 golang.org/x/term
-# golang.org/x/text v0.23.0
+# golang.org/x/text v0.27.0
 ## explicit; go 1.23.0
 golang.org/x/text/encoding
 golang.org/x/text/encoding/charmap
@@ -463,14 +463,14 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/time v0.11.0
+# golang.org/x/time v0.12.0
 ## explicit; go 1.23.0
 golang.org/x/time/rate
-# golang.org/x/tools v0.31.0
+# golang.org/x/tools v0.34.0
 ## explicit; go 1.23.0
 golang.org/x/tools/cover
+golang.org/x/tools/go/ast/edge
 golang.org/x/tools/go/ast/inspector
-golang.org/x/tools/internal/astutil/edge
 # gomodules.xyz/jsonpatch/v2 v2.4.0
 ## explicit; go 1.20
 gomodules.xyz/jsonpatch/v2
@@ -579,7 +579,7 @@ k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
 k8s.io/api/storagemigration/v1alpha1
-# k8s.io/apiextensions-apiserver v0.32.2
+# k8s.io/apiextensions-apiserver v0.32.3
 ## explicit; go 1.23.0
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
@@ -960,7 +960,7 @@ k8s.io/utils/trace
 sigs.k8s.io/container-object-storage-interface-api/apis
 sigs.k8s.io/container-object-storage-interface-api/apis/objectstorage
 sigs.k8s.io/container-object-storage-interface-api/apis/objectstorage/v1alpha1
-# sigs.k8s.io/controller-runtime v0.20.2
+# sigs.k8s.io/controller-runtime v0.20.3
 ## explicit; go 1.23.0
 sigs.k8s.io/controller-runtime
 sigs.k8s.io/controller-runtime/pkg/builder
