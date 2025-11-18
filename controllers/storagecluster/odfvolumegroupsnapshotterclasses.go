@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -70,6 +71,22 @@ func (r *StorageClusterReconciler) createOdfGroupSnapshotClasses(vgsc OdfGroupSn
 func (obj *ocsOdfGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	if !r.AvailableCrds[OdfVolumeGroupSnapshotClassCrdName] {
 		r.Log.Info("OdfVolumeGroupSnapshotClass CRD is not available")
+		return reconcile.Result{}, nil
+	}
+
+	if true {
+		vgsc := &odfgsapiv1b1.VolumeGroupSnapshotClass{}
+		vgsc.Name = util.GenerateNameForGroupSnapshotClass(instance, util.CephfsGroupSnapshotter)
+		if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(vgsc), vgsc); client.IgnoreNotFound(err) != nil {
+			r.Log.Error(err, "failed to get OdfGroupSnapshotClass")
+			return reconcile.Result{}, err
+		} else if vgsc.UID != "" {
+			r.Log.Info("Deleting OdfGroupSnapshotClass", "OdfGroupSnapshotClass", client.ObjectKeyFromObject(vgsc))
+			if err := r.Client.Delete(r.ctx, vgsc); err != nil {
+				r.Log.Error(err, "failed to delete OdfGroupSnapshotClass")
+				return reconcile.Result{}, err
+			}
+		}
 		return reconcile.Result{}, nil
 	}
 
