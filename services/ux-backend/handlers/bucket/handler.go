@@ -60,17 +60,17 @@ func handleGet(w http.ResponseWriter, r *http.Request, client ctrlclient.Client)
 
 func getBucketCreationMethod(ctx context.Context, client ctrlclient.Client, bucketName string) (string, error) {
 	klog.Infof("Getting creation method for bucket '%s'", bucketName)
-	
+
 	objectBucketList := &nbv1a1.ObjectBucketList{}
 	if err := client.List(ctx, objectBucketList, ctrlclient.MatchingFields{uxutil.IndexBucketName: bucketName}, ctrlclient.Limit(1)); err != nil {
 		return "", fmt.Errorf("failed to list ObjectBuckets by bucketName index: %w", err)
 	}
-	
+
 	if len(objectBucketList.Items) > 0 {
 		klog.Infof("Found ObjectBucket '%s' with bucket name '%s'", objectBucketList.Items[0].Name, bucketName)
 		return creationMethodOBC, nil
 	}
-	
+
 	// There are two ways to create a bucket:
 	// 1. Either via OBC (ObjectBucketClaim) CR
 	// 2. Or via S3 endpoint directly
