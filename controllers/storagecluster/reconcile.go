@@ -474,7 +474,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&backingStorageClasses{},
 				&ocsTopologyMap{},
 				&ocsStorageQuota{},
-				&ocsCephConfig{},
 				&ocsCephCluster{},
 				&storageConsumer{},
 				&storageClient{},
