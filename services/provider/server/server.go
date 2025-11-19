@@ -343,6 +343,8 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 		}
 
+		useHostNetworkForCtrlPlugin := util.ShouldUseHostNetworking(storageCluster)
+
 		availableServices, err := util.GetAvailableServices(ctx, s.client, storageCluster)
 		if err != nil {
 			logger.Error(err, "failed to get available services")
@@ -350,12 +352,15 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 		}
 		if availableServices.Rbd {
 			response.RbdDriverRequirements = &pb.RbdDriverRequirements{}
+			response.RbdDriverRequirements.CtrlPluginHostNetwork = ptr.To(useHostNetworkForCtrlPlugin)
 		}
 		if availableServices.CephFs {
 			response.CephFsDriverRequirements = &pb.CephFsDriverRequirements{}
+			response.CephFsDriverRequirements.CtrlPluginHostNetwork = ptr.To(useHostNetworkForCtrlPlugin)
 		}
 		if availableServices.Nfs {
 			response.NfsDriverRequirements = &pb.NfsDriverRequirements{}
+			response.NfsDriverRequirements.CtrlPluginHostNetwork = ptr.To(useHostNetworkForCtrlPlugin)
 		}
 
 		storageClassesResourceVersion, err := s.getStorageClassesResourceVersion(ctx)
@@ -402,6 +407,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			vSClassesResourceVersion,
 			vGSClassesResourceVersion,
 			odfVGSClassesResourceVersion,
+			useHostNetworkForCtrlPlugin,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -692,6 +698,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		vSClassesResourceVersion,
 		vGSClassesResourceVersion,
 		odfVGSClassesResourceVersion,
+		util.ShouldUseHostNetworking(storageCluster),
 	)
 
 	logger.Info("Successfully processed status report")
