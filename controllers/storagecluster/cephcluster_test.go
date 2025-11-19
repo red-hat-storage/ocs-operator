@@ -661,8 +661,21 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 				assert.DeepEqual(t, deviceSet.DataPVCTemplate.Spec, scds.VolumeClaimTemplates[0].Spec)
 				assert.Equal(t, true, scds.Portable)
 				assert.Equal(t, sc.Spec.Encryption.ClusterWide, scds.Encrypted)
-				expectedOSDPlacement := getPlacement(sc, "osd")
-				expectedPreparePlacement := getPlacement(sc, "prepareosd")
+				defaultExpectedOSDPlacement := getPlacement(sc, "osd")
+				defaultExpectedPreparePlacement := getPlacement(sc, "prepareosd")
+
+				// create a device class match expression
+				deviceClassMatchExpression := metav1.LabelSelectorRequirement{
+					Key:      deviceClassPlacementKey,
+					Operator: metav1.LabelSelectorOpIn,
+					Values:   []string{deviceSet.DeviceClass},
+				}
+				// append the device class match expression to the topology spread constraints
+				// we are appending to the first topology spread constraint as the first one will have topologyKey as failureDomain
+				expectedOSDPlacement := *defaultExpectedOSDPlacement.DeepCopy()
+				expectedOSDPlacement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions = append(expectedOSDPlacement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions, deviceClassMatchExpression)
+				expectedPreparePlacement := *defaultExpectedPreparePlacement.DeepCopy()
+				expectedPreparePlacement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions = append(expectedPreparePlacement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions, deviceClassMatchExpression)
 
 				if c.hasCustomPlacement {
 					// Handle different custom placement scenarios based on the new placement logic
@@ -885,6 +898,16 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 		deviceSet := c.sc.Spec.StorageDeviceSets[0]
 
 		for i, scds := range actual {
+			defaultOsdPlacement := getPlacement(c.sc, "osd")
+			// create a device class match expression
+			deviceClassMatchExpression := metav1.LabelSelectorRequirement{
+				Key:      deviceClassPlacementKey,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{deviceSet.DeviceClass},
+			}
+			osdPlacement := *defaultOsdPlacement.DeepCopy()
+			osdPlacement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions = append(osdPlacement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions, deviceClassMatchExpression)
+
 			assert.Equal(t, fmt.Sprintf("%s-%d", deviceSet.Name, i), scds.Name)
 			assert.Equal(t, deviceSet.Count, scds.Count)
 			assert.DeepEqual(t, getDaemonResources("osd", c.sc), scds.Resources)
@@ -892,7 +915,7 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 			assert.DeepEqual(t, deviceSet.DataPVCTemplate.Spec, scds.VolumeClaimTemplates[0].Spec)
 			assert.Equal(t, true, scds.Portable)
 			assert.Equal(t, c.sc.Spec.Encryption.ClusterWide, scds.Encrypted)
-			assert.DeepEqual(t, getPlacement(c.sc, "osd"), scds.Placement)
+			assert.DeepEqual(t, osdPlacement, scds.Placement)
 			topologyKey := scds.PreparePlacement.TopologySpreadConstraints[0].TopologyKey
 			assert.Equal(t, c.topologyKey, topologyKey)
 		}
