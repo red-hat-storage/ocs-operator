@@ -213,7 +213,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 		}
 
 		// when using non default hostNetwork Object Store should use hostNetwork
-		obj.Spec.Gateway.HostNetwork = ptr.To(shouldUseHostNetworking(initData) || ptr.Deref(initData.Spec.ManagedResources.CephObjectStores.HostNetwork, false))
+		obj.Spec.Gateway.HostNetwork = ptr.To(util.ShouldUseHostNetworking(initData) || ptr.Deref(initData.Spec.ManagedResources.CephObjectStores.HostNetwork, false))
 
 		// Set default values in the data pool spec as necessary
 		setDefaultDataPoolSpec(&obj.Spec.DataPool, initData)
@@ -287,7 +287,7 @@ func hasNonPortableOSD(sc *ocsv1.StorageCluster) bool {
 func getRGWPort(sc *ocsv1.StorageCluster) int32 {
 	if sc.Spec.ManagedResources.CephObjectStores.GatewayPort != 0 {
 		return int32(sc.Spec.ManagedResources.CephObjectStores.GatewayPort)
-	} else if shouldUseHostNetworking(sc) {
+	} else if util.ShouldUseHostNetworking(sc) {
 		return 50080
 	}
 	return 80
@@ -297,7 +297,7 @@ func getRGWPort(sc *ocsv1.StorageCluster) int32 {
 func getRGWSecurePort(sc *ocsv1.StorageCluster) int32 {
 	if sc.Spec.ManagedResources.CephObjectStores.GatewaySecurePort != 0 {
 		return int32(sc.Spec.ManagedResources.CephObjectStores.GatewaySecurePort)
-	} else if shouldUseHostNetworking(sc) {
+	} else if util.ShouldUseHostNetworking(sc) {
 		return 50443
 	}
 	return 443

@@ -196,7 +196,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		}
 	}
 
-	if isMultus(sc.Spec.Network) {
+	if util.IsMultus(sc.Spec.Network) {
 		err := validateMultusSelectors(sc.Spec.Network.Selectors)
 		if err != nil {
 			r.Log.Error(err, "Failed to validate Multus Selectors specified in StorageCluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
@@ -668,13 +668,6 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 	}
 
 	return cephCluster
-}
-
-func isMultus(nwSpec *rookCephv1.NetworkSpec) bool {
-	if nwSpec != nil {
-		return nwSpec.IsMultus()
-	}
-	return false
 }
 
 func validateMultusSelectors(selectors map[rookCephv1.CephNetworkType]string) error {

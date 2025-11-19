@@ -64,7 +64,7 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 		}
 
 		// Add multus related annotations, if multus provider is set
-		if isMultus(sc.Spec.Network) {
+		if util.IsMultus(sc.Spec.Network) {
 			net, err := getMultusPublicNetwork(sc)
 			if err != nil {
 				return err
@@ -77,7 +77,7 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 				toolsDeployment.Spec.Template.Spec.HostNetwork = false
 			}
 		}
-		if shouldUseHostNetworking(sc) {
+		if util.ShouldUseHostNetworking(sc) {
 			toolsDeployment.Spec.Template.Spec.HostNetwork = true
 		}
 
