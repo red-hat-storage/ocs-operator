@@ -20,11 +20,10 @@ import (
 )
 
 const (
-	ocsClientConfigMapName             = "ocs-client-operator-config"
-	manageNoobaaSubKey                 = "manageNoobaaSubscription"
-	useHostNetworkForCsiControllersKey = "useHostNetworkForCsiControllers"
-	disableVersionChecksKey            = "disableVersionChecks"
-	disableInstallPlanAutoApprovalKey  = "disableInstallPlanAutoApproval"
+	ocsClientConfigMapName            = "ocs-client-operator-config"
+	manageNoobaaSubKey                = "manageNoobaaSubscription"
+	disableVersionChecksKey           = "disableVersionChecks"
+	disableInstallPlanAutoApprovalKey = "disableInstallPlanAutoApproval"
 	// cephNetworkAnnotationKey is the annotation key used to store network details used by ceph
 	cniNetworksAnnotationKey = "k8s.v1.cni.cncf.io/networks"
 )
@@ -35,7 +34,7 @@ var _ resourceManager = &storageClient{}
 
 func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluster *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	if err := s.updateClientConfigMap(r, storagecluster.Namespace, storagecluster.Spec.HostNetwork); err != nil {
+	if err := s.updateClientConfigMap(r, storagecluster.Namespace); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -110,7 +109,7 @@ func (s *storageClient) ensureDeleted(r *StorageClusterReconciler, storagecluste
 	return reconcile.Result{}, nil
 }
 
-func (s *storageClient) updateClientConfigMap(r *StorageClusterReconciler, namespace string, useHostNetworkForCsiControllers bool) error {
+func (s *storageClient) updateClientConfigMap(r *StorageClusterReconciler, namespace string) error {
 	clientConfig := &corev1.ConfigMap{}
 	clientConfig.Name = ocsClientConfigMapName
 	clientConfig.Namespace = namespace
@@ -125,7 +124,6 @@ func (s *storageClient) updateClientConfigMap(r *StorageClusterReconciler, names
 		clientConfig.Data = map[string]string{}
 	}
 	clientConfig.Data[manageNoobaaSubKey] = strconv.FormatBool(false)
-	clientConfig.Data[useHostNetworkForCsiControllersKey] = strconv.FormatBool(useHostNetworkForCsiControllers)
 	clientConfig.Data[disableVersionChecksKey] = strconv.FormatBool(true)
 	clientConfig.Data[disableInstallPlanAutoApprovalKey] = strconv.FormatBool(true)
 
