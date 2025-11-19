@@ -28,6 +28,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/utils/ptr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -1498,7 +1499,9 @@ func isEncrptionSettingUpdated(clusterWideEncrytion bool, existingDeviceSet []ro
 
 // setDefaultMetadataPoolSpec sets the common pool spec for all metadata pools as necessary
 func setDefaultMetadataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageCluster) {
-	poolSpec.EnableCrushUpdates = true
+	if poolSpec.EnableCrushUpdates == nil {
+		poolSpec.EnableCrushUpdates = ptr.To(true)
+	}
 	if poolSpec.DeviceClass == "" {
 		poolSpec.DeviceClass = sc.Status.DefaultCephDeviceClass
 	}
@@ -1518,7 +1521,9 @@ func setDefaultMetadataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.Storage
 
 // setDefaultDataPoolSpec sets the common pool spec for all data pools as necessary
 func setDefaultDataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageCluster) {
-	poolSpec.EnableCrushUpdates = true
+	if poolSpec.EnableCrushUpdates == nil {
+		poolSpec.EnableCrushUpdates = ptr.To(true)
+	}
 	if poolSpec.DeviceClass == "" {
 		poolSpec.DeviceClass = sc.Status.DefaultCephDeviceClass
 	}

@@ -9,6 +9,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -94,7 +95,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 	mockStorageCluster.DeepCopyInto(mocksc)
 	mocksc.Status.FailureDomain = "zone"
 	defaultPoolSpec := cephv1.PoolSpec{
-		EnableCrushUpdates: true,
+		EnableCrushUpdates: ptr.To(true),
 		DeviceClass:        mocksc.Status.DefaultCephDeviceClass,
 		FailureDomain:      getFailureDomain(mocksc),
 		Replicated:         generateCephReplicatedSpec(mocksc, poolTypeData),
@@ -135,7 +136,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 				{
 					PoolSpec: cephv1.PoolSpec{
 						DeviceClass:        "gold",
-						EnableCrushUpdates: true,
+						EnableCrushUpdates: ptr.To(true),
 						Replicated: cephv1.ReplicatedSpec{
 							Size:                     2,
 							TargetSizeRatio:          0.8,
@@ -175,7 +176,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 					Name: "test-1",
 					PoolSpec: cephv1.PoolSpec{
 						DeviceClass:        defaultPoolSpec.DeviceClass,
-						EnableCrushUpdates: true,
+						EnableCrushUpdates: ptr.To(true),
 						Replicated: cephv1.ReplicatedSpec{
 							Size:                     2,
 							TargetSizeRatio:          0.3,
@@ -218,7 +219,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 					Name: "test-1",
 					PoolSpec: cephv1.PoolSpec{
 						DeviceClass:        "gold",
-						EnableCrushUpdates: true,
+						EnableCrushUpdates: ptr.To(true),
 						Replicated:         defaultPoolSpec.Replicated,
 						FailureDomain:      defaultPoolSpec.FailureDomain,
 					},
@@ -227,7 +228,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 					Name: "test-2",
 					PoolSpec: cephv1.PoolSpec{
 						DeviceClass:        "silver",
-						EnableCrushUpdates: true,
+						EnableCrushUpdates: ptr.To(true),
 						Replicated:         defaultPoolSpec.Replicated,
 						FailureDomain:      defaultPoolSpec.FailureDomain,
 					},
@@ -242,6 +243,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 						CephFilesystems: api.ManageCephFilesystems{
 							DataPoolSpec: &cephv1.PoolSpec{
 								DeviceClass: "gold",
+								EnableCrushUpdates: ptr.To(false),
 								Replicated: cephv1.ReplicatedSpec{
 									TargetSizeRatio: 0.1,
 								},
@@ -276,7 +278,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 				{
 					PoolSpec: cephv1.PoolSpec{
 						DeviceClass:        "gold",
-						EnableCrushUpdates: true,
+						EnableCrushUpdates: ptr.To(false),
 						Replicated: cephv1.ReplicatedSpec{
 							Size:                     defaultPoolSpec.Replicated.Size,
 							TargetSizeRatio:          0.1,
@@ -289,7 +291,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 					Name: "test-1",
 					PoolSpec: cephv1.PoolSpec{
 						DeviceClass:        "silver",
-						EnableCrushUpdates: true,
+						EnableCrushUpdates: ptr.To(true),
 						Replicated: cephv1.ReplicatedSpec{
 							Size:                     2,
 							TargetSizeRatio:          0.25,
@@ -302,7 +304,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 					Name: "test-2",
 					PoolSpec: cephv1.PoolSpec{
 						DeviceClass:        "bronze",
-						EnableCrushUpdates: true,
+						EnableCrushUpdates: ptr.To(true),
 						Replicated: cephv1.ReplicatedSpec{
 							Size:                     2,
 							TargetSizeRatio:          0.25,

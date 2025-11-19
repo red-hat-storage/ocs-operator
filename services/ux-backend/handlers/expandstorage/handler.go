@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -168,7 +169,7 @@ func createCephBlockPool(w http.ResponseWriter, r *http.Request, client client.C
 				Parameters: map[string]string{
 					"compression_mode": compression,
 				},
-				EnableCrushUpdates: true,
+				EnableCrushUpdates: ptr.To(true),
 			},
 		},
 	}
@@ -234,7 +235,7 @@ func createCephFilesystemDataPool(w http.ResponseWriter, r *http.Request, client
 			Parameters: map[string]string{
 				"compression_mode": compression,
 			},
-			EnableCrushUpdates: true,
+			EnableCrushUpdates: ptr.To(true),
 		},
 	}
 
