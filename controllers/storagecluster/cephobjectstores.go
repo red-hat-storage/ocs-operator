@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	keda "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
@@ -15,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -123,6 +125,12 @@ func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *o
 
 // createCephObjectStore creates CephObjectStore in the desired state
 func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*cephv1.CephObjectStore, instance *ocsv1.StorageCluster) error {
+	scaledObjects := &keda.ScaledObjectList{}
+	err := r.Client.List(r.ctx, scaledObjects, client.InNamespace(instance.Namespace))
+	if err != nil {
+		// log the error but don't return it. ScaledObject CRD might not be created yet. So we don't want to fail.
+		r.Log.Error(err, "failed to list ScaledObject resources")
+	}
 	for _, cephObjectStore := range cephObjectStores {
 		existing := cephv1.CephObjectStore{}
 		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: cephObjectStore.Namespace}, &existing)
@@ -145,6 +153,16 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 			// preserving any existing rgw ReadAffinities
 			if existing.Spec.Gateway.ReadAffinity != nil {
 				cephObjectStore.Spec.Gateway.ReadAffinity = existing.Spec.Gateway.ReadAffinity
+			}
+
+			for _, scaleObject := range scaledObjects.Items {
+				if scaleObject.Spec.ScaleTargetRef.Kind == cephObjectStore.Kind && scaleObject.Spec.ScaleTargetRef.Name == cephObjectStore.Name {
+					// don't override the RGW instance count if Horizontal POD Autoscalar (HPA) is enabled for this CephObjectStore CR.
+					// HPA(KEDA) will handle the number of RGW instances.
+					r.Log.Info("skip overrring the RGW instances in the existing CephObjectStore via StorageCluster CR since HPA is enabled", "CephObjectStore", klog.KRef(existing.Namespace, existing.Name))
+					cephObjectStore.Spec.Gateway.Instances = existing.Spec.Gateway.Instances
+					break
+				}
 			}
 
 			err = r.Client.Update(context.TODO(), cephObjectStore)

@@ -230,6 +230,9 @@ github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/
 github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/scheme
 github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1
 github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/utils
+# github.com/kedacore/keda/v2 v2.7.0
+## explicit; go 1.17
+github.com/kedacore/keda/v2/apis/keda/v1alpha1
 # github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 ## explicit; go 1.13
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io
@@ -1177,6 +1180,15 @@ k8s.io/utils/net
 k8s.io/utils/pointer
 k8s.io/utils/ptr
 k8s.io/utils/trace
+# knative.dev/pkg v0.0.0-20220502225657-4fced0164c9a
+## explicit; go 1.17
+knative.dev/pkg/apis
+knative.dev/pkg/apis/duck
+knative.dev/pkg/apis/duck/ducktypes
+knative.dev/pkg/kmap
+knative.dev/pkg/kmeta
+knative.dev/pkg/kmp
+knative.dev/pkg/tracker
 # open-cluster-management.io/api v1.0.0
 ## explicit; go 1.23.6
 open-cluster-management.io/api/cluster/v1alpha1
@@ -1242,8 +1254,6 @@ sigs.k8s.io/json/internal/golang/encoding/json
 ## explicit; go 1.18
 sigs.k8s.io/randfill
 sigs.k8s.io/randfill/bytesource
-# sigs.k8s.io/structured-merge-diff/v4 v4.7.0
-## explicit; go 1.13
 # sigs.k8s.io/structured-merge-diff/v6 v6.3.0
 ## explicit; go 1.23
 sigs.k8s.io/structured-merge-diff/v6/fieldpath
