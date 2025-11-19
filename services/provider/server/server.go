@@ -1152,17 +1152,20 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 		return nil, err
 	}
 
-	kubeResources, err = s.appendOdfVolumeGroupSnapshotClassKubeResources(
-		ctx,
-		logger,
-		kubeResources,
-		consumer,
-		consumerConfig,
-		storageCluster,
-		cephFsStorageId,
-	)
-	if err != nil {
-		return nil, err
+	if false {
+		// CG will be available in a later version
+		kubeResources, err = s.appendOdfVolumeGroupSnapshotClassKubeResources(
+			ctx,
+			logger,
+			kubeResources,
+			consumer,
+			consumerConfig,
+			storageCluster,
+			cephFsStorageId,
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	kubeResources, err = s.appendVolumeReplicationClassKubeResources(
@@ -1178,18 +1181,21 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 		return nil, err
 	}
 
-	kubeResources, err = s.appendVolumeGroupReplicationClassKubeResources(
-		ctx,
-		logger,
-		kubeResources,
-		consumer,
-		consumerConfig,
-		storageCluster,
-		rbdStorageId,
-		mirroringTargetInfo.RbdStorageID,
-	)
-	if err != nil {
-		return nil, err
+	if false {
+		// CG will be available in a later version
+		kubeResources, err = s.appendVolumeGroupReplicationClassKubeResources(
+			ctx,
+			logger,
+			kubeResources,
+			consumer,
+			consumerConfig,
+			storageCluster,
+			rbdStorageId,
+			mirroringTargetInfo.RbdStorageID,
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	kubeResources, err = s.appendClusterResourceQuotaKubeResources(
