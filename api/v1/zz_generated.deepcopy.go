@@ -526,7 +526,6 @@ func (in *ManageCephToolbox) DeepCopy() *ManageCephToolbox {
 func (in *ManagedResourcesSpec) DeepCopyInto(out *ManagedResourcesSpec) {
 	*out = *in
 	in.CephCluster.DeepCopyInto(&out.CephCluster)
-	out.CephConfig = in.CephConfig
 	out.CephDashboard = in.CephDashboard
 	in.CephBlockPools.DeepCopyInto(&out.CephBlockPools)
 	in.CephNonResilientPools.DeepCopyInto(&out.CephNonResilientPools)

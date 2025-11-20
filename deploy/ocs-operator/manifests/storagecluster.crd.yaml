@@ -1475,13 +1475,6 @@ spec:
                         format: int64
                         type: integer
                     type: object
-                  cephConfig:
-                    description: ManageCephConfig defines how to reconcile the Ceph
-                      configuration
-                    properties:
-                      reconcileStrategy:
-                        type: string
-                    type: object
                   cephDashboard:
                     description: ManageCephDashboard defines how to reconcile Ceph
                       dashboard

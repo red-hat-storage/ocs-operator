@@ -138,8 +138,6 @@ type KeyManagementServiceSpec struct {
 // ManagedResourcesSpec defines how to reconcile auxiliary resources
 type ManagedResourcesSpec struct {
 	CephCluster ManageCephCluster `json:"cephCluster,omitempty"`
-	// +kubebuilder:deprecatedversion:warning="ocs operator has stopped managing the rook config override configMap, this field will be removed in future."
-	CephConfig            ManageCephConfig            `json:"cephConfig,omitempty"`
 	CephDashboard         ManageCephDashboard         `json:"cephDashboard,omitempty"`
 	CephBlockPools        ManageCephBlockPools        `json:"cephBlockPools,omitempty"`
 	CephNonResilientPools ManageCephNonResilientPools `json:"cephNonResilientPools,omitempty"`
