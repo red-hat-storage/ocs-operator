@@ -1,6 +1,6 @@
 package bundle
 
-const Version = "5.20.0"
+const Version = "5.21.0"
 
 const Sha256_deploy_cluster_role_yaml = "31fc622ff7fa66617be3895bddcb6cfdb97883b75b20bdb2bf04052bd14221a8"
 
@@ -283,14 +283,14 @@ spec:
 
 `
 
-const Sha256_deploy_crds_noobaa_io_backingstores_yaml = "3c59eda2da91cf4ec6025491d8d1067b4626d3cad5fbd43bb0846ebd6d3126bf"
+const Sha256_deploy_crds_noobaa_io_backingstores_yaml = "1b202cb74ba1bd0e54627bb55e14feea349c2f3d1604776ccaa040c37a932bef"
 
 const File_deploy_crds_noobaa_io_backingstores_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.3
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: backingstores.noobaa.io
 spec:
   group: noobaa.io
@@ -654,14 +654,14 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_bucketclasses_yaml = "303a0b43c30509718a314dd4a0f733679229416cddc52daffe08434d7d4ea652"
+const Sha256_deploy_crds_noobaa_io_bucketclasses_yaml = "4397dc7ad11b72bc50f3744b5f9f66f22e76bc09ae2358dcf21c3aa376318d44"
 
 const File_deploy_crds_noobaa_io_bucketclasses_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.3
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: bucketclasses.noobaa.io
 spec:
   group: noobaa.io
@@ -785,6 +785,8 @@ spec:
                             BackingStores is an unordered list of backing store names.
                             The meaning of the list depends on the placement.
                           items:
+                            description: BackingStoreName is just a name-reference
+                              to a BackingStore
                             type: string
                           type: array
                         placement:
@@ -909,14 +911,14 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_namespacestores_yaml = "427b53370d424315e81fdca907fb51f8106c56e5a2a7b186384348f794ad330d"
+const Sha256_deploy_crds_noobaa_io_namespacestores_yaml = "dc1da64540920101bfb80e331920a3bc2b0b39ea27aacf148109b3fd91ed134e"
 
 const File_deploy_crds_noobaa_io_namespacestores_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.3
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: namespacestores.noobaa.io
 spec:
   group: noobaa.io
@@ -1247,14 +1249,14 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_noobaaaccounts_yaml = "4317a1b539d6a491f6afd9f508e75103c50797b7280ad53941f0d2b546f0f6c1"
+const Sha256_deploy_crds_noobaa_io_noobaaaccounts_yaml = "8bc46314e327636719cd220e5d8c3745762f3008b8b5c58a62722ef9003688e6"
 
 const File_deploy_crds_noobaa_io_noobaaaccounts_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.3
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: noobaaaccounts.noobaa.io
 spec:
   group: noobaa.io
@@ -1423,14 +1425,14 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_noobaas_yaml = "9aed761f69a7c552dd6c2dfc558fd055d6c236765a0728b9a39abf289827668f"
+const Sha256_deploy_crds_noobaa_io_noobaas_yaml = "38de565d60a559d52856d009eac5596b13fc2aa42ab12a4663c0a9a6ae2b5a5f"
 
 const File_deploy_crds_noobaa_io_noobaas_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.3
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: noobaas.noobaa.io
 spec:
   group: noobaa.io
@@ -1451,6 +1453,10 @@ spec:
     - description: STS Endpoints
       jsonPath: .status.services.serviceSts.nodePorts
       name: Sts-Endpoints
+      type: string
+    - description: IAM Endpoints
+      jsonPath: .status.services.serviceIam.nodePorts
+      name: Iam-Endpoints
       type: string
     - description: Syslog Endpoints
       jsonPath: .status.services.serviceSyslog.nodePorts
@@ -1776,7 +1782,6 @@ spec:
                                     pod labels will be ignored. The default value is empty.
                                     The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                     Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                    This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                   items:
                                     type: string
                                   type: array
@@ -1791,7 +1796,6 @@ spec:
                                     pod labels will be ignored. The default value is empty.
                                     The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                     Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                    This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                   items:
                                     type: string
                                   type: array
@@ -1957,7 +1961,6 @@ spec:
                                 pod labels will be ignored. The default value is empty.
                                 The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                 Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                               items:
                                 type: string
                               type: array
@@ -1972,7 +1975,6 @@ spec:
                                 pod labels will be ignored. The default value is empty.
                                 The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                 Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                               items:
                                 type: string
                               type: array
@@ -2065,8 +2067,8 @@ spec:
                           most preferred is the one with the greatest sum of weights, i.e.
                           for each node that meets all of the scheduling requirements (resource
                           request, requiredDuringScheduling anti-affinity expressions, etc.),
-                          compute a sum by iterating through the elements of this field and adding
-                          "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+                          compute a sum by iterating through the elements of this field and subtracting
+                          "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
                           node(s) with the highest sum are the most preferred.
                         items:
                           description: The weights of all of the matched WeightedPodAffinityTerm
@@ -2135,7 +2137,6 @@ spec:
                                     pod labels will be ignored. The default value is empty.
                                     The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                     Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                    This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                   items:
                                     type: string
                                   type: array
@@ -2150,7 +2151,6 @@ spec:
                                     pod labels will be ignored. The default value is empty.
                                     The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                     Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                    This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                                   items:
                                     type: string
                                   type: array
@@ -2316,7 +2316,6 @@ spec:
                                 pod labels will be ignored. The default value is empty.
                                 The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                 Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                               items:
                                 type: string
                               type: array
@@ -2331,7 +2330,6 @@ spec:
                                 pod labels will be ignored. The default value is empty.
                                 The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                 Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                This is a beta field and requires enabling MatchLabelKeysInPodAffinity feature gate (enabled by default).
                               items:
                                 type: string
                               type: array
@@ -2516,7 +2514,7 @@ spec:
                       Claims lists the names of resources, defined in spec.resourceClaims,
                       that are used by this container.
 
-                      This is an alpha field and requires enabling the
+                      This field depends on the
                       DynamicResourceAllocation feature gate.
 
                       This field is immutable. It can only be set for containers.
@@ -2584,7 +2582,7 @@ spec:
                       Claims lists the names of resources, defined in spec.resourceClaims,
                       that are used by this container.
 
-                      This is an alpha field and requires enabling the
+                      This field depends on the
                       DynamicResourceAllocation feature gate.
 
                       This field is immutable. It can only be set for containers.
@@ -2638,6 +2636,38 @@ spec:
               dbSpec:
                 description: DBSpec (optional) DB spec for a managed postgres cluster
                 properties:
+                  dbBackup:
+                    description: |-
+                      DBBackup (optional) configure automatic scheduled backups of the database volume.
+                      Currently, only volume snapshots are supported.
+                    properties:
+                      schedule:
+                        description: Schedule the schedule for the database backup
+                          in cron format.
+                        type: string
+                      volumeSnapshot:
+                        description: |-
+                          VolumeSnapshot the volume snapshot backup configuration.
+                          Currently this is the only supported backup method and hence it is required.
+                        properties:
+                          maxSnapshots:
+                            description: MaxSnapshots the maximum number of snapshots
+                              to keep.
+                            minimum: 1
+                            type: integer
+                          volumeSnapshotClass:
+                            description: VolumeSnapshotClass the volume snapshot class
+                              for the database volume.
+                            minLength: 1
+                            type: string
+                        required:
+                        - maxSnapshots
+                        - volumeSnapshotClass
+                        type: object
+                    required:
+                    - schedule
+                    - volumeSnapshot
+                    type: object
                   dbConf:
                     additionalProperties:
                       type: string
@@ -2650,6 +2680,18 @@ spec:
                       Increasing the size of the volume is supported if the underlying storage class supports volume expansion.
                       The new size should be larger than actualVolumeSize in dbStatus for the volume to be resized.
                     type: string
+                  dbRecovery:
+                    description: DBRecovery (optional) configure database recovery
+                      from snapshot
+                    properties:
+                      volumeSnapshotName:
+                        description: VolumeSnapshotName specifies the name of the
+                          volume snapshot to recover from
+                        minLength: 1
+                        type: string
+                    required:
+                    - volumeSnapshotName
+                    type: object
                   dbResources:
                     description: DBResources (optional) overrides the default resource
                       requirements for the db container
@@ -2659,7 +2701,7 @@ spec:
                           Claims lists the names of resources, defined in spec.resourceClaims,
                           that are used by this container.
 
-                          This is an alpha field and requires enabling the
+                          This field depends on the
                           DynamicResourceAllocation feature gate.
 
                           This field is immutable. It can only be set for containers.
@@ -3051,7 +3093,7 @@ spec:
                           Claims lists the names of resources, defined in spec.resourceClaims,
                           that are used by this container.
 
-                          This is an alpha field and requires enabling the
+                          This field depends on the
                           DynamicResourceAllocation feature gate.
 
                           This field is immutable. It can only be set for containers.
@@ -3191,6 +3233,12 @@ spec:
                   only from the listed subnets. This field will have no effect if DisableLoadBalancerService is set
                   to true
                 properties:
+                  iam:
+                    description: IAM is a list of subnets that will be allowed to
+                      access the Noobaa IAM service
+                    items:
+                      type: string
+                    type: array
                   s3:
                     description: S3 is a list of subnets that will be allowed to access
                       the Noobaa S3 service
@@ -3213,7 +3261,7 @@ spec:
                       Claims lists the names of resources, defined in spec.resourceClaims,
                       that are used by this container.
 
-                      This is an alpha field and requires enabling the
+                      This field depends on the
                       DynamicResourceAllocation feature gate.
 
                       This field is immutable. It can only be set for containers.
@@ -3417,6 +3465,29 @@ spec:
                     description: ActualVolumeSize is the actual size of the postgres
                       cluster volume. This can be different than the requested size
                     type: string
+                  backupStatus:
+                    description: BackupStatus reports the status of database backups
+                    properties:
+                      availableSnapshots:
+                        description: AvailableSnapshots list of available snapshot
+                          names
+                        items:
+                          type: string
+                        type: array
+                      lastBackupTime:
+                        description: LastBackupTime timestamp of the last successful
+                          backup
+                        format: date-time
+                        type: string
+                      nextBackupTime:
+                        description: NextBackupTime timestamp of the next scheduled
+                          backup
+                        format: date-time
+                        type: string
+                      totalSnapshots:
+                        description: TotalSnapshots current number of snapshots
+                        type: integer
+                    type: object
                   currentPgMajorVersion:
                     description: CurrentPgMajorVersion is the major version of the
                       postgres cluster
@@ -3427,6 +3498,21 @@ spec:
                   dbCurrentImage:
                     description: DBCurrentImage is the image of the postgres cluster
                     type: string
+                  recoveryStatus:
+                    description: RecoveryStatus reports the status of database recovery
+                    properties:
+                      recoveryTime:
+                        description: RecoveryTime timestamp when recovery was initiated
+                        format: date-time
+                        type: string
+                      snapshotName:
+                        description: SnapshotName name of the snapshot being recovered
+                          from
+                        type: string
+                      status:
+                        description: Status current recovery status
+                        type: string
+                    type: object
                 type: object
               endpoints:
                 description: |-
@@ -3517,6 +3603,61 @@ spec:
               services:
                 description: Services reports addresses for the services
                 properties:
+                  serviceIam:
+                    description: ServiceStatus is the status info and network addresses
+                      of a service
+                    properties:
+                      externalDNS:
+                        description: ExternalDNS are external public addresses for
+                          the service
+                        items:
+                          type: string
+                        type: array
+                      externalIP:
+                        description: |-
+                          ExternalIP are external public addresses for the service
+                          LoadBalancerPorts such as AWS ELB provide public address and load balancing for the service
+                          IngressPorts are manually created public addresses for the service
+                          https://kubernetes.io/docs/concepts/services-networking/service/#external-ips
+                          https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer
+                          https://kubernetes.io/docs/concepts/services-networking/ingress/
+                        items:
+                          type: string
+                        type: array
+                      internalDNS:
+                        description: InternalDNS are internal addresses of the service
+                          inside the cluster
+                        items:
+                          type: string
+                        type: array
+                      internalIP:
+                        description: |-
+                          InternalIP are internal addresses of the service inside the cluster
+                          https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+                        items:
+                          type: string
+                        type: array
+                      nodePorts:
+                        description: |-
+                          NodePorts are the most basic network available.
+                          NodePorts use the networks available on the hosts of kubernetes nodes.
+                          This generally works from within a pod, and from the internal
+                          network of the nodes, but may fail from public network.
+                          https://kubernetes.io/docs/concepts/services-networking/service/#nodeport
+                        items:
+                          type: string
+                        type: array
+                      podPorts:
+                        description: |-
+                          PodPorts are the second most basic network address.
+                          Every pod has an IP in the cluster and the pods network is a mesh
+                          so the operator running inside a pod in the cluster can use this address.
+                          Note: pod IPs are not guaranteed to persist over restarts, so should be rediscovered.
+                          Note2: when running the operator outside of the cluster, pod IP is not accessible.
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   serviceMgmt:
                     description: ServiceStatus is the status info and network addresses
                       of a service
@@ -3985,7 +4126,7 @@ data:
     shared_preload_libraries = 'pg_stat_statements'
 `
 
-const Sha256_deploy_internal_deployment_endpoint_yaml = "8cd3ac9930997965ab9fef72cbbe8bda1474f848ee8bfe2ee9af8fc6ea58dd69"
+const Sha256_deploy_internal_deployment_endpoint_yaml = "993fc53b16da6485abff75cf76a0d0d15f10e2319f0b519010808e2ea20df1c6"
 
 const File_deploy_internal_deployment_endpoint_yaml = `apiVersion: apps/v1
 kind: Deployment
@@ -4026,6 +4167,10 @@ spec:
           secret:
             secretName: noobaa-sts-serving-cert
             optional: true
+        - name: iam-secret
+          secret:
+            secretName: noobaa-iam-serving-cert
+            optional: true
         # This service account token can be used to provide identity outside the cluster.
         # For example, this token can be used with AssumeRoleWithWebIdentity to authenticate with AWS using IAM OIDC provider and STS.
         - name: bound-sa-token
@@ -4046,6 +4191,7 @@ spec:
       containers:
         - name: endpoint
           image: NOOBAA_CORE_IMAGE
+          terminationMessagePolicy: FallbackToLogsOnError
           command:
             - /noobaa_init_files/noobaa_init.sh
             - init_endpoint
@@ -4066,6 +4212,8 @@ spec:
             - containerPort: 6001
             - containerPort: 6443
             - containerPort: 7443
+            - containerPort: 13443
+              name: iam-https
           env:
             - name: NODE_NAME
               valueFrom:
@@ -4152,6 +4300,9 @@ spec:
               readOnly: true
             - name: noobaa-server
               mountPath: /etc/noobaa-server
+              readOnly: true
+            - name: iam-secret
+              mountPath: /etc/iam-secret
               readOnly: true
             - name: sts-secret
               mountPath: /etc/sts-secret
@@ -4482,7 +4633,7 @@ spec:
       storage: 30Gi
 `
 
-const Sha256_deploy_internal_pod_agent_yaml = "0d3d438a85024b605e1d1b3587c0bf9522f7e30f187fdd0f1d607337e3df90d1"
+const Sha256_deploy_internal_pod_agent_yaml = "74237f435120c893cd8e349e9ac685dd1c884e121c018f46e48228f845a51093"
 
 const File_deploy_internal_pod_agent_yaml = `apiVersion: v1
 kind: Pod
@@ -4507,7 +4658,8 @@ spec:
         # Insert the relevant config for the current agent
         - name: CONTAINER_PLATFORM
           value: KUBERNETES
-        - name: AGENT_CONFIG
+        - name: AGENT_CONFIG_PATH
+          value: /etc/agent-config/agent_config
         - name: NOOBAA_LOG_LEVEL
         - name: NOOBAA_LOG_COLOR
       command: ["/noobaa_init_files/noobaa_init.sh", "agent"]
@@ -4520,6 +4672,9 @@ spec:
           mountPath: /noobaa_storage
         - name: tmp-logs-vol
           mountPath: /usr/local/noobaa/logs
+        - name: agent-config-secret
+          mountPath: /etc/agent-config
+          readOnly: true
       securityContext:
         runAsNonRoot: true
         allowPrivilegeEscalation: false
@@ -4535,9 +4690,12 @@ spec:
     - name: noobaastorage
       persistentVolumeClaim:
         claimName: noobaa-pv-claim
+    - name: agent-config-secret
+      secret:
+        secretName: AGENT_CONFIG_SECRET_NAME
 `
 
-const Sha256_deploy_internal_prometheus_rules_yaml = "3d136d9c9891c9d3bdfdab4d8b5104ab31329b0740744a2e0bbcb34fa26bebf2"
+const Sha256_deploy_internal_prometheus_rules_yaml = "9dba8cfe7b655d3467b091531c95e6d34e8bd179f36ece6eaf3cff8ef73df23d"
 
 const File_deploy_internal_prometheus_rules_yaml = `apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -4788,66 +4946,38 @@ spec:
         severity: critical
   - name: noobaa-db-alert.rules
     rules:
-      - alert: NooBaaDatabaseReachingCapacity
-        annotations:
-          description: The NooBaa database on pod noobaa-db-pg-cluster-1 is using 80% of its PVC requested size.
-          message: NooBaa NooBaa database on pod noobaa-db-pg-cluster-1 is using 80% of its PVC capacity.
-          severity_level: warning
-          storage_type: NooBaa
-        expr: |
-          (
-            cnpg_pg_database_size_bytes{datname="nbcore", namespace="openshift-storage", pod="noobaa-db-pg-cluster-1"}
-            /on(namespace) group_left(persistentvolumeclaim)
-            kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace="openshift-storage", persistentvolumeclaim="noobaa-db-pg-cluster-1"}
-          ) * 100 > 80
-        for: 5m
-        labels:
-          severity: warning
-      - alert: NooBaaDatabaseReachingCapacity
-        annotations:
-          description: The NooBaa database on pod noobaa-db-pg-cluster-2 is using 80% of its PVC requested size.
-          message: NooBaa NooBaa database on pod noobaa-db-pg-cluster-2 is using 80% of its PVC capacity.
-          severity_level: warning
-          storage_type: NooBaa
-        expr: |
-          (
-            cnpg_pg_database_size_bytes{datname="nbcore", namespace="openshift-storage", pod="noobaa-db-pg-cluster-2"}
-            /on(namespace) group_left(persistentvolumeclaim)
-            kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace="openshift-storage", persistentvolumeclaim="noobaa-db-pg-cluster-2"}
-          ) * 100 > 80
-        for: 5m
-        labels:
-          severity: warning
-      - alert: NooBaaDatabaseStorageFull
-        annotations:
-          description: The NooBaa database on pod noobaa-db-pg-cluster-1 is using over 90% of its PVC requested size. Increase the DB size as soon as possible.
-          message: NooBaa NooBaa database on pod noobaa-db-pg-cluster-1 is using over 90% of its PVC capacity.
-          severity_level: critical
-          storage_type: NooBaa
-        expr: |
-          (
-            cnpg_pg_database_size_bytes{datname="nbcore", namespace="openshift-storage", pod="noobaa-db-pg-cluster-1"}
-            /on(namespace) group_left(persistentvolumeclaim)
-            kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace="openshift-storage", persistentvolumeclaim="noobaa-db-pg-cluster-1"}
-          ) * 100 > 90
-        for: 5m
-        labels:
-          severity: critical
-      - alert: NooBaaDatabaseStorageFull
-        annotations:
-          description: The NooBaa database on pod noobaa-db-pg-cluster-2 is using over 90% of its PVC requested size. Increase the DB size as soon as possible.
-          message: NooBaa NooBaa database on pod noobaa-db-pg-cluster-2 is using over 90% of its PVC capacity.
-          severity_level: critical
-          storage_type: NooBaa
-        expr: |
-          (
-            cnpg_pg_database_size_bytes{datname="nbcore", namespace="openshift-storage", pod="noobaa-db-pg-cluster-2"}
-            /on(namespace) group_left(persistentvolumeclaim)
-            kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace="openshift-storage", persistentvolumeclaim="noobaa-db-pg-cluster-2"}
-          ) * 100 > 90
-        for: 5m
-        labels:
-          severity: critical
+    - alert: NooBaaDatabaseReachingCapacity
+      annotations:
+        description: The NooBaa database on pod {{ $labels.pod }} has reached 80% of its PVC capacity.
+        message: The NooBaa database on pod {{ $labels.pod }} is consuming 80% of its PVC capacity. Plan to increase the PVC size soon to prevent service impact.
+        severity_level: warning
+        storage_type: NooBaa
+      expr: |
+        ((sum by (pod) (cnpg_collector_pg_wal{value="size"})
+        + sum by (pod) (cnpg_pg_database_size_bytes{datname="nbcore"}))
+        /
+        sum by (pod) (
+        label_replace(kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace="openshift-storage"}, "pod", "$1", "persistentvolumeclaim", "(.*)"
+        ))) * 100 > 80
+      for: 5m
+      labels:
+        severity: warning    
+    - alert: NooBaaDatabaseStorageFull
+      annotations:
+        description: The NooBaa database on pod {{ $labels.pod }} has exceeded 90% of its PVC capacity. Immediate action is required
+        message: The NooBaa database on pod {{ $labels.pod }} has exceeded 90% of its PVC capacity. Expand the PVC size now to avoid imminent service disruption.
+        severity_level: critical
+        storage_type: NooBaa
+      expr: |
+        ((sum by (pod) (cnpg_collector_pg_wal{value="size"})
+        + sum by (pod) (cnpg_pg_database_size_bytes{datname="nbcore"}))
+        /
+        sum by (pod) (
+        label_replace(kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace="openshift-storage"}, "pod", "$1", "persistentvolumeclaim", "(.*)"
+        ))) * 100 > 90
+      for: 1m
+      labels:
+        severity: critical
 `
 
 const Sha256_deploy_internal_pvc_agent_yaml = "c76fd98867e2e098204377899568a6e1e60062ece903c7bcbeb3444193ec13f8"
@@ -4864,6 +4994,26 @@ spec:
   resources:
     requests:
       storage: 30Gi
+`
+
+const Sha256_deploy_internal_route_iam_yaml = "c97f843db5676140b2307ef13bf9354158eb546dcc7325adf225b24ec323c73a"
+
+const File_deploy_internal_route_iam_yaml = `apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: noobaa
+  name: iam
+spec:
+  port:
+    targetPort: iam-https
+  tls:
+    termination: reencrypt
+  to:
+    kind: Service
+    name: iam
+    weight: 100
+  wildcardPolicy: None
 `
 
 const Sha256_deploy_internal_route_mgmt_yaml = "1d462d165da5a660b85900e46a11e4d1a53e1498bf9d086b4b68afdceab08394"
@@ -4960,6 +5110,28 @@ spec:
     - port: 5432
       targetPort: 5432
       name: postgres
+`
+
+const Sha256_deploy_internal_service_iam_yaml = "3c1640e8f5435889c0718eaf2cabf9271b83fcbcabf51e8c0b34f9897c1c982c"
+
+const File_deploy_internal_service_iam_yaml = `apiVersion: v1
+kind: Service
+metadata:
+  name: iam
+  labels:
+    app: noobaa
+    noobaa-iam-svc: "true"
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: 'noobaa-iam-serving-cert'
+    service.alpha.openshift.io/serving-cert-secret-name: 'noobaa-iam-serving-cert'
+spec:
+  type: LoadBalancer
+  selector:
+    noobaa-s3: SYSNAME
+  ports:
+    - port: 443
+      targetPort: iam-https
+      name: iam-https
 `
 
 const Sha256_deploy_internal_service_mgmt_yaml = "fa5f052fb360e6893fc446a318413a6f494a8610706ae7e36ff985b3b3a5c070"
@@ -5121,7 +5293,7 @@ spec:
       noobaa-s3-svc: "true"
 `
 
-const Sha256_deploy_internal_statefulset_core_yaml = "40aefcf8dbd77e40dfcbe3db3725b56a832c8a81c282c6ba4adc98ce8a65d470"
+const Sha256_deploy_internal_statefulset_core_yaml = "34da89373b8398adb670d779a35f5c5a94365da99b5a2db65715fd62a7638d5c"
 
 const File_deploy_internal_statefulset_core_yaml = `apiVersion: apps/v1
 kind: StatefulSet
@@ -5182,6 +5354,7 @@ spec:
             initialDelaySeconds: 5
             timeoutSeconds: 2
           image: NOOBAA_CORE_IMAGE
+          terminationMessagePolicy: FallbackToLogsOnError
           volumeMounts:
             - name: logs
               mountPath: /log
@@ -5292,6 +5465,7 @@ spec:
             allowPrivilegeEscalation: false
         - name: noobaa-log-processor
           image: NOOBAA_CORE_IMAGE
+          terminationMessagePolicy: FallbackToLogsOnError
           command:
             [
               "/root/node_modules/noobaa-core/src/deploy/NVA_build/noobaa_logs.sh",
@@ -5328,7 +5502,7 @@ spec:
                   resource: limits.memory
 `
 
-const Sha256_deploy_internal_statefulset_postgres_db_yaml = "37a6c36928ba426ca04fd89e1eb2685e10d1a5f65c63ebb40c68a4f5c37645de"
+const Sha256_deploy_internal_statefulset_postgres_db_yaml = "cd739b491f35e77972c55078e6b1ea1362f3897194ed9c89fcf962a1ad6a4c3c"
 
 const File_deploy_internal_statefulset_postgres_db_yaml = `apiVersion: apps/v1
 kind: StatefulSet
@@ -5357,6 +5531,7 @@ spec:
         #--------------------#
         - name: db
           image: NOOBAA_DB_IMAGE
+          terminationMessagePolicy: FallbackToLogsOnError
           env:
             - name: POSTGRESQL_DATABASE
               value: nbcore
@@ -6215,7 +6390,7 @@ spec:
   sourceNamespace: default
 `
 
-const Sha256_deploy_operator_yaml = "aa8da1c289a05b3c94b9393b04307d38814a67625ac6a8006dace4d09366f35b"
+const Sha256_deploy_operator_yaml = "44022d49f1e87196410ff28589fca9001c25928957dfa3db208eab58220d364d"
 
 const File_deploy_operator_yaml = `apiVersion: apps/v1
 kind: Deployment
@@ -6260,6 +6435,10 @@ spec:
       containers:
         - name: noobaa-operator
           image: NOOBAA_OPERATOR_IMAGE
+          terminationMessagePolicy: FallbackToLogsOnError
+          ports:
+            - name: readyz
+              containerPort: 8081
           volumeMounts:
           - name: bound-sa-token
             mountPath: /var/run/secrets/openshift/serviceaccount
@@ -6269,6 +6448,29 @@ spec:
           # SHOULD BE RETURNED ONCE COSI IS BACK
           # - name: socket
           #   mountPath: /var/lib/cosi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: readyz
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /readyz
+              port: readyz
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: readyz
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
           resources:
             limits:
               cpu: "250m"
@@ -6307,7 +6509,7 @@ spec:
         #     name: socket
 `
 
-const Sha256_deploy_role_yaml = "6d98627f4b3c9834710856edf01c6ed71fcefe1e78b15189343423ecc524e18d"
+const Sha256_deploy_role_yaml = "22c739e1b81a9d3c1b167b89c0e8e6757b2981b1434071aa4441332ec4c68d64"
 
 const File_deploy_role_yaml = `apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -6471,6 +6673,15 @@ rules:
   - '*'
   verbs: 
   - '*'
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshots
+  verbs:
+  - get
+  - list
+  - watch
+  - delete
 `
 
 const Sha256_deploy_role_binding_yaml = "59a2627156ed3db9cd1a4d9c47e8c1044279c65e84d79c525e51274329cb16ff"
@@ -6602,7 +6813,7 @@ subjects:
   name: custom-metrics-prometheus-adapter
 `
 
-const Sha256_deploy_role_core_yaml = "c3cfb5b87298224fd6e4e4bff32d3948ad168a0110b8569118a260739ef5d5e7"
+const Sha256_deploy_role_core_yaml = "1ec420603dcec64b247852d106535a85a1a866129f78f790c2e5c9285f029ae7"
 
 const File_deploy_role_core_yaml = `apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -6651,6 +6862,16 @@ rules:
   - securitycontextconstraints
   verbs:
   - use
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - get
+  - create
+  - update
+  - list
+  - watch
 `
 
 const Sha256_deploy_role_db_yaml = "bc7eeca1125dfcdb491ab8eb69e3dcbce9f004a467b88489f85678b3c6872cce"

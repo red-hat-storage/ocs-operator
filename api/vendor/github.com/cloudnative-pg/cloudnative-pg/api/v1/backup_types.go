@@ -1,5 +1,6 @@
 /*
-Copyright The CloudNativePG Contributors
+Copyright © contributors to CloudNativePG, established as
+CloudNativePG a Series of LF Projects, LLC.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,6 +13,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+SPDX-License-Identifier: Apache-2.0
 */
 
 package v1
@@ -116,6 +119,7 @@ const (
 )
 
 // BackupSpec defines the desired state of Backup
+// +kubebuilder:validation:XValidation:rule="oldSelf == self",message="BackupSpec is immutable once set"
 type BackupSpec struct {
 	// The cluster to backup
 	Cluster LocalObjectReference `json:"cluster"`
@@ -314,7 +318,7 @@ type InstanceID struct {
 // +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase"
 // +kubebuilder:printcolumn:name="Error",type="string",JSONPath=".status.error"
 
-// Backup is the Schema for the backups API
+// A Backup resource is a request for a PostgreSQL backup by the user.
 type Backup struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`

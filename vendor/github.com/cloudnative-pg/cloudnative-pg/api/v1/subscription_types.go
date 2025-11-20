@@ -1,5 +1,6 @@
 /*
-Copyright The CloudNativePG Contributors
+Copyright © contributors to CloudNativePG, established as
+CloudNativePG a Series of LF Projects, LLC.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,6 +13,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+SPDX-License-Identifier: Apache-2.0
 */
 
 package v1
@@ -49,8 +52,11 @@ type SubscriptionSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="dbname is immutable"
 	DBName string `json:"dbname"`
 
-	// Subscription parameters part of the `WITH` clause as expected by
-	// PostgreSQL `CREATE SUBSCRIPTION` command
+	// Subscription parameters included in the `WITH` clause of the PostgreSQL
+	// `CREATE SUBSCRIPTION` command. Most parameters cannot be changed
+	// after the subscription is created and will be ignored if modified
+	// later, except for a limited set documented at:
+	// https://www.postgresql.org/docs/current/sql-altersubscription.html#SQL-ALTERSUBSCRIPTION-PARAMS-SET
 	// +optional
 	Parameters map[string]string `json:"parameters,omitempty"`
 
