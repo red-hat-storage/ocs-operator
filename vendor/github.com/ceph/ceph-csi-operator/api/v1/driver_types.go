@@ -89,10 +89,10 @@ type EncryptionSpec struct {
 }
 
 type VolumeSpec struct {
-	//+kubebuilder:validation:Required
+	//+kubebuilder:validation:Optional
 	Volume corev1.Volume `json:"volume,omitempty"`
 
-	//+kubebuilder:validation:Required
+	//+kubebuilder:validation:Optional
 	Mount corev1.VolumeMount `json:"mount,omitempty"`
 }
 
@@ -216,7 +216,7 @@ type ControllerPluginSpec struct {
 	PodCommonSpec `json:",inline"`
 
 	// DeploymentStrategy describes how to replace existing pods with new ones
-	// Default value is RollingUpdate with MaxUnavailable and MaxSurege as 25% (kubernetes default)
+	// Default value is Recreate
 	//+kubebuilder:validation:Optional
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
 

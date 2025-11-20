@@ -1,5 +1,6 @@
 /*
-Copyright The CloudNativePG Contributors
+Copyright © contributors to CloudNativePG, established as
+CloudNativePG a Series of LF Projects, LLC.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,6 +13,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+SPDX-License-Identifier: Apache-2.0
 */
 
 package postgres
@@ -21,8 +24,10 @@ import (
 	"fmt"
 
 	"github.com/cloudnative-pg/machinery/pkg/log"
+	"github.com/cloudnative-pg/machinery/pkg/stringset"
 	"github.com/cloudnative-pg/machinery/pkg/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/cloudnative-pg/cloudnative-pg/pkg/utils"
 )
@@ -46,8 +51,10 @@ type PostgresqlStatus struct {
 	// populated when MightBeUnavailable reported a healthy status even if it found an error
 	MightBeUnavailableMaskedError string `json:"mightBeUnavailableMaskedError,omitempty"`
 
-	// Archiver status
+	// Hash of the current PostgreSQL configuration
+	LoadedConfigurationHash string `json:"loadedConfigurationHash,omitempty"`
 
+	// Archiver status
 	LastArchivedWAL     string `json:"lastArchivedWAL,omitempty"`
 	LastArchivedWALTime string `json:"lastArchivedWALTime,omitempty"`
 	LastFailedWAL       string `json:"lastFailedWAL,omitempty"`
@@ -213,7 +220,9 @@ func (list PgStatReplicationList) Less(i, j int) bool {
 // PostgresqlStatusList is a list of PostgreSQL status received from the Pods
 // that can be sorted considering the replication status
 type PostgresqlStatusList struct {
-	Items []PostgresqlStatus `json:"items"`
+	Items            []PostgresqlStatus `json:"items"`
+	IsReplicaCluster bool               `json:"-"`
+	CurrentPrimary   string             `json:"-"`
 }
 
 // GetNames returns a list of names of Pods
@@ -295,6 +304,16 @@ func (list *PostgresqlStatusList) Less(i, j int) bool {
 	// Compare replay LSN (bigger LSN orders first)
 	if list.Items[i].ReplayLsn != list.Items[j].ReplayLsn {
 		return !list.Items[i].ReplayLsn.Less(list.Items[j].ReplayLsn)
+	}
+
+	// In a replica cluster, all instances are standbys of an external primary.
+	// Therefore, `IsPrimary` is always false for every item in the list.
+	// We rely on the `CurrentPrimary` field to identify the designated primary
+	// instance that is replicating from the external cluster, ensuring it is
+	// sorted first among the standbys.
+	if list.IsReplicaCluster &&
+		(list.Items[i].Pod.Name == list.CurrentPrimary && list.Items[j].Pod.Name != list.CurrentPrimary) {
+		return true
 	}
 
 	return list.Items[i].Pod.Name < list.Items[j].Pod.Name
@@ -418,4 +437,53 @@ func (list PostgresqlStatusList) PrimaryNames() []string {
 	}
 
 	return result
+}
+
+// GetConfigurationReport generates a report on the PostgreSQL configuration
+// status of each Pod in the list.
+func (list PostgresqlStatusList) GetConfigurationReport() ConfigurationReport {
+	result := make([]ConfigurationReportEntry, len(list.Items))
+	for i := range list.Items {
+		result[i].PodName = list.Items[i].Pod.Name
+		result[i].ConfigHash = list.Items[i].LoadedConfigurationHash
+	}
+
+	return result
+}
+
+// ConfigurationReportEntry contains information about the current
+// PostgreSQL configuration of a Pod.
+type ConfigurationReportEntry struct {
+	// PodName is the name of the Pod.
+	PodName string `json:"podName"`
+
+	// ConfigHash is the hash of the currently loaded configuration or empty
+	// if the instance manager didn't report it.
+	ConfigHash string `json:"configHash"`
+}
+
+// ConfigurationReport contains information about the current
+// PostgreSQL configuration of each Pod.
+type ConfigurationReport []ConfigurationReportEntry
+
+// IsUniform checks if every Pod has loaded the same PostgreSQL
+// configuration. Returns:
+//
+//   - true if every Pod reports the configuration, and the same
+//     configuration is used across all Pods.
+//   - false if every Pod reports the configuration and there
+//     are two Pods using different configurations.
+//   - nil if any Pod doesn't report the configuration.
+func (report ConfigurationReport) IsUniform() *bool {
+	detectedConfigurationHash := stringset.New()
+	for _, item := range report {
+		if item.ConfigHash == "" {
+			// a Pod that isn't reporting its configuration,
+			// and we can't tell whether the configurations are uniform or not.
+			return nil
+		}
+		detectedConfigurationHash.Put(item.ConfigHash)
+	}
+
+	return ptr.To(detectedConfigurationHash.Len() == 1)
 }

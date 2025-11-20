@@ -1,3 +1,4 @@
+// Copyright Contributors to the Open Cluster Management project
 package v1alpha1
 
 import (
@@ -26,7 +27,7 @@ type ClusterClaim struct {
 }
 
 type ClusterClaimSpec struct {
-	// Value is a claim-dependent string
+	// value is a claim-dependent string
 	// +kubebuilder:validation:MaxLength=1024
 	// +kubebuilder:validation:MinLength=1
 	Value string `json:"value,omitempty"`
