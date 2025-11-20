@@ -3978,6 +3978,12 @@ spec:
                   enable:
                     description: Enable specifies whether to enable NFS.
                     type: boolean
+                  externalEndpoint:
+                    description: |-
+                      ExternalEndpoint specifies the externally resolvable IP or the DNS name to use
+                      for NFS Ganesha server in NFS StorageClass. If specified, internal client will
+                      also use this same address.
+                    type: string
                   logLevel:
                     description: |-
                       LogLevel set logging level
