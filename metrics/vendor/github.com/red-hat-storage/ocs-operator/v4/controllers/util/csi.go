@@ -5,7 +5,7 @@ const (
 	RbdDriverNameSuffix          = ".rbd.csi.ceph.com"
 	CephFSDriverNameSuffix       = ".cephfs.csi.ceph.com"
 	NfsDriverNameSuffix          = ".nfs.csi.ceph.com"
-	ObcDriverNameSuffix           = ".ceph.rook.io/bucket"
+	ObcDriverNameSuffix          = ".ceph.rook.io/bucket"
 	RbdDriverName                = StorageClassDriverNamePrefix + RbdDriverNameSuffix
 	CephFSDriverName             = StorageClassDriverNamePrefix + CephFSDriverNameSuffix
 	NfsDriverName                = StorageClassDriverNamePrefix + NfsDriverNameSuffix
