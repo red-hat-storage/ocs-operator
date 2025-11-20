@@ -22,25 +22,25 @@ exclude (
 
 require (
 	github.com/blang/semver/v4 v4.0.0
-	github.com/ceph/go-ceph v0.34.0
+	github.com/ceph/go-ceph v0.36.0
 	github.com/go-logr/zapr v1.3.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/oklog/run v1.2.0
-	github.com/onsi/ginkgo/v2 v2.23.4
-	github.com/onsi/gomega v1.38.0
-	github.com/prometheus/client_golang v1.22.0
+	github.com/onsi/ginkgo/v2 v2.27.2
+	github.com/onsi/gomega v1.38.2
+	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-00010101000000-000000000000
 	github.com/red-hat-storage/ocs-operator/v4 v4.0.0-00010101000000-000000000000
-	github.com/rook/rook v1.17.0-alpha.0.0.20250731081113-fd2b4333e8b5
-	github.com/rook/rook/pkg/apis v0.0.0-20250915194743-ccbac6de987f
-	github.com/spf13/pflag v1.0.7
-	github.com/stretchr/testify v1.10.0
-	go.uber.org/zap v1.27.0
-	golang.org/x/net v0.42.0
-	k8s.io/api v0.33.3
-	k8s.io/apimachinery v0.33.3
-	k8s.io/client-go v0.33.3
+	github.com/rook/rook v1.18.0-alpha.0.0.20251119183400-8782e9183d04
+	github.com/rook/rook/pkg/apis v0.0.0-20251119183400-8782e9183d04
+	github.com/spf13/pflag v1.0.10
+	github.com/stretchr/testify v1.11.1
+	go.uber.org/zap v1.27.1
+	golang.org/x/net v0.47.0
+	k8s.io/api v0.34.2
+	k8s.io/apimachinery v0.34.2
+	k8s.io/client-go v0.34.2
 	k8s.io/klog/v2 v2.130.1
 )
 

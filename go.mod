@@ -12,48 +12,48 @@ replace github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./se
 
 require (
 	github.com/blang/semver/v4 v4.0.0
-	github.com/ceph/ceph-csi-operator/api v0.0.0-20250730073555-31acef59db51
-	github.com/ceph/ceph-csi/api v0.0.0-20250728083436-e0ecbea4ef60
-	github.com/csi-addons/kubernetes-csi-addons v0.12.0
+	github.com/ceph/ceph-csi-operator/api v0.0.0-20251118081640-a91f3af51dfd
+	github.com/ceph/ceph-csi/api v0.0.0-20251120101229-f3b5a5957149
+	github.com/csi-addons/kubernetes-csi-addons v0.10.1-0.20251111073450-b3504b0cbd1f
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/imdario/mergo v0.3.16
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
-	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.2.0
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20250728100218-5f4046180bd7
-	github.com/onsi/ginkgo/v2 v2.23.4
-	github.com/onsi/gomega v1.38.0
-	github.com/openshift/api v0.0.0-20250731015415-ed654edbd7c6
-	github.com/openshift/build-machinery-go v0.0.0-20250602125535-1b6d00b8c37c
-	github.com/openshift/client-go v0.0.0-20250710075018-396b36f983ee
+	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.4.0
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20251118072940-a392e524a776
+	github.com/onsi/ginkgo/v2 v2.27.2
+	github.com/onsi/gomega v1.38.2
+	github.com/openshift/api v0.0.0-20251120040117-916c7003ed78
+	github.com/openshift/build-machinery-go v0.0.0-20251023084048-5d77c1a5e5af
+	github.com/openshift/client-go v0.0.0-20251015124057-db0dee36e235
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
-	github.com/operator-framework/api v0.32.0
+	github.com/operator-framework/api v0.36.0
 	github.com/operator-framework/operator-lib v0.19.0
-	github.com/operator-framework/operator-lifecycle-manager v0.32.0
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.84.0
-	github.com/prometheus-operator/prometheus-operator/pkg/client v0.84.0
-	github.com/prometheus/common v0.65.0
-	github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20250729120819-dfea221cd0f1
-	github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20250730075927-6f2fc63926b4
+	github.com/operator-framework/operator-lifecycle-manager v0.38.0
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.86.2
+	github.com/prometheus-operator/prometheus-operator/pkg/client v0.86.2
+	github.com/prometheus/common v0.67.3
+	github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20251105112734-37d7cee66200
+	github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20251117072905-ac6969fec146
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-00010101000000-000000000000
 	github.com/red-hat-storage/ocs-operator/services/provider/api/v4 v4.0.0-00010101000000-000000000000
-	github.com/rook/rook/pkg/apis v0.0.0-20250915194743-ccbac6de987f
-	github.com/stretchr/testify v1.10.0
+	github.com/rook/rook/pkg/apis v0.0.0-20251119183400-8782e9183d04
+	github.com/stretchr/testify v1.11.1
 	go.uber.org/multierr v1.11.0
-	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
-	golang.org/x/net v0.42.0
-	google.golang.org/grpc v1.74.2
+	golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6
+	golang.org/x/net v0.47.0
+	google.golang.org/grpc v1.77.0
 	gopkg.in/yaml.v3 v3.0.1
-	gotest.tools/v3 v3.5.1
-	k8s.io/api v0.33.3
-	k8s.io/apiextensions-apiserver v0.33.2
-	k8s.io/apimachinery v0.33.3
-	k8s.io/client-go v0.33.3
+	gotest.tools/v3 v3.5.2
+	k8s.io/api v0.34.2
+	k8s.io/apiextensions-apiserver v0.34.2
+	k8s.io/apimachinery v0.34.2
+	k8s.io/client-go v0.34.2
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
-	open-cluster-management.io/api v1.0.0
-	sigs.k8s.io/controller-runtime v0.21.0
+	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
+	open-cluster-management.io/api v1.1.0
+	sigs.k8s.io/controller-runtime v0.22.4
 	sigs.k8s.io/yaml v1.6.0
 )
 
