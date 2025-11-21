@@ -377,7 +377,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 				SecurityContext: &corev1.PodSecurityContext{
 					RunAsNonRoot: ptr.To(true),
 				},
-				HostNetwork: shouldUseHostNetworking(instance),
+				HostNetwork: util.ShouldUseHostNetworking(instance),
 				Containers: []corev1.Container{
 					{
 						Resources: getDaemonResources("kube-rbac-proxy-main", instance),
