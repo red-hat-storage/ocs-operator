@@ -20,6 +20,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/imdario/mergo v0.3.16
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
+	github.com/kedacore/keda/v2 v2.7.0
 	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.4.0
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20251118072940-a392e524a776
 	github.com/onsi/ginkgo/v2 v2.27.2
@@ -154,6 +155,7 @@ require (
 	k8s.io/klog v1.0.0 // indirect
 	k8s.io/kube-aggregator v0.34.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
+	knative.dev/pkg v0.0.0-20220502225657-4fced0164c9a // indirect
 	sigs.k8s.io/container-object-storage-interface-api v0.1.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
