@@ -3654,6 +3654,10 @@ spec:
                 description: Monitoring controls the configuration of resources for
                   exposing OCS metrics
                 properties:
+                  disableBlackboxExporter:
+                    description: DisableBlackboxExporter disables deployment of Blackbox
+                      Exporter for network health checks
+                    type: boolean
                   labels:
                     additionalProperties:
                       type: string

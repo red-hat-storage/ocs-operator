@@ -41,6 +41,7 @@ var (
 	noobaaDBContainerImage   = flag.String("noobaa-db-image", "", "db container image for noobaa")
 	ocsContainerImage        = flag.String("ocs-image", "", "ocs operator container image")
 	ocsMetricsExporterImage  = flag.String("ocs-metrics-exporter-image", "", "ocs metrics exporter container image")
+	blackboxExporterImage    = flag.String("blackbox-exporter-image", "", "blackbox exporter container image")
 	uxBackendOauthImage      = flag.String("ux-backend-oauth-image", "", "ux backend oauth container image")
 	ocsMustGatherImage       = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
 	kubeRbacProxyImage       = flag.String("kube-rbac-proxy-image", "", "kube-rbac-proxy container image")
@@ -132,6 +133,10 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 			{
 				Name:  "OCS_METRICS_EXPORTER_IMAGE",
 				Value: *ocsMetricsExporterImage,
+			},
+			{
+				Name:  "BLACKBOX_EXPORTER_IMAGE",
+				Value: *blackboxExporterImage,
 			},
 			{
 				Name:  "ROOK_CEPH_IMAGE",

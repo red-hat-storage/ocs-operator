@@ -349,15 +349,8 @@ spec:
           - watch
         - apiGroups:
           - monitoring.coreos.com
-          resourceNames:
-          - k8s
           resources:
-          - prometheuses/api
-          verbs:
-          - get
-        - apiGroups:
-          - monitoring.coreos.com
-          resources:
+          - probes
           - prometheusrules
           verbs:
           - create
@@ -366,6 +359,14 @@ spec:
           - list
           - update
           - watch
+        - apiGroups:
+          - monitoring.coreos.com
+          resourceNames:
+          - k8s
+          resources:
+          - prometheuses/api
+          verbs:
+          - get
         - apiGroups:
           - noobaa.io
           resources:
@@ -489,16 +490,13 @@ spec:
           - securitycontextconstraints
           verbs:
           - create
+          - delete
           - get
+          - list
+          - patch
           - update
-        - apiGroups:
-          - security.openshift.io
-          resourceNames:
-          - hostnetwork-v2
-          resources:
-          - securitycontextconstraints
-          verbs:
           - use
+          - watch
         - apiGroups:
           - security.openshift.io
           resourceNames:
@@ -686,6 +684,7 @@ spec:
               priorityClassName: system-cluster-critical
               securityContext:
                 runAsNonRoot: true
+                runAsUser: 1001
               serviceAccountName: ocs-operator
               terminationGracePeriodSeconds: 10
               volumes:
