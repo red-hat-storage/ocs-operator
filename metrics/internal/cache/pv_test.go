@@ -95,6 +95,41 @@ var _ = Describe("PersistentVolume Cache", func() {
 				Expect(exists).To(BeFalse()) // get always returns exists=false
 			})
 		})
+		When("PV is a CephFS PV", func() {
+			It("should add the PV to CephFSPVList and extract FSName", func() {
+				pv := corev1.PersistentVolume{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-cephfs-pv",
+						Annotations: map[string]string{
+							"pv.kubernetes.io/provisioned-by": "cluster.cephfs.csi.ceph.com",
+						},
+						UID: types.UID("cephfs-uid"),
+					},
+					Spec: corev1.PersistentVolumeSpec{
+						PersistentVolumeSource: corev1.PersistentVolumeSource{
+							CSI: &corev1.CSIPersistentVolumeSource{
+								VolumeAttributes: map[string]string{
+									"fsName": "myfs",
+								},
+							},
+						},
+					},
+					Status: corev1.PersistentVolumeStatus{},
+				}
+				err := pvStore.Add(&pv)
+				Expect(err).To(BeNil())
+
+				// Verify CephFS PV is added to CephFSPVList
+				Expect(pvStore.CephFSPVList).To(HaveKey(types.UID("cephfs-uid")))
+				Expect(pvStore.CephFSPVList[types.UID("cephfs-uid")]).To(Equal("test-cephfs-pv"))
+
+				// Verify FSName is extracted
+				Expect(pvStore.FSName).To(Equal("myfs"))
+
+				// Verify it's NOT in the RBD Store
+				Expect(pvStore.Store).ToNot(HaveKey(types.UID("cephfs-uid")))
+			})
+		})
 	})
 
 	When("non PV object is added", func() {
