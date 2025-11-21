@@ -1896,6 +1896,7 @@ func (s *OCSProviderServer) appendNetworkFenceClassKubeResources(
 	if consumerConfig.GetRbdClientProfileName() != "" {
 		nfcMap[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.RbdNetworkFenceClass)] = func() *csiaddonsv1alpha1.NetworkFenceClass {
 			return util.NewDefaultRbdNetworkFenceClass(
+				consumerConfig.GetRbdClientProfileName(),
 				consumerConfig.GetCsiRbdProvisionerCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
