@@ -604,6 +604,12 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				notUpgradeableMessages = append(notUpgradeableMessages, fmt.Sprintf("%d connected ODF Client Operators are not up to date", count))
 			}
 
+			// Check for LSO provisioned PVs with symlink-based paths
+			if err := checkLSOPVSymlinks(r); err != nil {
+				notUpgradeableReasons = append(notUpgradeableReasons, "BadLSOPVSymlinks")
+				notUpgradeableMessages = append(notUpgradeableMessages, err.Error())
+			}
+
 			if len(notUpgradeableMessages) > 0 {
 				// we are not upgradeable
 				returnErr = r.SetOperatorConditions(
@@ -1009,4 +1015,34 @@ func getUnsupportedClientsCount(r *StorageClusterReconciler, namespace string) (
 	}
 
 	return count, nil
+}
+
+// checkLSOPVSymlinks checks if any LSO provisioned PVs are using bad symlink paths
+func checkLSOPVSymlinks(r *StorageClusterReconciler) error {
+	pvList := &corev1.PersistentVolumeList{}
+	if err := r.Client.List(r.ctx, pvList); err != nil {
+		r.Log.Error(err, "Failed to list PersistentVolumes for upgrade check")
+		return fmt.Errorf("failed to validate PV paths for upgrade")
+	}
+
+	for _, pv := range pvList.Items {
+		// Check if this is an LSO provisioned PV
+		if ownerNamespace, exists := pv.Labels["storage.openshift.com/owner-namespace"]; exists && ownerNamespace == "openshift-local-storage" {
+			// Check if it has a local volume source
+			if pv.Spec.Local != nil && pv.Spec.Local.Path != "" {
+				// Check if the path's last component matches the device-name annotation
+				// Bad paths end with device names like "sdb" or "sdc
+				if deviceName, exists := pv.Annotations["storage.openshift.com/device-name"]; exists {
+					pathParts := strings.Split(pv.Spec.Local.Path, "/")
+					lastPathComponent := pathParts[len(pathParts)-1]
+					if lastPathComponent == deviceName {
+						r.Log.Info("Found LSO PV with symlink-based path", "PV", pv.Name, "Path", pv.Spec.Local.Path, "DeviceName", deviceName)
+						return fmt.Errorf("PV %s uses symlink-based path %s (ends with device name %s) instead of UUID-based path. This must be fixed before upgrade", pv.Name, pv.Spec.Local.Path, deviceName)
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }

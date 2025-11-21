@@ -137,6 +137,37 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	}
 
+	// Predicate to watch only LSO provisioned PVs
+	lsoPVPredicate := predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			pv, ok := e.Object.(*corev1.PersistentVolume)
+			if !ok {
+				return false
+			}
+			// Only watch PVs with LSO owner namespace label
+			ownerNamespace, exists := pv.Labels["storage.openshift.com/owner-namespace"]
+			return exists && ownerNamespace == "openshift-local-storage"
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			pv, ok := e.ObjectNew.(*corev1.PersistentVolume)
+			if !ok {
+				return false
+			}
+			// Only watch PVs with LSO owner namespace label
+			ownerNamespace, exists := pv.Labels["storage.openshift.com/owner-namespace"]
+			return exists && ownerNamespace == "openshift-local-storage"
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			// When LSO PV is deleted, we might become upgradeable again
+			pv, ok := e.Object.(*corev1.PersistentVolume)
+			if !ok {
+				return false
+			}
+			ownerNamespace, exists := pv.Labels["storage.openshift.com/owner-namespace"]
+			return exists && ownerNamespace == "openshift-local-storage"
+		},
+	}
+
 	enqueueStorageClusterRequest := handler.EnqueueRequestsFromMapFunc(
 		func(context context.Context, obj client.Object) []reconcile.Request {
 			// Get the StorageCluster objects
@@ -250,6 +281,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		).
 		Watches(&storagev1.StorageClass{}, enqueueStorageClusterRequest).
 		Watches(&volumesnapshotv1.VolumeSnapshotClass{}, enqueueStorageClusterRequest).
+		Watches(&corev1.PersistentVolume{}, enqueueStorageClusterRequest, builder.WithPredicates(lsoPVPredicate)).
 		Watches(&ocsv1alpha1.StorageConsumer{}, enqueueStorageClusterRequest, builder.WithPredicates(storageConsumerStatusPredicate)).
 		Watches(&ocsv1.StorageClusterPeer{}, enqueueStorageClusterRequest, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(
