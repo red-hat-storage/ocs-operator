@@ -894,6 +894,11 @@ func createMetricsExporterRoles(ctx context.Context, r *StorageClusterReconciler
 				},
 				Verbs: []string{"get", "list", "watch"},
 			},
+			{
+				APIGroups: []string{"operators.coreos.com"},
+				Resources: []string{"operatorconditions"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
 		}
 
 		return nil
