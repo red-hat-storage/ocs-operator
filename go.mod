@@ -6,8 +6,6 @@ toolchain go1.24.10
 
 replace github.com/red-hat-storage/ocs-operator/api/v4 => ./api
 
-replace github.com/red-hat-storage/ocs-operator/metrics/v4 => ./metrics
-
 replace github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api
 
 require (

@@ -25,14 +25,21 @@ CONTROLLER_GEN=$(LOCALBIN)/controller-gen
 	deps-update
 
 deps-update:
-	@echo "Running deps-update"
-	go mod tidy && go mod vendor
-	@echo "Running deps-update on api submodule"
-	cd api && go mod tidy && go mod vendor
-	@echo "Running deps-update on metrics submodule"
-	cd metrics && go mod tidy && go mod vendor
-	@echo "Running deps-update on provider/api submodule"
-	cd services/provider/api && go mod tidy && go mod vendor
+	set -e
+	@echo "Running go mod tidy on root module"
+	cd . && go mod tidy
+	@echo "Running go mod tidy on api submodule"
+	cd api && go mod tidy
+	@echo "Running go mod tidy on metrics submodule"
+	cd metrics && go mod tidy
+	@echo "Running go mod tidy on provider/api submodule"
+	cd services/provider/api && go mod tidy
+	@echo "Running go work sync"
+	go work sync
+	@echo "Running go work vendor"
+	go work vendor
+	@echo "Done"
+
 
 operator-sdk:
 	@echo "Ensuring operator-sdk"
