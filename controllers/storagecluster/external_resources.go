@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
 	"reflect"
 	"regexp"
@@ -24,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -38,6 +40,9 @@ const (
 	externalCephRgwEndpointKey                  = "endpoint"
 	cephRgwTLSSecretKey                         = "ceph-rgw-tls-cert"
 	storageClassSkippedError                    = "some storage classes were skipped while waiting for pre-requisites to be met"
+	enableRbdDriverKey                          = "enableRbdDriver"
+	enableCephfsDriverKey                       = "enableCephFsDriver"
+	enableNfsDriverKey                          = "enableNfsDriver"
 )
 
 // store the name of the rados-namespace
@@ -433,6 +438,13 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 			availableSCCs = append(availableSCCs, scc)
 		}
 	}
+
+	err = r.enableCsiDrivers(availableSCCs)
+	if err != nil {
+		r.Log.Error(err, "Failed to enable CSI drivers.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
+		return err
+	}
+
 	// creating only the available storageClasses
 	err = r.createExternalModeStorageClasses(availableSCCs, instance.Namespace)
 	if err != nil {
@@ -692,4 +704,42 @@ func getTopologyConstrainedPoolsExternalMode(data map[string]string) (string, er
 		return "", err
 	}
 	return string(topologyConstrainedPoolsStr), nil
+}
+
+func (r *StorageClusterReconciler) enableCsiDrivers(availableSCCs []StorageClassConfiguration) error {
+	clientConfig := &corev1.ConfigMap{}
+	clientConfig.Name = ocsClientConfigMapName
+	clientConfig.Namespace = r.OperatorNamespace
+
+	if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(clientConfig), clientConfig); err != nil {
+		r.Log.Error(err, "failed to get ocs client operator configmap", "configmap", klog.KRef(clientConfig.Namespace, clientConfig.Name))
+		return err
+	}
+
+	existingData := maps.Clone(clientConfig.Data)
+	if clientConfig.Data == nil {
+		clientConfig.Data = map[string]string{}
+	}
+
+	for _, scc := range availableSCCs {
+		switch scc.storageClass.Provisioner {
+		case util.RbdDriverName:
+			clientConfig.Data[enableRbdDriverKey] = strconv.FormatBool(true)
+		case util.CephFSDriverName:
+			clientConfig.Data[enableCephfsDriverKey] = strconv.FormatBool(true)
+		case util.NfsDriverName:
+			clientConfig.Data[enableNfsDriverKey] = strconv.FormatBool(true)
+		default:
+			r.Log.Info("not enabling driver for: %s", scc.storageClass.Provisioner)
+		}
+
+	}
+
+	if !maps.Equal(clientConfig.Data, existingData) {
+		if err := r.Client.Update(r.ctx, clientConfig); err != nil {
+			r.Log.Error(err, "failed to update client operator's configmap data", "configmap", klog.KRef(clientConfig.Namespace, clientConfig.Name))
+			return err
+		}
+	}
+	return nil
 }
