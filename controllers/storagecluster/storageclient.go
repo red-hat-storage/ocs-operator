@@ -24,6 +24,7 @@ const (
 	manageNoobaaSubKey                 = "manageNoobaaSubscription"
 	useHostNetworkForCsiControllersKey = "useHostNetworkForCsiControllers"
 	disableVersionChecksKey            = "disableVersionChecks"
+	disableInstallPlanAutoApprovalKey  = "disableInstallPlanAutoApproval"
 	// cephNetworkAnnotationKey is the annotation key used to store network details used by ceph
 	cniNetworksAnnotationKey = "k8s.v1.cni.cncf.io/networks"
 )
@@ -134,6 +135,7 @@ func (s *storageClient) updateClientConfigMap(r *StorageClusterReconciler, names
 	clientConfig.Data[manageNoobaaSubKey] = strconv.FormatBool(false)
 	clientConfig.Data[useHostNetworkForCsiControllersKey] = strconv.FormatBool(useHostNetworkForCsiControllers)
 	clientConfig.Data[disableVersionChecksKey] = strconv.FormatBool(true)
+	clientConfig.Data[disableInstallPlanAutoApprovalKey] = strconv.FormatBool(true)
 
 	if !maps.Equal(clientConfig.Data, existingData) {
 		if err := r.Client.Update(r.ctx, clientConfig); err != nil {
