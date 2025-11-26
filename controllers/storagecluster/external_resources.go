@@ -727,8 +727,12 @@ func (r *StorageClusterReconciler) getTopologyFailureDomainConfig(uid types.UID)
 			if len(label) == 0 {
 				return "", fmt.Errorf("topology failure domain label value is empty")
 			}
-			r.Log.Info("Found topology failure domain label from external resources", "label", label)
-			return label, nil
+			fullLabel := util.GetFullTopologyLabel(label)
+			if fullLabel == "" {
+				return "", fmt.Errorf("invalid topology failure domain label: %s", label)
+			}
+			r.Log.Info("Found topology failure domain label from external resources", "label", fullLabel)
+			return fullLabel, nil
 		}
 	}
 	return "", nil
