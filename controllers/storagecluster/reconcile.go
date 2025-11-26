@@ -88,6 +88,9 @@ const (
 	OdfVolumeGroupSnapshotClassCrdName = "volumegroupsnapshotclasses.groupsnapshot.storage.openshift.io"
 
 	internalComponentFinalizer = "ocs.openshift.io/internal-component"
+
+	// LSO namespace
+	LSONamespace = "openshift-local-storage"
 )
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
@@ -604,6 +607,11 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				notUpgradeableMessages = append(notUpgradeableMessages, fmt.Sprintf("%d connected ODF Client Operators are not up to date", count))
 			}
 
+			if err := checkLSOPVSymlinks(r, instance); err != nil {
+				notUpgradeableReasons = append(notUpgradeableReasons, "BadLSOPVSymlinks")
+				notUpgradeableMessages = append(notUpgradeableMessages, err.Error())
+			}
+
 			if len(notUpgradeableMessages) > 0 {
 				// we are not upgradeable
 				returnErr = r.SetOperatorConditions(
@@ -1009,4 +1017,68 @@ func getUnsupportedClientsCount(r *StorageClusterReconciler, namespace string) (
 	}
 
 	return count, nil
+}
+
+// checkLSOPVSymlinks checks if any LSO provisioned PVs used by ODF are using bad paths with device names instead of UUIDs
+func checkLSOPVSymlinks(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+	// Step 1: Check if LSO namespace exists
+	lsoNamespace := &corev1.Namespace{}
+	err := r.Client.Get(r.ctx, types.NamespacedName{Name: LSONamespace}, lsoNamespace)
+	if err != nil {
+		// LSO is not installed, no need to check further
+		return nil
+	}
+
+	// Step 2: List all PVCs & Filter to get only OSD PVCs (those owned by CephCluster)
+	pvcList := &corev1.PersistentVolumeClaimList{}
+	if err := r.Client.List(r.ctx, pvcList, client.InNamespace(instance.Namespace)); err != nil {
+		r.Log.Error(err, "Failed to list PVCs for LSO PV symlink check")
+		return nil
+	}
+	var osdPVCs []corev1.PersistentVolumeClaim
+	for _, pvc := range pvcList.Items {
+		// Check if this PVC has an owner reference to a CephCluster and has a volumeName
+		for _, ownerRef := range pvc.OwnerReferences {
+			if ownerRef.Kind == "CephCluster" && pvc.Spec.VolumeName != "" {
+				osdPVCs = append(osdPVCs, pvc)
+				break
+			}
+		}
+	}
+	if len(osdPVCs) == 0 {
+		r.Log.Info("No OSD PVCs with volumeName found, skipping LSO PV symlink check")
+		return nil
+	}
+
+	// Step 3: For each OSD PVC, get the PV and check if it's an LSO PV with bad symlink
+	for _, pvc := range osdPVCs {
+		pvName := pvc.Spec.VolumeName
+		pv := &corev1.PersistentVolume{}
+		if err := r.Client.Get(r.ctx, types.NamespacedName{Name: pvName}, pv); err != nil {
+			r.Log.Error(err, "Failed to get PV for OSD PVC", "PVC", pvc.Name, "PV", pvName)
+			return nil
+		}
+
+		// Check if this is an LSO provisioned PV
+		ownerNamespace := pv.Labels["storage.openshift.com/owner-namespace"]
+		if ownerNamespace != LSONamespace {
+			continue
+		}
+
+		// Check if it has a local volume source with a bad symlink path
+		if pv.Spec.Local != nil && pv.Spec.Local.Path != "" {
+			// Check if the path's last component matches the device-name annotation
+			// Bad paths end with device names like "sdb" or "sdc"
+			if deviceName, exists := pv.Annotations["storage.openshift.com/device-name"]; exists {
+				pathParts := strings.Split(pv.Spec.Local.Path, "/")
+				lastPathComponent := pathParts[len(pathParts)-1]
+				if lastPathComponent == deviceName {
+					r.Log.Info("Found LSO PV with bad symlink path", "PV", pv.Name, "PVC", pvc.Name, "Path", pv.Spec.Local.Path, "DeviceName", deviceName)
+					return fmt.Errorf("PV %s (used by OSD PVC %s) uses bad symlink path %s (ends with device name %s) instead of UUID-based path. This must be fixed before upgrade", pv.Name, pvc.Name, pv.Spec.Local.Path, deviceName)
+				}
+			}
+		}
+	}
+
+	return nil
 }
