@@ -19,6 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const enableRGWAutoscaleAnnotation = "ocs.openshift.io/enable-rgw-autoscale"
+
 type ocsCephObjectStores struct{}
 
 // ensureCreated ensures that CephObjectStore resources exist in the desired
@@ -145,6 +147,13 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 			// preserving any existing rgw ReadAffinities
 			if existing.Spec.Gateway.ReadAffinity != nil {
 				cephObjectStore.Spec.Gateway.ReadAffinity = existing.Spec.Gateway.ReadAffinity
+			}
+
+			// Skip overriding the RGW instances if `ocs.openshift.io/enable-RGW-autoscale:true` annotation is set on the StorageCluster.
+			// This annotation will be added if the user wants HPA(KEDA) to autoscale the RGW instances.
+			if annotation, found := instance.GetAnnotations()[enableRGWAutoscaleAnnotation]; found && annotation == "true" {
+				r.Log.Info("skip overrridng the RGW instances count in the existing CephObjectStore via StorageCluster CR since HPA is enabled", "CephObjectStore", klog.KRef(existing.Namespace, existing.Name))
+				cephObjectStore.Spec.Gateway.Instances = existing.Spec.Gateway.Instances
 			}
 
 			err = r.Client.Update(context.TODO(), cephObjectStore)
