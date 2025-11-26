@@ -591,7 +591,7 @@ func TestGetTopologyFailureDomainConfig(t *testing.T) {
 					Name: "ceph-rbd-topology",
 				},
 			},
-			expectedLabel: "zone",
+			expectedLabel: "topology.kubernetes.io/zone",
 			expectError:   false,
 			setupNodes: func(t *testing.T, reconciler *StorageClusterReconciler) {
 				// Create nodes with zone labels
@@ -621,7 +621,7 @@ func TestGetTopologyFailureDomainConfig(t *testing.T) {
 					Name: "ceph-rbd-topology",
 				},
 			},
-			expectedLabel: "rack",
+			expectedLabel: "topology.rook.io/rack",
 			expectError:   false,
 		},
 		{
@@ -644,7 +644,7 @@ func TestGetTopologyFailureDomainConfig(t *testing.T) {
 				{
 					Kind: "StorageClass",
 					Data: map[string]string{
-						"TOPOLOGY_FAILURE_DOMAIN_LABEL": "topology.kubernetes.io/zone",
+						"TOPOLOGY_FAILURE_DOMAIN_LABEL": "zone",
 						"topologyFailureDomainValues":   "zone1,zone2,zone3",
 						"topologyPools":                 "pool1,pool2,pool3",
 					},
@@ -741,7 +741,7 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 					Name: "ceph-rbd",
 				},
 			},
-			expectedLabelInConfigMap: "zone",
+			expectedLabelInConfigMap: "topology.kubernetes.io/zone",
 			shouldHaveTopologyKeys:   true,
 			expectError:              false,
 			setupNodes: func(t *testing.T, reconciler *StorageClusterReconciler) {
@@ -787,7 +787,7 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 					Name: "ceph-rbd-topology",
 				},
 			},
-			expectedLabelInConfigMap: "rack",
+			expectedLabelInConfigMap: "topology.rook.io/rack",
 			shouldHaveTopologyKeys:   true,
 			expectError:              false,
 		},
@@ -797,7 +797,7 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 				{
 					Kind: "StorageClass",
 					Data: map[string]string{
-						"TOPOLOGY_FAILURE_DOMAIN_LABEL": "topology.kubernetes.io/zone",
+						"TOPOLOGY_FAILURE_DOMAIN_LABEL": "zone",
 						"topologyFailureDomainValues":   "zone-a,zone-b,zone-c",
 						"topologyPools":                 "pool-a,pool-b,pool-c",
 					},
@@ -906,11 +906,12 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 					if tc.expectedLabelInConfigMap != "" {
 						assert.Equal(t, tc.expectedLabelInConfigMap, updatedConfigMap.Data["topologyFailureDomainLabels"])
 
-						// Verify the label from external resources matches what's in the ConfigMap
+						// Verify the label from external resources is converted to the full label in ConfigMap
 						for _, extRes := range tc.externalResources {
 							if extRes.Kind == "StorageClass" && extRes.Name == "ceph-rbd-topology" {
 								labelFromExtResources := extRes.Data["TOPOLOGY_FAILURE_DOMAIN_LABEL"]
-								assert.Equal(t, labelFromExtResources, updatedConfigMap.Data["topologyFailureDomainLabels"])
+								convertedLabel := util.GetFullTopologyLabel(labelFromExtResources)
+								assert.Equal(t, convertedLabel, updatedConfigMap.Data["topologyFailureDomainLabels"])
 								break
 							}
 						}
@@ -927,5 +928,22 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 				assert.Equal(t, "true", updatedConfigMap.Data[enableRbdDriverKey])
 			}
 		})
+	}
+}
+
+func TestGetFailureDomainKeyFromTopologyLabel(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"zone", "topology.kubernetes.io/zone"},
+		{"hostname", "kubernetes.io/hostname"},
+		{"host", "kubernetes.io/hostname"},
+		{"rack", "topology.rook.io/rack"},
+	}
+
+	for _, tt := range tests {
+		result := util.GetFullTopologyLabel(tt.input)
+		assert.Equal(t, tt.expected, result)
 	}
 }

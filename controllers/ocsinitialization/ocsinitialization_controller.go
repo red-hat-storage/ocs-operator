@@ -591,14 +591,7 @@ func (r *OCSInitializationReconciler) getEnableCephfsKeyValue() (string, error) 
 
 func getFailureDomainKeyFromStorageClassParameter(sc *storagev1.StorageClass) string {
 	failuredomain := sc.Parameters["topologyFailureDomainLabel"]
-	if failuredomain == "zone" {
-		return "topology.kubernetes.io/zone"
-	} else if failuredomain == "rack" {
-		return "topology.rook.io/rack"
-	} else if failuredomain == "hostname" || failuredomain == "host" {
-		return "kubernetes.io/hostname"
-	}
-	return ""
+	return util.GetFullTopologyLabel(failuredomain)
 }
 
 func (r *OCSInitializationReconciler) reconcileUXBackendSecret(initialData *ocsv1.OCSInitialization) error {
