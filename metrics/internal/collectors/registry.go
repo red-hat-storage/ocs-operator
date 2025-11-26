@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -40,6 +41,7 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 	clusterAdvanceFeatureCollector := NewClusterAdvancedFeatureCollector(opts)
 	storageConsumerCollector := NewStorageConsumerCollector(opts)
 	operatorConditionCollector := NewOperatorConditionCollector(opts)
+	healthScoreCollector, healthScoreErr := NewHealthScoreCollector(opts)
 	cephObjectStoreCollector.Run(opts.StopCh)
 	cephBlockPoolCollector.Run(opts.StopCh)
 	cephClusterCollector.Run(opts.StopCh)
@@ -69,6 +71,12 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 	if operatorConditionCollector != nil {
 		operatorConditionCollector.Run(opts.StopCh)
 		registry.MustRegister(operatorConditionCollector)
+	}
+	if healthScoreErr != nil {
+		klog.Errorf("Health score collector not registered: %v", healthScoreErr)
+	} else if healthScoreCollector != nil {
+		healthScoreCollector.Run(opts.StopCh)
+		registry.MustRegister(healthScoreCollector)
 	}
 
 }
