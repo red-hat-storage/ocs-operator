@@ -6,6 +6,7 @@ import (
 
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
@@ -58,7 +59,7 @@ func (obj *rookCephCsvHostNetwork) ensureCreated(r *StorageClusterReconciler, in
 	}
 
 	deployment := &rookCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[index]
-	if shouldUseHostNetworking(instance) {
+	if util.ShouldUseHostNetworking(instance) {
 		deployment.Spec.Template.Spec.HostNetwork = true
 		deployment.Spec.Template.Spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
 	} else {
@@ -76,17 +77,4 @@ func (obj *rookCephCsvHostNetwork) ensureCreated(r *StorageClusterReconciler, in
 
 func (obj *rookCephCsvHostNetwork) ensureDeleted(_ *StorageClusterReconciler, _ *ocsv1.StorageCluster) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
-}
-
-// shouldUseHostNetworking checks if the StorageCluster is configured to run on non-default host network
-// this is validated by checking if the AddressRanges.Public field is set in the Network spec
-// since pod network cannot always communicate with non-default host network pods needs to run on host net
-func shouldUseHostNetworking(instance *ocsv1.StorageCluster) bool {
-	if !isMultus(instance.Spec.Network) &&
-		instance.Spec.Network != nil &&
-		instance.Spec.Network.AddressRanges != nil &&
-		instance.Spec.Network.AddressRanges.Public != nil {
-		return true
-	}
-	return false
 }

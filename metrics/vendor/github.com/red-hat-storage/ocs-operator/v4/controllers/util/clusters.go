@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -156,4 +157,25 @@ func (c *Clusters) HasMultipleStorageClustersWithSameName(name string) bool {
 	}
 
 	return count > 1
+}
+
+// IsMultus checks if the NetworkSpec in the storage cluster is configured to use Multus
+func IsMultus(nwSpec *rookCephv1.NetworkSpec) bool {
+	if nwSpec != nil {
+		return nwSpec.IsMultus()
+	}
+	return false
+}
+
+// ShouldUseHostNetworking checks if the StorageCluster is configured to run on non-default host network
+// this is validated by checking if the AddressRanges.Public field is set in the Network spec
+// since pod network cannot always communicate with non-default host network pods needs to run on host net
+func ShouldUseHostNetworking(instance *ocsv1.StorageCluster) bool {
+	if !IsMultus(instance.Spec.Network) &&
+		instance.Spec.Network != nil &&
+		instance.Spec.Network.AddressRanges != nil &&
+		instance.Spec.Network.AddressRanges.Public != nil && len(instance.Spec.Network.AddressRanges.Public) != 0 {
+		return true
+	}
+	return false
 }
