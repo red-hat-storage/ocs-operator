@@ -411,6 +411,21 @@ spec:
       for: 1m
       labels:
         severity: warning
+    - alert: CephXattrSetLatency
+      annotations:
+        description: This latency can be caused by different factors like high CPU usage or network related issues etc.
+          Please see the runbook URL link to get further help on mitigating the issue.
+        message: There is a latency in setting the 'xattr' values for Ceph Metadata Servers.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephXattrSetLatency.md
+        severity_level: warning
+      expr: |
+        (increase(ceph_mds_server_req_setxattr_latency_count[5m]) > 0)
+        and
+        ((increase(ceph_mds_server_req_setxattr_latency_sum[5m])) /
+         (increase(ceph_mds_server_req_setxattr_latency_count[5m])) > 0.03)
+      for: 5m
+      labels:
+        severity: warning
   - name: storage-auto-scaler-alerts.rules
     rules:
     - alert: StorageAutoScalingFailed
