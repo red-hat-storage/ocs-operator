@@ -1,5 +1,6 @@
 /*
-Copyright The CloudNativePG Contributors
+Copyright © contributors to CloudNativePG, established as
+CloudNativePG a Series of LF Projects, LLC.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,6 +13,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+SPDX-License-Identifier: Apache-2.0
 */
 
 package v1
@@ -74,4 +77,14 @@ func (db *Database) SetStatusObservedGeneration(obsGeneration int64) {
 func (dbList *DatabaseList) MustHaveManagedResourceExclusivity(reference *Database) error {
 	pointers := toSliceWithPointers(dbList.Items)
 	return ensureManagedResourceExclusivity(reference, pointers)
+}
+
+// GetEnsure gets the ensure status of the resource
+func (dbObject DatabaseObjectSpec) GetEnsure() EnsureOption {
+	return dbObject.Ensure
+}
+
+// GetName gets the name of the resource
+func (dbObject DatabaseObjectSpec) GetName() string {
+	return dbObject.Name
 }

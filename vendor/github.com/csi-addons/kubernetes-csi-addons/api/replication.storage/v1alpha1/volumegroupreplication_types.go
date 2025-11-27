@@ -21,6 +21,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	VolumeGroupReplicationNameAnnotation = "replication.storage.openshift.io/volume-group-replication-name"
+)
+
 // VolumeGroupReplicationSpec defines the desired state of VolumeGroupReplication
 type VolumeGroupReplicationSpec struct {
 	// volumeGroupReplicationClassName is the volumeGroupReplicationClass name for this VolumeGroupReplication resource
@@ -30,7 +34,7 @@ type VolumeGroupReplicationSpec struct {
 
 	// volumeReplicationClassName is the volumeReplicationClass name for the VolumeReplication object
 	// created for this volumeGroupReplication
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="volumeReplicationClassName is immutable"
 	VolumeReplicationClassName string `json:"volumeReplicationClassName"`
 
@@ -60,6 +64,12 @@ type VolumeGroupReplicationSpec struct {
 	// ReplicationState is "secondary"
 	// +kubebuilder:default:=false
 	AutoResync bool `json:"autoResync"`
+
+	// External represents if VolumeGroupReplication should be reconciled by the csi-addons controller
+	// or an external controller managed by the storage vendor.
+	// +kubebuilder:default:=false
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="source is immutable"
+	External bool `json:"external,omitempty"`
 }
 
 // VolumeGroupReplicationSource specifies the source for the the volumeGroupReplication
@@ -80,9 +90,14 @@ type VolumeGroupReplicationStatus struct {
 	PersistentVolumeClaimsRefList []corev1.LocalObjectReference `json:"persistentVolumeClaimsRefList,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:JSONPath=".spec.volumeGroupReplicationClassName",name=VolumeGroupReplicationClass,type=string
+// +kubebuilder:printcolumn:JSONPath=".spec.volumeGroupReplicationContentName",name=VolumeGroupReplicationContent,type=string
+// +kubebuilder:printcolumn:JSONPath=".spec.replicationState",name=desiredState,type=string
+// +kubebuilder:printcolumn:JSONPath=".status.state",name=currentState,type=string
+// +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
+// +kubebuilder:resource:shortName=vgr
 // VolumeGroupReplication is the Schema for the volumegroupreplications API
 type VolumeGroupReplication struct {
 	metav1.TypeMeta   `json:",inline"`

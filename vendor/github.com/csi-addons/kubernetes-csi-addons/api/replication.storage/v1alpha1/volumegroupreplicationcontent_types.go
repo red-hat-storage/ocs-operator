@@ -21,6 +21,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	VolumeGroupReplicationContentNameAnnotation = "replication.storage.openshift.io/volume-group-replication-content-name"
+)
+
 // VolumeGroupReplicationContentSpec defines the desired state of VolumeGroupReplicationContent
 type VolumeGroupReplicationContentSpec struct {
 	// VolumeGroupreplicationRef specifies the VolumeGroupReplication object to which this
@@ -53,6 +57,11 @@ type VolumeGroupReplicationContentSpec struct {
 	// +kubebuilder:validation:Required
 	VolumeGroupReplicationClassName string `json:"volumeGroupReplicationClassName"`
 
+	// volumeGroupAttributes holds the contextual information of the volume group.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="field is immutable"
+	// +kubebuilder:validation:Optional
+	VolumeGroupAttributes map[string]string `json:"volumeGroupAttributes,omitempty"`
+
 	// Source specifies whether the volume group is (or should be) dynamically provisioned
 	// or already exists using the volumes listed here, and just requires a
 	// Kubernetes object representation.
@@ -79,7 +88,10 @@ type VolumeGroupReplicationContentStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Cluster,shortName=vgrcontent
+// +kubebuilder:printcolumn:JSONPath=".spec.volumeGroupReplicationClassName",name=VolumeGroupReplicationClass,type=string
+// +kubebuilder:printcolumn:JSONPath=".spec.volumeGroupReplicationRef.name",name=VolumeGroupReplication,type=string
+// +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
 
 // VolumeGroupReplicationContent is the Schema for the volumegroupreplicationcontents API
 type VolumeGroupReplicationContent struct {

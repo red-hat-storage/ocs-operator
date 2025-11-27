@@ -22,13 +22,11 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -99,52 +97,10 @@ var (
 	testSkipPrometheusRules = false
 )
 
+const deviceClassPlacementKey = "device-class"
+
 func arbiterEnabled(sc *ocsv1.StorageCluster) bool {
 	return sc.Spec.Arbiter.Enable
-}
-
-func (r *StorageClusterReconciler) deleteJobsWithDuplicateTolerations(sc *ocsv1.StorageCluster) error {
-	// delete the osd prepare jobs which are completed and have duplicate placements
-	jobName := "rook-ceph-osd-prepare"
-	listOpts := &client.ListOptions{
-		Namespace: sc.Namespace,
-		LabelSelector: labels.SelectorFromSet(map[string]string{
-			"app": jobName,
-		}),
-	}
-
-	jobs := &batchv1.JobList{}
-	// list all the prepare jobs
-	err := r.Client.List(r.ctx, jobs, listOpts)
-	if err != nil {
-		r.Log.Error(err, "failed to list OSD prepare pod jobs")
-		return err
-	}
-
-	// filter out the completed jobs
-	for _, job := range jobs.Items {
-		if job.Status.Succeeded == 1 {
-			// filter the jobs that has duplicated tolerations
-			tolerations := job.Spec.Template.Spec.Tolerations
-
-			duplicate := make(map[corev1.Toleration]bool)
-			for _, toleration := range tolerations {
-				if duplicate[toleration] {
-					r.Log.Info("deleting completed OSD prepare jobs with duplicate tolerations", "name", klog.KRef(job.Namespace, job.Name))
-					deletePolicy := metav1.DeletePropagationForeground
-					err := r.Client.Delete(r.ctx, &job, &client.DeleteOptions{PropagationPolicy: &deletePolicy})
-					if err != nil {
-						r.Log.Error(err, "failed to delete OSD prepare pod job", "name", klog.KRef(job.Namespace, job.Name))
-						return err
-					}
-					break
-				}
-				duplicate[toleration] = true
-			}
-		}
-	}
-
-	return nil
 }
 
 // ensureCreated ensures that a CephCluster resource exists with its Spec in
@@ -161,15 +117,6 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 
 	if sc.Spec.ExternalStorage.Enable && len(sc.Spec.StorageDeviceSets) != 0 {
 		return reconcile.Result{}, fmt.Errorf("'StorageDeviceSets' should not be initialized in an external CephCluster")
-	}
-
-	// TODO: remove the fix in the next release 4.19
-	// as it is needed only for the upgrade to 4.18
-	if !sc.Spec.ExternalStorage.Enable {
-		err = r.deleteJobsWithDuplicateTolerations(sc)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
 	}
 
 	for i, ds := range sc.Spec.StorageDeviceSets {
@@ -196,7 +143,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		}
 	}
 
-	if isMultus(sc.Spec.Network) {
+	if util.IsMultus(sc.Spec.Network) {
 		err := validateMultusSelectors(sc.Spec.Network.Selectors)
 		if err != nil {
 			r.Log.Error(err, "Failed to validate Multus Selectors specified in StorageCluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
@@ -670,13 +617,6 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 	return cephCluster
 }
 
-func isMultus(nwSpec *rookCephv1.NetworkSpec) bool {
-	if nwSpec != nil {
-		return nwSpec.IsMultus()
-	}
-	return false
-}
-
 func validateMultusSelectors(selectors map[rookCephv1.CephNetworkType]string) error {
 	publicNetwork, validPublicNetworkKey := selectors[publicNetworkSelectorKey]
 	clusterNetwork, validClusterNetworkKey := selectors[clusterNetworkSelectorKey]
@@ -869,9 +809,31 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 
 		count, replica := countAndReplicaOf(&ds)
 		for i := range replica {
+			// Annotation crushDeviceClass ensures osd with different CRUSH device class than the one detected by Ceph
+			crushDeviceClass := ds.DeviceType
+			if ds.DeviceClass != "" {
+				crushDeviceClass = ds.DeviceClass
+			}
+			annotations := map[string]string{
+				"crushDeviceClass": crushDeviceClass,
+			}
+
 			// Default placements for osd and prepareosd
-			placement := getPlacement(sc, "osd")
-			preparePlacement := getPlacement(sc, "prepareosd")
+			defaultPlacement := getPlacement(sc, "osd")
+			defaultPreparePlacement := getPlacement(sc, "prepareosd")
+
+			// create a device class match expression
+			deviceClassMatchExpression := metav1.LabelSelectorRequirement{
+				Key:      deviceClassPlacementKey,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{crushDeviceClass},
+			}
+			// append the device class match expression to the topology spread constraints
+			// we are appending to the first topology spread constraint as the first one will have topologyKey as failureDomain
+			placement := *defaultPlacement.DeepCopy()
+			placement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions = append(placement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions, deviceClassMatchExpression)
+			preparePlacement := *defaultPreparePlacement.DeepCopy()
+			preparePlacement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions = append(preparePlacement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions, deviceClassMatchExpression)
 
 			switch {
 			case !isPlacementEmpty(ds.Placement) && !isPlacementEmpty(ds.PreparePlacement):
@@ -891,15 +853,6 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 				// If none of osd or prepareosd placements are specified, use their defaults
 			}
 
-			// Annotation crushDeviceClass ensures osd with different CRUSH device class than the one detected by Ceph
-			crushDeviceClass := ds.DeviceType
-			if ds.DeviceClass != "" {
-				crushDeviceClass = ds.DeviceClass
-			}
-
-			annotations := map[string]string{
-				"crushDeviceClass": crushDeviceClass,
-			}
 			// Annotation crushInitialWeight is an optional, explicit weight to set upon OSD's init (as float, in TiB units).
 			// ROOK & Ceph do not want any (optional) Ti[B] suffix, so trim it here.
 			// If not set, Ceph will define OSD's weight based on its capacity.

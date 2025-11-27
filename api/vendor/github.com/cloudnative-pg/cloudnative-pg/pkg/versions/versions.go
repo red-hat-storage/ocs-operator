@@ -1,5 +1,6 @@
 /*
-Copyright The CloudNativePG Contributors
+Copyright © contributors to CloudNativePG, established as
+CloudNativePG a Series of LF Projects, LLC.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,6 +13,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+SPDX-License-Identifier: Apache-2.0
 */
 
 // Package versions contains the version of the CloudNativePG operator and the software
@@ -20,13 +23,13 @@ package versions
 
 const (
 	// Version is the version of the operator
-	Version = "1.25.1"
+	Version = "1.27.0"
 
 	// DefaultImageName is the default image used by the operator to create pods
-	DefaultImageName = "ghcr.io/cloudnative-pg/postgresql:17.4"
+	DefaultImageName = "ghcr.io/cloudnative-pg/postgresql:17.5"
 
 	// DefaultOperatorImageName is the default operator image used by the controller in the pods running PostgreSQL
-	DefaultOperatorImageName = "ghcr.io/cloudnative-pg/cloudnative-pg:1.25.1"
+	DefaultOperatorImageName = "ghcr.io/cloudnative-pg/cloudnative-pg:1.27.0"
 )
 
 // BuildInfo is a struct containing all the info about the build
@@ -36,7 +39,7 @@ type BuildInfo struct {
 
 var (
 	// buildVersion injected during the build
-	buildVersion = "1.25.1"
+	buildVersion = "1.27.0"
 
 	// buildCommit injected during the build
 	buildCommit = "none"

@@ -1,5 +1,6 @@
 /*
-Copyright The CloudNativePG Contributors
+Copyright © contributors to CloudNativePG, established as
+CloudNativePG a Series of LF Projects, LLC.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,13 +13,13 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+SPDX-License-Identifier: Apache-2.0
 */
 
 package v1
 
 import (
-	"regexp"
-
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -111,6 +112,11 @@ const (
 	// MissingWALDiskSpaceExitCode is the exit code the instance manager
 	// will use to signal that there's no more WAL disk space
 	MissingWALDiskSpaceExitCode = 4
+
+	// MissingWALArchivePlugin is the exit code used by the instance manager
+	// to indicate that it started successfully, but the configured WAL
+	// archiving plugin is not available.
+	MissingWALArchivePlugin = 5
 )
 
 // SnapshotOwnerReference defines the reference type for the owner of the snapshot.
@@ -193,7 +199,6 @@ type ImageCatalogRef struct {
 	// +kubebuilder:validation:XValidation:rule="self.kind == 'ImageCatalog' || self.kind == 'ClusterImageCatalog'",message="Only image catalogs are supported"
 	// +kubebuilder:validation:XValidation:rule="self.apiGroup == 'postgresql.cnpg.io'",message="Only image catalogs are supported"
 	corev1.TypedLocalObjectReference `json:",inline"`
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Major is immutable"
 	// The major version of PostgreSQL we want to use from the ImageCatalog
 	Major int `json:"major"`
 }
@@ -487,14 +492,48 @@ type ClusterSpec struct {
 // to be injected in the PostgreSQL Pods
 type ProbesConfiguration struct {
 	// The startup probe configuration
-	Startup *Probe `json:"startup,omitempty"`
+	Startup *ProbeWithStrategy `json:"startup,omitempty"`
 
 	// The liveness probe configuration
-	Liveness *Probe `json:"liveness,omitempty"`
+	Liveness *LivenessProbe `json:"liveness,omitempty"`
 
 	// The readiness probe configuration
-	Readiness *Probe `json:"readiness,omitempty"`
+	Readiness *ProbeWithStrategy `json:"readiness,omitempty"`
 }
+
+// ProbeWithStrategy is the configuration of the startup probe
+type ProbeWithStrategy struct {
+	// Probe is the standard probe configuration
+	Probe `json:",inline"`
+
+	// The probe strategy
+	// +kubebuilder:validation:Enum=pg_isready;streaming;query
+	// +optional
+	Type ProbeStrategyType `json:"type,omitempty"`
+
+	// Lag limit. Used only for `streaming` strategy
+	// +optional
+	MaximumLag *resource.Quantity `json:"maximumLag,omitempty"`
+}
+
+// ProbeStrategyType is the type of the strategy used to declare a PostgreSQL instance
+// ready
+type ProbeStrategyType string
+
+const (
+	// ProbeStrategyPgIsReady means that the pg_isready tool is used to determine
+	// whether PostgreSQL is started up
+	ProbeStrategyPgIsReady ProbeStrategyType = "pg_isready"
+
+	// ProbeStrategyStreaming means that pg_isready is positive and the replica is
+	// connected via streaming replication to the current primary and the lag is, if specified,
+	// within the limit.
+	ProbeStrategyStreaming ProbeStrategyType = "streaming"
+
+	// ProbeStrategyQuery means that the server is able to connect to the superuser database
+	// and able to execute a simple query like "-- ping"
+	ProbeStrategyQuery ProbeStrategyType = "query"
+)
 
 // Probe describes a health check to be performed against a container to determine whether it is
 // alive or ready to receive traffic.
@@ -534,6 +573,39 @@ type Probe struct {
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 }
 
+// LivenessProbe is the configuration of the liveness probe
+type LivenessProbe struct {
+	// Probe is the standard probe configuration
+	Probe `json:",inline"`
+
+	// Configure the feature that extends the liveness probe for a primary
+	// instance. In addition to the basic checks, this verifies whether the
+	// primary is isolated from the Kubernetes API server and from its
+	// replicas, ensuring that it can be safely shut down if network
+	// partition or API unavailability is detected. Enabled by default.
+	// +optional
+	IsolationCheck *IsolationCheckConfiguration `json:"isolationCheck,omitempty"`
+}
+
+// IsolationCheckConfiguration contains the configuration for the isolation check
+// functionality in the liveness probe
+type IsolationCheckConfiguration struct {
+	// Whether primary isolation checking is enabled for the liveness probe
+	// +optional
+	// +kubebuilder:default:=true
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Timeout in milliseconds for requests during the primary isolation check
+	// +optional
+	// +kubebuilder:default:=1000
+	RequestTimeout int `json:"requestTimeout,omitempty"`
+
+	// Timeout in milliseconds for connections during the primary isolation check
+	// +optional
+	// +kubebuilder:default:=1000
+	ConnectionTimeout int `json:"connectionTimeout,omitempty"`
+}
+
 const (
 	// PhaseSwitchover when a cluster is changing the primary node
 	PhaseSwitchover = "Switchover in progress"
@@ -550,7 +622,10 @@ const (
 	// PhaseUpgrade upgrade in process
 	PhaseUpgrade = "Upgrading cluster"
 
-	// PhaseUpgradeDelayed is set when a cluster need to be upgraded
+	// PhaseMajorUpgrade major version upgrade in process
+	PhaseMajorUpgrade = "Upgrading Postgres major version"
+
+	// PhaseUpgradeDelayed is set when a cluster needs to be upgraded,
 	// but the operation is being delayed by the operator configuration
 	PhaseUpgradeDelayed = "Cluster upgrade delayed"
 
@@ -569,6 +644,9 @@ const (
 	// PhaseUnknownPlugin is triggered when the required CNPG-i plugin have not been
 	// loaded still
 	PhaseUnknownPlugin = "Cluster cannot proceed to reconciliation due to an unknown plugin being required"
+
+	// PhaseFailurePlugin is triggered when the cluster cannot proceed to reconciliation due to an interaction failure
+	PhaseFailurePlugin = "Cluster cannot proceed to reconciliation due to an error while interacting with plugins"
 
 	// PhaseImageCatalogError is triggered when the cluster cannot select the image to
 	// apply because of an invalid or incomplete catalog
@@ -835,24 +913,34 @@ type ClusterStatus struct {
 	Certificates CertificatesStatus `json:"certificates,omitempty"`
 
 	// The first recoverability point, stored as a date in RFC3339 format.
-	// This field is calculated from the content of FirstRecoverabilityPointByMethod
+	// This field is calculated from the content of FirstRecoverabilityPointByMethod.
+	//
+	// Deprecated: the field is not set for backup plugins.
 	// +optional
 	FirstRecoverabilityPoint string `json:"firstRecoverabilityPoint,omitempty"`
 
-	// The first recoverability point, stored as a date in RFC3339 format, per backup method type
+	// The first recoverability point, stored as a date in RFC3339 format, per backup method type.
+	//
+	// Deprecated: the field is not set for backup plugins.
 	// +optional
 	FirstRecoverabilityPointByMethod map[BackupMethod]metav1.Time `json:"firstRecoverabilityPointByMethod,omitempty"`
 
-	// Last successful backup, stored as a date in RFC3339 format
-	// This field is calculated from the content of LastSuccessfulBackupByMethod
+	// Last successful backup, stored as a date in RFC3339 format.
+	// This field is calculated from the content of LastSuccessfulBackupByMethod.
+	//
+	// Deprecated: the field is not set for backup plugins.
 	// +optional
 	LastSuccessfulBackup string `json:"lastSuccessfulBackup,omitempty"`
 
-	// Last successful backup, stored as a date in RFC3339 format, per backup method type
+	// Last successful backup, stored as a date in RFC3339 format, per backup method type.
+	//
+	// Deprecated: the field is not set for backup plugins.
 	// +optional
 	LastSuccessfulBackupByMethod map[BackupMethod]metav1.Time `json:"lastSuccessfulBackupByMethod,omitempty"`
 
-	// Stored as a date in RFC3339 format
+	// Last failed backup, stored as a date in RFC3339 format.
+	//
+	// Deprecated: the field is not set for backup plugins.
 	// +optional
 	LastFailedBackup string `json:"lastFailedBackup,omitempty"`
 
@@ -897,13 +985,13 @@ type ClusterStatus struct {
 	// +optional
 	OnlineUpdateEnabled bool `json:"onlineUpdateEnabled,omitempty"`
 
-	// AzurePVCUpdateEnabled shows if the PVC online upgrade is enabled for this cluster
-	// +optional
-	AzurePVCUpdateEnabled bool `json:"azurePVCUpdateEnabled,omitempty"`
-
 	// Image contains the image name used by the pods
 	// +optional
 	Image string `json:"image,omitempty"`
+
+	// PGDataImageInfo contains the details of the latest image that has run on the current data directory.
+	// +optional
+	PGDataImageInfo *ImageInfo `json:"pgDataImageInfo,omitempty"`
 
 	// PluginStatus is the status of the loaded plugins
 	// +optional
@@ -919,6 +1007,18 @@ type ClusterStatus struct {
 	// WAL file, and Time of latest checkpoint
 	// +optional
 	DemotionToken string `json:"demotionToken,omitempty"`
+
+	// SystemID is the latest detected PostgreSQL SystemID
+	// +optional
+	SystemID string `json:"systemID,omitempty"`
+}
+
+// ImageInfo contains the information about a PostgreSQL image
+type ImageInfo struct {
+	// Image is the image name
+	Image string `json:"image"`
+	// MajorVersion is the major version of the image
+	MajorVersion int `json:"majorVersion"`
 }
 
 // SwitchReplicaClusterStatus contains all the statuses regarding the switch of a cluster to a replica cluster
@@ -935,6 +1035,8 @@ type InstanceReportedState struct {
 	// indicates on which TimelineId the instance is
 	// +optional
 	TimeLineID int `json:"timeLineID,omitempty"`
+	// IP address of the instance
+	IP string `json:"ip,omitempty"`
 }
 
 // ClusterConditionType defines types of cluster conditions
@@ -949,6 +1051,9 @@ const (
 	ConditionBackup ClusterConditionType = "LastBackupSucceeded"
 	// ConditionClusterReady represents whether a cluster is Ready
 	ConditionClusterReady ClusterConditionType = "Ready"
+	// ConditionConsistentSystemID is true when the all the instances of the
+	// cluster report the same System ID.
+	ConditionConsistentSystemID ClusterConditionType = "ConsistentSystemID"
 )
 
 // ConditionStatus defines conditions of resources
@@ -1074,18 +1179,6 @@ type SynchronizeReplicasConfiguration struct {
 	// List of regular expression patterns to match the names of replication slots to be excluded (by default empty)
 	// +optional
 	ExcludePatterns []string `json:"excludePatterns,omitempty"`
-
-	synchronizeReplicasCache `json:"-"`
-}
-
-// synchronizeReplicasCache contains the result of the regex compilation
-// +kubebuilder:object:generate:=false
-type synchronizeReplicasCache struct {
-	compiledPatterns []regexp.Regexp `json:"-"`
-
-	compiled bool `json:"-"`
-
-	compileErrors []error `json:"-"`
 }
 
 // ReplicationSlotsConfiguration encapsulates the configuration
@@ -1135,6 +1228,16 @@ type ReplicationSlotsHAConfiguration struct {
 	// +kubebuilder:validation:Pattern=^[0-9a-z_]*$
 	// +optional
 	SlotPrefix string `json:"slotPrefix,omitempty"`
+
+	// When enabled, the operator automatically manages synchronization of logical
+	// decoding (replication) slots across high-availability clusters.
+	//
+	// Requires one of the following conditions:
+	// - PostgreSQL version 17 or later
+	// - PostgreSQL version < 17 with pg_failover_slots extension enabled
+	//
+	// +optional
+	SynchronizeLogicalDecoding bool `json:"synchronizeLogicalDecoding,omitempty"`
 }
 
 // KubernetesUpgradeStrategy tells the operator if the user want to
@@ -1282,7 +1385,6 @@ type SynchronousReplicaConfiguration struct {
 	// to allow for operational continuity. This setting is only applicable if both
 	// `standbyNamesPre` and `standbyNamesPost` are unset (empty).
 	// +kubebuilder:validation:Enum=required;preferred
-	// +kubebuilder:default:=required
 	// +optional
 	DataDurability DataDurabilityLevel `json:"dataDurability,omitempty"`
 }
@@ -1332,6 +1434,37 @@ type PostgresConfiguration struct {
 	// Defaults to false.
 	// +optional
 	EnableAlterSystem bool `json:"enableAlterSystem,omitempty"`
+
+	// The configuration of the extensions to be added
+	// +optional
+	Extensions []ExtensionConfiguration `json:"extensions,omitempty"`
+}
+
+// ExtensionConfiguration is the configuration used to add
+// PostgreSQL extensions to the Cluster.
+type ExtensionConfiguration struct {
+	// The name of the extension, required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
+	Name string `json:"name"`
+
+	// The image containing the extension, required
+	// +kubebuilder:validation:XValidation:rule="has(self.reference)",message="An image reference is required"
+	ImageVolumeSource corev1.ImageVolumeSource `json:"image"`
+
+	// The list of directories inside the image which should be added to extension_control_path.
+	// If not defined, defaults to "/share".
+	// +optional
+	ExtensionControlPath []string `json:"extension_control_path,omitempty"`
+
+	// The list of directories inside the image which should be added to dynamic_library_path.
+	// If not defined, defaults to "/lib".
+	// +optional
+	DynamicLibraryPath []string `json:"dynamic_library_path,omitempty"`
+
+	// The list of directories inside the image which should be added to ld_library_path.
+	// +optional
+	LdLibraryPath []string `json:"ld_library_path,omitempty"`
 }
 
 // BootstrapConfiguration contains information about how to create the PostgreSQL

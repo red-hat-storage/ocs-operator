@@ -20,6 +20,7 @@ func GenerateNameForNetworkFenceClass(storageClusterName string, networkFenceCla
 }
 
 func NewDefaultRbdNetworkFenceClass(
+	clusterId,
 	provisionerSecret,
 	namespace,
 	storageId string,
@@ -33,6 +34,7 @@ func NewDefaultRbdNetworkFenceClass(
 		Spec: csiaddonsv1alpha1.NetworkFenceClassSpec{
 			Provisioner: RbdDriverName,
 			Parameters: map[string]string{
+				"clusterID": clusterId,
 				"csiaddons.openshift.io/networkfence-secret-name":      provisionerSecret,
 				"csiaddons.openshift.io/networkfence-secret-namespace": namespace,
 			},

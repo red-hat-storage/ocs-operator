@@ -64,11 +64,17 @@ type SecretSpec struct {
 }
 
 // NetworkFenceSpec defines the desired state of NetworkFence
-// +kubebuilder:validation:XValidation:rule="has(self.parameters) == has(oldSelf.parameters)",message="parameters are immutable"
-// +kubebuilder:validation:XValidation:rule="has(self.secret) == has(oldSelf.secret)",message="secret is immutable"
+// +kubebuilder:validation:XValidation:rule="has(self.driver) || has(self.networkFenceClassName)",message="one of driver or networkFenceClassName must be present"
+// +kubebuilder:validation:XValidation:rule="has(self.networkFenceClassName) || has(self.secret)",message="secret must be present when networkFenceClassName is not specified"
 type NetworkFenceSpec struct {
-	// Driver contains  the name of CSI driver.
-	// +kubebuilder:validation:Required
+	// NetworkFenceClassName contains the name of the NetworkFenceClass
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="networkFenceClassName is immutable"
+	NetworkFenceClassName string `json:"networkFenceClassName"`
+
+	// Driver contains the name of CSI driver, required if NetworkFenceClassName is absent
+	// +kubebuilder:deprecatedversion:warning="specifying driver in networkfence is deprecated, please use networkFenceClassName instead"
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="driver is immutable"
 	Driver string `json:"driver"`
 
@@ -84,9 +90,14 @@ type NetworkFenceSpec struct {
 	Cidrs []string `json:"cidrs"`
 
 	// Secret is a kubernetes secret, which is required to perform the fence/unfence operation.
+	// +kubebuilder:deprecatedversion:warning="specifying secrets in networkfence is deprecated, please use networkFenceClassName instead"
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="secrets are immutable"
 	Secret SecretSpec `json:"secret,omitempty"`
 
 	// Parameters is used to pass additional parameters to the CSI driver.
+	// +kubebuilder:deprecatedversion:warning="specifying parameters in networkfence is deprecated, please use networkFenceClassName instead"
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="parameters are immutable"
 	Parameters map[string]string `json:"parameters,omitempty"`
 }

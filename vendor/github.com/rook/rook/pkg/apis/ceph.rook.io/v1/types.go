@@ -854,6 +854,9 @@ type MgrSpec struct {
 	// +optional
 	// +nullable
 	Modules []Module `json:"modules,omitempty"`
+	// Whether host networking is enabled for the Ceph Mgr. If not set, the network settings from CephCluster.spec.networking will be applied.
+	// +optional
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // Module represents mgr modules that the user wants to enable or disable
@@ -1448,6 +1451,22 @@ type MetadataServerSpec struct {
 
 	// +optional
 	StartupProbe *ProbeSpec `json:"startupProbe,omitempty"`
+
+	// CacheMemoryLimitFactor is the factor applied to the memory limit to determine the MDS cache memory limit.
+	// MDS cache memory limit should be set to 50-60% of RAM reserved for the MDS container.
+	// MDS uses approximately 125% of the value of mds_cache_memory_limit in RAM.
+	// This factor is applied when resources.limits.memory is set.
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +optional
+	CacheMemoryLimitFactor *float64 `json:"cacheMemoryLimitFactor,omitempty"`
+
+	// CacheMemoryRequestFactor is the factor applied to the memory request to determine the MDS cache memory limit.
+	// This factor is applied when resources.requests.memory is set and resources.limits.memory is not set.
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +optional
+	CacheMemoryRequestFactor *float64 `json:"cacheMemoryRequestFactor,omitempty"`
 }
 
 // FSMirroringSpec represents the setting for a mirrored filesystem
@@ -1656,6 +1675,7 @@ type PeerStatSpec struct {
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=cephos
+// +kubebuilder:subresource:scale:specpath=.spec.gateway.instances,statuspath=.status.replicas,selectorpath=.status.selector
 type CephObjectStore struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
@@ -2109,6 +2129,10 @@ type ZoneSpec struct {
 // ObjectStoreStatus represents the status of a Ceph Object Store resource
 type ObjectStoreStatus struct {
 	// +optional
+	Replicas int32 `json:"replicas"`
+	// +optional
+	Selector string `json:"selector"`
+	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
 	Message string `json:"message,omitempty"`
@@ -2228,7 +2252,7 @@ type ObjectStoreUserSpec struct {
 	// The store the user will be created in
 	// +optional
 	Store string `json:"store,omitempty"`
-	// The display name for the ceph users
+	// The display name for the ceph user.
 	// +optional
 	DisplayName string `json:"displayName,omitempty"`
 	// +optional
@@ -2345,6 +2369,8 @@ type ObjectUserKey struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CephObjectRealm represents a Ceph Object Store Gateway Realm
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=cephor
 type CephObjectRealm struct {
@@ -2409,7 +2435,7 @@ type CephObjectZoneGroupList struct {
 
 // ObjectZoneGroupSpec represent the spec of an ObjectZoneGroup
 type ObjectZoneGroupSpec struct {
-	// The display name for the ceph users
+	// The name of the realm the zone group is a member of.
 	Realm string `json:"realm"`
 }
 
@@ -2441,7 +2467,7 @@ type CephObjectZoneList struct {
 
 // ObjectZoneSpec represent the spec of an ObjectZone
 type ObjectZoneSpec struct {
-	// The display name for the ceph users
+	// The name of the zone group the zone is a member of.
 	ZoneGroup string `json:"zoneGroup"`
 
 	// The metadata pool settings
@@ -2616,6 +2642,8 @@ type KafkaEndpointSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CephBucketNotification represents a Bucket Notifications
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=cephbn
 type CephBucketNotification struct {
@@ -2697,6 +2725,8 @@ type RGWServiceSpec struct {
 
 // CephNFS represents a Ceph NFS
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephNFS struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -3461,6 +3491,10 @@ type StorageScopeSpec struct {
 	// The default is false since data rebalancing can cause temporary cluster slowdown.
 	// +optional
 	AllowOsdCrushWeightUpdate bool `json:"allowOsdCrushWeightUpdate,omitempty"`
+	// The maximum number of OSDs to update in parallel.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	OSDMaxUpdatesInParallel uint32 `json:"osdMaxUpdatesInParallel,omitempty"`
 }
 
 // Migration handles the OSD migration

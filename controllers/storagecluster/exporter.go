@@ -377,7 +377,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 				SecurityContext: &corev1.PodSecurityContext{
 					RunAsNonRoot: ptr.To(true),
 				},
-				HostNetwork: shouldUseHostNetworking(instance),
+				HostNetwork: util.ShouldUseHostNetworking(instance),
 				Containers: []corev1.Container{
 					{
 						Resources: getDaemonResources("kube-rbac-proxy-main", instance),
@@ -893,6 +893,11 @@ func createMetricsExporterRoles(ctx context.Context, r *StorageClusterReconciler
 					"storageautoscalers",
 				},
 				Verbs: []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{"operators.coreos.com"},
+				Resources: []string{"operatorconditions"},
+				Verbs:     []string{"get", "list", "watch"},
 			},
 		}
 

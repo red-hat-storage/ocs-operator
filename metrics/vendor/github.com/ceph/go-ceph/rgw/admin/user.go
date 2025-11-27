@@ -19,7 +19,7 @@ type User struct {
 	SwiftKeys           []SwiftKeySpec `json:"swift_keys" url:"-"`
 	Caps                []UserCapSpec  `json:"caps"`
 	OpMask              string         `json:"op_mask" url:"op-mask"`
-	DefaultPlacement    string         `json:"default_placement"`
+	DefaultPlacement    string         `json:"default_placement" url:"default-placement"`
 	DefaultStorageClass string         `json:"default_storage_class"`
 	PlacementTags       []interface{}  `json:"placement_tags"`
 	BucketQuota         QuotaSpec      `json:"bucket_quota"`
@@ -42,11 +42,13 @@ type SubuserSpec struct {
 	Access SubuserAccess `json:"permissions" url:"access"`
 
 	// these are always nil in answers, they are only relevant in requests
-	GenerateKey *bool   `json:"-" url:"generate-key"`
-	SecretKey   *string `json:"-" url:"secret-key"`
-	Secret      *string `json:"-" url:"secret"`
-	PurgeKeys   *bool   `json:"-" url:"purge-keys"`
-	KeyType     *string `json:"-" url:"key-type"`
+	GenerateKey       *bool   `json:"-" url:"generate-key"`
+	GenerateAccessKey *bool   `json:"-" url:"gen-access-key"`
+	AccessKey         *string `json:"-" url:"access-key"`
+	SecretKey         *string `json:"-" url:"secret-key"`
+	Secret            *string `json:"-" url:"secret"`
+	PurgeKeys         *bool   `json:"-" url:"purge-keys"`
+	KeyType           *string `json:"-" url:"key-type"`
 }
 
 // SubuserAccess represents an access level for a subuser
@@ -157,8 +159,8 @@ func (api *API) CreateUser(ctx context.Context, user User) (User, error) {
 		return User{}, errMissingUserDisplayName
 	}
 
-	//  valid parameters not supported by go-ceph: system, exclusive, default-placement, placement-tags
-	body, err := api.call(ctx, http.MethodPut, "/user", valueToURLParams(user, []string{"uid", "display-name", "email", "key-type", "access-key", "secret-key", "user-caps", "tenant", "generate-key", "max-buckets", "suspended", "op-mask"}))
+	// valid parameters not supported by go-ceph: system, exclusive, placement-tags
+	body, err := api.call(ctx, http.MethodPut, "/user", valueToURLParams(user, []string{"uid", "display-name", "default-placement", "email", "key-type", "access-key", "secret-key", "user-caps", "tenant", "generate-key", "max-buckets", "suspended", "op-mask"}))
 	if err != nil {
 		return User{}, err
 	}
@@ -193,8 +195,8 @@ func (api *API) ModifyUser(ctx context.Context, user User) (User, error) {
 		return User{}, errMissingUserID
 	}
 
-	// valid parameters not supported by go-ceph: system, default-placement, placement-tags
-	body, err := api.call(ctx, http.MethodPost, "/user", valueToURLParams(user, []string{"uid", "display-name", "email", "generate-key", "access-key", "secret-key", "key-type", "max-buckets", "suspended", "op-mask"}))
+	// valid parameters not supported by go-ceph: system, placement-tags
+	body, err := api.call(ctx, http.MethodPost, "/user", valueToURLParams(user, []string{"uid", "display-name", "default-placement", "email", "generate-key", "access-key", "secret-key", "key-type", "max-buckets", "suspended", "op-mask"}))
 	if err != nil {
 		return User{}, err
 	}

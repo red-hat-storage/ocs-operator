@@ -1,6 +1,6 @@
 # Build stage 1
 
-FROM docker.io/library/golang:1.24 as builder
+FROM docker.io/library/golang:1.24 AS builder
 
 WORKDIR /workspace
 
