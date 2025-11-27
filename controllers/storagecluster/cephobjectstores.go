@@ -19,6 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const enableRGWAutoscaleAnnotation = "ocs.openshift.io/enable-rgw-autoscale"
+
 type ocsCephObjectStores struct{}
 
 // ensureCreated ensures that CephObjectStore resources exist in the desired
@@ -147,6 +149,13 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 				cephObjectStore.Spec.Gateway.ReadAffinity = existing.Spec.Gateway.ReadAffinity
 			}
 
+			// Skip overriding the RGW instances if `ocs.openshift.io/enable-RGW-autoscale:true` annotation is set on the StorageCluster.
+			// This annotation will be added if the user wants HPA(KEDA) to autoscale the RGW instances.
+			if annotation, found := instance.GetAnnotations()[enableRGWAutoscaleAnnotation]; found && annotation == "true" {
+				r.Log.Info("skip overrridng the RGW instances count in the existing CephObjectStore via StorageCluster CR since HPA is enabled", "CephObjectStore", klog.KRef(existing.Namespace, existing.Name))
+				cephObjectStore.Spec.Gateway.Instances = existing.Spec.Gateway.Instances
+			}
+
 			err = r.Client.Update(context.TODO(), cephObjectStore)
 			if err != nil {
 				r.Log.Error(err, "Failed to update CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
@@ -213,7 +222,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 		}
 
 		// when using non default hostNetwork Object Store should use hostNetwork
-		obj.Spec.Gateway.HostNetwork = ptr.To(shouldUseHostNetworking(initData) || ptr.Deref(initData.Spec.ManagedResources.CephObjectStores.HostNetwork, false))
+		obj.Spec.Gateway.HostNetwork = ptr.To(util.ShouldUseHostNetworking(initData) || ptr.Deref(initData.Spec.ManagedResources.CephObjectStores.HostNetwork, false))
 
 		// Set default values in the data pool spec as necessary
 		setDefaultDataPoolSpec(&obj.Spec.DataPool, initData)
@@ -287,7 +296,7 @@ func hasNonPortableOSD(sc *ocsv1.StorageCluster) bool {
 func getRGWPort(sc *ocsv1.StorageCluster) int32 {
 	if sc.Spec.ManagedResources.CephObjectStores.GatewayPort != 0 {
 		return int32(sc.Spec.ManagedResources.CephObjectStores.GatewayPort)
-	} else if shouldUseHostNetworking(sc) {
+	} else if util.ShouldUseHostNetworking(sc) {
 		return 50080
 	}
 	return 80
@@ -297,7 +306,7 @@ func getRGWPort(sc *ocsv1.StorageCluster) int32 {
 func getRGWSecurePort(sc *ocsv1.StorageCluster) int32 {
 	if sc.Spec.ManagedResources.CephObjectStores.GatewaySecurePort != 0 {
 		return int32(sc.Spec.ManagedResources.CephObjectStores.GatewaySecurePort)
-	} else if shouldUseHostNetworking(sc) {
+	} else if util.ShouldUseHostNetworking(sc) {
 		return 50443
 	}
 	return 443

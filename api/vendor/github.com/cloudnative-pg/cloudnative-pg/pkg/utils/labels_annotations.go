@@ -1,5 +1,6 @@
 /*
-Copyright The CloudNativePG Contributors
+Copyright © contributors to CloudNativePG, established as
+CloudNativePG a Series of LF Projects, LLC.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,18 +13,26 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+SPDX-License-Identifier: Apache-2.0
 */
 
 package utils
 
 import (
+	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// AlphaMetadataNamespace is the annotation and label namespace used by the alpha features of
+// the operator
+const AlphaMetadataNamespace = "alpha.cnpg.io"
 
 // MetadataNamespace is the annotation and label namespace used by the operator
 const MetadataNamespace = "cnpg.io"
@@ -100,6 +109,9 @@ const (
 	// PluginNameLabelName is the name of the label to be applied to services
 	// to have them detected as CNPG-i plugins
 	PluginNameLabelName = MetadataNamespace + "/pluginName"
+
+	// LivenessPingerAnnotationName is the name of the pinger configuration
+	LivenessPingerAnnotationName = AlphaMetadataNamespace + "/livenessPinger"
 )
 
 const (
@@ -207,6 +219,10 @@ const (
 	// BackupTablespaceMapFileAnnotationName is the name of the annotation where the `tablespace_map` file is kept
 	BackupTablespaceMapFileAnnotationName = MetadataNamespace + "/backupTablespaceMapFile"
 
+	// BackupVolumeSnapshotDeadlineAnnotationName is the annotation for the snapshot backup failure deadline in minutes.
+	// It is only applied to snapshot retryable errors
+	BackupVolumeSnapshotDeadlineAnnotationName = MetadataNamespace + "/volumeSnapshotDeadline"
+
 	// SnapshotStartTimeAnnotationName is the name of the annotation where a snapshot's start time is kept
 	SnapshotStartTimeAnnotationName = MetadataNamespace + "/snapshotStartTime"
 
@@ -233,6 +249,21 @@ const (
 	// PluginPortAnnotationName is the name of the annotation containing the
 	// port the plugin is listening to
 	PluginPortAnnotationName = MetadataNamespace + "/pluginPort"
+
+	// PodPatchAnnotationName is the name of the annotation containing the
+	// patch to apply to the pod
+	PodPatchAnnotationName = MetadataNamespace + "/podPatch"
+
+	// WebhookValidationAnnotationName is the name of the annotation describing if
+	// the validation webhook should be enabled or disabled
+	WebhookValidationAnnotationName = MetadataNamespace + "/validation"
+
+	// FailoverQuorumAnnotationName is the name of the annotation that allows the
+	// user to enable synchronous quorum failover protection.
+	//
+	// This feature enables quorum-based check before failover, ensuring
+	// no data loss at the expense of availability.
+	FailoverQuorumAnnotationName = AlphaMetadataNamespace + "/failoverQuorum"
 )
 
 type annotationStatus string
@@ -495,4 +526,19 @@ func MergeObjectsMetadata(receiver client.Object, giver client.Object) {
 
 	receiver.SetLabels(mergeMap(receiver.GetLabels(), giver.GetLabels()))
 	receiver.SetAnnotations(mergeMap(receiver.GetAnnotations(), giver.GetAnnotations()))
+}
+
+// GetClusterSerialValue returns the `nodeSerial` value from the given annotation map or return an error
+func GetClusterSerialValue(annotations map[string]string) (int, error) {
+	rawSerial, ok := annotations[ClusterSerialAnnotationName]
+	if !ok {
+		return 0, fmt.Errorf("no serial annotation found")
+	}
+
+	serial, err := strconv.Atoi(rawSerial)
+	if err != nil {
+		return 0, fmt.Errorf("invalid serial annotation found: %w", err)
+	}
+
+	return serial, nil
 }

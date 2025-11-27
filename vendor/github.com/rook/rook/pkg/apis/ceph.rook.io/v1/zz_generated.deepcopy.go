@@ -3307,6 +3307,16 @@ func (in *MetadataServerSpec) DeepCopyInto(out *MetadataServerSpec) {
 		*out = new(ProbeSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.CacheMemoryLimitFactor != nil {
+		in, out := &in.CacheMemoryLimitFactor, &out.CacheMemoryLimitFactor
+		*out = new(float64)
+		**out = **in
+	}
+	if in.CacheMemoryRequestFactor != nil {
+		in, out := &in.CacheMemoryRequestFactor, &out.CacheMemoryRequestFactor
+		*out = new(float64)
+		**out = **in
+	}
 	return
 }
 
@@ -3327,6 +3337,11 @@ func (in *MgrSpec) DeepCopyInto(out *MgrSpec) {
 		in, out := &in.Modules, &out.Modules
 		*out = make([]Module, len(*in))
 		copy(*out, *in)
+	}
+	if in.HostNetwork != nil {
+		in, out := &in.HostNetwork, &out.HostNetwork
+		*out = new(bool)
+		**out = **in
 	}
 	return
 }

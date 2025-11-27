@@ -84,12 +84,18 @@ message KubeObject {
 message RbdDriverRequirements {
     // topologyDomainLables are the list of topology that needs to be set in nodeplugin
     repeated string topologyDomainLables = 1;
+    // hostNetwork setting for controller plugin
+    optional bool ctrlPluginHostNetwork = 2;
 }
 
 message CephFsDriverRequirements {
+    // hostNetwork setting for controller plugin
+    optional bool ctrlPluginHostNetwork = 1;
 }
 
 message NfsDriverRequirements {
+    // hostNetwork setting for controller plugin
+    optional bool ctrlPluginHostNetwork = 1;
 }
 
 // GetDesiredClientStateResponse holds the response for the GetDesiredClientState API request

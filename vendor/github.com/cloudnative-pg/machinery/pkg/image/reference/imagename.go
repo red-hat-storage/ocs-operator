@@ -47,7 +47,7 @@ func (r *Data) GetNormalizedName() (name string) {
 	return name
 }
 
-// New parses the image name and returns an error if the name is invalid.
+// New parses the image name and returns a Data object.
 func New(name string) *Data {
 	reference := &Data{}
 

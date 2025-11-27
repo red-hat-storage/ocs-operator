@@ -28,3 +28,11 @@ rules:
   - cephblockpools
   verbs:
   - create
+- apiGroups:
+  - noobaa.io
+  resources:
+  - noobaas
+  verbs:
+  - get
+  - list
+  - watch

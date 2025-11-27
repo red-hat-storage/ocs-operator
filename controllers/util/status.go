@@ -170,6 +170,21 @@ func MapCephClusterNegativeConditions(conditions *[]conditionsv1.Condition, foun
 			Message: fmt.Sprintf("CephCluster error: %v", string(found.Status.Message)),
 		})
 	}
+	if found.Status.CephStatus != nil && found.Status.CephStatus.Health != "HEALTH_OK" {
+		message := fmt.Sprintf("CephCluster health is %s", found.Status.CephStatus.Health)
+		if len(found.Status.CephStatus.Details) > 0 {
+			message += ". Details:"
+			for key, detail := range found.Status.CephStatus.Details {
+				message += fmt.Sprintf(" [%s: %s - %s]", key, detail.Severity, detail.Message)
+			}
+		}
+		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
+			Type:    conditionsv1.ConditionUpgradeable,
+			Status:  corev1.ConditionFalse,
+			Reason:  "CephClusterHealthNotOK",
+			Message: message,
+		})
+	}
 }
 
 // MapExternalCephClusterNegativeConditions maps the status states from CephCluster resource into ocs status conditions.
@@ -202,6 +217,21 @@ func MapExternalCephClusterNegativeConditions(conditions *[]conditionsv1.Conditi
 			Status:  corev1.ConditionFalse,
 			Reason:  ExternalClusterErrorReason,
 			Message: fmt.Sprintf("External CephCluster error: %v", string(found.Status.Message)),
+		})
+	}
+	if found.Status.CephStatus != nil && found.Status.CephStatus.Health != "HEALTH_OK" {
+		message := fmt.Sprintf("CephCluster health is %s", found.Status.CephStatus.Health)
+		if len(found.Status.CephStatus.Details) > 0 {
+			message += ". Details:"
+			for key, detail := range found.Status.CephStatus.Details {
+				message += fmt.Sprintf(" [%s: %s - %s]", key, detail.Severity, detail.Message)
+			}
+		}
+		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
+			Type:    conditionsv1.ConditionUpgradeable,
+			Status:  corev1.ConditionFalse,
+			Reason:  "CephClusterHealthNotOK",
+			Message: message,
 		})
 	}
 }

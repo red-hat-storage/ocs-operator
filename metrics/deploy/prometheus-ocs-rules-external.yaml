@@ -169,3 +169,16 @@ spec:
       for: 5s
       labels:
         severity: critical
+  - name: odf-operator-condition-alerts.rules
+    rules:
+    - alert: ODFOperatorNotUpgradeable
+      annotations:
+        description: ODF Operator is not upgradeable (Reason:{{ $labels.reason }}). Please resolve the issue to allow upgrades. See the Runbook for more details.
+        message: ODF Operator is marked as not upgradeable.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFOperatorNotUpgradeable.md
+        severity_level: warning
+      expr: |
+        odf_operator_upgradeable_status{job="ocs-metrics-exporter"} == 0
+      for: 60s
+      labels:
+        severity: warning

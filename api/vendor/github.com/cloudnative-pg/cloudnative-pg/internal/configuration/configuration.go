@@ -1,5 +1,6 @@
 /*
-Copyright The CloudNativePG Contributors
+Copyright © contributors to CloudNativePG, established as
+CloudNativePG a Series of LF Projects, LLC.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,6 +13,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+SPDX-License-Identifier: Apache-2.0
 */
 
 // Package configuration contains the configuration of the operator, reading
@@ -40,7 +43,32 @@ const (
 
 	// ExpiringCheckThreshold is the default threshold to consider a certificate as expiring
 	ExpiringCheckThreshold = 7
+
+	// DefaultKubernetesClusterDomain is the default value used as
+	// Kubernetes cluster domain.
+	DefaultKubernetesClusterDomain = "cluster.local"
 )
+
+// DefaultDrainTaints is the default list of taints the operator will watch and treat
+// as Unschedule
+var DefaultDrainTaints = []string{
+	// Kubernetes well-known unschedulable taint
+	// See: https://kubernetes.io/docs/reference/labels-annotations-taints/#node-kubernetes-io-unschedulable
+	"node.kubernetes.io/unschedulable",
+
+	// Used by the Kubernetes Cluster Autoscaler
+	// nolint: lll
+	// See: https://github.com/kubernetes/autoscaler/blob/aa1d413ea3bf319b56c7b2e65ade1a028e149439/cluster-autoscaler/cloudprovider/oci/nodepools/consts/annotations.go#L27
+	"ToBeDeletedByClusterAutoscaler",
+
+	// Used by Karpenter termination controller
+	// See: https://karpenter.sh/docs/concepts/disruption/#termination-controller
+	"karpenter.sh/disrupted",
+
+	// Used by Karpenter disruption controller
+	// See: https://karpenter.sh/v0.32/concepts/disruption/#disruption-controller
+	"karpenter.sh/disruption",
+}
 
 // DefaultPluginSocketDir is the default directory where the plugin sockets are located.
 const DefaultPluginSocketDir = "/plugins"
@@ -96,9 +124,6 @@ type Data struct {
 	// replacing the executable in a pod without restarting
 	EnableInstanceManagerInplaceUpdates bool `json:"enableInstanceManagerInplaceUpdates" env:"ENABLE_INSTANCE_MANAGER_INPLACE_UPDATES"` //nolint
 
-	// EnableAzurePVCUpdates enables the live update of PVC in Azure environment
-	EnableAzurePVCUpdates bool `json:"enableAzurePVCUpdates" env:"ENABLE_AZURE_PVC_UPDATES"`
-
 	// This is the lifetime of the generated certificates
 	CertificateDuration int `json:"certificateDuration" env:"CERTIFICATE_DURATION"`
 
@@ -125,6 +150,21 @@ type Data struct {
 	// IncludePlugins is a comma-separated list of plugins to always be
 	// included in the Cluster reconciliation
 	IncludePlugins string `json:"includePlugins" env:"INCLUDE_PLUGINS"`
+
+	// StandbyTCPUserTimeout configuration parameter allows you to
+	// specify a custom TCP user timeout for the standby PostgreSQL
+	// server's connection to the primary server. This timeout is
+	// added as a tcp_user_timeout option to the primary_conninfo
+	// string, which is used by the standby server to connect to the
+	// primary server in CloudNativePG.
+	StandbyTCPUserTimeout int `json:"standbyTcpUserTimeout" env:"STANDBY_TCP_USER_TIMEOUT"`
+
+	// KubernetesClusterDomain defines the domain suffix for service FQDNs
+	// within the Kubernetes cluster. If left unset, it defaults to `cluster.local`.
+	KubernetesClusterDomain string `json:"kubernetesClusterDomain" env:"KUBERNETES_CLUSTER_DOMAIN"`
+
+	// DrainTaints is a list of taints the operator will watch and treat as Unschedule
+	DrainTaints []string `json:"drainTaints" env:"DRAIN_TAINTS"`
 }
 
 // Current is the configuration used by the operator
@@ -133,13 +173,16 @@ var Current = NewConfiguration()
 // newDefaultConfig creates a configuration holding the defaults
 func newDefaultConfig() *Data {
 	return &Data{
-		OperatorPullSecretName: DefaultOperatorPullSecretName,
-		OperatorImageName:      versions.DefaultOperatorImageName,
-		PostgresImageName:      versions.DefaultImageName,
-		PluginSocketDir:        DefaultPluginSocketDir,
-		CreateAnyService:       false,
-		CertificateDuration:    CertificateDuration,
-		ExpiringCheckThreshold: ExpiringCheckThreshold,
+		OperatorPullSecretName:  DefaultOperatorPullSecretName,
+		OperatorImageName:       versions.DefaultOperatorImageName,
+		PostgresImageName:       versions.DefaultImageName,
+		PluginSocketDir:         DefaultPluginSocketDir,
+		CreateAnyService:        false,
+		CertificateDuration:     CertificateDuration,
+		ExpiringCheckThreshold:  ExpiringCheckThreshold,
+		StandbyTCPUserTimeout:   0,
+		KubernetesClusterDomain: DefaultKubernetesClusterDomain,
+		DrainTaints:             DefaultDrainTaints,
 	}
 }
 

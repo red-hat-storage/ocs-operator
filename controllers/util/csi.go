@@ -2,10 +2,14 @@ package util
 
 const (
 	StorageClassDriverNamePrefix = "openshift-storage"
-	RbdDriverName                = StorageClassDriverNamePrefix + ".rbd.csi.ceph.com"
-	CephFSDriverName             = StorageClassDriverNamePrefix + ".cephfs.csi.ceph.com"
-	NfsDriverName                = StorageClassDriverNamePrefix + ".nfs.csi.ceph.com"
-	ObcDriverName                = StorageClassDriverNamePrefix + ".ceph.rook.io/bucket"
+	RbdDriverNameSuffix          = ".rbd.csi.ceph.com"
+	CephFSDriverNameSuffix       = ".cephfs.csi.ceph.com"
+	NfsDriverNameSuffix          = ".nfs.csi.ceph.com"
+	ObcDriverNameSuffix          = ".ceph.rook.io/bucket"
+	RbdDriverName                = StorageClassDriverNamePrefix + RbdDriverNameSuffix
+	CephFSDriverName             = StorageClassDriverNamePrefix + CephFSDriverNameSuffix
+	NfsDriverName                = StorageClassDriverNamePrefix + NfsDriverNameSuffix
+	ObcDriverName                = StorageClassDriverNamePrefix + ObcDriverNameSuffix
 )
 
 var (
