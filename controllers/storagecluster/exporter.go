@@ -334,6 +334,16 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							{ContainerPort: 8080},
 							{ContainerPort: 8081},
 						},
+						ReadinessProbe: &corev1.Probe{
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
+									Path:   "/healthz",
+									Port:   intstr.FromInt32(8080),
+									Scheme: corev1.URISchemeHTTP,
+								},
+							},
+							InitialDelaySeconds: 15,
+						},
 						SecurityContext: &corev1.SecurityContext{
 							RunAsNonRoot:           ptr.To(true),
 							ReadOnlyRootFilesystem: ptr.To(true),
