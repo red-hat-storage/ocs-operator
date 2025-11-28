@@ -478,7 +478,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 						ReadinessProbe: &corev1.Probe{
 							ProbeHandler: corev1.ProbeHandler{
 								HTTPGet: &corev1.HTTPGetAction{
-									Path:   "/metrics",
+									Path:   "/healthz",
 									Port:   intstr.FromInt32(8080),
 									Scheme: corev1.URISchemeHTTP,
 								},
