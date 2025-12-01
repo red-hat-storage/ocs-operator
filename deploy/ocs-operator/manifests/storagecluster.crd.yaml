@@ -3670,6 +3670,49 @@ spec:
                 description: MultiCloudGatewaySpec defines specific multi-cloud gateway
                   configuration options
                 properties:
+                  dbBackup:
+                    description: DBBackup (optional) configure automatic scheduled
+                      backups of noobaa database volume.
+                    properties:
+                      schedule:
+                        description: Schedule the schedule for the database backup
+                          in cron format.
+                        type: string
+                      volumeSnapshot:
+                        description: |-
+                          VolumeSnapshot the volume snapshot backup configuration.
+                          Currently this is the only supported backup method and hence it is required.
+                        properties:
+                          maxSnapshots:
+                            description: MaxSnapshots the maximum number of snapshots
+                              to keep.
+                            minimum: 1
+                            type: integer
+                          volumeSnapshotClass:
+                            description: VolumeSnapshotClass the volume snapshot class
+                              for the database volume.
+                            minLength: 1
+                            type: string
+                        required:
+                        - maxSnapshots
+                        - volumeSnapshotClass
+                        type: object
+                    required:
+                    - schedule
+                    - volumeSnapshot
+                    type: object
+                  dbRecovery:
+                    description: DBRecovery (optional) configure database recovery
+                      from snapshot
+                    properties:
+                      volumeSnapshotName:
+                        description: VolumeSnapshotName specifies the name of the
+                          volume snapshot to recover from
+                        minLength: 1
+                        type: string
+                    required:
+                    - volumeSnapshotName
+                    type: object
                   dbStorageClassName:
                     description: |-
                       DbStorageClassName specifies the default storage class
