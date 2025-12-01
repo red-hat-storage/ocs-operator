@@ -517,7 +517,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		if r.phase == statusutil.PhaseClusterExpanding {
 			message := "StorageCluster is expanding"
 			reason := "Expanding"
-			returnErr = r.SetOperatorConditions(message, reason, metav1.ConditionFalse, returnErr)
 			instance.Status.Phase = statusutil.PhaseClusterExpanding
 			conditionsv1.SetStatusCondition(&instance.Status.Conditions, conditionsv1.Condition{
 				Type:    conditionsv1.ConditionUpgradeable,
@@ -529,6 +528,20 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			instance.Status.Phase != statusutil.PhaseOnboarding &&
 			instance.Status.Phase != statusutil.PhaseConnecting {
 			instance.Status.Phase = statusutil.PhaseProgressing
+		}
+		// Make operator not upgradable if the StorageCluster is not ready
+		// Do this before returning the reconcile error or result
+		if instance.Status.Phase != statusutil.PhaseReady {
+			reason := "StorageClusterNotReady"
+			message := "StorageCluster is not ready"
+
+			// Try to extract message from Upgradeable condition if it exists
+			upgradeableCondition := conditionsv1.FindStatusCondition(instance.Status.Conditions, conditionsv1.ConditionUpgradeable)
+			if upgradeableCondition != nil {
+				message = upgradeableCondition.Message
+			}
+
+			_ = r.SetOperatorConditions(message, reason, metav1.ConditionFalse, nil)
 		}
 		if returnErr != nil {
 			reason := ocsv1.ReconcileFailed
