@@ -212,6 +212,11 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 			nb.Spec.DBSpec.DBStorageClass = &dbStorageClass
 			nb.Spec.PVPoolDefaultStorageClass = &dbStorageClass
 		}
+
+		// pass the DBBackup and DBRecovery specs to the Noobaa CR
+		nb.Spec.DBSpec.DBBackup = sc.Spec.MultiCloudGateway.DbBackup
+		nb.Spec.DBSpec.DBRecovery = sc.Spec.MultiCloudGateway.DbRecovery
+
 		if sc.Spec.MultiCloudGateway.Endpoints != nil {
 			epSpec := sc.Spec.MultiCloudGateway.Endpoints
 
