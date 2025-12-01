@@ -333,6 +333,8 @@ func createMetricsExporterServiceMonitor(ctx context.Context, r *StorageClusterR
 }
 
 func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+	alertManagerURL := "https://alertmanager-main.openshift-monitoring.svc.cluster.local:9094"
+
 	currentDep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      metricsExporterName,
@@ -461,6 +463,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 						Args: []string{
 							"--namespaces", instance.Namespace,
 							"--ceph-auth-namespace", r.OperatorNamespace,
+							"--alertmanager-url", alertManagerURL,
 						},
 						Command: []string{"/usr/local/bin/metrics-exporter"},
 						Image:   r.images.OCSMetricsExporter,
@@ -759,6 +762,16 @@ func updateMetricsExporterClusterRoles(ctx context.Context, r *StorageClusterRec
 				APIGroups: []string{"objectbucket.io"},
 				Resources: []string{"objectbuckets"},
 				Verbs:     []string{"get", "list"},
+			},
+			{
+				APIGroups: []string{"monitoring.coreos.com"},
+				Resources: []string{"prometheusrules"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{"monitoring.coreos.com"},
+				Resources: []string{"alertmanagers/api"},
+				Verbs:     []string{"get", "create"},
 			},
 		}
 

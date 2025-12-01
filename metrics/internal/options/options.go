@@ -27,6 +27,8 @@ type Options struct {
 	Help              bool
 	AllowedNamespaces []string
 	CephAuthNamespace string
+	AlertManagerURL   string
+	DisableHealthScore bool
 	IsDevelopment     bool
 
 	flags      *pflag.FlagSet
@@ -57,6 +59,8 @@ func (o *Options) AddFlags() {
 	o.flags.BoolVar(&o.Help, "help", false, "To display Usage information.")
 	o.flags.StringArrayVar(&o.AllowedNamespaces, "namespaces", []string{"openshift-storage"}, "List of namespaces to be monitored.")
 	o.flags.StringVar(&o.CephAuthNamespace, "ceph-auth-namespace", "openshift-storage", "Namespace to fetch the Ceph auth from.")
+	o.flags.StringVar(&o.AlertManagerURL, "alertmanager-url", "", "AlertManager URL for querying alerts. If not specified, defaults to openshift-monitoring AlertManager.")
+	o.flags.BoolVar(&o.DisableHealthScore, "disable-health-score", false, "Disable health score metric collection for internal storage clusters.")
 	o.flags.BoolVar(&o.IsDevelopment, "development", false, "If we are running in development mode")
 }
 
