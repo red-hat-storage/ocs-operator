@@ -80,7 +80,7 @@ func enablePVStore(opts *options.Options) {
 	pvStore = internalcache.NewPersistentVolumeStore(opts)
 	client := clientset.NewForConfigOrDie(opts.Kubeconfig)
 	lw := internalcache.CreatePersistentVolumeListWatch(client, "")
-	reflector := cache.NewReflector(lw, &corev1.PersistentVolume{}, pvStore, 2*time.Minute)
+	reflector := cache.NewReflector(lw, &corev1.PersistentVolume{}, pvStore, 10*time.Minute)
 	go reflector.Run(opts.StopCh)
 	pvStoreEnabled = true
 }
@@ -139,4 +139,10 @@ func RegisterCephRBDChildrenCollector(registry *prometheus.Registry, opts *optio
 	childrenCollector := NewCephRBDChildrenCollector(pvStore, opts)
 	go childrenCollector.Run(opts.StopCh)
 	registry.MustRegister(childrenCollector)
+}
+
+func RegisterCephFSMetricsCollector(registry *prometheus.Registry, opts *options.Options) {
+	enablePVStore(opts)
+	cephFSMetricsCollector := NewCephFSSubvolumeCountCollector(pvStore, opts)
+	registry.MustRegister(cephFSMetricsCollector)
 }

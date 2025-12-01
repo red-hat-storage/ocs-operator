@@ -84,6 +84,9 @@ func main() {
 	// Add rbd children collector to the registry
 	collectors.RegisterCephRBDChildrenCollector(customResourceRegistry, opts)
 
+	// Add CephFS subvolume count collector to the registry
+	collectors.RegisterCephFSMetricsCollector(customResourceRegistry, opts)
+
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
 	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry, promHandlerOpts(customResourceRegistry))

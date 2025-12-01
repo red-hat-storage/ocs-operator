@@ -58,6 +58,7 @@ func handlePost(w http.ResponseWriter, r *http.Request, client client.Client, na
 
 	var ExpandStorage = struct {
 		StorageClassForOSDs string              `json:"storageClassForOSDs"`
+		DeviceClass         string              `json:"deviceClass"`
 		EnableEncryption    bool                `json:"enableEncryption"`
 		Storage             string              `json:"storage"`
 		Replica             int                 `json:"replica"`
@@ -81,19 +82,19 @@ func handlePost(w http.ResponseWriter, r *http.Request, client client.Client, na
 	}
 
 	// update storageCluster
-	updateStorageCluster(w, r, client, ExpandStorage.StorageClassForOSDs, ExpandStorage.EnableEncryption, ExpandStorage.Storage, ExpandStorage.Count, ExpandStorage.Replica, storageCluster)
+	updateStorageCluster(w, r, client, ExpandStorage.StorageClassForOSDs, ExpandStorage.DeviceClass, ExpandStorage.EnableEncryption, ExpandStorage.Storage, ExpandStorage.Count, ExpandStorage.Replica, storageCluster)
 
 	if ExpandStorage.PoolDetails.VolumeType == "block" {
 		klog.Info("Creating cephBlockPool and storageClass")
 		// create cephBlockPool
-		createCephBlockPool(w, r, client, ExpandStorage.PoolDetails.PoolName, ExpandStorage.StorageClassForOSDs, ExpandStorage.PoolDetails.DataProtectionPolicy, ExpandStorage.PoolDetails.EnableCompression, namespace, ExpandStorage.PoolDetails.FailureDomain, storageCluster.Spec.Arbiter.Enable)
+		createCephBlockPool(w, r, client, ExpandStorage.PoolDetails.PoolName, ExpandStorage.DeviceClass, ExpandStorage.PoolDetails.DataProtectionPolicy, ExpandStorage.PoolDetails.EnableCompression, namespace, ExpandStorage.PoolDetails.FailureDomain, storageCluster.Spec.Arbiter.Enable)
 
 		// create storageClass
 		createCephBlockPoolStorageClass(w, r, client, ExpandStorage.StorageClassDetails.Name, ExpandStorage.PoolDetails.PoolName, ExpandStorage.StorageClassDetails.ReclaimPolicy, ExpandStorage.StorageClassDetails.VolumeBindingMode, ExpandStorage.StorageClassDetails.EnableStorageClassEncryption, ExpandStorage.StorageClassDetails.EncryptionKMSID)
 	} else if ExpandStorage.PoolDetails.VolumeType == "filesystem" {
 		klog.Info("Creating cephFilesystem dataPool and storageClass")
 		// create cephFilesystem dataPool
-		createCephFilesystemDataPool(w, r, client, ExpandStorage.PoolDetails.PoolName, ExpandStorage.StorageClassForOSDs, ExpandStorage.PoolDetails.DataProtectionPolicy, ExpandStorage.PoolDetails.EnableCompression, ExpandStorage.PoolDetails.FailureDomain, storageCluster)
+		createCephFilesystemDataPool(w, r, client, ExpandStorage.PoolDetails.PoolName, ExpandStorage.DeviceClass, ExpandStorage.PoolDetails.DataProtectionPolicy, ExpandStorage.PoolDetails.EnableCompression, ExpandStorage.PoolDetails.FailureDomain, storageCluster)
 
 		// create storageClass
 		createCephFilesystemStorageClass(w, r, client, ExpandStorage.StorageClassDetails.Name, ExpandStorage.PoolDetails.PoolName, ExpandStorage.StorageClassDetails.ReclaimPolicy, ExpandStorage.StorageClassDetails.VolumeBindingMode, ExpandStorage.PoolDetails.FilesystemName)
@@ -105,7 +106,7 @@ func handlePost(w http.ResponseWriter, r *http.Request, client client.Client, na
 
 }
 
-func updateStorageCluster(w http.ResponseWriter, r *http.Request, client client.Client, storageClassForOSDs string, enableEncryption bool, storage string, count, replica int, storageCluster *ocsv1.StorageCluster) {
+func updateStorageCluster(w http.ResponseWriter, r *http.Request, client client.Client, storageClassForOSDs string, deviceClass string, enableEncryption bool, storage string, count, replica int, storageCluster *ocsv1.StorageCluster) {
 	klog.Infof("Updating storageCluster %q", storageCluster.Name)
 	storageQty := resource.MustParse(storage)
 	volumeMode := corev1.PersistentVolumeBlock
@@ -115,7 +116,7 @@ func updateStorageCluster(w http.ResponseWriter, r *http.Request, client client.
 		Replica:     replica,
 		Portable:    false,
 		Encrypted:   &enableEncryption,
-		DeviceClass: storageClassForOSDs,
+		DeviceClass: deviceClass,
 		DeviceType:  "SSD",
 		DataPVCTemplate: corev1.PersistentVolumeClaim{
 			Spec: corev1.PersistentVolumeClaimSpec{
@@ -140,7 +141,7 @@ func updateStorageCluster(w http.ResponseWriter, r *http.Request, client client.
 	}
 }
 
-func createCephBlockPool(w http.ResponseWriter, r *http.Request, client client.Client, poolName, storageClassForOSDs string, dataProtectionPolicy int, enableCompression bool, namespace, failureDomain string, arbiter bool) {
+func createCephBlockPool(w http.ResponseWriter, r *http.Request, client client.Client, poolName, deviceClass string, dataProtectionPolicy int, enableCompression bool, namespace, failureDomain string, arbiter bool) {
 	compression := "none"
 	if enableCompression {
 		compression = "aggressive"
@@ -159,7 +160,7 @@ func createCephBlockPool(w http.ResponseWriter, r *http.Request, client client.C
 			PoolSpec: cephv1.PoolSpec{
 				FailureDomain:  failureDomain,
 				EnableRBDStats: true,
-				DeviceClass:    storageClassForOSDs,
+				DeviceClass:    deviceClass,
 				Replicated: cephv1.ReplicatedSpec{
 					Size:                     uint(dataProtectionPolicy),
 					RequireSafeReplicaSize:   true,
@@ -217,7 +218,7 @@ func createCephBlockPoolStorageClass(w http.ResponseWriter, r *http.Request, cli
 	}
 }
 
-func createCephFilesystemDataPool(w http.ResponseWriter, r *http.Request, client client.Client, poolName, storageClassForOSDs string, dataProtectionPolicy int, enableCompression bool, failureDomain string, storageCluster *ocsv1.StorageCluster) {
+func createCephFilesystemDataPool(w http.ResponseWriter, r *http.Request, client client.Client, poolName, deviceClass string, dataProtectionPolicy int, enableCompression bool, failureDomain string, storageCluster *ocsv1.StorageCluster) {
 	compression := "none"
 	if enableCompression {
 		compression = "aggressive"
@@ -227,7 +228,7 @@ func createCephFilesystemDataPool(w http.ResponseWriter, r *http.Request, client
 		Name: poolName,
 		PoolSpec: cephv1.PoolSpec{
 			FailureDomain: failureDomain,
-			DeviceClass:   storageClassForOSDs,
+			DeviceClass:   deviceClass,
 			Replicated: cephv1.ReplicatedSpec{
 				Size:                   uint(dataProtectionPolicy),
 				RequireSafeReplicaSize: true,
