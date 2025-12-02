@@ -137,7 +137,7 @@ type KeyManagementServiceSpec struct {
 
 // ManagedResourcesSpec defines how to reconcile auxiliary resources
 type ManagedResourcesSpec struct {
-	CephCluster ManageCephCluster `json:"cephCluster,omitempty"`
+	CephCluster           ManageCephCluster           `json:"cephCluster,omitempty"`
 	CephDashboard         ManageCephDashboard         `json:"cephDashboard,omitempty"`
 	CephBlockPools        ManageCephBlockPools        `json:"cephBlockPools,omitempty"`
 	CephNonResilientPools ManageCephNonResilientPools `json:"cephNonResilientPools,omitempty"`
@@ -429,6 +429,15 @@ type MultiCloudGatewaySpec struct {
 	// for nooba-db pods
 	// +optional
 	DbStorageClassName string `json:"dbStorageClassName,omitempty"`
+
+	// DBBackup (optional) configure automatic scheduled backups of noobaa database volume.
+	// +optional
+	DbBackup *nbv1.DBBackupSpec `json:"dbBackup,omitempty"`
+
+	// DBRecovery (optional) configure database recovery from snapshot
+	// +optional
+	DbRecovery *nbv1.DBRecoverySpec `json:"dbRecovery,omitempty"`
+
 	// Endpoints (optional) sets configuration info for the noobaa endpoint
 	// deployment.
 	// +optional
