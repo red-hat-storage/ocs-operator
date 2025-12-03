@@ -56,7 +56,7 @@ metadata:
     capabilities: Deep Insights
     categories: Storage
     containerImage: quay.io/ocs-dev/ocs-operator:latest
-    createdAt: "2025-12-02T10:15:56Z"
+    createdAt: "2025-12-03T05:02:17Z"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     external.features.ocs.openshift.io/supported-platforms: '["BareMetal", "None",
@@ -375,15 +375,8 @@ spec:
           - get
         - apiGroups:
           - monitoring.coreos.com
-          resourceNames:
-          - k8s
           resources:
-          - prometheuses/api
-          verbs:
-          - get
-        - apiGroups:
-          - monitoring.coreos.com
-          resources:
+          - probes
           - prometheusrules
           verbs:
           - create
@@ -392,6 +385,14 @@ spec:
           - list
           - update
           - watch
+        - apiGroups:
+          - monitoring.coreos.com
+          resourceNames:
+          - k8s
+          resources:
+          - prometheuses/api
+          verbs:
+          - get
         - apiGroups:
           - noobaa.io
           resources:
@@ -524,6 +525,19 @@ spec:
           resources:
           - securitycontextconstraints
           verbs:
+          - use
+        - apiGroups:
+          - security.openshift.io
+          resourceNames:
+          - odf-blackbox-scc
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - create
+          - delete
+          - get
+          - patch
+          - update
           - use
         - apiGroups:
           - security.openshift.io
@@ -680,6 +694,8 @@ spec:
                   value: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
                 - name: OCS_METRICS_EXPORTER_IMAGE
                   value: quay.io/ocs-dev/ocs-metrics-exporter:latest
+                - name: BLACKBOX_EXPORTER_IMAGE
+                  value: quay.io/prometheus/blackbox-exporter:latest
                 - name: ROOK_CEPH_IMAGE
                   value: quay.io/ocs-dev/rook-ceph:vmaster-b0d17ebba
                 - name: CEPH_IMAGE

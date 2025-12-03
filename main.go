@@ -34,6 +34,7 @@ import (
 	openshiftConfigv1 "github.com/openshift/api/config/v1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	securityv1 "github.com/openshift/api/security/v1"
 	openshiftv1 "github.com/openshift/api/template/v1"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
@@ -91,6 +92,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(apiv2.AddToScheme(scheme))
+	utilruntime.Must(securityv1.AddToScheme(scheme))
 	utilruntime.Must(ocsv1.AddToScheme(scheme))
 	utilruntime.Must(cephv1.AddToScheme(scheme))
 	utilruntime.Must(storagev1.AddToScheme(scheme))
@@ -213,6 +215,7 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		OperatorNamespace: operatorNamespace,
 		OperatorCondition: condition,
+		SecurityClient:    secv1client.NewForConfigOrDie(mgr.GetConfig()),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageCluster")
 		os.Exit(1)
