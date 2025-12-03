@@ -192,6 +192,13 @@ rules:
   - watch
 - apiGroups:
   - monitoring.coreos.com
+  resources:
+  - alertmanagers/api
+  verbs:
+  - create
+  - get
+- apiGroups:
+  - monitoring.coreos.com
   resourceNames:
   - k8s
   resources:
