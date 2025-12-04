@@ -3,9 +3,6 @@ resources:
 - role_binding.yaml
 - leader_election_role.yaml
 - leader_election_role_binding.yaml
-- oauth_proxy_role.yaml
-- oauth_proxy_role_binding.yaml
-- ux_backend_sa.yaml
 - provider_server_cr.yaml
 - provider_server_crb.yaml
 - provider_sa.yaml
