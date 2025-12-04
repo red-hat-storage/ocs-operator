@@ -199,15 +199,8 @@ rules:
   - get
 - apiGroups:
   - monitoring.coreos.com
-  resourceNames:
-  - k8s
   resources:
-  - prometheuses/api
-  verbs:
-  - get
-- apiGroups:
-  - monitoring.coreos.com
-  resources:
+  - probes
   - prometheusrules
   verbs:
   - create
@@ -216,6 +209,14 @@ rules:
   - list
   - update
   - watch
+- apiGroups:
+  - monitoring.coreos.com
+  resourceNames:
+  - k8s
+  resources:
+  - prometheuses/api
+  verbs:
+  - get
 - apiGroups:
   - noobaa.io
   resources:
@@ -348,6 +349,19 @@ rules:
   resources:
   - securitycontextconstraints
   verbs:
+  - use
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - odf-blackbox-scc
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - create
+  - delete
+  - get
+  - patch
+  - update
   - use
 - apiGroups:
   - security.openshift.io

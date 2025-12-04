@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: odf-blackbox-scc-binding
+  labels:
+    app.kubernetes.io/name: odf-blackbox-exporter
+subjects:
+- kind: ServiceAccount
+  name: odf-blackbox-exporter
+  namespace: openshift-storage
+roleRef:
+  kind: ClusterRole
+  name: odf-blackbox-scc-role
+  apiGroup: rbac.authorization.k8s.io

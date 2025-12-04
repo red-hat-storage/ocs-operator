@@ -522,3 +522,126 @@ spec:
         )
       labels:
         severity: warning
+  - name: odf_healthchecks.rules
+    rules:
+    - alert: ODFNodeLatencyHighOnOSDNodes
+      expr: |
+        max_over_time(
+          (
+            probe_icmp_duration_seconds{phase="rtt", job="odf-blackbox-exporter"}
+            and on(instance)
+            (
+              count by (hostname) (ceph_osd_metadata)
+              * on(hostname) group_left(instance)
+              label_replace(
+                label_replace(
+                  max by (node, internal_ip) (kube_node_info),
+                  "hostname", "$1", "node", "(.+)"
+                ),
+                "instance", "$1", "internal_ip", "(.+)"
+              )
+            )
+          )[24h:]
+        ) > 0.010
+      for: 10m
+      labels:
+        severity: warning
+        component: odf
+      annotations:
+        summary: "High ICMP latency (>10ms) detected on ODF OSD node(s)"
+        description: "Node {{ $labels.instance }} has max ICMP RTT latency > 10ms over the last 24h. This may impact Ceph performance."
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFNodeLatencyHighOnOSDNodes.md
+
+    - alert: ODFNodeLatencyHighOnNonOSDNodes
+      expr: |
+        max_over_time(
+          (
+            probe_icmp_duration_seconds{phase="rtt", job="odf-blackbox-exporter"}
+            unless on(instance)
+            (
+              count by (hostname) (ceph_osd_metadata)
+              * on(hostname) group_left(instance)
+              label_replace(
+                label_replace(
+                  max by (node, internal_ip) (kube_node_info),
+                  "hostname", "$1", "node", "(.+)"
+                ),
+                "instance", "$1", "internal_ip", "(.+)"
+              )
+            )
+          )[24h:]
+        ) > 0.100
+      for: 10m
+      labels:
+        severity: warning
+        component: odf
+      annotations:
+        summary: "High ICMP latency (>100ms) detected on ODF non-OSD node(s)"
+        description: "Node {{ $labels.instance }} has max ICMP RTT latency > 100ms over the last 24h. Investigate network health."
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFNodeLatencyHighOnNONOSDNodes.md
+
+    - alert: ODFNodeMTULessThan9000
+      expr: |
+        node_network_mtu_bytes{device!~"^(veth|docker|flannel|cali|tun|tap).*"}
+        < 9000
+      for: 10m
+      labels:
+        severity: info
+        component: odf
+      annotations:
+        summary: "ODF node network interface MTU < 9000"
+        description: "Node {{ $labels.instance }} interface {{ $labels.device }} has MTU {{ $value }}. ODF recommends MTU >= 9000 for storage network."
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFNodeMTULessThan9000.md
+
+    - alert: ODFNodeNICBandwidthSaturation
+      expr: |
+        (
+          sum by (instance, device) (
+            rate(node_network_receive_bytes_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap).*"}[5m])
+          + rate(node_network_transmit_bytes_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap).*"}[5m])
+          )
+        )
+        /
+        sum by (instance, device) (
+          node_network_speed_bytes
+        )
+        > 0.90
+      for: 5m
+      labels:
+        severity: warning
+        component: odf
+      annotations:
+        summary: "ODF node NIC bandwidth > 90% saturation"
+        description: "Node {{ $labels.instance }} interface {{ $labels.device }} is at {{ printf \"%.0f\" $value }}% bandwidth utilization. May impact Ceph performance."
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFNodeNICBandwidthSaturation.md
+
+    - alert: ODFDiskUtilizationHigh
+      expr: |
+        100 * rate(node_disk_io_time_seconds_total{job="node-exporter", device=~"sd[a-z]|hd[a-z]|vd[a-z]"}[5m])
+        > 90
+      for: 10m
+      labels:
+        severity: warning
+        component: odf
+      annotations:
+        summary: "ODF disk utilization > 90%"
+        description: "Node {{ $labels.instance }} disk {{ $labels.device }} is {{ printf \"%.2f\" $value }}% busy. High disk utilization may degrade Ceph performance."
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFDiskUtilizationHigh.md
+
+    - alert: ODFCorePodRestarted
+      expr: |
+          changes(
+            kube_pod_container_status_restarts_total{
+              pod=~"rook-ceph-osd-.*|rook-ceph-mon-.*|rook-ceph-mgr-.*|odf-operator-.*|ocs-metrics-exporter-.*"
+            }[24h]
+          ) > 0
+          and on(namespace)
+          ceph_health_status
+      for: 1m
+      labels:
+        severity: warning
+        component: odf
+      annotations:
+        summary: "ODF core pod restarted in last 24h"
+        description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} restarted {{ $value }} time(s) in the last 24h. Investigate stability."
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFCorePodRestarted.md
