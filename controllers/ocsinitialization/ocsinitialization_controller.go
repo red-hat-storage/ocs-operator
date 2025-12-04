@@ -46,8 +46,6 @@ import (
 var operatorNamespace string
 
 const (
-	random30CharacterString = "KP7TThmSTZegSGmHuPKLnSaaAHSG3RSgqw6akBj0oVk"
-
 	PrometheusOperatorDeploymentName = "prometheus-operator"
 	PrometheusOperatorCSVNamePrefix  = "odf-prometheus-operator"
 	ClusterClaimCrdName              = "clusterclaims.cluster.open-cluster-management.io"
@@ -211,17 +209,6 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	}
 
-	err = r.reconcileUXBackendSecret(instance)
-	if err != nil {
-		r.Log.Error(err, "Failed to ensure uxbackend secret")
-		return reconcile.Result{}, err
-	}
-
-	err = r.reconcileUXBackendService(instance)
-	if err != nil {
-		r.Log.Error(err, "Failed to ensure uxbackend service")
-		return reconcile.Result{}, err
-	}
 	if isROSAHCP, err := platform.IsPlatformROSAHCP(); err != nil {
 		r.Log.Error(err, "Failed to determine if ROSA HCP cluster")
 		return reconcile.Result{}, err
@@ -592,84 +579,6 @@ func (r *OCSInitializationReconciler) getEnableCephfsKeyValue() (string, error) 
 func getFailureDomainKeyFromStorageClassParameter(sc *storagev1.StorageClass) string {
 	failuredomain := sc.Parameters["topologyFailureDomainLabel"]
 	return util.GetFullTopologyLabel(failuredomain)
-}
-
-func (r *OCSInitializationReconciler) reconcileUXBackendSecret(initialData *ocsv1.OCSInitialization) error {
-
-	var err error
-
-	secret := &corev1.Secret{}
-	secret.Name = "ux-backend-proxy"
-	secret.Namespace = initialData.Namespace
-
-	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, secret, func() error {
-
-		if err := ctrl.SetControllerReference(initialData, secret, r.Scheme); err != nil {
-			return err
-		}
-
-		secret.StringData = map[string]string{
-			"session_secret": random30CharacterString,
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		r.Log.Error(err, "Failed to create/update ux-backend secret")
-		return err
-	}
-
-	r.Log.Info("Secret creation succeeded", "Name", secret.Name)
-
-	return nil
-}
-
-func (r *OCSInitializationReconciler) reconcileUXBackendService(initialData *ocsv1.OCSInitialization) error {
-
-	var err error
-
-	service := &corev1.Service{}
-	service.Name = "ux-backend-proxy"
-	service.Namespace = initialData.Namespace
-
-	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, service, func() error {
-
-		if err := ctrl.SetControllerReference(initialData, service, r.Scheme); err != nil {
-			return err
-		}
-
-		service.Annotations = map[string]string{
-			"service.beta.openshift.io/serving-cert-secret-name": "ux-cert-secret",
-		}
-		service.Spec = corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{
-				{
-					Name:     "proxy",
-					Port:     8888,
-					Protocol: corev1.ProtocolTCP,
-					TargetPort: intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: 8888,
-					},
-				},
-			},
-			Selector:        map[string]string{"app": "ux-backend-server"},
-			SessionAffinity: "None",
-			Type:            "ClusterIP",
-		}
-
-		return nil
-
-	})
-
-	if err != nil {
-		r.Log.Error(err, "Failed to create/update ux-backend service")
-		return err
-	}
-	r.Log.Info("Service creation succeeded", "Name", service.Name)
-
-	return nil
 }
 
 func (r *OCSInitializationReconciler) reconcilePrometheusKubeRBACConfigMap(initialData *ocsv1.OCSInitialization) error {
