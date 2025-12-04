@@ -1088,15 +1088,18 @@ func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.Block
 }
 
 func (s *OCSProviderServer) isSystemInMaintenanceMode(ctx context.Context) (bool, error) {
-	// found - false, not found - true
-	cephRBDMirrors := &rookCephv1.CephRBDMirror{}
-	cephRBDMirrors.Name = util.CephRBDMirrorName
-	cephRBDMirrors.Namespace = s.namespace
-	err := s.client.Get(ctx, client.ObjectKeyFromObject(cephRBDMirrors), cephRBDMirrors)
-	if client.IgnoreNotFound(err) != nil {
-		return false, err
+	// if cluster is configured for RDR & cephRBDMirror CR is not found, then system is in maintenance mode
+	if util.IsClusterConfiguredForRDR(ctx, s.client, s.namespace) {
+		cephRBDMirrors := &rookCephv1.CephRBDMirror{}
+		cephRBDMirrors.Name = util.CephRBDMirrorName
+		cephRBDMirrors.Namespace = s.namespace
+		err := s.client.Get(ctx, client.ObjectKeyFromObject(cephRBDMirrors), cephRBDMirrors)
+		if client.IgnoreNotFound(err) != nil {
+			return false, err
+		}
+		return kerrors.IsNotFound(err), nil
 	}
-	return kerrors.IsNotFound(err), nil
+	return false, nil
 }
 
 func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (bool, error) {

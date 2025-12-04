@@ -363,3 +363,10 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) 
 	}
 	return nil
 }
+
+// If the storage-client-mapping configMap is present, then the cluster is configured for RDR otherwise not
+func IsClusterConfiguredForRDR(ctx context.Context, kubeClient client.Client, namespace string) bool {
+	cm := &corev1.ConfigMap{}
+	err := kubeClient.Get(ctx, types.NamespacedName{Name: StorageClientMappingConfigName, Namespace: namespace}, cm)
+	return err == nil
+}
