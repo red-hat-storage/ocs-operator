@@ -12,10 +12,6 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Ignore Go workspace files at the root as some tools don't support it
-./go.work
-./go.work.sum
-
 ### Vim ###
 # Swap
 [._]*.s[a-v][a-z]

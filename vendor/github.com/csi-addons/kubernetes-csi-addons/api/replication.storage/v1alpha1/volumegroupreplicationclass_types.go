@@ -40,11 +40,9 @@ type VolumeGroupReplicationClassSpec struct {
 type VolumeGroupReplicationClassStatus struct {
 }
 
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Cluster,shortName=vgrc
-// +kubebuilder:printcolumn:JSONPath=".spec.provisioner",name=provisioner,type=string
-// +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
+//+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
+//+kubebuilder:resource:scope=Cluster
 
 // VolumeGroupReplicationClass is the Schema for the volumegroupreplicationclasses API
 type VolumeGroupReplicationClass struct {
