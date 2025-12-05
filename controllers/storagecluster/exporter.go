@@ -741,7 +741,7 @@ func updateMetricsExporterClusterRoles(ctx context.Context, r *StorageClusterRec
 				APIGroups:     []string{""},
 				Resources:     []string{"configmaps"},
 				Verbs:         []string{"get"},
-				ResourceNames: []string{"rook-ceph-csi-config"},
+				ResourceNames: []string{"ceph-csi-config"},
 			},
 			{
 				APIGroups: []string{""},
