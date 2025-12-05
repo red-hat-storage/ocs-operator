@@ -90,14 +90,9 @@ type VolumeGroupReplicationStatus struct {
 	PersistentVolumeClaimsRefList []corev1.LocalObjectReference `json:"persistentVolumeClaimsRefList,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:JSONPath=".spec.volumeGroupReplicationClassName",name=VolumeGroupReplicationClass,type=string
-// +kubebuilder:printcolumn:JSONPath=".spec.volumeGroupReplicationContentName",name=VolumeGroupReplicationContent,type=string
-// +kubebuilder:printcolumn:JSONPath=".spec.replicationState",name=desiredState,type=string
-// +kubebuilder:printcolumn:JSONPath=".status.state",name=currentState,type=string
-// +kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
-// +kubebuilder:resource:shortName=vgr
+//+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
+
 // VolumeGroupReplication is the Schema for the volumegroupreplications API
 type VolumeGroupReplication struct {
 	metav1.TypeMeta   `json:",inline"`

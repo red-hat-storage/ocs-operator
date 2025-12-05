@@ -1681,7 +1681,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetNfsClientProfileName(),
 				util.GenerateNameForCephNFS(storageCluster),
 				util.GenerateNameForCephFilesystem(storageCluster.Name),
-				cmp.Or(storageCluster.Spec.NFS.ExternalEndpoint, util.GenerateNameForNFSService(storageCluster)),
+				util.GenerateNameForNFSServer(storageCluster),
 				consumerConfig.GetCsiNfsProvisionerCephUserName(),
 				consumerConfig.GetCsiNfsNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,

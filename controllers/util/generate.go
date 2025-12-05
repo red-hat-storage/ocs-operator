@@ -18,6 +18,14 @@ func GenerateNameForCephNFS(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephnfs", initData.Name)
 }
 
+func GenerateNameForNFSServer(initData *ocsv1.StorageCluster) string {
+	nfsSpec := initData.Spec.NFS
+	if nfsSpec != nil && nfsSpec.ExternalEndpoint != "" {
+		return nfsSpec.ExternalEndpoint
+	}
+	return GenerateNameForNFSService(initData)
+}
+
 func GenerateNameForNFSService(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-service", GenerateNameForCephNFS(initData))
 }
