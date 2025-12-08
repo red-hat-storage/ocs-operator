@@ -540,6 +540,12 @@ func injectCSVRelatedImages(r *unstructured.Unstructured) error {
 			"image": *ocsMetricsExporterImage,
 		})
 	}
+	if *blackboxExporterImage != "" {
+		relatedImages = append(relatedImages, map[string]interface{}{
+			"name":  "blackbox-exporter",
+			"image": *blackboxExporterImage,
+		})
+	}
 	if *uxBackendOauthImage != "" {
 		relatedImages = append(relatedImages, map[string]interface{}{
 			"name":  "ux-backend-oauth-image",
