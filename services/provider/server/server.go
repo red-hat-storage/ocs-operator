@@ -644,7 +644,293 @@ func (s *OCSProviderServer) RevokeStorageClaim(ctx context.Context, req *pb.Revo
 
 // GetStorageClaim RPC call to get the ceph resources for the StorageClaim.
 func (s *OCSProviderServer) GetStorageClaimConfig(ctx context.Context, req *pb.StorageClaimConfigRequest) (*pb.StorageClaimConfigResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	if req.StorageClaimName == "" || req.StorageConsumerUUID == "" {
+		return nil, fmt.Errorf("invalid request")
+	}
+
+	var extR []*pb.ExternalResource
+
+	storageConsumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	switch storageConsumer.Status.State {
+	case ocsv1alpha1.StorageConsumerStateNotEnabled:
+		return nil, status.Errorf(codes.FailedPrecondition, "StorageConsumer is not yet enabled")
+	case ocsv1alpha1.StorageConsumerStateFailed:
+		return nil, status.Errorf(codes.Internal, "StorageConsumer status failed")
+	case ocsv1alpha1.StorageConsumerStateConfiguring:
+		return nil, status.Errorf(codes.Unavailable, "waiting for the resources to be provisioned")
+	case ocsv1alpha1.StorageConsumerStateDeleting:
+		return nil, status.Errorf(codes.NotFound, "StorageConsumer is in deleting phase")
+	case ocsv1alpha1.StorageConsumerStateReady:
+		consumerConfigMap := &v1.ConfigMap{}
+		if storageConsumer.Status.ResourceNameMappingConfigMap.Name == "" {
+			return nil, fmt.Errorf("waiting for ResourceNameMappingConfig to be generated")
+		}
+		consumerConfigMap.Name = storageConsumer.Status.ResourceNameMappingConfigMap.Name
+		consumerConfigMap.Namespace = storageConsumer.Namespace
+		if err := s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap); err != nil {
+			return nil, fmt.Errorf("failed to get %s configMap. %v", consumerConfigMap.Name, err)
+		}
+		var kubeResources []client.Object
+		if kubeResources, err = s.getKubeResources(ctx, storageConsumer); err != nil {
+			return nil, err
+		}
+
+		consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+
+		var storageCluster *ocsv1.StorageCluster
+		if storageCluster, err = util.GetStorageClusterInNamespace(ctx, s.client, s.namespace); err != nil {
+			return nil, err
+		}
+
+		if req.StorageClaimName == fmt.Sprintf("%s-ceph-rbd", storageCluster.Name) {
+			extR, err = s.get4_18DefaultBlockStorageClaimConfig(
+				req,
+				kubeResources,
+				storageCluster.Name,
+				consumerConfig.GetCsiRbdProvisionerCephUserName(),
+				consumerConfig.GetCsiRbdNodeCephUserName(),
+				consumerConfig.GetRbdClientProfileName(),
+			)
+			if err != nil {
+				klog.Errorf("failed to get storage claim config. %v", err)
+				return nil, status.Errorf(codes.Internal, "failed to get storage claim config. %v", err)
+			}
+		} else if req.StorageClaimName == fmt.Sprintf("%s-cephfs", storageCluster.Name) {
+			extR, err = s.get4_18DefaultCephFsStorageClaimConfig(
+				req,
+				kubeResources,
+				storageCluster.Name,
+				consumerConfig.GetCsiCephFsProvisionerCephUserName(),
+				consumerConfig.GetCsiCephFsNodeCephUserName(),
+				consumerConfig.GetCephFsClientProfileName(),
+			)
+			if err != nil {
+				klog.Errorf("failed to get storage claim config. %v", err)
+				return nil, status.Errorf(codes.Internal, "failed to get storage claim config. %v", err)
+			}
+		}
+	}
+
+	klog.Infof("successfully returned the storage class claim %q for %q", req.StorageClaimName, req.StorageConsumerUUID)
+	return &pb.StorageClaimConfigResponse{ExternalResource: extR}, nil
+
+}
+
+// SHIM for GetStorageClaimConfig to return response to 4.18 clients
+func (s *OCSProviderServer) get4_18DefaultBlockStorageClaimConfig(
+	req *pb.StorageClaimConfigRequest,
+	kubeResources []client.Object,
+	storageClusterName string,
+	provSecretName string,
+	nodeSecretName string,
+	clientProfileName string,
+) ([]*pb.ExternalResource, error) {
+
+	var extR []*pb.ExternalResource
+
+	for _, resource := range kubeResources {
+		gvk, err := apiutil.GVKForObject(resource, s.scheme)
+		if err != nil {
+			return nil, err
+		}
+
+		switch gvk {
+		case v1.SchemeGroupVersion.WithKind("Secret"):
+			secret := resource.(*corev1.Secret)
+			if secret.Name == provSecretName || secret.Name == nodeSecretName {
+				oldSecretFormat := map[string]string{}
+				for k, v := range secret.Data {
+					oldSecretFormat[k] = string(v)
+				}
+				extR = append(extR, &pb.ExternalResource{
+					Name:        secret.Name,
+					Kind:        gvk.Kind,
+					Labels:      resource.GetLabels(),
+					Annotations: resource.GetAnnotations(),
+					Data:        util.JsonMustMarshal(oldSecretFormat),
+				})
+			}
+
+		case replicationv1alpha1.GroupVersion.WithKind("VolumeReplicationClass"):
+			vrc := resource.(*replicationv1alpha1.VolumeReplicationClass)
+			desiredVRCName := fmt.Sprintf("rbd-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule))
+			desiredFlattenVRCName := fmt.Sprintf("rbd-flatten-volumereplicationclass-%v", util.FnvHash(volumeReplicationClass5mSchedule))
+			if vrc.Name == desiredVRCName || vrc.Name == desiredFlattenVRCName {
+				extR = append(extR,
+					&pb.ExternalResource{
+						Name:        vrc.Name,
+						Kind:        "VolumeReplicationClass",
+						Labels:      vrc.Labels,
+						Annotations: vrc.Annotations,
+						Data:        util.JsonMustMarshal(vrc.Spec),
+					})
+			}
+
+		case snapapi.SchemeGroupVersion.WithKind("VolumeSnapshotClass"):
+			vsc := resource.(*snapapi.VolumeSnapshotClass)
+			vscName := util.GenerateNameForSnapshotClass(storageClusterName, util.RbdSnapshotter)
+			if vsc.Name == vscName {
+				extR = append(extR,
+					&pb.ExternalResource{
+						Name:        vsc.Name,
+						Kind:        "VolumeSnapshotClass",
+						Labels:      vsc.Labels,
+						Annotations: vsc.Annotations,
+						Data:        util.JsonMustMarshal(vsc.Parameters),
+					})
+			}
+
+		case groupsnapapi.SchemeGroupVersion.WithKind("VolumeGroupSnapshotClass"):
+			vgsc := resource.(*groupsnapapi.VolumeGroupSnapshotClass)
+			var vgscName string
+			vgscName = fmt.Sprintf("%s-ceph-rbd-groupsnapclass", storageClusterName)
+			if vgsc.Name == vgscName {
+				extR = append(extR,
+					&pb.ExternalResource{
+						Name:        vgsc.Name,
+						Kind:        "VolumeGroupSnapshotClass",
+						Labels:      vgsc.Labels,
+						Annotations: vgsc.Annotations,
+						Data:        util.JsonMustMarshal(vgsc.Parameters),
+					})
+			}
+
+		case storagev1.SchemeGroupVersion.WithKind("StorageClass"):
+			storageClass := resource.(*storagev1.StorageClass)
+			if storageClass.Name == req.StorageClaimName {
+				extR = append(extR,
+					&pb.ExternalResource{
+						Name:        storageClass.Name,
+						Kind:        "StorageClass",
+						Labels:      storageClass.Labels,
+						Annotations: storageClass.Annotations,
+						Data:        util.JsonMustMarshal(storageClass.Parameters),
+					})
+			}
+
+		case csiopv1a1.GroupVersion.WithKind("ClientProfile"):
+			clientProfile := resource.(*csiopv1a1.ClientProfile)
+			if clientProfile.Name == clientProfileName {
+				extR = append(extR,
+					&pb.ExternalResource{
+						Name:        clientProfile.Name,
+						Kind:        "ClientProfile",
+						Labels:      clientProfile.Labels,
+						Annotations: clientProfile.Annotations,
+						Data:        util.JsonMustMarshal(clientProfile.Spec),
+					})
+			}
+
+		}
+
+	}
+
+	klog.Infof("successfully returned the storage class claim %q for %q", req.StorageClaimName, req.StorageConsumerUUID)
+	return extR, nil
+
+}
+
+// SHIM for GetStorageClaimConfig to return response to 4.18 clients
+func (s *OCSProviderServer) get4_18DefaultCephFsStorageClaimConfig(
+	req *pb.StorageClaimConfigRequest,
+	kubeResources []client.Object,
+	storageClusterName string,
+	provSecretName string,
+	nodeSecretName string,
+	clientProfileName string,
+) ([]*pb.ExternalResource, error) {
+
+	var extR []*pb.ExternalResource
+
+	for _, resource := range kubeResources {
+		gvk, err := apiutil.GVKForObject(resource, s.scheme)
+		if err != nil {
+			return nil, err
+		}
+
+		switch gvk {
+		case v1.SchemeGroupVersion.WithKind("Secret"):
+			secret := resource.(*corev1.Secret)
+			if secret.Name == provSecretName || secret.Name == nodeSecretName {
+				oldSecretFormat := map[string]string{}
+				for k, v := range secret.Data {
+					oldSecretFormat[k] = string(v)
+				}
+				extR = append(extR,
+					&pb.ExternalResource{
+						Name:        secret.Name,
+						Kind:        "Secret",
+						Annotations: secret.Annotations,
+						Labels:      secret.Labels,
+						Data:        util.JsonMustMarshal(oldSecretFormat),
+					})
+			}
+
+		case snapapi.SchemeGroupVersion.WithKind("VolumeSnapshotClass"):
+			vsc := resource.(*snapapi.VolumeSnapshotClass)
+			vscName := util.GenerateNameForSnapshotClass(storageClusterName, util.CephfsSnapshotter)
+			if vsc.Name == vscName {
+				extR = append(extR,
+					&pb.ExternalResource{
+						Name:        vsc.Name,
+						Kind:        "VolumeSnapshotClass",
+						Labels:      vsc.Labels,
+						Annotations: vsc.Annotations,
+						Data:        util.JsonMustMarshal(vsc.Parameters),
+					})
+			}
+
+		case groupsnapapi.SchemeGroupVersion.WithKind("VolumeGroupSnapshotClass"):
+			vgsc := resource.(*groupsnapapi.VolumeGroupSnapshotClass)
+			vgscName := fmt.Sprintf("%s-cephfs-groupsnapclass", storageClusterName)
+			if vgsc.Name == vgscName {
+				extR = append(extR,
+					&pb.ExternalResource{
+						Name:        vgsc.Name,
+						Kind:        "VolumeGroupSnapshotClass",
+						Labels:      vgsc.Labels,
+						Annotations: vgsc.Annotations,
+						Data:        util.JsonMustMarshal(vgsc.Parameters),
+					})
+			}
+
+		case storagev1.SchemeGroupVersion.WithKind("StorageClass"):
+			storageClass := resource.(*storagev1.StorageClass)
+			if storageClass.Name == req.StorageClaimName {
+				extR = append(extR,
+					&pb.ExternalResource{
+						Name:        storageClass.Name,
+						Kind:        "StorageClass",
+						Labels:      storageClass.Labels,
+						Annotations: storageClass.Annotations,
+						Data:        util.JsonMustMarshal(storageClass.Parameters),
+					})
+			}
+
+		case csiopv1a1.GroupVersion.WithKind("ClientProfile"):
+			clientProfile := resource.(*csiopv1a1.ClientProfile)
+			if clientProfile.Name == clientProfileName {
+				extR = append(extR,
+					&pb.ExternalResource{
+						Name:        clientProfile.Name,
+						Kind:        "ClientProfile",
+						Labels:      clientProfile.Labels,
+						Annotations: clientProfile.Annotations,
+						Data:        util.JsonMustMarshal(clientProfile.Spec),
+					})
+			}
+
+		}
+
+	}
+
+	klog.Infof("successfully returned the storage class claim %q for %q", req.StorageClaimName, req.StorageConsumerUUID)
+	return extR, nil
+
 }
 
 // ReportStatus rpc call to check if a consumer can reach to the provider.
