@@ -42,6 +42,7 @@ var (
 	ocsContainerImage        = flag.String("ocs-image", "", "ocs operator container image")
 	ocsMetricsExporterImage  = flag.String("ocs-metrics-exporter-image", "", "ocs metrics exporter container image")
 	blackboxExporterImage    = flag.String("blackbox-exporter-image", "", "blackbox exporter container image")
+	devicefinderImage        = flag.String("devicefinder-image", "", "devicefinder container image")
 	uxBackendOauthImage      = flag.String("ux-backend-oauth-image", "", "ux backend oauth container image")
 	ocsMustGatherImage       = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
 	kubeRbacProxyImage       = flag.String("kube-rbac-proxy-image", "", "kube-rbac-proxy container image")
@@ -161,6 +162,10 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 			{
 				Name:  "ONBOARDING_VALIDATION_KEYS_GENERATOR_IMAGE",
 				Value: *ocsContainerImage,
+			},
+			{
+				Name:  "DEVICEFINDER_IMAGE",
+				Value: *devicefinderImage,
 			},
 			{
 				Name: util.OperatorNamespaceEnvVar,

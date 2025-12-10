@@ -11,6 +11,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/bucket"
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/cnsa/devicefinder"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/expandstorage"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/featureflags"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/peertokens"
@@ -20,6 +21,7 @@ import (
 	noobaaapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	nbv1a1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -77,6 +79,9 @@ func main() {
 	scheme := runtime.NewScheme()
 	if err := corev1.AddToScheme(scheme); err != nil {
 		klog.Exitf("failed to add corev1 to scheme. %v", err)
+	}
+	if err := appsv1.AddToScheme(scheme); err != nil {
+		klog.Exitf("failed to add appsv1 to scheme. %v", err)
 	}
 	if err := ocsv1.AddToScheme(scheme); err != nil {
 		klog.Exitf("failed to add ocsv1 to scheme. %v", err)
@@ -162,6 +167,11 @@ func main() {
 
 	http.HandleFunc("/info/storages", func(w http.ResponseWriter, r *http.Request) {
 		storages.HandleMessage(w, r, cl, namespace)
+	})
+
+	// CNSA endpoints
+	http.HandleFunc("/cnsa/devicefinder", func(w http.ResponseWriter, r *http.Request) {
+		devicefinder.HandleMessage(w, r, cl, namespace)
 	})
 
 	klog.Info("ux backend server listening on port ", config.listenPort)
