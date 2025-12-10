@@ -3,7 +3,6 @@ package storagecluster
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
@@ -13,7 +12,6 @@ import (
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -154,15 +152,6 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 	if !r.IsNoobaaStandalone {
 		storageClassName := util.GenerateNameForCephBlockPoolStorageClass(sc)
-
-		if sc.Spec.ExternalStorage.Enable {
-			externalStorageClassName, err := r.GenerateNameForExternalModeCephBlockPoolSC(nb)
-			if err != nil {
-				return err
-			}
-			storageClassName = externalStorageClassName
-		}
-
 		nb.Spec.DBSpec.DBStorageClass = &storageClassName
 		nb.Spec.PVPoolDefaultStorageClass = &storageClassName
 	}
@@ -335,34 +324,4 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 		}
 	}
 	return reconcile.Result{}, fmt.Errorf("uninstall: Waiting on NooBaa system %v to be deleted", noobaa.ObjectMeta.Name)
-}
-
-func (r *StorageClusterReconciler) GenerateNameForExternalModeCephBlockPoolSC(nb *nbv1.NooBaa) (string, error) {
-	var storageClassName string
-
-	if nb.Spec.DBStorageClass != nil {
-		storageClassName = *nb.Spec.DBStorageClass
-	} else {
-		// list all storage classes and pick the first one
-		// whose provisioner suffix matches with `rbd.csi.ceph.com` suffix
-		storageClasses := &storagev1.StorageClassList{}
-		err := r.Client.List(r.ctx, storageClasses)
-		if err != nil {
-			r.Log.Error(err, "Failed to list storage classes")
-			return "", err
-		}
-
-		for _, sc := range storageClasses.Items {
-			if strings.HasSuffix(sc.Provisioner, "rbd.csi.ceph.com") {
-				storageClassName = sc.Name
-				break
-			}
-		}
-	}
-
-	if storageClassName == "" {
-		return "", fmt.Errorf("no storage class found with provisioner suffix `rbd.csi.ceph.com`")
-	}
-
-	return storageClassName, nil
 }
