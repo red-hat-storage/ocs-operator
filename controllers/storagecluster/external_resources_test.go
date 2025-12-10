@@ -584,9 +584,9 @@ func TestGetTopologyFailureDomainConfig(t *testing.T) {
 				{
 					Kind: "StorageClass",
 					Data: map[string]string{
-						"TOPOLOGY_FAILURE_DOMAIN_LABEL": "zone",
-						"topologyFailureDomainValues":   "zone1,zone2,zone3",
-						"topologyPools":                 "pool1,pool2,pool3",
+						"topologyFailureDomainLabel":  "zone",
+						"topologyFailureDomainValues": "zone1,zone2,zone3",
+						"topologyPools":               "pool1,pool2,pool3",
 					},
 					Name: "ceph-rbd-topology",
 				},
@@ -615,8 +615,8 @@ func TestGetTopologyFailureDomainConfig(t *testing.T) {
 				{
 					Kind: "StorageClass",
 					Data: map[string]string{
-						"TOPOLOGY_FAILURE_DOMAIN_LABEL": "rack",
-						"topologyPools":                 "pool1,pool2",
+						"topologyFailureDomainLabel": "rack",
+						"topologyPools":              "pool1,pool2",
 					},
 					Name: "ceph-rbd-topology",
 				},
@@ -644,9 +644,9 @@ func TestGetTopologyFailureDomainConfig(t *testing.T) {
 				{
 					Kind: "StorageClass",
 					Data: map[string]string{
-						"TOPOLOGY_FAILURE_DOMAIN_LABEL": "zone",
-						"topologyFailureDomainValues":   "zone1,zone2,zone3",
-						"topologyPools":                 "pool1,pool2,pool3",
+						"topologyFailureDomainLabel":  "zone",
+						"topologyFailureDomainValues": "zone1,zone2,zone3",
+						"topologyPools":               "pool1,pool2,pool3",
 					},
 					Name: "ceph-rbd-topology",
 				},
@@ -727,9 +727,9 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 				{
 					Kind: "StorageClass",
 					Data: map[string]string{
-						"TOPOLOGY_FAILURE_DOMAIN_LABEL": "zone",
-						"topologyFailureDomainValues":   "zone1,zone2,zone3",
-						"topologyPools":                 "pool1,pool2,pool3",
+						"topologyFailureDomainLabel":  "zone",
+						"topologyFailureDomainValues": "zone1,zone2,zone3",
+						"topologyPools":               "pool1,pool2,pool3",
 					},
 					Name: "ceph-rbd-topology",
 				},
@@ -781,8 +781,8 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 				{
 					Kind: "StorageClass",
 					Data: map[string]string{
-						"TOPOLOGY_FAILURE_DOMAIN_LABEL": "rack",
-						"topologyPools":                 "pool1,pool2",
+						"topologyFailureDomainLabel": "rack",
+						"topologyPools":              "pool1,pool2",
 					},
 					Name: "ceph-rbd-topology",
 				},
@@ -797,9 +797,9 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 				{
 					Kind: "StorageClass",
 					Data: map[string]string{
-						"TOPOLOGY_FAILURE_DOMAIN_LABEL": "zone",
-						"topologyFailureDomainValues":   "zone-a,zone-b,zone-c",
-						"topologyPools":                 "pool-a,pool-b,pool-c",
+						"topologyFailureDomainLabel":  "zone",
+						"topologyFailureDomainValues": "zone-a,zone-b,zone-c",
+						"topologyPools":               "pool-a,pool-b,pool-c",
 					},
 					Name: "ceph-rbd-topology",
 				},
@@ -909,7 +909,7 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 						// Verify the label from external resources is converted to the full label in ConfigMap
 						for _, extRes := range tc.externalResources {
 							if extRes.Kind == "StorageClass" && extRes.Name == "ceph-rbd-topology" {
-								labelFromExtResources := extRes.Data["TOPOLOGY_FAILURE_DOMAIN_LABEL"]
+								labelFromExtResources := extRes.Data["topologyFailureDomainLabel"]
 								convertedLabel := util.GetFullTopologyLabel(labelFromExtResources)
 								assert.Equal(t, convertedLabel, updatedConfigMap.Data["topologyFailureDomainLabels"])
 								break
@@ -945,5 +945,114 @@ func TestGetFailureDomainKeyFromTopologyLabel(t *testing.T) {
 	for _, tt := range tests {
 		result := util.GetFullTopologyLabel(tt.input)
 		assert.Equal(t, tt.expected, result)
+	}
+}
+
+func TestGetTopologyConstrainedPoolsExternalMode(t *testing.T) {
+	tests := []struct {
+		name          string
+		data          map[string]string
+		expectError   bool
+		expectedPools []struct {
+			poolName    string
+			domainLabel string
+			domainValue string
+		}
+	}{
+		{
+			name: "HostDomainLabelConvertedToHostname",
+			data: map[string]string{
+				"topologyFailureDomainLabel":  "host",
+				"topologyFailureDomainValues": "compute-0,compute-1,compute-2",
+				"topologyPools":               "pool-osd-0,pool-osd-1,pool-osd-2",
+			},
+			expectError: false,
+			expectedPools: []struct {
+				poolName    string
+				domainLabel string
+				domainValue string
+			}{
+				{poolName: "pool-osd-0", domainLabel: "hostname", domainValue: "compute-0"},
+				{poolName: "pool-osd-1", domainLabel: "hostname", domainValue: "compute-1"},
+				{poolName: "pool-osd-2", domainLabel: "hostname", domainValue: "compute-2"},
+			},
+		},
+		{
+			name: "HostnameDomainLabelRemainsHostname",
+			data: map[string]string{
+				"topologyFailureDomainLabel":  "hostname",
+				"topologyFailureDomainValues": "node-1,node-2",
+				"topologyPools":               "pool-1,pool-2",
+			},
+			expectError: false,
+			expectedPools: []struct {
+				poolName    string
+				domainLabel string
+				domainValue string
+			}{
+				{poolName: "pool-1", domainLabel: "hostname", domainValue: "node-1"},
+				{poolName: "pool-2", domainLabel: "hostname", domainValue: "node-2"},
+			},
+		},
+		{
+			name: "ZoneDomainLabelRemainsZone",
+			data: map[string]string{
+				"topologyFailureDomainLabel":  "zone",
+				"topologyFailureDomainValues": "zone-a,zone-b",
+				"topologyPools":               "pool-a,pool-b",
+			},
+			expectError: false,
+			expectedPools: []struct {
+				poolName    string
+				domainLabel string
+				domainValue string
+			}{
+				{poolName: "pool-a", domainLabel: "zone", domainValue: "zone-a"},
+				{poolName: "pool-b", domainLabel: "zone", domainValue: "zone-b"},
+			},
+		},
+		{
+			name: "MismatchedPoolsAndValuesCounts",
+			data: map[string]string{
+				"topologyFailureDomainLabel":  "host",
+				"topologyFailureDomainValues": "compute-0,compute-1",
+				"topologyPools":               "pool-0,pool-1,pool-2",
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := getTopologyConstrainedPoolsExternalMode(tt.data)
+
+			if tt.expectError {
+				assert.Error(t, err, "Expected error but got none")
+				return
+			}
+
+			assert.NoError(t, err, "Unexpected error: %v", err)
+
+			// Parse the JSON result
+			var pools []struct {
+				PoolName       string `json:"poolName"`
+				DomainSegments []struct {
+					DomainLabel string `json:"domainLabel"`
+					DomainValue string `json:"value"`
+				} `json:"domainSegments"`
+			}
+			err = json.Unmarshal([]byte(result), &pools)
+			assert.NoError(t, err, "Failed to unmarshal result JSON")
+
+			// Validate the structure
+			assert.Equal(t, len(tt.expectedPools), len(pools), "Number of pools doesn't match")
+
+			for i, expectedPool := range tt.expectedPools {
+				assert.Equal(t, expectedPool.poolName, pools[i].PoolName, "Pool name mismatch at index %d", i)
+				assert.Equal(t, 1, len(pools[i].DomainSegments), "Should have exactly one domain segment")
+				assert.Equal(t, expectedPool.domainLabel, pools[i].DomainSegments[0].DomainLabel, "Domain label mismatch at index %d", i)
+				assert.Equal(t, expectedPool.domainValue, pools[i].DomainSegments[0].DomainValue, "Domain value mismatch at index %d", i)
+			}
+		})
 	}
 }
