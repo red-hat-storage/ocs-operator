@@ -8,7 +8,7 @@ COPY . .
 
 ARG LDFLAGS
 
-RUN go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o metrics-exporter main.go
+RUN go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o metrics-exporter ./metrics/main.go
 
 # Build stage 2
 

@@ -197,8 +197,10 @@ func (r *StorageClusterReconciler) createBlackboxSCC(ctx context.Context, instan
 		Users: []string{
 			fmt.Sprintf("system:serviceaccount:%s:%s", instance.Namespace, blackboxServiceAccount),
 		},
-		AllowedCapabilities: []corev1.Capability{"NET_RAW"},
-		Priority:            ptr.To[int32](10),
+		AllowedCapabilities:  []corev1.Capability{"NET_RAW"},
+		AllowedUnsafeSysctls: []string{"net.ipv4.ping_group_range"},
+		SeccompProfiles:      []string{"runtime/default"},
+		Priority:             ptr.To[int32](10),
 	}
 	actual, err := r.SecurityClient.SecurityContextConstraints().Get(ctx, desired.Name, metav1.GetOptions{})
 	if err != nil {
@@ -239,6 +241,14 @@ func (r *StorageClusterReconciler) createBlackboxSCC(ctx context.Context, instan
 	}
 	if !equality.Semantic.DeepEqual(desired.Volumes, actual.Volumes) {
 		actual.Volumes = desired.Volumes
+		needsUpdate = true
+	}
+	if !equality.Semantic.DeepEqual(desired.AllowedUnsafeSysctls, actual.AllowedUnsafeSysctls) {
+		actual.AllowedUnsafeSysctls = desired.AllowedUnsafeSysctls
+		needsUpdate = true
+	}
+	if !equality.Semantic.DeepEqual(desired.SeccompProfiles, actual.SeccompProfiles) {
+		actual.SeccompProfiles = desired.SeccompProfiles
 		needsUpdate = true
 	}
 	// Preserve existing users/groups

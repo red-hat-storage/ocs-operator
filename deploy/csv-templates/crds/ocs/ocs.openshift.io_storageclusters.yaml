@@ -2175,9 +2175,7 @@ spec:
                       ceph non-resilient pools
                     properties:
                       count:
-                        description: |-
-                          Count is the number of devices in this set
-                          only relevant if UseExistingOsds is set to false
+                        description: Count is the number of devices in this set
                         minimum: 1
                         type: integer
                       enable:
@@ -2190,19 +2188,9 @@ spec:
                         nullable: true
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
-                      poolNamePrefix:
-                        description: PoolNamePrefix is prefix string used in the replica-1
-                          pools names
-                        maxLength: 200
-                        nullable: true
-                        type: string
-                        x-kubernetes-validations:
-                        - message: poolNamePrefix field cannot be modified once set
-                          rule: self == oldSelf
                       resources:
-                        description: |-
-                          ResourceRequirements (requests/limits) for the devices
-                          only relevant if UseExistingOsds is set to false
+                        description: ResourceRequirements (requests/limits) for the
+                          devices
                         properties:
                           claims:
                             description: |-
@@ -2260,29 +2248,15 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
-                      skipCreateStorageclass:
-                        description: SkipCreateStorageclass if set will skip the default
-                          replica-1 topological storageclass creation
-                        nullable: true
-                        type: boolean
                       storageClassName:
                         description: StorageClassName specifies the name of the storage
                           class created for ceph non-resilient pools
                         maxLength: 253
                         pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string
-                      useExistingOsds:
-                        description: UseExistingOsds is set when pools has to use
-                          existing OSDs
-                        nullable: true
-                        type: boolean
-                        x-kubernetes-validations:
-                        - message: useExistingOsds field cannot be modified once set
-                          rule: self == oldSelf
                       volumeClaimTemplate:
-                        description: |-
-                          VolumeClaimTemplates is a PVC template for the underlying storage devices
-                          only relevant if UseExistingOsds is set to false
+                        description: VolumeClaimTemplates is a PVC template for the
+                          underlying storage devices
                         properties:
                           apiVersion:
                             description: |-
