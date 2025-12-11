@@ -582,15 +582,16 @@ spec:
 
     - alert: ODFNodeMTULessThan9000
       expr: |
-        node_network_mtu_bytes{device!~"^(veth|docker|flannel|cali|tun|tap).*"}
-        < 9000
+        count(
+          node_network_mtu_bytes{device!~"^(veth|docker|flannel|cali|tun|tap).*"} < 9000
+        ) > 0
       for: 10m
       labels:
         severity: info
         component: odf
       annotations:
-        summary: "ODF node network interface MTU < 9000"
-        description: "Node {{ $labels.instance }} interface {{ $labels.device }} has MTU {{ $value }}. ODF recommends MTU >= 9000 for storage network."
+        summary: "One or more ODF node network interface MTU < 9000"
+        description: "At least one node in the cluster has a network interface (excluding virtual interfaces) with MTU less than 9000. ODF recommends MTU >= 9000 for the storage network."
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFNodeMTULessThan9000.md
 
     - alert: ODFNodeNICBandwidthSaturation
