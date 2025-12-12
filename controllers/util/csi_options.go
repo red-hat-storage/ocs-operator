@@ -24,6 +24,10 @@ func GetReadAffinityOptions(sc *ocsv1.StorageCluster) rookCephv1.ReadAffinitySpe
 	}
 
 	return rookCephv1.ReadAffinitySpec{
-		Enabled: !sc.Spec.ExternalStorage.Enable,
+		// TODO: Change to true once the following cephFS bug is fixed:
+		// - https://bugzilla.redhat.com/show_bug.cgi?id=2421367
+		// - https://tracker.ceph.com/issues/73997
+		Enabled: false,
+		// Enabled: !sc.Spec.ExternalStorage.Enable,
 	}
 }

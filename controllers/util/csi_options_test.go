@@ -23,7 +23,8 @@ func Test_getReadAffinityOptions(t *testing.T) {
 				sc: &ocsv1.StorageCluster{},
 			},
 			want: rookCephv1.ReadAffinitySpec{
-				Enabled: true,
+				// Enabled: true,
+				Enabled: false,
 			},
 		}, {
 			name: "Internal ceph cluster: ReadAffinity enabled by user with crushlocationlabels",
