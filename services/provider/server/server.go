@@ -1911,6 +1911,17 @@ func (s *OCSProviderServer) appendNetworkFenceClassKubeResources(
 		}
 	}
 
+	if consumerConfig.GetCephFsClientProfileName() != "" {
+		nfcMap[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.CephfsNetworkFenceClass)] = func() *csiaddonsv1alpha1.NetworkFenceClass {
+			return util.NewDefaultCephfsNetworkFenceClass(
+				consumerConfig.GetCephFsClientProfileName(),
+				consumerConfig.GetCsiCephFsProvisionerCephUserName(),
+				consumer.Status.Client.OperatorNamespace,
+				cephFsStorageId,
+			)
+		}
+	}
+
 	resources := getKubeResourcesForClass(
 		logger,
 		consumer.Spec.NetworkFenceClasses,

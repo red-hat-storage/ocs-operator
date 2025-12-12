@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -9,7 +10,8 @@ import (
 type NetworkFenceClassType string
 
 const (
-	RbdNetworkFenceClass NetworkFenceClassType = "rbd"
+	RbdNetworkFenceClass    NetworkFenceClassType = "rbd"
+	CephfsNetworkFenceClass NetworkFenceClassType = "cephfs"
 )
 
 func GenerateNameForNetworkFenceClass(storageClusterName string, networkFenceClassType NetworkFenceClassType) string {
@@ -25,7 +27,6 @@ func NewDefaultRbdNetworkFenceClass(
 	namespace,
 	storageId string,
 ) *csiaddonsv1alpha1.NetworkFenceClass {
-
 	nfc := &csiaddonsv1alpha1.NetworkFenceClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{},
@@ -33,6 +34,32 @@ func NewDefaultRbdNetworkFenceClass(
 		},
 		Spec: csiaddonsv1alpha1.NetworkFenceClassSpec{
 			Provisioner: RbdDriverName,
+			Parameters: map[string]string{
+				"clusterID": clusterId,
+				"csiaddons.openshift.io/networkfence-secret-name":      provisionerSecret,
+				"csiaddons.openshift.io/networkfence-secret-namespace": namespace,
+			},
+		},
+	}
+	if storageId != "" {
+		AddAnnotation(nfc, storageIdLabelKey, storageId)
+	}
+	return nfc
+}
+
+func NewDefaultCephfsNetworkFenceClass(
+	clusterId,
+	provisionerSecret,
+	namespace,
+	storageId string,
+) *csiaddonsv1alpha1.NetworkFenceClass {
+	nfc := &csiaddonsv1alpha1.NetworkFenceClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{},
+			Labels:      map[string]string{},
+		},
+		Spec: csiaddonsv1alpha1.NetworkFenceClassSpec{
+			Provisioner: CephFSDriverName,
 			Parameters: map[string]string{
 				"clusterID": clusterId,
 				"csiaddons.openshift.io/networkfence-secret-name":      provisionerSecret,
