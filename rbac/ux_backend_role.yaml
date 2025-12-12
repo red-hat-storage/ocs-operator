@@ -15,6 +15,24 @@ rules:
     - get
     - list
 - apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - pods
+  verbs:
+    - list
+    - watch
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+    - get
+    - create
+    - update
+    - list
+    - watch
+- apiGroups:
   - ocs.openshift.io
   resources:
   - storageclusters

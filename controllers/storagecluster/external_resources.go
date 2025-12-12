@@ -404,6 +404,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 					),
 					isClusterExternal: true,
 				}
+				scc.storageClass.Name = util.GenerateNameForNonResilientCephBlockPoolStorageClass(instance)
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint = d.Data[externalCephRgwEndpointKey]
 				// rgw-endpoint is no longer needed in the 'd.Data' dictionary,
@@ -683,6 +684,10 @@ func getTopologyConstrainedPoolsExternalMode(data map[string]string) (string, er
 	var topologyConstrainedPools []topologyConstrainedPool
 
 	domainLabel := data["topologyFailureDomainLabel"]
+	// hostname is the default domain label for host topology
+	if domainLabel == "host" {
+		domainLabel = "hostname"
+	}
 	domainValues := strings.Split(data["topologyFailureDomainValues"], ",")
 	poolNames := strings.Split(data["topologyPools"], ",")
 
@@ -720,7 +725,7 @@ func (r *StorageClusterReconciler) getTopologyFailureDomainConfig(uid types.UID)
 	// Look for the topologyFailureDomainLabel in the external resources
 	for _, d := range data {
 		if d.Kind == "StorageClass" && d.Name == cephRbdTopologyStorageClassName {
-			label, ok := d.Data["TOPOLOGY_FAILURE_DOMAIN_LABEL"]
+			label, ok := d.Data["topologyFailureDomainLabel"]
 			if !ok {
 				break
 			}
