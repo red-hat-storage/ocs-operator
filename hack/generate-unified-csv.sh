@@ -52,7 +52,6 @@ $CSV_MERGER \
 	--ocs-metrics-exporter-image="$OCS_METRICS_EXPORTER_IMAGE" \
 	--blackbox-exporter-image="$BLACKBOX_EXPORTER_IMAGE" \
 	--kube-rbac-proxy-image="$KUBE_RBAC_PROXY_IMAGE" \
-	--ux-backend-oauth-image="$UX_BACKEND_OAUTH_IMAGE" \
 	--ocs-must-gather-image="$OCS_MUST_GATHER_IMAGE" \
 	--crds-directory="$OUTDIR_CRDS" \
 	--manifests-directory=$BUNDLEMANIFESTS_DIR \

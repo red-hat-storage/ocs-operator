@@ -348,6 +348,7 @@ func getLocalNetworkFenceClassNames(storageCluster *ocsv1.StorageCluster) []ocsv
 
 	networkFenceClassNames := map[string]bool{}
 	networkFenceClassNames[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.RbdNetworkFenceClass)] = true
+	networkFenceClassNames[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.CephfsNetworkFenceClass)] = true
 
 	nfcSpec := make([]ocsv1a1.NetworkFenceClassesSpec, 0, len(networkFenceClassNames))
 	for nfcName := range maps.Keys(networkFenceClassNames) {
