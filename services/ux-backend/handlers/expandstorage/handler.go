@@ -111,7 +111,7 @@ func updateStorageCluster(w http.ResponseWriter, r *http.Request, client client.
 	storageQty := resource.MustParse(storage)
 	volumeMode := corev1.PersistentVolumeBlock
 	deviceSet := ocsv1.StorageDeviceSet{
-		Name:        storageClassForOSDs,
+		Name:        deviceClass,
 		Count:       count,
 		Replica:     replica,
 		Portable:    false,
