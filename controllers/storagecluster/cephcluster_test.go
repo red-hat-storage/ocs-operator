@@ -1335,69 +1335,33 @@ func TestGetNetworkSpec(t *testing.T) {
 		expected rookCephv1.NetworkSpec
 	}{
 		{
-			desc: "hostNetwork specified as true, network unspecified",
-			scSpec: ocsv1.StorageClusterSpec{
-				HostNetwork: true,
-			},
+			desc:   "network unspecified",
+			scSpec: ocsv1.StorageClusterSpec{},
 			expected: rookCephv1.NetworkSpec{
-				HostNetwork: true,
 				Connections: &rookCephv1.ConnectionsSpec{
 					RequireMsgr2: true,
 				},
 			},
 		},
 		{
-			desc: "hostNetwork specified as false, network unspecified",
+			desc: "network specified with hostNetwork true",
 			scSpec: ocsv1.StorageClusterSpec{
-				HostNetwork: false,
-			},
-			expected: rookCephv1.NetworkSpec{
-				HostNetwork: false,
-				Connections: &rookCephv1.ConnectionsSpec{
-					RequireMsgr2: true,
-				},
-			},
-		},
-		{
-			desc: "hostNetwork specified as true, network specified without hostnetwork",
-			scSpec: ocsv1.StorageClusterSpec{
-				HostNetwork: true,
-				Network: &rookCephv1.NetworkSpec{
-					HostNetwork: false, // same as default
-					IPFamily:    rookCephv1.IPv6,
-				},
-			},
-			expected: rookCephv1.NetworkSpec{
-				HostNetwork: true,
-				IPFamily:    rookCephv1.IPv6,
-				Connections: &rookCephv1.ConnectionsSpec{
-					RequireMsgr2: true,
-				},
-			},
-		},
-		{
-			desc: "hostNetwork specified as false, network specified with hostnetwork",
-			scSpec: ocsv1.StorageClusterSpec{
-				HostNetwork: false,
 				Network: &rookCephv1.NetworkSpec{
 					HostNetwork: true,
-					IPFamily:    rookCephv1.IPv6,
-					DualStack:   true,
+					IPFamily:    rookCephv1.IPv4,
 				},
 			},
 			expected: rookCephv1.NetworkSpec{
 				HostNetwork: true,
-				IPFamily:    rookCephv1.IPv6,
-				DualStack:   true,
+				IPFamily:    rookCephv1.IPv4,
 				Connections: &rookCephv1.ConnectionsSpec{
 					RequireMsgr2: true,
 				},
 			},
 		},
 		{
-			desc: "hostNetwork specified as false, network specified without hostnetwork",
+			desc: "network specified with hostNetwork false",
 			scSpec: ocsv1.StorageClusterSpec{
-				HostNetwork: false,
 				Network: &rookCephv1.NetworkSpec{
 					HostNetwork: false,
 					IPFamily:    rookCephv1.IPv4,
@@ -1412,25 +1376,18 @@ func TestGetNetworkSpec(t *testing.T) {
 			},
 		},
 		{
-			desc:   "hostNetwork unspecified, network unspecified",
-			scSpec: ocsv1.StorageClusterSpec{},
-			expected: rookCephv1.NetworkSpec{
-				Connections: &rookCephv1.ConnectionsSpec{
-					RequireMsgr2: true,
-				},
-			},
-		},
-		{
-			desc: "hostNetwork unspecified, network specified",
+			desc: "network specified with hostNetwork and other settings",
 			scSpec: ocsv1.StorageClusterSpec{
 				Network: &rookCephv1.NetworkSpec{
 					HostNetwork: true,
-					IPFamily:    rookCephv1.IPv4,
+					IPFamily:    rookCephv1.IPv6,
+					DualStack:   true,
 				},
 			},
 			expected: rookCephv1.NetworkSpec{
 				HostNetwork: true,
-				IPFamily:    rookCephv1.IPv4,
+				IPFamily:    rookCephv1.IPv6,
+				DualStack:   true,
 				Connections: &rookCephv1.ConnectionsSpec{
 					RequireMsgr2: true,
 				},
