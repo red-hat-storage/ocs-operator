@@ -1,6 +1,8 @@
 package storagecluster
 
 import (
+	"sort"
+
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -115,12 +117,20 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 // convertLabelToNodeSelectorRequirements returns a NodeSelectorRequirement list from a given LabelSelector
 func convertLabelToNodeSelectorRequirements(labelSelector metav1.LabelSelector) []corev1.NodeSelectorRequirement {
 	reqs := []corev1.NodeSelectorRequirement{}
-	for key, value := range labelSelector.MatchLabels {
-		req := corev1.NodeSelectorRequirement{}
-		req.Key = key
-		req.Operator = corev1.NodeSelectorOpIn
-		req.Values = append(req.Values, value)
-		reqs = append(reqs, req)
+
+	// Sort keys for deterministic ordering to avoid triggering unnecessary updates.
+	keys := make([]string, 0, len(labelSelector.MatchLabels))
+	for key := range labelSelector.MatchLabels {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		value := labelSelector.MatchLabels[key]
+		reqs = append(reqs, corev1.NodeSelectorRequirement{
+			Key:      key,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{value},
+		})
 	}
 	numIter := len(labelSelector.MatchExpressions)
 	for i := 0; i < numIter; i++ {
