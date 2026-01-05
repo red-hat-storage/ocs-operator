@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ocs-devicefinder-rolebinding
+subjects:
+- kind: ServiceAccount
+  name: ocs-devicefinder-sa
+  namespace: openshift-storage
+roleRef:
+  kind: Role
+  name: ocs-devicefinder-role
+  apiGroup: rbac.authorization.k8s.io
