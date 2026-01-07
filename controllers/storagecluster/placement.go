@@ -56,9 +56,16 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	// StorageCluster has no label selector, set the default node
 	// affinity.
 	if placement.NodeAffinity == nil && sc.Spec.LabelSelector == nil {
-		// Don't add node affinity again for these rook-ceph daemons as it is already added via the "all" key
-		if component != "mgr" && component != "mon" && component != "osd" && component != "osd=tsc " && component != "osd-prepare" && component != "osd-prepare-tsc" {
-			placement.NodeAffinity = defaults.DefaultNodeAffinity
+		// In noobaa-standalone mode or external mode the default ocs labels are not added to the nodes
+		// so we should not add the default ocs node affinity for these modes
+		if (sc.Spec.MultiCloudGateway == nil || ReconcileStrategy(sc.Spec.MultiCloudGateway.ReconcileStrategy) != ReconcileStrategyStandalone) &&
+			!sc.Spec.ExternalStorage.Enable {
+			// Don't add node affinity again for these rook-ceph daemons as it is already added via the "all" key
+			if component != "mgr" && component != "mon" &&
+				component != "osd" && component != "osd=tsc " &&
+				component != "osd-prepare" && component != "osd-prepare-tsc" {
+				placement.NodeAffinity = defaults.DefaultNodeAffinity
+			}
 		}
 	}
 
