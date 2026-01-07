@@ -84,38 +84,6 @@ const (
 
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 
-const labelZoneRegionWithoutBeta = "failure-domain.kubernetes.io/region"
-const labelZoneFailureDomainWithoutBeta = "failure-domain.kubernetes.io/zone"
-const labelRookPrefix = "topology.rook.io"
-
-var validTopologyLabelKeys = []string{
-	// This is the most preferred key as kubernetes recommends zone and region
-	// labels under this key.
-	corev1.LabelZoneRegionStable,
-
-	// These two are retained only to have backward compatibility; they are
-	// deprecated by kubernetes. If topology.kubernetes.io key has same label we
-	// will skip the next two from the topologyMap.
-	corev1.LabelZoneRegion,
-	labelZoneRegionWithoutBeta,
-
-	// This is the most preferred key as kubernetes recommends zone and region
-	// labels under this key.
-	corev1.LabelZoneFailureDomainStable,
-
-	// These two are retained only to have backward compatibility; they are
-	// deprecated by kubernetes. If topology.kubernetes.io key has same label we
-	// will skip the next two from the topologyMap.
-	corev1.LabelZoneFailureDomain,
-	labelZoneFailureDomainWithoutBeta,
-
-	// This is the kubernetes recommended label to select nodes.
-	corev1.LabelHostname,
-
-	// This label is used to assign rack based topology.
-	labelRookPrefix,
-}
-
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclusters;cephblockpools;cephfilesystems;cephnfses;cephobjectstores;cephobjectstoreusers;cephrbdmirrors;cephblockpoolradosnamespaces,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=noobaa.io,resources=noobaas,verbs=get;list;watch;create;update;delete
