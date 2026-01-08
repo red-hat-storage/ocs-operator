@@ -389,7 +389,7 @@ spec:
         storage_type: ceph
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephPoolQuotaBytesNearExhaustion.md
       expr: |
-        (ceph_pool_stored_raw * on (pool_id, managedBy) group_left(name, namespace)ceph_pool_metadata) / ((ceph_pool_quota_bytes * on (pool_id, managedBy) group_left(name, namespace)ceph_pool_metadata) > 0) > 0.70
+        (ceph_pool_stored * on (pool_id, managedBy) group_left(name, namespace)ceph_pool_metadata) / ((ceph_pool_quota_bytes * on (pool_id, managedBy) group_left(name, namespace)ceph_pool_metadata) > 0) > 0.70
       for: 1m
       labels:
         severity: warning
@@ -401,7 +401,7 @@ spec:
         storage_type: ceph
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephPoolQuotaBytesCriticallyExhausted.md
       expr: |
-        (ceph_pool_stored_raw * on (pool_id, managedBy) group_left(name, namespace)ceph_pool_metadata) / ((ceph_pool_quota_bytes * on (pool_id, managedBy) group_left(name, namespace)ceph_pool_metadata) > 0) > 0.90
+        (ceph_pool_stored * on (pool_id, managedBy) group_left(name, namespace)ceph_pool_metadata) / ((ceph_pool_quota_bytes * on (pool_id, managedBy) group_left(name, namespace)ceph_pool_metadata) > 0) > 0.90
       for: 1m
       labels:
         severity: critical
