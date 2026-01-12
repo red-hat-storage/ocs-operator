@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ocs-devicefinder-use-privileged-scc
+subjects:
+- kind: ServiceAccount
+  name: ocs-devicefinder-sa
+  namespace: openshift-storage
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ocs-devicefinder-use-privileged-scc
