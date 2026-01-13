@@ -15,6 +15,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/expandstorage"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/featureflags"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/onboarding/peertokens"
+	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/proxy"
 	"github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/handlers/storages"
 	uxutil "github.com/red-hat-storage/ocs-operator/v4/services/ux-backend/util"
 
@@ -172,6 +173,13 @@ func main() {
 	// CNSA endpoints
 	http.HandleFunc("/cnsa/devicefinder", func(w http.ResponseWriter, r *http.Request) {
 		devicefinder.HandleMessage(w, r, cl, namespace)
+	})
+
+	// Proxy endpoint - passthrough to external server
+	// Pattern: /proxy/{endpoint}/*
+	// passing "endpoint" as a path parameter so that we explicitly handle only the supported endpoints (kind of whitelisting)
+	http.HandleFunc("/proxy/rgw/", func(w http.ResponseWriter, r *http.Request) {
+		proxy.HandleProxy(w, r, cl, namespace)
 	})
 
 	klog.Info("ux backend server listening on port ", config.listenPort)
