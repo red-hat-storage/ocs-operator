@@ -513,12 +513,12 @@ spec:
         severity_level: warning
       expr: |
         sum(ocs_cephfs_subvolume_count) >
-        sum(
-          count by (provisioner) (
+        (
+          count(
             kube_persistentvolume_info
-            * on (storageclass) group_left(provisioner)
+            * on (storageclass) group_left()
             kube_storageclass_info{provisioner=~".*cephfs.csi.ceph.com"}
-          )
+          ) or vector(0)
         )
       labels:
         severity: warning
