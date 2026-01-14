@@ -104,6 +104,14 @@ rules:
   - list
   - watch
 - apiGroups:
+  - console.openshift.io
+  resources:
+  - consoleplugins
+  verbs:
+  - get
+  - update
+  - watch
+- apiGroups:
   - coordination.k8s.io
   resources:
   - leases

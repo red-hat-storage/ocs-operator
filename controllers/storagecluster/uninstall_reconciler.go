@@ -325,6 +325,7 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (re
 		&ocsProviderServer{},
 		&obcStorageClasses{},
 		&ocsCephRGWRoutes{},
+		&ocsConsoleConfiguration{},
 		&ocsCephObjectStoreUsers{},
 		&ocsCephObjectStores{},
 		&ocsCephRbdMirrors{},
