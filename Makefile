@@ -55,10 +55,6 @@ ocs-metrics-exporter: build
 	@echo "Building the ocs-metrics-exporter image"
 	hack/build-metrics-exporter.sh
 
-devicefinder: build
-	@echo "Building the devicefinder image"
-	hack/build-devicefinder.sh
-
 gen-protobuf:
 	@echo "Generating protobuf files for gRPC services"
 	hack/gen-protobuf.sh
