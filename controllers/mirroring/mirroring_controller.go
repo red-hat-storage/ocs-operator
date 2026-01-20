@@ -339,7 +339,7 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 			for i := range response.Errors {
 				resp := response.Errors[i]
 				r.log.Error(
-					fmt.Errorf(resp.Message),
+					fmt.Errorf("%s", resp.Message),
 					"failed to get BlockPoolsInfo",
 					"CephBlockPool",
 					resp.BlockPoolName,
@@ -504,7 +504,7 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 			for i := range response.Errors {
 				resp := response.Errors[i]
 				r.log.Error(
-					fmt.Errorf(resp.Message),
+					fmt.Errorf("%s", resp.Message),
 					"failed to get StorageClientsInfo",
 					"CephBlockPool",
 					resp.ClientID,
