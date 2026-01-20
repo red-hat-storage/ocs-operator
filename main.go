@@ -32,6 +32,7 @@ import (
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	nbapis "github.com/noobaa/noobaa-operator/v5/pkg/apis"
 	openshiftConfigv1 "github.com/openshift/api/config/v1"
+	consolev1 "github.com/openshift/api/console/v1"
 	quotav1 "github.com/openshift/api/quota/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	securityv1 "github.com/openshift/api/security/v1"
@@ -92,6 +93,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(apiv2.AddToScheme(scheme))
+	utilruntime.Must(consolev1.AddToScheme(scheme))
 	utilruntime.Must(securityv1.AddToScheme(scheme))
 	utilruntime.Must(ocsv1.AddToScheme(scheme))
 	utilruntime.Must(cephv1.AddToScheme(scheme))
