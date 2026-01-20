@@ -123,6 +123,7 @@ var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,resourceNames=odf-blackbox-scc,verbs=use;get;create;update;patch;delete
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,resourceNames=hostnetwork-v2,verbs=use
 // +kubebuilder:rbac:groups=csiaddons.openshift.io,resources=networkfenceclasses,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=console.openshift.io,resources=consoleplugins,verbs=get;watch;update
 
 // Reconcile reads that state of the cluster for a StorageCluster object and makes changes based on the state read
 // and what is in the StorageCluster.Spec
@@ -487,6 +488,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&ocsCephObjectStores{},
 				&ocsCephObjectStoreUsers{},
 				&ocsCephRGWRoutes{},
+				&ocsConsoleConfiguration{},
 				&obcStorageClasses{},
 				&ocsNoobaaSystem{},
 				&ocsJobTemplates{},
