@@ -9,12 +9,14 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
 
 	"github.com/blang/semver/v4"
 	"github.com/go-logr/logr"
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
+	configv1 "github.com/openshift/api/config/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/operator-framework/operator-lib/conditions"
 	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
@@ -461,6 +463,21 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			return reconcile.Result{}, err
 		}
 	}
+
+	var infrastructure *configv1.Infrastructure
+	infrastructure, err := util.GetInfrastructure(r.ctx, r.Client)
+	if err != nil {
+		r.Log.Error(err, "Failed to get infrastructure resource to determine controlPlaneTopology")
+		return reconcile.Result{}, err
+	}
+	if infrastructure == nil {
+		return reconcile.Result{}, fmt.Errorf("infrastructure resource is nil")
+	}
+	if infrastructure.Status.ControlPlaneTopology == "" {
+		return reconcile.Result{}, fmt.Errorf("controlPlaneTopology is not set in infrastructure resource")
+	}
+	r.isTnfCluster = infrastructure.Status.ControlPlaneTopology == configv1.DualReplicaTopologyMode
+	r.Log.Info("cluster is Tnf cluster", "value", r.isTnfCluster)
 
 	// in-memory conditions should start off empty. It will only ever hold
 	// negative conditions (!Available, Degraded, Progressing)

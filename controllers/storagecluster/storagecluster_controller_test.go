@@ -244,18 +244,6 @@ var mockNodeList = &corev1.NodeList{
 	},
 }
 
-var mockInfrastructure = &configv1.Infrastructure{
-	TypeMeta: metav1.TypeMeta{
-		Kind: "Infrastructure",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "cluster",
-	},
-	Status: configv1.InfrastructureStatus{
-		Platform: "",
-	},
-}
-
 func TestReconcilerImplInterface(t *testing.T) {
 	reconciler := StorageClusterReconciler{}
 	var i interface{} = &reconciler
@@ -698,8 +686,6 @@ func TestReconcileWithNonWatchedResource(t *testing.T) {
 func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
-	infra := &configv1.Infrastructure{}
-	mockInfrastructure.DeepCopyInto(infra)
 	cr := &api.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "storage-test",
@@ -717,7 +703,7 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 		},
 	}
 
-	reconciler := createFakeStorageClusterReconciler(t, cr, nodeList, infra, networkConfig)
+	reconciler := createFakeStorageClusterReconciler(t, cr, nodeList, networkConfig)
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -732,12 +718,10 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 	cc := &rookCephv1.CephCluster{}
 	mockCephCluster.DeepCopyInto(cc)
 	cc.Status.State = rookCephv1.ClusterStateCreated
-	infra := &configv1.Infrastructure{}
-	mockInfrastructure.DeepCopyInto(infra)
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 
-	reconciler := createFakeStorageClusterReconciler(t, sc, cc, nodeList, infra, networkConfig)
+	reconciler := createFakeStorageClusterReconciler(t, sc, cc, nodeList, networkConfig)
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -962,10 +946,8 @@ func TestStorageClusterInitConditions(t *testing.T) {
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
 	cc.Status.State = rookCephv1.ClusterStateCreated
-	infra := &configv1.Infrastructure{}
-	mockInfrastructure.DeepCopyInto(infra)
 
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), cc, nodeList, infra, networkConfig)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), cc, nodeList, networkConfig)
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -984,8 +966,6 @@ func TestStorageClusterFinalizer(t *testing.T) {
 	t.Skip("this test is flaky as even without new updates it fails occasionally")
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
-	infra := &configv1.Infrastructure{}
-	mockInfrastructure.DeepCopyInto(infra)
 	namespacedName := types.NamespacedName{
 		Name:      "noobaa",
 		Namespace: mockStorageClusterRequest.NamespacedName.Namespace,
@@ -997,7 +977,7 @@ func TestStorageClusterFinalizer(t *testing.T) {
 			SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 		},
 	}
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), noobaaMock.DeepCopy(), nodeList, infra, networkConfig)
+	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), noobaaMock.DeepCopy(), nodeList, networkConfig)
 
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
@@ -1156,6 +1136,16 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 	}
 
+	// create a fake infrastructure CR for platform detection
+	fakeInfra := &configv1.Infrastructure{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cluster",
+		},
+		Status: configv1.InfrastructureStatus{
+			ControlPlaneTopology: configv1.DualReplicaTopologyMode,
+		},
+	}
+
 	obj = append(
 		obj,
 		createStorageClientCRD(),
@@ -1169,6 +1159,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 		ocsProviderServiceDeployment,
 		ocsProviderServiceSecret,
 		createRookCephOperatorCSV(namespace),
+		fakeInfra,
 	)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 

@@ -453,8 +453,8 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 				Image:            r.images.Ceph,
 				AllowUnsupported: allowUnsupportedCephVersion(),
 			},
-			Mon:             generateMonSpec(sc),
-			Mgr:             generateMgrSpec(sc),
+			Mon:             generateMonSpec(sc, r.isTnfCluster),
+			Mgr:             generateMgrSpec(sc, r.isTnfCluster),
 			DataDirHostPath: "/var/lib/rook",
 			DisruptionManagement: rookCephv1.DisruptionManagementSpec{
 				ManagePodBudgets:                 true,
@@ -712,12 +712,15 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, monitoringIP, monitoringPo
 	return externalCephCluster
 }
 
-func getMinDeviceSetReplica(sc *ocsv1.StorageCluster) int {
+func getMinDeviceSetReplica(sc *ocsv1.StorageCluster, isTnfCluster bool) int {
 	if arbiterEnabled(sc) {
 		return defaults.ArbiterModeDeviceSetReplica
 	}
 	if statusutil.IsSingleNodeDeployment() {
 		return 1
+	}
+	if isTnfCluster {
+		return 2
 	}
 	return defaults.DeviceSetReplica
 }
@@ -737,7 +740,7 @@ func getCephPoolReplicatedSize(sc *ocsv1.StorageCluster) uint {
 }
 
 // getMinimumNodes returns the minimum number of nodes that are required for the Storage Cluster of various configurations
-func getMinimumNodes(sc *ocsv1.StorageCluster) int {
+func getMinimumNodes(sc *ocsv1.StorageCluster, isTnfCluster bool) int {
 	// Case 1: When replicasPerFailureDomain is 1.
 	// A node is the smallest failure domain that is possible. We definitely
 	// want the devices in the same device set to be in different failure
@@ -758,7 +761,7 @@ func getMinimumNodes(sc *ocsv1.StorageCluster) int {
 	// needs to override this assumption, we can provide a flag (like
 	// allowReplicasOnSameNode) in the future.
 
-	maxReplica := getMinDeviceSetReplica(sc) * getReplicasPerFailureDomain(sc)
+	maxReplica := getMinDeviceSetReplica(sc, isTnfCluster) * getReplicasPerFailureDomain(sc)
 
 	for _, deviceSet := range sc.Spec.StorageDeviceSets {
 		if deviceSet.Replica > maxReplica {
@@ -769,7 +772,7 @@ func getMinimumNodes(sc *ocsv1.StorageCluster) int {
 	return maxReplica
 }
 
-func getMgrCount(sc *ocsv1.StorageCluster) int {
+func getMgrCount(sc *ocsv1.StorageCluster, isTnfCluster bool) int {
 	if arbiterEnabled(sc) {
 		return defaults.ArbiterModeMgrCount
 	}
@@ -777,7 +780,7 @@ func getMgrCount(sc *ocsv1.StorageCluster) int {
 	if mgrCount != 0 {
 		return mgrCount
 	}
-	if statusutil.IsSingleNodeDeployment() {
+	if statusutil.IsSingleNodeDeployment() || isTnfCluster {
 		return 1
 	}
 	return defaults.DefaultMgrCount
@@ -1108,10 +1111,10 @@ func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *rookCephv1.StretchClu
 	return &stretchClusterSpec
 }
 
-func generateMonSpec(sc *ocsv1.StorageCluster) rookCephv1.MonSpec {
+func generateMonSpec(sc *ocsv1.StorageCluster, isTnfCLuster bool) rookCephv1.MonSpec {
 	spec := rookCephv1.MonSpec{
 		Count:                getMonCount(sc),
-		AllowMultiplePerNode: statusutil.IsSingleNodeDeployment(),
+		AllowMultiplePerNode: statusutil.AllowMultiplePerNode(isTnfCLuster),
 	}
 	if arbiterEnabled(sc) {
 		spec.StretchCluster = generateStretchClusterSpec(sc)
@@ -1119,10 +1122,10 @@ func generateMonSpec(sc *ocsv1.StorageCluster) rookCephv1.MonSpec {
 	return spec
 }
 
-func generateMgrSpec(sc *ocsv1.StorageCluster) rookCephv1.MgrSpec {
+func generateMgrSpec(sc *ocsv1.StorageCluster, isTnfCLuster bool) rookCephv1.MgrSpec {
 	spec := rookCephv1.MgrSpec{
-		Count:                getMgrCount(sc),
-		AllowMultiplePerNode: statusutil.IsSingleNodeDeployment(),
+		Count:                getMgrCount(sc, isTnfCLuster),
+		AllowMultiplePerNode: statusutil.AllowMultiplePerNode(isTnfCLuster),
 		Modules: []rookCephv1.Module{
 			{Name: "pg_autoscaler", Enabled: true},
 			{Name: "balancer", Enabled: true},

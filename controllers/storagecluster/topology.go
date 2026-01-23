@@ -279,7 +279,7 @@ func (r *StorageClusterReconciler) ensureNodeRacks(
 // reconcileNodeTopologyMap builds the map of all topology labels on all nodes
 // in the storage cluster
 func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageCluster) error {
-	minNodes := getMinimumNodes(sc)
+	minNodes := getMinimumNodes(sc, r.isTnfCluster)
 
 	nodes, err := r.getStorageClusterEligibleNodes(sc)
 	if err != nil {
