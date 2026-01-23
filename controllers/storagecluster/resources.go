@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -40,11 +41,9 @@ func getDaemonResources(name string, sc *ocsv1.StorageCluster) corev1.ResourceRe
 		// Fallback to plain daemon resources map if not found in profiled resources map
 		defaultResourceRequirements = defaults.DaemonResources[name]
 	}
-	// Rolling back the IBM Z CPU adjustment for now
-	// TODO: Revisit this when we have a better understanding of QOS working with Limits & Requests
-	// if runtime.GOARCH == IbmZCpuArch { // Adjust resources for IBM Z platform
-	// 	defaultResourceRequirements = adjustResource(defaultResourceRequirements, IbmZCpuAdjustFactor)
-	// }
+	if runtime.GOARCH == IbmZCpuArch { // Adjust resources for IBM Z platform
+		defaultResourceRequirements = adjustResource(defaultResourceRequirements, IbmZCpuAdjustFactor)
+	}
 
 	specifiedResourceRequirements, specified := sc.Spec.Resources[name]
 	// if specified resource requirements is present but empty, the intention is to have no resource requirements
@@ -70,11 +69,6 @@ func adjustResource(resourceRequirements corev1.ResourceRequirements, adjustFact
 	if resourceRequirementsCopy.Requests != nil {
 		if cpuRequest, exists := resourceRequirementsCopy.Requests[corev1.ResourceCPU]; exists {
 			resourceRequirementsCopy.Requests[corev1.ResourceCPU] = adjustCpuResource(cpuRequest, adjustFactor)
-		}
-	}
-	if resourceRequirementsCopy.Limits != nil {
-		if cpuLimit, exists := resourceRequirementsCopy.Limits[corev1.ResourceCPU]; exists {
-			resourceRequirementsCopy.Limits[corev1.ResourceCPU] = adjustCpuResource(cpuLimit, adjustFactor)
 		}
 	}
 	return *resourceRequirementsCopy
