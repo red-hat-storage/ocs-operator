@@ -117,6 +117,19 @@ func GetOperatorNamespace() (string, error) {
 	return ns, nil
 }
 
+func GetInfrastructure(ctx context.Context, kubeClient client.Client) (*configv1.Infrastructure, error) {
+	infra := &configv1.Infrastructure{}
+	err := kubeClient.Get(ctx, types.NamespacedName{Name: "cluster"}, infra)
+	if err != nil {
+		return nil, err
+	}
+	return infra, nil
+}
+
+func AllowMultipleCephDaemonsPerNode(isTnfCluster bool) bool {
+	return IsSingleNodeDeployment() || isTnfCluster
+}
+
 // IsSingleNodeDeployment returns true if StorageCluster needs to be deployed on a single node.
 func IsSingleNodeDeployment() bool {
 	isSingleNode := os.Getenv(SingleNodeEnvVar)
