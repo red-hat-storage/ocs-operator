@@ -618,15 +618,22 @@ spec:
 
     - alert: ODFDiskUtilizationHigh
       expr: |
-        100 * rate(node_disk_io_time_seconds_total{job="node-exporter", device=~"sd[a-z]|hd[a-z]|vd[a-z]"}[5m])
-        > 90
+        (
+          max by (ceph_daemon, device, instance, managedBy) (
+            label_replace(ceph_disk_occupation{job="rook-ceph-mgr"}, "device", "$1", "device", "/dev/(.*)")
+          ) * on(instance, device) group_left()
+          max by (instance, device) (
+            rate(node_disk_io_time_seconds_total{job="node-exporter"}[5m])
+          )
+        ) * 100 > 90
       for: 10m
       labels:
         severity: warning
         component: odf
       annotations:
         summary: "ODF disk utilization > 90%"
-        description: "Node {{ $labels.instance }} disk {{ $labels.device }} is {{ printf \"%.2f\" $value }}% busy. High disk utilization may degrade Ceph performance."
+        description: |-
+          OSD {{ $labels.ceph_daemon }} on node {{ $labels.instance }} disk {{ $labels.device }} is {{ if $value }}{{ printf "%.2f" $value }}% {{ else }}{{ end }}busy. High disk utilization may degrade Ceph performance.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFDiskUtilizationHigh.md
 
     - alert: ODFCorePodRestarted
