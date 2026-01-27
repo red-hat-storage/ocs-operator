@@ -89,9 +89,7 @@ type RBDMirrorPeerSite struct {
 }
 
 type csiClusterConfig struct {
-	ClusterID string   `json:"clusterID"`
-	Monitors  []string `json:"monitors"`
-	Namespace string   `json:"namespace"`
+	Monitors []string `json:"monitors"`
 }
 
 // Cache mirror data for all CephBlockPools with mirroring enabled
@@ -165,12 +163,12 @@ func initCeph(kubeclient clientset.Interface, cephClusterNamespace, cephAuthName
 		return cephMonitorConfig{}, fmt.Errorf("failed to get ceph user key in namespace %q", namespace)
 	}
 
-	configmap, err := kubeclient.CoreV1().ConfigMaps(cephAuthNamespace).Get(context.TODO(), "rook-ceph-csi-config", metav1.GetOptions{})
+	configmap, err := kubeclient.CoreV1().ConfigMaps(cephAuthNamespace).Get(context.TODO(), "ceph-csi-config", metav1.GetOptions{})
 	if err != nil {
 		return cephMonitorConfig{}, fmt.Errorf("failed to get configmap in namespace %q: %v", namespace, err)
 	}
 
-	data, ok := configmap.Data["csi-cluster-config-json"]
+	data, ok := configmap.Data["config.json"]
 	if !ok {
 		return cephMonitorConfig{}, fmt.Errorf("failed to get CSI cluster config from configmap in namespace %q", namespace)
 	}
@@ -178,29 +176,19 @@ func initCeph(kubeclient clientset.Interface, cephClusterNamespace, cephAuthName
 	var clusterConfigs []csiClusterConfig
 	err = json.Unmarshal([]byte(data), &clusterConfigs)
 	if err != nil {
-		return cephMonitorConfig{}, fmt.Errorf("failed to unmarshal csi-cluster-config-json in namespace %q: %v", namespace, err)
+		return cephMonitorConfig{}, fmt.Errorf("failed to unmarshal config.json in namespace %q: %v", namespace, err)
 	}
 
 	if len(clusterConfigs) == 0 {
 		return cephMonitorConfig{}, fmt.Errorf("expected 1 or more CSI cluster config but found 0 from configmap in namespace %q", namespace)
 	}
 
-	var clusterConfig csiClusterConfig
-	for idx := range clusterConfigs {
-		if clusterConfigs[idx].Namespace == cephClusterNamespace {
-			clusterConfig = clusterConfigs[idx]
-			break
-		}
-	}
-
-	if len(clusterConfig.Monitors) == 0 {
+	if len(clusterConfigs[0].Monitors) == 0 {
 		return cephMonitorConfig{}, fmt.Errorf("expected 1 or more monitors but found 0 from configmap in namespace %q", namespace)
 	}
 
 	input := cephMonitorConfig{}
-	input.clusterID = clusterConfig.ClusterID
-	input.cephClusterNamespace = clusterConfig.Namespace
-	input.monitor = clusterConfig.Monitors[0]
+	input.monitor = clusterConfigs[0].Monitors[0]
 	input.id = string(id)
 	input.key = string(key)
 
@@ -343,7 +331,7 @@ func CreateCephBlockPoolListWatch(cephClient rookclient.Interface, namespace, fi
 /* RBD CLI Commands */
 
 type cephMonitorConfig struct {
-	clusterID, cephClusterNamespace, monitor, id, key string
+	monitor, id, key string
 }
 
 func rbdImageStatus(config *cephMonitorConfig, poolName string) (RBDMirrorStatusVerbose, error) {
