@@ -273,7 +273,7 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			name: "mon with custom tolerations",
+			name: "mon with custom tolerations (additive merge)",
 			specified: rookCephv1.Placement{
 				Tolerations: []corev1.Toleration{
 					{
@@ -285,6 +285,7 @@ func TestGetPlacement(t *testing.T) {
 			},
 			component: "mon",
 			expected: rookCephv1.Placement{
+				// mon has no default tolerations, so only custom toleration is present
 				Tolerations: []corev1.Toleration{
 					{
 						Key:      "custom-toleration",
@@ -522,7 +523,7 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			name: "noobaa-core with custom tolerations and node affinity",
+			name: "noobaa-core with custom tolerations and node affinity (additive merge)",
 			specified: rookCephv1.Placement{
 				Tolerations: []corev1.Toleration{
 					{
@@ -549,7 +550,9 @@ func TestGetPlacement(t *testing.T) {
 			},
 			component: "noobaa-core",
 			expected: rookCephv1.Placement{
+				// noobaa-core has default OCS toleration, so both are merged
 				Tolerations: []corev1.Toleration{
+					getOcsToleration(),
 					{
 						Key:      "custom-noobaa-toleration",
 						Operator: corev1.TolerationOpExists,
@@ -574,7 +577,7 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			name: "api-server with custom toleration",
+			name: "api-server with custom toleration (additive merge)",
 			specified: rookCephv1.Placement{
 				Tolerations: []corev1.Toleration{
 					{
@@ -586,7 +589,9 @@ func TestGetPlacement(t *testing.T) {
 			},
 			component: "api-server",
 			expected: rookCephv1.Placement{
+				// api-server has default OCS toleration, so both are merged
 				Tolerations: []corev1.Toleration{
+					getOcsToleration(),
 					{
 						Key:      "custom-api-toleration",
 						Operator: corev1.TolerationOpExists,
@@ -623,7 +628,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			name:      "component with label selector",
-			component: "all",
+			component: rookCephv1.KeyAll,
 			expected: rookCephv1.Placement{
 				Tolerations: []corev1.Toleration{
 					getOcsToleration(),
@@ -647,7 +652,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			name:      "component with empty label selector",
-			component: "all",
+			component: rookCephv1.KeyAll,
 			expected: rookCephv1.Placement{
 				Tolerations: []corev1.Toleration{
 					getOcsToleration(),
@@ -703,6 +708,299 @@ func TestGetPlacement(t *testing.T) {
 				sc.Spec.LabelSelector = &metav1.LabelSelector{}
 			}
 			result := getPlacement(sc, tt.component)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGetPlacementWithAllInheritance(t *testing.T) {
+	infraToleration := corev1.Toleration{
+		Key:      "node-role.kubernetes.io/infra",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
+
+	testCases := []struct {
+		name              string
+		allPlacement      rookCephv1.Placement
+		componentPlacement rookCephv1.Placement
+		component         string
+		expected          rookCephv1.Placement
+	}{
+		{
+			name: "metrics-exporter inherits tolerations from all placement",
+			allPlacement: rookCephv1.Placement{
+				Tolerations: []corev1.Toleration{infraToleration},
+			},
+			component: "metrics-exporter",
+			expected: rookCephv1.Placement{
+				// Should have: "all" toleration + default OCS toleration
+				Tolerations: []corev1.Toleration{
+					infraToleration,
+					getOcsToleration(),
+				},
+				NodeAffinity: defaults.DefaultNodeAffinity,
+			},
+		},
+		{
+			name: "api-server inherits tolerations from all placement",
+			allPlacement: rookCephv1.Placement{
+				Tolerations: []corev1.Toleration{infraToleration},
+			},
+			component: "api-server",
+			expected: rookCephv1.Placement{
+				// Should have: "all" toleration + default OCS toleration
+				Tolerations: []corev1.Toleration{
+					infraToleration,
+					getOcsToleration(),
+				},
+				NodeAffinity: defaults.DefaultNodeAffinity,
+			},
+		},
+		{
+			name: "metrics-exporter with all and component-specific tolerations",
+			allPlacement: rookCephv1.Placement{
+				Tolerations: []corev1.Toleration{infraToleration},
+			},
+			componentPlacement: rookCephv1.Placement{
+				Tolerations: []corev1.Toleration{
+					{
+						Key:      "custom-toleration",
+						Operator: corev1.TolerationOpExists,
+						Effect:   corev1.TaintEffectNoSchedule,
+					},
+				},
+			},
+			component: "metrics-exporter",
+			expected: rookCephv1.Placement{
+				// Should have: "all" toleration + default OCS toleration + custom toleration
+				Tolerations: []corev1.Toleration{
+					infraToleration,
+					getOcsToleration(),
+					{
+						Key:      "custom-toleration",
+						Operator: corev1.TolerationOpExists,
+						Effect:   corev1.TaintEffectNoSchedule,
+					},
+				},
+				NodeAffinity: defaults.DefaultNodeAffinity,
+			},
+		},
+		{
+			name: "rgw inherits tolerations from all placement",
+			allPlacement: rookCephv1.Placement{
+				Tolerations: []corev1.Toleration{infraToleration},
+			},
+			component: "rgw",
+			expected: rookCephv1.Placement{
+				// Should have: "all" toleration + default OCS toleration
+				Tolerations: []corev1.Toleration{
+					infraToleration,
+					getOcsToleration(),
+				},
+				NodeAffinity: defaults.DefaultNodeAffinity,
+				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+					{
+						MaxSkew:           1,
+						TopologyKey:       "topology.kubernetes.io/zone",
+						WhenUnsatisfiable: corev1.DoNotSchedule,
+						LabelSelector: &metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{
+								{
+									Key:      "rook_object_store",
+									Operator: metav1.LabelSelectorOpIn,
+									Values:   []string{"test-cluster-cephobjectstore"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "noobaa-core inherits tolerations from all placement",
+			allPlacement: rookCephv1.Placement{
+				Tolerations: []corev1.Toleration{infraToleration},
+			},
+			component: "noobaa-core",
+			expected: rookCephv1.Placement{
+				// Should have: "all" toleration + default OCS toleration
+				Tolerations: []corev1.Toleration{
+					infraToleration,
+					getOcsToleration(),
+				},
+				NodeAffinity: defaults.DefaultNodeAffinity,
+			},
+		},
+		{
+			name: "all placement with NodeAffinity is inherited when component has none",
+			allPlacement: rookCephv1.Placement{
+				Tolerations: []corev1.Toleration{infraToleration},
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "node-role.kubernetes.io/infra",
+										Operator: corev1.NodeSelectorOpExists,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			component: "mon", // mon has no default NodeAffinity
+			expected: rookCephv1.Placement{
+				Tolerations: []corev1.Toleration{infraToleration},
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "node-role.kubernetes.io/infra",
+										Operator: corev1.NodeSelectorOpExists,
+									},
+								},
+							},
+						},
+					},
+				},
+				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+					{
+						MaxSkew:           1,
+						TopologyKey:       "topology.kubernetes.io/zone",
+						WhenUnsatisfiable: corev1.DoNotSchedule,
+						LabelSelector: &metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{
+								{
+									Key:      "app",
+									Operator: metav1.LabelSelectorOpIn,
+									Values:   []string{"rook-ceph-mon"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "component NodeAffinity takes precedence over all placement",
+			allPlacement: rookCephv1.Placement{
+				Tolerations: []corev1.Toleration{infraToleration},
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      "from-all-placement",
+										Operator: corev1.NodeSelectorOpExists,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			component: "metrics-exporter", // has default NodeAffinity
+			expected: rookCephv1.Placement{
+				Tolerations: []corev1.Toleration{
+					infraToleration,
+					getOcsToleration(),
+				},
+				// Should keep default NodeAffinity, not from "all"
+				NodeAffinity: defaults.DefaultNodeAffinity,
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			sc := &ocsv1.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-cluster",
+				},
+				Status: ocsv1.StorageClusterStatus{
+					FailureDomainKey: "topology.kubernetes.io/zone",
+				},
+			}
+
+			// Set up the placement map
+			sc.Spec.Placement = rookCephv1.PlacementSpec{}
+
+			// Add "all" placement if specified
+			if !isPlacementEmpty(tt.allPlacement) {
+				sc.Spec.Placement[rookCephv1.KeyAll] = tt.allPlacement
+			}
+
+			// Add component-specific placement if specified
+			if !isPlacementEmpty(tt.componentPlacement) {
+				sc.Spec.Placement[rookCephv1.KeyType(tt.component)] = tt.componentPlacement
+			}
+
+			result := getPlacement(sc, tt.component)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAppendUniqueTolerations(t *testing.T) {
+	tol1 := corev1.Toleration{
+		Key:      "key1",
+		Operator: corev1.TolerationOpEqual,
+		Value:    "value1",
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
+	tol2 := corev1.Toleration{
+		Key:      "key2",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoExecute,
+	}
+
+	testCases := []struct {
+		name       string
+		base       []corev1.Toleration
+		additional []corev1.Toleration
+		expected   []corev1.Toleration
+	}{
+		{
+			name:       "empty base",
+			base:       nil,
+			additional: []corev1.Toleration{tol1},
+			expected:   []corev1.Toleration{tol1},
+		},
+		{
+			name:       "empty additional",
+			base:       []corev1.Toleration{tol1},
+			additional: nil,
+			expected:   []corev1.Toleration{tol1},
+		},
+		{
+			name:       "no duplicates",
+			base:       []corev1.Toleration{tol1},
+			additional: []corev1.Toleration{tol2},
+			expected:   []corev1.Toleration{tol1, tol2},
+		},
+		{
+			name:       "with duplicates",
+			base:       []corev1.Toleration{tol1, tol2},
+			additional: []corev1.Toleration{tol1}, // duplicate
+			expected:   []corev1.Toleration{tol1, tol2},
+		},
+		{
+			name:       "all duplicates",
+			base:       []corev1.Toleration{tol1},
+			additional: []corev1.Toleration{tol1},
+			expected:   []corev1.Toleration{tol1},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			result := appendUniqueTolerations(tt.base, tt.additional)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
