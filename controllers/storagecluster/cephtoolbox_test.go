@@ -37,7 +37,7 @@ func TestEnsureToolsDeployment(t *testing.T) {
 			enableCephTools: false,
 		},
 		{
-			label:           "Case 3: Custom toleration",
+			label:           "Case 3: Custom toleration (additive merge with default)",
 			enableCephTools: true,
 			tolerations: []corev1.Toleration{{
 				Key:      "test-toleration",
@@ -45,12 +45,16 @@ func TestEnsureToolsDeployment(t *testing.T) {
 				Value:    "true",
 				Effect:   corev1.TaintEffectNoSchedule,
 			}},
-			expectedTolerations: []corev1.Toleration{{
-				Key:      "test-toleration",
-				Operator: corev1.TolerationOpEqual,
-				Value:    "true",
-				Effect:   corev1.TaintEffectNoSchedule,
-			}},
+			// Tolerations are now merged additively: default OCS toleration + custom toleration
+			expectedTolerations: []corev1.Toleration{
+				getOcsToleration(),
+				{
+					Key:      "test-toleration",
+					Operator: corev1.TolerationOpEqual,
+					Value:    "true",
+					Effect:   corev1.TaintEffectNoSchedule,
+				},
+			},
 			expectedNodeAffinity: defaults.DefaultNodeAffinity,
 		},
 		{
@@ -145,7 +149,7 @@ func TestEnsureToolsDeploymentUpdate(t *testing.T) {
 			enableCephTools: false,
 		},
 		{
-			label:           "Case 3: Update with custom toleration and custom node affinity",
+			label:           "Case 3: Update with custom toleration and custom node affinity (additive merge)",
 			enableCephTools: true,
 			tolerations: []corev1.Toleration{{
 				Key:      "test-toleration",
@@ -167,12 +171,16 @@ func TestEnsureToolsDeploymentUpdate(t *testing.T) {
 					},
 				},
 			},
-			expectedTolerations: []corev1.Toleration{{
-				Key:      "test-toleration",
-				Operator: corev1.TolerationOpEqual,
-				Value:    "true",
-				Effect:   corev1.TaintEffectNoSchedule,
-			}},
+			// Tolerations are now merged additively: default OCS toleration + custom toleration
+			expectedTolerations: []corev1.Toleration{
+				getOcsToleration(),
+				{
+					Key:      "test-toleration",
+					Operator: corev1.TolerationOpEqual,
+					Value:    "true",
+					Effect:   corev1.TaintEffectNoSchedule,
+				},
+			},
 			expectedNodeAffinity: &corev1.NodeAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 					NodeSelectorTerms: []corev1.NodeSelectorTerm{
