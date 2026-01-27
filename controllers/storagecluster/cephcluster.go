@@ -1172,25 +1172,43 @@ func createPrometheusRules(r *StorageClusterReconciler, sc *ocsv1.StorageCluster
 		},
 	}
 
-	// if nearFullRatio/backfillFullRatio/fullRatio are specified on the StorageCLuster CR, replace the values in the prometheus rule accordingly
+	// if nearFullRatio/backfillFullRatio/fullRatio are specified on the StorageCluster CR,
+	// replace the values in the prometheus rule accordingly
 	specifiedNearFullRatio := sc.Spec.ManagedResources.CephCluster.NearFullRatio
 	specifiedBackfillFullRatio := sc.Spec.ManagedResources.CephCluster.BackfillFullRatio
 	specifiedFullRatio := sc.Spec.ManagedResources.CephCluster.FullRatio
 
 	if specifiedNearFullRatio != nil {
+		nearFullPercentage := fmt.Sprintf("%.0f%%", *specifiedNearFullRatio*100)
+		nearFullDecimal := fmt.Sprintf("%.2f", *specifiedNearFullRatio)
+		// CephClusterNearFull uses nearFullRatio in expression and description
 		replaceTokens = append(replaceTokens,
-			createReplaceToken("", "", "75%", fmt.Sprintf("%.2f%%", *specifiedNearFullRatio*100)),
-			createReplaceToken("", "", "0.75", fmt.Sprintf("%f", *specifiedNearFullRatio)))
+			createReplaceToken("", "CephClusterNearFull", "75%", nearFullPercentage),
+			createReplaceToken("", "CephClusterNearFull", "0.75", nearFullDecimal))
+		// CephOSDNearFull uses nearFullRatio in expression and description
+		replaceTokens = append(replaceTokens,
+			createReplaceToken("", "CephOSDNearFull", "75%", nearFullPercentage),
+			createReplaceToken("", "CephOSDNearFull", "0.75", nearFullDecimal))
 	}
 	if specifiedBackfillFullRatio != nil {
+		backfillFullPercentage := fmt.Sprintf("%.0f%%", *specifiedBackfillFullRatio*100)
+		backfillFullDecimal := fmt.Sprintf("%.2f", *specifiedBackfillFullRatio)
+		// CephClusterCriticallyFull uses backfillFullRatio in expression and description
 		replaceTokens = append(replaceTokens,
-			createReplaceToken("", "", "80%", fmt.Sprintf("%.2f%%", *specifiedBackfillFullRatio*100)),
-			createReplaceToken("", "", "0.80", fmt.Sprintf("%f", *specifiedBackfillFullRatio)))
+			createReplaceToken("", "CephClusterCriticallyFull", "80%", backfillFullPercentage),
+			createReplaceToken("", "CephClusterCriticallyFull", "0.80", backfillFullDecimal))
 	}
 	if specifiedFullRatio != nil {
+		fullPercentage := fmt.Sprintf("%.0f%%", *specifiedFullRatio*100)
+		fullDecimal := fmt.Sprintf("%.2f", *specifiedFullRatio)
+		// CephClusterReadOnly uses fullRatio in expression and description
 		replaceTokens = append(replaceTokens,
-			createReplaceToken("", "", "85%", fmt.Sprintf("%.2f%%", *specifiedFullRatio*100)),
-			createReplaceToken("", "", "0.85", fmt.Sprintf("%f", *specifiedFullRatio)))
+			createReplaceToken("", "CephClusterReadOnly", "85%", fullPercentage),
+			createReplaceToken("", "CephClusterReadOnly", "0.85", fullDecimal))
+		// Also update "read-only at 85%" references in other cluster alerts' descriptions
+		replaceTokens = append(replaceTokens,
+			createReplaceToken("", "CephClusterNearFull", "85%", fullPercentage),
+			createReplaceToken("", "CephClusterCriticallyFull", "85%", fullPercentage))
 	}
 
 	// nothing to replace in external mode

@@ -1328,6 +1328,60 @@ func TestChangePrometheusExprFunc(t *testing.T) {
 	}
 }
 
+// TestAlertSpecificReplacementPreventsCascading verifies that using alert-specific replacements
+// prevents cascading substring matches. For example, if nearFullRatio=0.80 and backfillFullRatio=0.85,
+// a global replace of "0.80" would incorrectly match the substring in "0.80" (from nearFullRatio replacement).
+func TestAlertSpecificReplacementPreventsCascading(t *testing.T) {
+	prometheusRule, err := parsePrometheusRule(localPrometheusRules)
+	assert.NilError(t, err)
+
+	// Simulate the scenario: nearFullRatio=0.80, backfillFullRatio=0.85, fullRatio=0.90
+	// With alert-specific replacements, each alert should get only its intended value
+	var changeTokens = []replaceToken{
+		// nearFullRatio (0.80) for CephClusterNearFull and CephOSDNearFull
+		{recordOrAlertName: "CephClusterNearFull", wordToReplace: "0.75", replaceWith: "0.80"},
+		{recordOrAlertName: "CephOSDNearFull", wordToReplace: "0.75", replaceWith: "0.80"},
+		// backfillFullRatio (0.85) for CephClusterCriticallyFull
+		{recordOrAlertName: "CephClusterCriticallyFull", wordToReplace: "0.80", replaceWith: "0.85"},
+		// fullRatio (0.90) for CephClusterReadOnly
+		{recordOrAlertName: "CephClusterReadOnly", wordToReplace: "0.85", replaceWith: "0.90"},
+	}
+	changePromRule(prometheusRule, changeTokens)
+
+	// Verify each alert has the correct value (not cascaded)
+	expectedValues := map[string]string{
+		"CephClusterNearFull":       "0.80", // Should NOT have cascaded to 0.85 or 0.90
+		"CephOSDNearFull":           "0.80", // Should NOT have cascaded to 0.85 or 0.90
+		"CephClusterCriticallyFull": "0.85", // Should NOT have cascaded to 0.90
+		"CephClusterReadOnly":       "0.90", // Final value, no cascading possible
+	}
+
+	for _, grp := range prometheusRule.Spec.Groups {
+		for _, rule := range grp.Rules {
+			expectedVal, exists := expectedValues[rule.Alert]
+			if !exists {
+				continue
+			}
+			exprStr := rule.Expr.String()
+			assert.Assert(t, strings.Contains(exprStr, expectedVal),
+				fmt.Sprintf("Alert %s should have value %s in expression, got: %s", rule.Alert, expectedVal, exprStr))
+
+			// Verify NO cascading happened - the value should appear only once (not multiple times due to cascading)
+			// For example, CephClusterNearFull should NOT contain "0.85" or "0.90"
+			switch rule.Alert {
+			case "CephClusterNearFull", "CephOSDNearFull":
+				assert.Assert(t, !strings.Contains(exprStr, "0.85"),
+					fmt.Sprintf("Alert %s should NOT have cascaded to 0.85, got: %s", rule.Alert, exprStr))
+				assert.Assert(t, !strings.Contains(exprStr, "0.90"),
+					fmt.Sprintf("Alert %s should NOT have cascaded to 0.90, got: %s", rule.Alert, exprStr))
+			case "CephClusterCriticallyFull":
+				assert.Assert(t, !strings.Contains(exprStr, "0.90"),
+					fmt.Sprintf("Alert %s should NOT have cascaded to 0.90, got: %s", rule.Alert, exprStr))
+			}
+		}
+	}
+}
+
 func TestGetNetworkSpec(t *testing.T) {
 	testTable := []struct {
 		desc     string
