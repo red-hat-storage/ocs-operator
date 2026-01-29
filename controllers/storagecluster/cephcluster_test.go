@@ -378,7 +378,7 @@ func TestGenerateMgrSpec(t *testing.T) {
 	for _, c := range cases {
 		t.Logf("Case: %s\n", c.label)
 		t.Setenv(ocsutil.SingleNodeEnvVar, strconv.FormatBool(c.isSingleNode))
-		actual := generateMgrSpec(c.sc)
+		actual := generateMgrSpec(c.sc, false)
 		assert.DeepEqual(t, c.expectedMgr, actual)
 	}
 }
@@ -482,7 +482,8 @@ func TestGenerateMonSpec(t *testing.T) {
 	for _, c := range cases {
 		t.Logf("Case: %s\n", c.label)
 		t.Setenv(ocsutil.SingleNodeEnvVar, strconv.FormatBool(c.isSingleNode))
-		actual := generateMonSpec(c.sc)
+		t.Setenv(ocsutil.SingleNodeEnvVar, strconv.FormatBool(c.isSingleNode))
+		actual := generateMonSpec(c.sc, false)
 		assert.DeepEqual(t, c.expectedMon, actual)
 	}
 
