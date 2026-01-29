@@ -51,6 +51,19 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		placement = defaultPlacement
 	}
 
+	// Merge with the "all" placement from StorageCluster.Spec.Placement to inherit
+	// tolerations and other placement settings specified for all components.
+	// This follows the same pattern as Rook's placement handling where "all"
+	// placement settings are inherited by all components.
+	// This ensures tolerations are merged additively and
+	//  component-specific settings take precedence over "all" settings.
+	if component != rookCephv1.KeyAll {
+		allPlacement := sc.Spec.Placement.All()
+		if !isPlacementEmpty(allPlacement) {
+			placement = mergePlacements(allPlacement, placement)
+		}
+	}
+
 	if component == "arbiter" && !sc.Spec.Arbiter.DisableMasterNodeToleration {
 		placement.Tolerations = append(placement.Tolerations, defaults.MasterNodeToleration)
 	}
@@ -112,12 +125,9 @@ func mergePlacements(defaultPlacement rookCephv1.Placement, specifiedPlacement r
 		merged.PodAntiAffinity = defaultPlacement.PodAntiAffinity.DeepCopy()
 	}
 
-	// Tolerations
-	if specifiedPlacement.Tolerations != nil {
-		merged.Tolerations = specifiedPlacement.Tolerations
-	} else if defaultPlacement.Tolerations != nil {
-		merged.Tolerations = defaultPlacement.Tolerations
-	}
+	// Tolerations - use additive merge: append specified tolerations to default tolerations.
+	// appendUniqueTolerations handles nil slices correctly.
+	merged.Tolerations = appendUniqueTolerations(defaultPlacement.Tolerations, specifiedPlacement.Tolerations)
 
 	// TopologySpreadConstraints
 	if specifiedPlacement.TopologySpreadConstraints != nil {
@@ -127,6 +137,37 @@ func mergePlacements(defaultPlacement rookCephv1.Placement, specifiedPlacement r
 	}
 
 	return merged
+}
+
+// appendUniqueTolerations appends tolerations from 'additional' to 'base', avoiding duplicates.
+// A toleration is considered duplicate if it has the same Key, Operator, Value, and Effect.
+func appendUniqueTolerations(base, additional []corev1.Toleration) []corev1.Toleration {
+	if len(additional) == 0 {
+		return base
+	}
+	if len(base) == 0 {
+		return additional
+	}
+
+	result := make([]corev1.Toleration, len(base))
+	copy(result, base)
+
+	for _, tol := range additional {
+		if !containsToleration(result, tol) {
+			result = append(result, tol)
+		}
+	}
+	return result
+}
+
+// containsToleration checks if a toleration slice contains a specific toleration
+func containsToleration(tolerations []corev1.Toleration, tol corev1.Toleration) bool {
+	for _, t := range tolerations {
+		if t.Key == tol.Key && t.Operator == tol.Operator && t.Value == tol.Value && t.Effect == tol.Effect {
+			return true
+		}
+	}
+	return false
 }
 
 // convertLabelToNodeSelectorRequirements returns a NodeSelectorRequirement list from a given LabelSelector
@@ -175,7 +216,7 @@ func appendNodeRequirements(placement *rookCephv1.Placement, reqs ...corev1.Node
 func isPlacementEmpty(placement rookCephv1.Placement) bool {
 	return placement.NodeAffinity == nil &&
 		placement.PodAffinity == nil && placement.PodAntiAffinity == nil &&
-		placement.Tolerations == nil && placement.TopologySpreadConstraints == nil
+		len(placement.Tolerations) == 0 && len(placement.TopologySpreadConstraints) == 0
 }
 
 func addSoftTscAtHostLevel(placement *rookCephv1.Placement) {
