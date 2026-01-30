@@ -42,7 +42,7 @@ func (r *StorageClusterReconciler) ensureResourceProfileChangeApplied(sc *ocsv1.
 	}
 
 	// Verify if expected number of mgr pods with the current resource profile label are running
-	if err := r.verifyDaemonWithResourceProfile(sc.Namespace, map[string]string{"app": "rook-ceph-mgr", defaults.ODFResourceProfileKey: currentResourceProfile}, getMgrCount(sc)); err != nil {
+	if err := r.verifyDaemonWithResourceProfile(sc.Namespace, map[string]string{"app": "rook-ceph-mgr", defaults.ODFResourceProfileKey: currentResourceProfile}, getMgrCount(sc, r.isTnfCluster)); err != nil {
 		return err
 	}
 
