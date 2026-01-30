@@ -104,6 +104,7 @@ type StorageClusterReconciler struct {
 	OperatorCondition         conditions.Condition
 	IsNoobaaStandalone        bool
 	IsMultipleStorageClusters bool
+	isTnfCluster              bool
 	clusters                  *util.Clusters
 	OperatorNamespace         string
 	SecurityClient            secv1client.SecurityV1Interface
