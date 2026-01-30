@@ -1296,7 +1296,7 @@ func TestChangePrometheusExprFunc(t *testing.T) {
 		{recordOrAlertName: "CephMgrIsAbsent", wordToReplace: "openshift-storage", replaceWith: "new-namespace"},
 		// when alert or record name is not specified,
 		// the change should affect all the expressions which has the 'wordInExpr'
-		{recordOrAlertName: "", wordToReplace: "ceph_pool_stored_raw", replaceWith: "new_ceph_pool_stored_raw"},
+		{recordOrAlertName: "", wordToReplace: "ceph_pool_stored", replaceWith: "new_ceph_pool_stored"},
 		{recordOrAlertName: "", wordToReplace: "0.75", replaceWith: "0.775"},
 		{recordOrAlertName: "", wordToReplace: "85%", replaceWith: "92.50%"},
 	}
@@ -1304,8 +1304,8 @@ func TestChangePrometheusExprFunc(t *testing.T) {
 
 	recordOrAlertNameAndReplacedWord := [][2]string{
 		{"CephMgrIsAbsent", "new-namespace"},
-		{"CephPoolQuotaBytesNearExhaustion", "new_ceph_pool_stored_raw"},
-		{"CephPoolQuotaBytesCriticallyExhausted", "new_ceph_pool_stored_raw"},
+		{"CephPoolQuotaBytesNearExhaustion", "new_ceph_pool_stored"},
+		{"CephPoolQuotaBytesCriticallyExhausted", "new_ceph_pool_stored"},
 		{"CephClusterNearFull", "0.775"},
 		{"CephOSDNearFull", "0.775"},
 		{"CephClusterNearFull", "92.50%"},
