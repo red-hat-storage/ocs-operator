@@ -2315,3 +2315,11 @@ func checkClientPreConditions(consumer *ocsv1alpha1.StorageConsumer, ocsOpVersio
 	}
 	return true
 }
+
+// Notify RPC call for action on an OBC for client cluster (currently only NooBaa provisioner)
+func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (*pb.NotifyResponse, error) {
+	logger := klog.FromContext(ctx).WithName("Notify").WithValues("client ID", req.ClientID)
+	logger.Info("Starting Notify RPC", "event", req.Event)
+
+	return nil, status.Error(codes.Unimplemented, "Notify is not implemented yet")
+}
