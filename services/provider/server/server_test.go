@@ -1,11 +1,15 @@
 package server
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/klog/v2"
@@ -115,5 +119,31 @@ func TestGetKubeResourcesForClass(t *testing.T) {
 				t.Fatalf("expected %v to be deep equal to %v", gotObj, wantObj)
 			}
 		})
+	}
+}
+
+// currently Notify is unimplemented, so we just test that the unimplemented error is returned
+func TestNotify_Unimplemented(t *testing.T) {
+	// setup (service and request)
+	srv := &OCSProviderServer{}
+	req := &pb.NotifyRequest{
+		StorageConsumerUUID: "storage-consumer-123",
+		Reason:              pb.NotifyReason_OBC_CREATED,
+	}
+
+	// call Notify
+	ctx := context.Background()
+	resp, err := srv.Notify(ctx, req)
+
+	// check the response and error
+	if resp != nil {
+		t.Fatalf("expected nil response, got %#v", resp)
+	}
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	if status.Code(err) != codes.Unimplemented {
+		t.Fatalf("expected Unimplemented, got %v", status.Code(err))
 	}
 }

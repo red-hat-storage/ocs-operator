@@ -37,6 +37,10 @@ service OCSProvider {
   // GetBlockPoolsInfo RPC call to get BlockPoolInfo for Peer Storage Cluster
   rpc GetBlockPoolsInfo(BlockPoolsInfoRequest)
   returns (BlockPoolsInfoResponse) {}
+
+  // Notify RPC call for action on for client cluster
+  rpc Notify(NotifyRequest)
+  returns (NotifyResponse) {}
 }
 
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
@@ -240,4 +244,24 @@ message BlockPoolInfo{
 message BlockPoolsInfoResponse{
   repeated BlockPoolInfo blockPoolsInfo = 1;
   repeated BlockPoolInfoError errors = 2;
+}
+
+enum NotifyReason{
+  UNKNOWN = 0; // default (must be added according to proto3 documentation)
+  OBC_CREATED = 1;
+  OBC_DELETED = 2;
+}
+
+// NotifyRequest holds the required information for Notify API request
+message NotifyRequest {
+  // K8s UID (UUID) of the consumer cluster.
+  string storageConsumerUUID = 1;
+  NotifyReason reason = 2;
+  // payload holds the serialized bytes - depends on the reason
+  bytes payload  = 3;
+}
+
+// NotifyResponse holds the response for the Notify API request
+message NotifyResponse {
+
 }
