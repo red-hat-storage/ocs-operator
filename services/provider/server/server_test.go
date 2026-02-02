@@ -127,8 +127,8 @@ func TestNotify_Unimplemented(t *testing.T) {
 	// setup (service and request)
 	srv := &OCSProviderServer{}
 	req := &pb.NotifyRequest{
-		ClientID: "client-123",
-		Event:    pb.Event_OBC_CREATE,
+		StorageConsumerUUID: "storage-consumer-123",
+		Event:               pb.Event_OBC_CREATE,
 	}
 
 	// call Notify
