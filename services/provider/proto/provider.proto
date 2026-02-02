@@ -247,7 +247,7 @@ message BlockPoolsInfoResponse{
 }
 
 enum Event{
-  OBC_ACTION_UNSPECIFIED = 0; // default (must be added according to proto3 documentation)
+  UNKNOWN = 0; // default (must be added according to proto3 documentation)
   OBC_CREATE = 1;
   OBC_DELETE = 2;
   OBC_UPDATE = 3; // currently we do not implement OBC_UPDATE
@@ -255,14 +255,12 @@ enum Event{
 
 // NotifyRequest holds the required information for actions on OBC
 message NotifyRequest {
-  // clientID is the k8s UID of storageClient
-  string clientID = 1;
-  // payload holds the serialized bytes - depends on the event:
-  // in case of OBC create - the kube object of the OBC CR
-  // in case of OBC delete - the OBC name and OBC namespace (in the client storage cluster)
-  bytes payload  = 2;
   // the event can be OBC create/delete/update
-  Event event = 3;
+  Event event = 1;
+  // K8s UID (UUID) of the consumer cluster.
+  string storageConsumerUUID = 2;
+  // payload holds the serialized bytes - depends on the event
+  bytes payload  = 3;
 }
 
 // NotifyResponse holds the response for the Notify API request
