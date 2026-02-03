@@ -1603,13 +1603,12 @@ func (x *BlockPoolsInfoResponse) GetErrors() []*BlockPoolInfoError {
 	return nil
 }
 
-// NotifyRequest holds the required information for actions on OBC
+// NotifyRequest holds the required information for Notify API request
 type NotifyRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// the event can be OBC create/delete/update
 	Event Event `protobuf:"varint,1,opt,name=event,proto3,enum=provider.Event" json:"event,omitempty"`
 	// K8s UID (UUID) of the consumer cluster.
 	StorageConsumerUUID string `protobuf:"bytes,2,opt,name=storageConsumerUUID,proto3" json:"storageConsumerUUID,omitempty"`

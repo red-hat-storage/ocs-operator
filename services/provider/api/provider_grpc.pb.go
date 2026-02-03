@@ -33,7 +33,7 @@ type OCSProviderClient interface {
 	GetStorageClientsInfo(ctx context.Context, in *StorageClientsInfoRequest, opts ...grpc.CallOption) (*StorageClientsInfoResponse, error)
 	// GetBlockPoolsInfo RPC call to get BlockPoolInfo for Peer Storage Cluster
 	GetBlockPoolsInfo(ctx context.Context, in *BlockPoolsInfoRequest, opts ...grpc.CallOption) (*BlockPoolsInfoResponse, error)
-	// Notify RPC call for action on an OBC for client cluster (currently only NooBaa provisioner)
+	// Notify RPC call for action on for client cluster
 	Notify(ctx context.Context, in *NotifyRequest, opts ...grpc.CallOption) (*NotifyResponse, error)
 }
 
@@ -145,7 +145,7 @@ type OCSProviderServer interface {
 	GetStorageClientsInfo(context.Context, *StorageClientsInfoRequest) (*StorageClientsInfoResponse, error)
 	// GetBlockPoolsInfo RPC call to get BlockPoolInfo for Peer Storage Cluster
 	GetBlockPoolsInfo(context.Context, *BlockPoolsInfoRequest) (*BlockPoolsInfoResponse, error)
-	// Notify RPC call for action on an OBC for client cluster (currently only NooBaa provisioner)
+	// Notify RPC call for action on for client cluster
 	Notify(context.Context, *NotifyRequest) (*NotifyResponse, error)
 	mustEmbedUnimplementedOCSProviderServer()
 }
