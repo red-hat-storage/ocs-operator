@@ -38,7 +38,7 @@ service OCSProvider {
   rpc GetBlockPoolsInfo(BlockPoolsInfoRequest)
   returns (BlockPoolsInfoResponse) {}
 
-  // Notify RPC call for action on an OBC for client cluster (currently only NooBaa provisioner)
+  // Notify RPC call for action on for client cluster
   rpc Notify(NotifyRequest)
   returns (NotifyResponse) {}
 }
@@ -253,9 +253,8 @@ enum Event{
   OBC_UPDATE = 3; // currently we do not implement OBC_UPDATE
 }
 
-// NotifyRequest holds the required information for actions on OBC
+// NotifyRequest holds the required information for Notify API request
 message NotifyRequest {
-  // the event can be OBC create/delete/update
   Event event = 1;
   // K8s UID (UUID) of the consumer cluster.
   string storageConsumerUUID = 2;
