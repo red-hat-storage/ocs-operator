@@ -128,7 +128,7 @@ func TestNotify_Unimplemented(t *testing.T) {
 	srv := &OCSProviderServer{}
 	req := &pb.NotifyRequest{
 		StorageConsumerUUID: "storage-consumer-123",
-		Event:               pb.Event_OBC_CREATE,
+		Reason:              pb.NotifyReason_OBC_CREATED,
 	}
 
 	// call Notify

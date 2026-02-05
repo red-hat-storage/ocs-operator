@@ -246,19 +246,18 @@ message BlockPoolsInfoResponse{
   repeated BlockPoolInfoError errors = 2;
 }
 
-enum Event{
+enum NotifyReason{
   UNKNOWN = 0; // default (must be added according to proto3 documentation)
-  OBC_CREATE = 1;
-  OBC_DELETE = 2;
-  OBC_UPDATE = 3; // currently we do not implement OBC_UPDATE
+  OBC_CREATED = 1;
+  OBC_DELETED = 2;
 }
 
 // NotifyRequest holds the required information for Notify API request
 message NotifyRequest {
-  Event event = 1;
   // K8s UID (UUID) of the consumer cluster.
-  string storageConsumerUUID = 2;
-  // payload holds the serialized bytes - depends on the event
+  string storageConsumerUUID = 1;
+  NotifyReason reason = 2;
+  // payload holds the serialized bytes - depends on the reason
   bytes payload  = 3;
 }
 

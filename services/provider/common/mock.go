@@ -24,9 +24,6 @@ const (
 	UpdateInvalidUID       MockError = "UPDATE_INVALID_UID"
 	UpdateConsumerNotFound MockError = "UPDATE_CONSUMER_NOT_FOUND"
 
-	// Notify
-	NotifyUnimplemented MockError = "NOTIFY_UNIMPLEMENTED_ERROR"
-
 	MockConsumerID = "vMHA0ppPbjg5TlgvMFcaH4QlQEJB68u+1jWQJ9O9xvde8fxz5vBuu2F6bVIY6pAYLVrC3FajrK1KxmhFTzNDow=="
 
 	MockProviderAPI = "MOCK_PROVIDER_API"
