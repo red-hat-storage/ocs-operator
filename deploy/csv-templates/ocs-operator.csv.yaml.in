@@ -79,7 +79,7 @@ metadata:
           "spec": null
         }
       ]
-    createdAt: "2026-01-12T05:55:26Z"
+    createdAt: "2026-02-04T07:43:40Z"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     operators.operatorframework.io/builder: operator-sdk-v1.30.0
@@ -606,54 +606,6 @@ spec:
           - list
           - watch
         serviceAccountName: ocs-provider-server
-      - rules:
-        - apiGroups:
-          - authentication.k8s.io
-          resources:
-          - tokenreviews
-          verbs:
-          - create
-        - apiGroups:
-          - authorization.k8s.io
-          resources:
-          - subjectaccessreviews
-          - selfsubjectaccessreviews
-          verbs:
-          - create
-        - apiGroups:
-          - storage.k8s.io
-          resources:
-          - storageclasses
-          verbs:
-          - create
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - objectbucket.io
-          resources:
-          - objectbuckets
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ceph.rook.io
-          resources:
-          - cephobjectstores
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ocs.openshift.io
-          resources:
-          - storageclusters
-          verbs:
-          - get
-          - list
-          - watch
-        serviceAccountName: ux-backend-server
       deployments:
       - name: ocs-operator
         spec:
@@ -722,17 +674,6 @@ spec:
                 secret:
                   optional: true
                   secretName: onboarding-private-key
-      permissions:
-      - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          verbs:
-          - create
-          - get
-          - update
-        serviceAccountName: ocs-devicefinder-sa
     strategy: deployment
   installModes:
   - supported: true
