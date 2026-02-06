@@ -755,7 +755,7 @@ func (s *OCSProviderServer) getOBCResourcesForConsumer(ctx context.Context, cons
 		}
 		return nil, nil, err
 	}
-	var resourceVersions, obcNames []string
+	resourceVersions, obcNames := []string{}, []string{}
 	for i := range obcList.Items {
 		obc := &obcList.Items[i]
 		resourceVersions = append(resourceVersions, obc.ResourceVersion)
