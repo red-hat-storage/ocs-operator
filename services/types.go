@@ -15,3 +15,8 @@ type OnboardingTicket struct {
 	SubjectRole    OnboardingSubjectRole `json:"subjectRole"`
 	StorageCluster types.UID             `json:"storageCluster"`
 }
+
+type ResourcePair struct {
+	ResourceName    string `json:"resourceName"`
+	ResourceVersion string `json:"resourceVersion"`
+}
