@@ -33,6 +33,8 @@ type OCSProviderClient interface {
 	GetStorageClientsInfo(ctx context.Context, in *StorageClientsInfoRequest, opts ...grpc.CallOption) (*StorageClientsInfoResponse, error)
 	// GetBlockPoolsInfo RPC call to get BlockPoolInfo for Peer Storage Cluster
 	GetBlockPoolsInfo(ctx context.Context, in *BlockPoolsInfoRequest, opts ...grpc.CallOption) (*BlockPoolsInfoResponse, error)
+	// Notify RPC call for action on for client cluster
+	Notify(ctx context.Context, in *NotifyRequest, opts ...grpc.CallOption) (*NotifyResponse, error)
 }
 
 type oCSProviderClient struct {
@@ -115,6 +117,15 @@ func (c *oCSProviderClient) GetBlockPoolsInfo(ctx context.Context, in *BlockPool
 	return out, nil
 }
 
+func (c *oCSProviderClient) Notify(ctx context.Context, in *NotifyRequest, opts ...grpc.CallOption) (*NotifyResponse, error) {
+	out := new(NotifyResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/Notify", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // OCSProviderServer is the server API for OCSProvider service.
 // All implementations must embed UnimplementedOCSProviderServer
 // for forward compatibility
@@ -134,6 +145,8 @@ type OCSProviderServer interface {
 	GetStorageClientsInfo(context.Context, *StorageClientsInfoRequest) (*StorageClientsInfoResponse, error)
 	// GetBlockPoolsInfo RPC call to get BlockPoolInfo for Peer Storage Cluster
 	GetBlockPoolsInfo(context.Context, *BlockPoolsInfoRequest) (*BlockPoolsInfoResponse, error)
+	// Notify RPC call for action on for client cluster
+	Notify(context.Context, *NotifyRequest) (*NotifyResponse, error)
 	mustEmbedUnimplementedOCSProviderServer()
 }
 
@@ -164,6 +177,9 @@ func (UnimplementedOCSProviderServer) GetStorageClientsInfo(context.Context, *St
 }
 func (UnimplementedOCSProviderServer) GetBlockPoolsInfo(context.Context, *BlockPoolsInfoRequest) (*BlockPoolsInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlockPoolsInfo not implemented")
+}
+func (UnimplementedOCSProviderServer) Notify(context.Context, *NotifyRequest) (*NotifyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Notify not implemented")
 }
 func (UnimplementedOCSProviderServer) mustEmbedUnimplementedOCSProviderServer() {}
 
@@ -322,6 +338,24 @@ func _OCSProvider_GetBlockPoolsInfo_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OCSProvider_Notify_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NotifyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OCSProviderServer).Notify(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/provider.OCSProvider/Notify",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OCSProviderServer).Notify(ctx, req.(*NotifyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // OCSProvider_ServiceDesc is the grpc.ServiceDesc for OCSProvider service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -360,6 +394,10 @@ var OCSProvider_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBlockPoolsInfo",
 			Handler:    _OCSProvider_GetBlockPoolsInfo_Handler,
+		},
+		{
+			MethodName: "Notify",
+			Handler:    _OCSProvider_Notify_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

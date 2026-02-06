@@ -33,3 +33,12 @@ func mockOffboardConsumer(mockError common.MockError) (*pb.OffboardConsumerRespo
 	}
 	return &pb.OffboardConsumerResponse{}, nil
 }
+
+func mockNotify(mockError common.MockError) (*pb.NotifyResponse, error) { //nolint:deadcode,unused
+	notifyUnimplemented := common.MockError("NOTIFY_UNIMPLEMENTED_ERROR")
+	switch mockError {
+	case notifyUnimplemented:
+		return nil, status.Errorf(codes.Unimplemented, "Notify is not implemented yet")
+	}
+	return &pb.NotifyResponse{}, nil
+}

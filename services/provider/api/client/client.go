@@ -189,3 +189,21 @@ func (cc *OCSProviderClient) GetBlockPoolsInfo(ctx context.Context, storageClust
 
 	return cc.Client.GetBlockPoolsInfo(apiCtx, req)
 }
+
+// Notify RPC call for Notify API request
+func (cc *OCSProviderClient) Notify(ctx context.Context, reason pb.NotifyReason, consumerUUID string, payload []byte) (*pb.NotifyResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
+	req := &pb.NotifyRequest{
+		Reason:              reason,
+		StorageConsumerUUID: consumerUUID,
+		Payload:             payload,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.Notify(apiCtx, req)
+}
