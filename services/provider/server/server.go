@@ -115,6 +115,8 @@ type OCSProviderServer struct {
 	namespace                 string
 }
 
+type stringPair [2]string
+
 func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
 	scheme, err := newScheme()
 	if err != nil {
@@ -694,6 +696,12 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "failed to produce client state")
 	}
 
+	obcResourceVersions, err := s.getOBCResourceVersions(ctx, logger, storageConsumer)
+	if err != nil {
+		logger.Error(err, "failed to get hosted OBC resource versions for consumer", storageConsumer.GetUID())
+		return nil, status.Errorf(codes.Internal, "Failed to produce client state")
+	}
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
@@ -711,6 +719,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		vGSClassesResourceVersion,
 		odfVGSClassesResourceVersion,
 		util.ShouldUseHostNetworking(storageCluster),
+		obcResourceVersions,
 	)
 
 	logger.Info("Successfully processed status report")
@@ -722,6 +731,85 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 
 func getDesiredClientConfigHash(parts ...any) string {
 	return util.CalculateMD5Hash(parts)
+}
+
+func compareStringPair(a, b stringPair) int {
+	if r := strings.Compare(a[0], b[0]); r != 0 {
+		return r
+	} else {
+		return strings.Compare(a[1], b[1])
+	}
+}
+
+/*
+getOBCResourceVersions returns a single list containing OBC, OB, ConfigMap and Secret ResourceVersions for a storage consumer
+*/
+func (s *OCSProviderServer) getOBCResourceVersions(ctx context.Context, logger logr.Logger, consumer *ocsv1alpha1.StorageConsumer) (resourceVersions []stringPair, err error) {
+	obcList := &nbv1.ObjectBucketClaimList{}
+	if err := s.client.List(
+		ctx,
+		obcList,
+		client.InNamespace(consumer.Namespace),
+		client.MatchingLabels{
+			storageConsumerUUIDLabelKey: string(consumer.GetUID()),
+		},
+	); err != nil {
+		logger.Error(err, "failed to list OBC's for consumer")
+		return nil, fmt.Errorf("failed to list OBC's for consumer. error is %v", err)
+	}
+
+	for i := range obcList.Items {
+		obc := &obcList.Items[i]
+		resourceVersions = append(
+			resourceVersions,
+			stringPair{"obc", obc.GetResourceVersion()},
+		)
+
+		ob := &nbv1.ObjectBucket{}
+		ob.Name = fmt.Sprintf("obc-%s-%s", consumer.Namespace, obc.GetName())
+		if err := s.client.Get(
+			ctx,
+			client.ObjectKeyFromObject(ob),
+			ob,
+		); err != nil {
+			return nil, fmt.Errorf("failed to get OB for consumer. error is %v", err)
+		}
+
+		resourceVersions = append(resourceVersions, stringPair{"ob", ob.ResourceVersion})
+
+		configMap := &v1.ConfigMap{}
+		configMap.Namespace = consumer.Namespace
+		configMap.Name = obc.GetName()
+		if err := s.client.Get(
+			ctx,
+			client.ObjectKeyFromObject(configMap),
+			configMap,
+		); err != nil {
+			return nil, fmt.Errorf("failed to get ConfigMap for OBC %s. error is %v", obc.Name, err)
+		}
+		resourceVersions = append(
+			resourceVersions,
+			stringPair{"configmap", configMap.ResourceVersion},
+		)
+
+		secret := &v1.Secret{}
+		secret.Namespace = consumer.Namespace
+		secret.Name = obc.GetName()
+		if err := s.client.Get(
+			ctx,
+			client.ObjectKeyFromObject(secret),
+			secret,
+		); err != nil {
+			return nil, fmt.Errorf("failed to get Secret for OBC %s. error is %v", obc.Name, err)
+		}
+		resourceVersions = append(
+			resourceVersions,
+			stringPair{"secret", secret.ResourceVersion},
+		)
+	}
+
+	slices.SortFunc(resourceVersions, compareStringPair)
+	return
 }
 
 func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (string, error) {
