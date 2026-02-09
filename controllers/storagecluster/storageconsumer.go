@@ -252,7 +252,7 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 	}
 	for idx := range storageClassesInCluster.Items {
 		sc := &storageClassesInCluster.Items[idx]
-		if slices.Contains(util.SupportedCsiDrivers, sc.Provisioner) {
+		if slices.Contains(util.SupportedCsiDrivers, sc.Provisioner) && sc.DeletionTimestamp.IsZero() {
 			storageClassNames[sc.Name] = true
 		}
 	}
@@ -290,7 +290,7 @@ func getLocalVolumeSnapshotClassNames(ctx context.Context, kubeClient client.Cli
 	for idx := range volumeSnapshotClassesInCluster.Items {
 		// TODO: skip volumesnapshotclasses that are from external mode if both internal & external mode is enabled
 		vsc := &volumeSnapshotClassesInCluster.Items[idx]
-		if slices.Contains(util.SupportedCsiDrivers, vsc.Driver) {
+		if slices.Contains(util.SupportedCsiDrivers, vsc.Driver) && vsc.DeletionTimestamp.IsZero() {
 			volumeSnapshotClassNames[vsc.Name] = true
 		}
 	}
@@ -329,7 +329,7 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 		for idx := range volumeGroupSnapshotClassesInCluster.Items {
 			// TODO: skip volumegroupsnapshotclasses that are from external mode if both internal & external mode is enabled
 			vgsc := &volumeGroupSnapshotClassesInCluster.Items[idx]
-			if slices.Contains(util.SupportedCsiDrivers, vgsc.Driver) {
+			if slices.Contains(util.SupportedCsiDrivers, vgsc.Driver) && vgsc.DeletionTimestamp.IsZero() {
 				volumeGroupSnapshotClassNames[vgsc.Name] = true
 			}
 		}
