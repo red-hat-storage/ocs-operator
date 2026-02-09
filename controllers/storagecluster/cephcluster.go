@@ -237,7 +237,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		cephCluster.Spec.DisruptionManagement.ManagePodBudgets = false
 	}
 
-	ipFamily, isDualStack, err := getIPFamilyConfig(r.Client)
+	ipFamily, err := getIPFamilyConfig(r.Client)
 	if err != nil {
 		r.Log.Error(err, "failed to get IPFamily of the cluster")
 		return reconcile.Result{}, err
@@ -246,14 +246,9 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	// Dual Stack is not supported in downstream ceph. BZ references:
 	// https://bugzilla.redhat.com/show_bug.cgi?id=1804290
 	// https://bugzilla.redhat.com/show_bug.cgi?id=2181350#c10
-	// So use IPv4 and DualStack:False in case of dual stack cluster
-	// No need to update the ipFamily config in the Network settings if the cluster is single Stack IPv4.
-	if isDualStack {
-		cephCluster.Spec.Network.IPFamily = rookCephv1.IPv4
-		cephCluster.Spec.Network.DualStack = false
-	} else if ipFamily == rookCephv1.IPv6 {
-		cephCluster.Spec.Network.IPFamily = ipFamily
-	}
+	// So spec.Network.DualStack never set to true in the CephCluster resource
+	r.Log.Info("Setting IPFamily", "IPFamily", ipFamily, "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
+	cephCluster.Spec.Network.IPFamily = ipFamily
 
 	// Check if this CephCluster already exists
 	found := &rookCephv1.CephCluster{}
@@ -1405,30 +1400,26 @@ func getMonitoringClient() (*monitoringclient.Clientset, error) {
 }
 
 // getIPFamilyConfig checks for a Single Stack IPv6 or a Dual Stack cluster
-func getIPFamilyConfig(c client.Client) (rookCephv1.IPFamilyType, bool, error) {
-	isIPv6 := false
-	isIPv4 := false
+func getIPFamilyConfig(c client.Client) (rookCephv1.IPFamilyType, error) {
 	networkConfig := &configv1.Network{}
 	err := c.Get(context.TODO(), types.NamespacedName{Name: "cluster", Namespace: ""}, networkConfig)
 	if err != nil {
-		return "", false, fmt.Errorf("could not get network config details. %v", err)
+		return "", fmt.Errorf("could not get network config details. %v", err)
 	}
 
+	// Note: In case of a dual stack cluster, the order of the CIDR in the networkConfig resource decides if its a IPv6 Primary or IPv4 primary cluster.
+	// So we only check the first CIDR entry and return the IPFamily accordingly.
 	for _, cidr := range networkConfig.Status.ClusterNetwork {
-		if strings.Count(cidr.CIDR, ":") < 2 {
-			isIPv4 = true
-		} else if strings.Count(cidr.CIDR, ":") >= 2 {
-			isIPv6 = true
+		if strings.Count(cidr.CIDR, ":") >= 2 {
+			// the first CIDR entry is IPv6. So return IPv6 IPFamily
+			return rookCephv1.IPv6, nil
+		} else if strings.Count(cidr.CIDR, ":") < 2 {
+			// the first CIDR entry is IPv4. So return IPv4 IPFamily
+			return rookCephv1.IPv4, nil
 		}
 	}
 
-	if isIPv4 && isIPv6 {
-		return "", true, nil
-	} else if isIPv6 { // IPv6 single stack cluster
-		return rookCephv1.IPv6, false, nil
-	}
-
-	return rookCephv1.IPv4, false, nil
+	return rookCephv1.IPv4, nil
 }
 
 func updateOSDStore(existingOSDStore rookCephv1.OSDStore) rookCephv1.OSDStore {
