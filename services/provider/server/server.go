@@ -4,10 +4,12 @@ import (
 	"cmp"
 	"context"
 	"crypto"
+	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -62,10 +64,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -80,6 +84,14 @@ const (
 	mirroringTokenKey             = "rbdMirrorBootstrapPeerSecretName"
 	clientInfoRbdClientProfileKey = "csiop-rbd-client-profile"
 	csiCephUserCurrGen            = 1
+
+	remoteObcCreationAnnotationKey = "remote-obc-creation"
+	remoteObcNameLabelKey          = "remote-obc-name"
+	remoteObcNamespaceLabelKey     = "remote-obc-namespace"
+	remoteObcUIDLabelKey           = "remote-obc-uid"
+	storageConsumerNameLabelKey    = "storage-consumer-name"
+	storageConsumerUUIDLabelKey    = "storage-consumer-uuid"
+	prefixOfHashedName             = "remote-obc"
 )
 
 var (
@@ -2321,5 +2333,164 @@ func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (
 	logger := klog.FromContext(ctx).WithName("Notify").WithValues("StorageConsumerUUID", req.StorageConsumerUUID)
 	logger.Info("Starting Notify RPC", "reason", req.Reason)
 
-	return nil, status.Error(codes.Unimplemented, "Notify is not implemented yet")
+	storageConsumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		logger.Error(err, "Failed to get StorageConsumer")
+		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer: storageConsumerUUID=%s", req.StorageConsumerUUID)
+	}
+
+	switch req.Reason {
+	case pb.NotifyReason_OBC_CREATED:
+		obc := &nbv1.ObjectBucketClaim{}
+		if err := json.Unmarshal(req.Payload, obc); err != nil {
+			logger.Error(err, "Failed to unmarshal OBC created payload")
+			return nil, status.Errorf(codes.InvalidArgument, "failed to unmarshal OBC create payload: %v", err)
+		}
+		if err := s.handleObcCreated(ctx, storageConsumer, obc); err != nil {
+			logger.Error(err, "Failed to handle OBC creation")
+			return nil, err
+		}
+	case pb.NotifyReason_OBC_DELETED:
+		var obcNamespacedName types.NamespacedName
+		if err := json.Unmarshal(req.Payload, &obcNamespacedName); err != nil {
+			logger.Error(err, "Failed to unmarshal OBC deleted payload")
+			return nil, status.Errorf(codes.InvalidArgument, "failed to unmarshal OBC delete payload: %v", err)
+		}
+		if err := s.handleObcDeleted(ctx, storageConsumer, obcNamespacedName); err != nil {
+			logger.Error(err, "Failed to handle OBC deletion")
+			return nil, err
+		}
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "failed to find known reason in the Notify RPC request")
+	}
+	logger.Info("Successfully completed Notify RPC", "reason", req.Reason)
+	return &pb.NotifyResponse{}, nil
+}
+
+// handleObcCreated create the OBC that the client cluster asked for on the provider cluster.
+// we use createOrUpdate to handle the case where the OBC already exists and needs to be updated
+// It is a synchronous call, we do not wait for resources to be created.
+// Notes:
+//   - OBC is created in the storage consumer namespace (and not the provider server namespace in case it would be moved)
+//   - The OBC is named with an obscure name to avoid collisions
+//   - Owner reference is set to the storage consumer
+//   - Label added: indicates that the information is about the client cluster OBC
+//   - Annotations added: "remote-obc-creation": "true" (used by MCG CLI)
+func (s *OCSProviderServer) handleObcCreated(
+	ctx context.Context,
+	storageConsumer *ocsv1alpha1.StorageConsumer,
+	obc *nbv1.ObjectBucketClaim,
+) error {
+	storageConsumerUUID := string(storageConsumer.UID)
+	logger := klog.
+		FromContext(ctx).
+		WithName("handleObcCreated").
+		WithValues(
+			"storageConsumerUUID",
+			storageConsumerUUID,
+			"storageConsumer name",
+			storageConsumer.Name,
+		)
+
+	obcName := obc.Name
+	obcNamespace := obc.Namespace
+	logger.Info("Starting handleObcCreated", "remote OBC Name", obcName, "remote OBC Namespace", obcNamespace)
+
+	localObc := &nbv1.ObjectBucketClaim{}
+	localObc.Name = getObcHashedName(client.ObjectKeyFromObject(storageConsumer), obcName, obcNamespace)
+	localObc.Namespace = storageConsumer.Namespace
+
+	logger.Info("CreateOrUpdate OBC object", "OBC Name", localObc.Name, "OBC Namespace", localObc.Namespace)
+	if _, err := ctrl.CreateOrUpdate(ctx, s.client, localObc, func() error {
+		if err := controllerutil.SetOwnerReference(storageConsumer, localObc, s.scheme); err != nil {
+			return status.Errorf(codes.Internal, "failed to set owner reference for OBC name %s namespace %s: %v", obcName, obcNamespace, err)
+		}
+
+		if localObc.Labels == nil {
+			localObc.Labels = map[string]string{}
+		}
+		localObc.Labels[storageConsumerNameLabelKey] = storageConsumer.Name
+		localObc.Labels[storageConsumerUUIDLabelKey] = storageConsumerUUID
+		localObc.Labels[remoteObcNameLabelKey] = obcName
+		localObc.Labels[remoteObcNamespaceLabelKey] = obcNamespace
+		localObc.Labels[remoteObcUIDLabelKey] = string(obc.UID)
+
+		if localObc.Annotations == nil {
+			localObc.Annotations = map[string]string{}
+		}
+		localObc.Annotations[remoteObcCreationAnnotationKey] = "true"
+
+		localObc.Spec = obc.Spec // shadow copy, under the assumption that that the OBC was send for creation only and would not be used in other places
+		return nil
+	}); err != nil {
+		return status.Errorf(codes.Internal, "failed to create/update OBC name %s namespace %s: %v", obcName, obcNamespace, err)
+	}
+	return nil
+}
+
+// handleObcDeleted delete the OBC that the client cluster asked for on the provider cluster.
+// It is a synchronous call, we do not wait for resources to be deleted.
+// Notes:
+//   - OBC is deleted from the storage consumer namespace using the labels set during creation.
+func (s *OCSProviderServer) handleObcDeleted(
+	ctx context.Context,
+	storageConsumer *ocsv1alpha1.StorageConsumer,
+	obcNamespacedName types.NamespacedName,
+) error {
+	storageConsumerUUID := string(storageConsumer.UID)
+	logger := klog.
+		FromContext(ctx).
+		WithName("handleObcDeleted").
+		WithValues(
+			"storageConsumerUUID",
+			storageConsumerUUID,
+			"storageConsumer name",
+			storageConsumer.Name,
+		)
+
+	obcName := obcNamespacedName.Name
+	obcNamespace := obcNamespacedName.Namespace
+	logger.Info("Starting handleObcDeleted", "remote OBC Name", obcName, "remote OBC Namespace", obcNamespace)
+
+	labelSelector := map[string]string{
+		remoteObcNameLabelKey:       obcName,
+		remoteObcNamespaceLabelKey:  obcNamespace,
+		storageConsumerNameLabelKey: storageConsumer.Name,
+	}
+	localObcNamespace := storageConsumer.Namespace
+	obcList := &nbv1.ObjectBucketClaimList{}
+	if err := s.client.List(ctx, obcList, client.InNamespace(localObcNamespace), client.MatchingLabels(labelSelector), client.Limit(1)); err != nil {
+		logger.Error(err, "Failed to list OBC resources", "namespace", localObcNamespace, "labels", labelSelector)
+		return status.Errorf(codes.Internal, "failed to list OBCs for deletion name %s namespace %s: %v", obcName, obcNamespace, err)
+	}
+	if len(obcList.Items) == 0 {
+		logger.Info("OBC not found", "namespace", localObcNamespace, "labels", labelSelector)
+		return nil
+	}
+
+	localObc := &obcList.Items[0]
+	logger.Info("Deleting OBC resource", "namespaced/name", client.ObjectKeyFromObject(localObc))
+	if err := s.client.Delete(ctx, localObc); client.IgnoreNotFound(err) != nil {
+		return status.Errorf(codes.Internal, "failed to delete OBC name %s namespace %s: %v", obcName, obcNamespace, err)
+	}
+	return nil
+}
+
+// getObcHashedName creates a stable hash for OBC name
+// obcName and obcNamespace are from the client cluster
+func getObcHashedName(
+	storageConsumerNamespacedName types.NamespacedName,
+	obcName string,
+	obcNamespace string,
+) string {
+	s := []any{
+		storageConsumerNamespacedName.Namespace,
+		storageConsumerNamespacedName.Name,
+		obcName,
+		obcNamespace,
+	}
+	obcHash := util.JsonMustMarshal(s)
+	md5Sum := md5.Sum(obcHash)
+	hashString := hex.EncodeToString(md5Sum[:16])
+	return fmt.Sprintf("%s-%s", prefixOfHashedName, hashString)
 }
