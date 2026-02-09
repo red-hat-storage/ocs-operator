@@ -294,7 +294,9 @@ func hasNonPortableOSD(sc *ocsv1.StorageCluster) bool {
 
 // when using non default hostNetwork Object Store should run on hostNetwork and use different port to avoid port collision
 func getRGWPort(sc *ocsv1.StorageCluster) int32 {
-	if sc.Spec.ManagedResources.CephObjectStores.GatewayPort != 0 {
+	if sc.Spec.ManagedResources.CephObjectStores.DisableHttp {
+		return 0
+	} else if sc.Spec.ManagedResources.CephObjectStores.GatewayPort != 0 {
 		return int32(sc.Spec.ManagedResources.CephObjectStores.GatewayPort)
 	} else if util.ShouldUseHostNetworking(sc) {
 		return 50080
