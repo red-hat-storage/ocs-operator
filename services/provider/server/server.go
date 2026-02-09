@@ -80,9 +80,10 @@ const (
 	mirroringTokenKey             = "rbdMirrorBootstrapPeerSecretName"
 	clientInfoRbdClientProfileKey = "csiop-rbd-client-profile"
 	csiCephUserCurrGen            = 1
-	consumerNamePrefix            = "openshift"
 	noobaaAppLabel                = "app"
 	noobaa                        = "noobaa"
+	consumerUUID                  = "storage-consumer-uuid"
+	consumerName                  = "storage-consumer-name"
 )
 
 var (
@@ -687,22 +688,22 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 
 	obcResourceVersions, obcList, err := s.getOBCResourcesForConsumer(ctx, storageConsumer)
 	if err != nil {
-		logger.Error(err, "failed to get OBC resource versions for consumer")
+		logger.Error(err, "failed to get hosted OBC resource versions for consumer", storageConsumer.GetUID())
 		return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
 	}
 	obResourceVersions, err := s.getOBResourceVersions(ctx, obcList, storageConsumer)
 	if err != nil {
-		logger.Error(err, "failed to get OB resource versions for consumer")
+		logger.Error(err, "failed to get hosted OB resource versions for consumer", storageConsumer.GetUID())
 		return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
 	}
 	obcConfigMapResourceVersions, err := s.getOBCConfigMapVersions(ctx, obcList, storageConsumer)
 	if err != nil {
-		logger.Error(err, "failed to get ConfigMap resource versions for hosted OBC")
+		logger.Error(err, "failed to get ConfigMap resource versions for hosted OBC", storageConsumer.GetUID())
 		return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
 	}
 	obcSecretResourceVersions, err := s.getOBCSecretVersions(ctx, obcList, storageConsumer)
 	if err != nil {
-		logger.Error(err, "failed to get hosted OBC secrets")
+		logger.Error(err, "failed to get hosted OBC secrets", storageConsumer.GetUID())
 		return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
 	}
 	hashParts := []any{
@@ -746,8 +747,8 @@ getOBCResourcesForConsumer returns list of OBC Resource Versions and their names
 */
 func (s *OCSProviderServer) getOBCResourcesForConsumer(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) ([]string, []string, error) {
 	obcList := &nbv1.ObjectBucketClaimList{}
-	if err := s.client.List(ctx, obcList, client.InNamespace(s.namespace), client.MatchingLabels{
-		"ownerRef":     string(consumer.GetUID()),
+	if err := s.client.List(ctx, obcList, client.InNamespace(consumer.Namespace), client.MatchingLabels{
+		consumerUUID:   string(consumer.GetUID()),
 		noobaaAppLabel: noobaa,
 	}); err != nil {
 		if meta.IsNoMatchError(err) {
@@ -769,7 +770,7 @@ func (s *OCSProviderServer) getOBCResourcesForConsumer(ctx context.Context, cons
 func (s *OCSProviderServer) getOBCConfigMapVersions(ctx context.Context, obcList []string, consumer *ocsv1alpha1.StorageConsumer) ([]string, error) {
 	list := &v1.ConfigMapList{}
 
-	err := s.client.List(ctx, list, client.InNamespace(s.namespace),
+	err := s.client.List(ctx, list, client.InNamespace(consumer.Namespace),
 		client.MatchingLabels{noobaaAppLabel: noobaa})
 	if err != nil {
 		return nil, err
@@ -789,7 +790,7 @@ func (s *OCSProviderServer) getOBCConfigMapVersions(ctx context.Context, obcList
 func (s *OCSProviderServer) getOBResourceVersions(ctx context.Context, obcList []string, consumer *ocsv1alpha1.StorageConsumer) ([]string, error) {
 	list := &nbv1.ObjectBucketList{}
 
-	err := s.client.List(ctx, list, client.InNamespace(s.namespace),
+	err := s.client.List(ctx, list, client.InNamespace(consumer.Namespace),
 		client.MatchingLabels{noobaaAppLabel: noobaa})
 	if err != nil {
 		return nil, err
@@ -798,7 +799,7 @@ func (s *OCSProviderServer) getOBResourceVersions(ctx context.Context, obcList [
 	versions := []string{}
 	obList := []string{}
 	for _, v := range obcList {
-		obList = append(obList, fmt.Sprintf("obc-%s-%s", s.namespace, v))
+		obList = append(obList, fmt.Sprintf("obc-%s-%s", consumer.Namespace, v))
 	}
 
 	for _, v := range list.Items {
@@ -813,7 +814,7 @@ func (s *OCSProviderServer) getOBResourceVersions(ctx context.Context, obcList [
 // getOBCSecretVersions returns a list of Resource Versions of the OBC secrets for the consumer
 func (s *OCSProviderServer) getOBCSecretVersions(ctx context.Context, obcList []string, consumer *ocsv1alpha1.StorageConsumer) ([]string, error) {
 	list := &v1.SecretList{}
-	if err := s.client.List(ctx, list, client.InNamespace(s.namespace),
+	if err := s.client.List(ctx, list, client.InNamespace(consumer.Namespace),
 		client.MatchingLabels{noobaaAppLabel: noobaa}); err != nil {
 		return nil, err
 	}
