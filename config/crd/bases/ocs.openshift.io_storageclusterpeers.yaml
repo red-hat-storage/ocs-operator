@@ -59,6 +59,8 @@ spec:
                   storageClusterUid:
                     type: string
                 type: object
+              reason:
+                type: string
               state:
                 type: string
             required:
