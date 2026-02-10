@@ -93,6 +93,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
 		expected := newCephCluster(reconciler, mockStorageCluster.DeepCopy(), nil)
+		expected.Spec.Network.IPFamily = rookCephv1.IPv4
 		expected.Status.State = c.cephClusterState
 
 		if !c.shouldCreate {
@@ -1703,19 +1704,28 @@ func TestGetIPFamilyConfig(t *testing.T) {
 		// status of the configv1.Network object for the cluster
 		networkStatus    configv1.NetworkStatus
 		expectedIPFamily rookCephv1.IPFamilyType
-		isDualStack      bool
 		expectedError    error
 	}{
 		{
-			label: "Case #1: DualStack cluster",
+			label: "Case #1: DualStack cluster (IPv4)",
 			networkStatus: configv1.NetworkStatus{
 				ClusterNetwork: []configv1.ClusterNetworkEntry{
 					{CIDR: "198.1v2.3.4/16"},
 					{CIDR: "fd01::/48"},
 				},
 			},
-			expectedIPFamily: "",
-			isDualStack:      true,
+			expectedIPFamily: "IPv4",
+			expectedError:    nil,
+		},
+		{
+			label: "Case #2: DualStack cluster (IPv6 Primary)",
+			networkStatus: configv1.NetworkStatus{
+				ClusterNetwork: []configv1.ClusterNetworkEntry{
+					{CIDR: "fd01::/48"},
+					{CIDR: "198.1v2.3.4/16"},
+				},
+			},
+			expectedIPFamily: "IPv6",
 			expectedError:    nil,
 		},
 		{
@@ -1726,18 +1736,16 @@ func TestGetIPFamilyConfig(t *testing.T) {
 				},
 			},
 			expectedIPFamily: "IPv6",
-			isDualStack:      false,
 			expectedError:    nil,
 		},
 		{
-			label: "Case #1: IPv4 cluster",
+			label: "Case #1: IPv4 Cluster",
 			networkStatus: configv1.NetworkStatus{
 				ClusterNetwork: []configv1.ClusterNetworkEntry{
 					{CIDR: "198.1v2.3.4/16"},
 				},
 			},
 			expectedIPFamily: "IPv4",
-			isDualStack:      false,
 			expectedError:    nil,
 		},
 	}
@@ -1752,9 +1760,8 @@ func TestGetIPFamilyConfig(t *testing.T) {
 				Status: tc.networkStatus,
 			}
 			r := createFakeStorageClusterReconciler(t, networkConfig)
-			ipfamily, isDualStack, err := getIPFamilyConfig(r.Client)
+			ipfamily, err := getIPFamilyConfig(r.Client)
 			assert.Equal(t, ipfamily, tc.expectedIPFamily)
-			assert.Equal(t, isDualStack, tc.isDualStack)
 			assert.Equal(t, err, tc.expectedError)
 		})
 
