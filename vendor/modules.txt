@@ -287,6 +287,8 @@ github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versi
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned/typed/objectbucket.io/v1alpha1
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned/typed/objectbucket.io/v1alpha1/fake
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api
+# github.com/kubernetes-csi/external-snapshotter/client/v8 v8.2.0
+## explicit; go 1.22.0
 # github.com/kubernetes-csi/external-snapshotter/client/v8 v8.4.0
 ## explicit; go 1.22.0
 github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1
@@ -441,6 +443,8 @@ github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 ## explicit
 github.com/pmezard/go-difflib/difflib
+# github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.84.1
+## explicit; go 1.24.0
 # github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.86.2
 ## explicit; go 1.24.0
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring
@@ -469,6 +473,8 @@ github.com/prometheus/client_golang/prometheus/promhttp/internal
 # github.com/prometheus/client_model v0.6.2
 ## explicit; go 1.22.0
 github.com/prometheus/client_model/go
+# github.com/prometheus/common v0.66.1
+## explicit; go 1.24.0
 # github.com/prometheus/common v0.67.3
 ## explicit; go 1.24.0
 github.com/prometheus/common/config
@@ -533,6 +539,8 @@ go.opentelemetry.io/otel/trace/internal/telemetry
 # go.uber.org/multierr v1.11.0
 ## explicit; go 1.19
 go.uber.org/multierr
+# go.uber.org/zap v1.27.0
+## explicit; go 1.19
 # go.uber.org/zap v1.27.1
 ## explicit; go 1.19
 go.uber.org/zap
@@ -610,6 +618,8 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
+# golang.org/x/time v0.13.0
+## explicit; go 1.24.0
 # golang.org/x/time v0.14.0
 ## explicit; go 1.24.0
 golang.org/x/time/rate
@@ -767,6 +777,8 @@ gotest.tools/v3/internal/assert
 gotest.tools/v3/internal/difflib
 gotest.tools/v3/internal/format
 gotest.tools/v3/internal/source
+# k8s.io/api v0.34.1
+## explicit; go 1.24.0
 # k8s.io/api v0.34.2
 ## explicit; go 1.24.0
 k8s.io/api/admission/v1
@@ -829,6 +841,8 @@ k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
 k8s.io/api/storagemigration/v1alpha1
+# k8s.io/apiextensions-apiserver v0.33.3
+## explicit; go 1.24.0
 # k8s.io/apiextensions-apiserver v0.34.2
 ## explicit; go 1.24.0
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
@@ -918,6 +932,8 @@ k8s.io/apiserver/pkg/authorization/authorizer
 k8s.io/apiserver/pkg/endpoints/request
 k8s.io/apiserver/pkg/features
 k8s.io/apiserver/pkg/util/feature
+# k8s.io/client-go v0.34.1
+## explicit; go 1.24.0
 # k8s.io/client-go v0.34.2
 ## explicit; go 1.24.0
 k8s.io/client-go/applyconfigurations
@@ -1244,6 +1260,8 @@ k8s.io/kube-openapi/pkg/schemaconv
 k8s.io/kube-openapi/pkg/spec3
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/validation/spec
+# k8s.io/utils v0.0.0-20250820121507-0af2bda4dd1d
+## explicit; go 1.18
 # k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 ## explicit; go 1.18
 k8s.io/utils/buffer
@@ -1262,6 +1280,8 @@ open-cluster-management.io/api/cluster/v1alpha1
 sigs.k8s.io/container-object-storage-interface-api/apis
 sigs.k8s.io/container-object-storage-interface-api/apis/objectstorage
 sigs.k8s.io/container-object-storage-interface-api/apis/objectstorage/v1alpha1
+# sigs.k8s.io/controller-runtime v0.21.0
+## explicit; go 1.24.0
 # sigs.k8s.io/controller-runtime v0.22.4
 ## explicit; go 1.24.0
 sigs.k8s.io/controller-runtime
