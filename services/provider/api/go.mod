@@ -15,3 +15,13 @@ require (
 	golang.org/x/text v0.31.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251110190251-83f479183930 // indirect
 )
+
+require (
+	k8s.io/apimachinery v0.34.2
+    github.com/noobaa/noobaa-operator/v5 v5.0.0-20251118072940-a392e524a776
+)
+
+exclude (
+	// This tag doesn't exist, but is imported by github.com/portworx/sched-ops.
+	github.com/kubernetes-incubator/external-storage v0.20.4-openstorage-rc2
+)
