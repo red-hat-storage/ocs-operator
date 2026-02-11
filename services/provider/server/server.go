@@ -2315,3 +2315,11 @@ func checkClientPreConditions(consumer *ocsv1alpha1.StorageConsumer, ocsOpVersio
 	}
 	return true
 }
+
+// Notify RPC call for Notify API request
+func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (*pb.NotifyResponse, error) {
+	logger := klog.FromContext(ctx).WithName("Notify").WithValues("StorageConsumerUUID", req.StorageConsumerUUID)
+	logger.Info("Starting Notify RPC", "reason", req.Reason)
+
+	return nil, status.Error(codes.Unimplemented, "Notify is not implemented yet")
+}
