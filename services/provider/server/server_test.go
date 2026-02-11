@@ -221,11 +221,11 @@ func TestNotify(t *testing.T) {
 				if obc.Labels[labelKeyRemoteObcOriginalNamespace] != obcNamespace {
 					t.Fatalf("expected label %s=app-namespace, got %v", labelKeyRemoteObcOriginalNamespace, obc.Labels)
 				}
-				if obc.Labels[labelKeyRemoreObcConsumerName] != storageConsumer.Name {
-					t.Fatalf("expected label %s=%s, got %v", labelKeyRemoreObcConsumerName, storageConsumer.Name, obc.Labels)
+				if obc.Labels[labelKeyRemoteObcConsumerName] != storageConsumer.Name {
+					t.Fatalf("expected label %s=%s, got %v", labelKeyRemoteObcConsumerName, storageConsumer.Name, obc.Labels)
 				}
-				if obc.Labels[labelKeyRemoreObcConsumerUUID] != string(storageConsumer.UID) {
-					t.Fatalf("expected label %s=%s, got %v", labelKeyRemoreObcConsumerUUID, storageConsumer.UID, obc.Labels)
+				if obc.Labels[labelKeyRemoteObcConsumerUUID] != string(storageConsumer.UID) {
+					t.Fatalf("expected label %s=%s, got %v", labelKeyRemoteObcConsumerUUID, storageConsumer.UID, obc.Labels)
 				}
 				if obc.Annotations[annotationKeyRemoteObcCreation] != "true" {
 					t.Fatalf("expected annotation %s=true, got %v", annotationKeyRemoteObcCreation, obc.Annotations)
@@ -308,7 +308,7 @@ func TestNotify(t *testing.T) {
 						Labels: map[string]string{
 							labelKeyRemoteObcOriginalName:      obcName,
 							labelKeyRemoteObcOriginalNamespace: obcNamespace,
-							labelKeyRemoreObcConsumerName:      storageConsumer.Name,
+							labelKeyRemoteObcConsumerName:      storageConsumer.Name,
 						},
 					},
 				}

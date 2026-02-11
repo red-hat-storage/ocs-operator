@@ -21,15 +21,16 @@ const (
 	annotationKeyRemoteObcCreation     = "remote-obc-creation"
 	labelKeyRemoteObcOriginalName      = "remote-obc-original-name"
 	labelKeyRemoteObcOriginalNamespace = "remote-obc-original-namespace"
-	labelKeyRemoreObcConsumerName      = "remote-obc-consumer-name"
-	labelKeyRemoreObcConsumerUUID      = "remote-obc-consumer-uuid"
+	labelKeyRemoteObcConsumerName      = "storage-consumer-name"
+	labelKeyRemoteObcConsumerUUID      = "storage-consumer-uuid"
 	prefixOfHashedName                 = "remote-obc"
 )
 
 // handleObcCreated create the OBC that the client cluster asked for on the provider cluster.
 // It is a synchronous call, we do not wait for resources to be created.
 // Notes:
-//   - OBC is created in the provider server namespace with an obscure name to avoid collisions
+//   - OBC is created in the storage consumer namespace (and not the provider server namespace in case it would be moved)
+//   - The OBC is named with an obscure name to avoid collisions
 //   - Owner reference is set to the storage consumer
 //   - Label added: original indicates that the information is about the client cluster OBC
 //     1. "remote-obc-original-name": "<original-obc-name>"       // name provided by the client
@@ -68,15 +69,15 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 	obc := &nbv1.ObjectBucketClaim{}
 	// set resource name to a hash based on storage consumer UUID, OBC name, and OBC namespace
 	obc.Name = getObcHashedName(storageConsumerUUID, obcNameClient, namespaceNameClient)
-	// create in the namespace associated with the provider server
-	obc.Namespace = s.namespace
+	// create in the namespace associated with the storage consumer
+	obc.Namespace = storageConsumer.Namespace
 
 	// add labels for the searching of OBC
 	if obc.Labels == nil {
 		obc.Labels = map[string]string{}
 	}
-	obc.Labels[labelKeyRemoreObcConsumerName] = storageConsumerName
-	obc.Labels[labelKeyRemoreObcConsumerUUID] = storageConsumerUUID
+	obc.Labels[labelKeyRemoteObcConsumerName] = storageConsumerName
+	obc.Labels[labelKeyRemoteObcConsumerUUID] = storageConsumerUUID
 	obc.Labels[labelKeyRemoteObcOriginalName] = obcNameClient
 	obc.Labels[labelKeyRemoteObcOriginalNamespace] = namespaceNameClient
 
@@ -112,7 +113,7 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 // handleObcDeleted delete the OBC that the client cluster asked for on the provider cluster.
 // It is a synchronous call, we do not wait for resources to be deleted.
 // Notes:
-//   - OBC is deleted from the provider server namespace using the labels set during creation.
+//   - OBC is deleted from the storage consumer namespace using the labels set during creation.
 func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsumerUUID string, payload types.NamespacedName) error {
 	logger := klog.FromContext(ctx).WithName("handleObcDelete")
 	logger.Info("handleObcDelete: Starting handleObcDelete", "storageConsumerUUID", storageConsumerUUID)
@@ -139,33 +140,35 @@ func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsume
 	labelSelector := map[string]string{
 		labelKeyRemoteObcOriginalName:      obcNameClient,
 		labelKeyRemoteObcOriginalNamespace: namespaceNameClient,
-		labelKeyRemoreObcConsumerName:      storageConsumerName,
+		labelKeyRemoteObcConsumerName:      storageConsumerName,
 	}
+	// the OBC was created in the storage consumer namespace
+	namespaceObc := storageConsumer.Namespace
 	obcList := &nbv1.ObjectBucketClaimList{}
-	if err := s.client.List(ctx, obcList, client.InNamespace(s.namespace), client.MatchingLabels(labelSelector)); err != nil {
-		logger.Error(err, "handleObcDelete: Failed to list OBC resources", "namespace", s.namespace, "labels", labelSelector)
+	if err := s.client.List(ctx, obcList, client.InNamespace(namespaceObc), client.MatchingLabels(labelSelector)); err != nil {
+		logger.Error(err, "handleObcDelete: Failed to list OBC resources", "namespace", namespaceObc, "labels", labelSelector)
 		return status.Errorf(codes.Internal, "failed to list OBCs for deletion name %s namespace %s: %v", obcNameClient, namespaceNameClient, err)
 	}
 	if len(obcList.Items) == 0 {
-		logger.Info("handleObcDelete: OBC not found", "namespace", s.namespace, "labels", labelSelector)
+		logger.Info("handleObcDelete: OBC not found", "namespace", namespaceObc, "labels", labelSelector)
 		return status.Errorf(codes.NotFound, "OBC not found name %s namespace %s", obcNameClient, namespaceNameClient)
 	}
 	if len(obcList.Items) > 1 {
-		logger.Error(nil, "handleObcDelete: Multiple OBCs matched labels", "namespace", s.namespace, "labels", labelSelector, "count", len(obcList.Items))
+		logger.Error(nil, "handleObcDelete: Multiple OBCs matched labels", "namespace", namespaceObc, "labels", labelSelector, "count", len(obcList.Items))
 		return status.Errorf(codes.Internal, "multiple OBCs matched for deletion name %s namespace %s", obcNameClient, namespaceNameClient)
 	}
 
 	// (4) delete the OBC
 	obc := &obcList.Items[0]
-	logger.Info("handleObcDelete: Deleting OBC resource", "name", obc.Name, "namespace", s.namespace, "labels", labelSelector)
+	logger.Info("handleObcDelete: Deleting OBC resource", "name", obc.Name, "namespace", namespaceObc, "labels", labelSelector)
 	if err := s.client.Delete(ctx, obc); err != nil {
 		if errors.IsNotFound(err) {
 			return status.Errorf(codes.NotFound, "OBC not found name %s namespace %s", obcNameClient, namespaceNameClient)
 		}
-		logger.Error(err, "handleObcDelete: Failed to delete OBC resource", "name", obc.Name, "namespace", s.namespace)
+		logger.Error(err, "handleObcDelete: Failed to delete OBC resource", "name", obc.Name, "namespace", namespaceObc)
 		return status.Errorf(codes.Internal, "failed to delete OBC name %s namespace %s: %v", obcNameClient, namespaceNameClient, err)
 	}
-	logger.Info("handleObcDelete: Successfully deleted OBC resource", "name", obc.Name, "namespace", s.namespace)
+	logger.Info("handleObcDelete: Successfully deleted OBC resource", "name", obc.Name, "namespace", namespaceObc)
 	return nil
 }
 
