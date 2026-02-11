@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	ifaces "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces"
 
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"k8s.io/apimachinery/pkg/types"
