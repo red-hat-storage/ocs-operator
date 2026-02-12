@@ -191,6 +191,14 @@ message StorageClientsInfoRequest{
   repeated string clientIDs = 2;
 }
 
+message ClientConnectionRecord {
+  // storageClientUid hold storage client uid
+  string storageClientUid = 1;
+  // clientProfiles holds the CSI operator ClientProfile names utilized by the client
+  map<string,string> clientProfiles = 2;
+}
+
+
 message ClientInfo{
   // clientID holds a unique id that identifies an DF storage client
   string clientID = 1;
@@ -200,6 +208,8 @@ message ClientInfo{
   string rbdStorageID = 3;
   // clientProfiles hold the CSI operator ClientProfile names utilized by the client
   map<string,string> clientProfiles = 4;
+  // clientPeerConnectivityHistory holds the history of client this client was connected to
+  repeated ClientConnectionRecord clientConnectionRecords = 5;
 }
 
 enum ErrorCode{
@@ -234,10 +244,18 @@ message BlockPoolInfoError {
   string blockPoolName =3;
 }
 
+message BlockPoolConnectionRecord {
+  string storageClusterUid = 1;
+  string blockPoolId = 2;
+}
+
 message BlockPoolInfo{
   string blockPoolName = 1;
   string mirroringToken = 2;
   string blockPoolID = 3;
+  // blockPoolPeerConnectivityHistory holds the history of block pools this cluster was connected to
+  repeated BlockPoolConnectionRecord blockPoolConnectionRecords = 4;
+
 }
 
 // BlockPoolsInfoResponse holds the response for GetBlockPoolInfo API request
