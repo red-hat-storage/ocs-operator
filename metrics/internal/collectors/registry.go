@@ -2,6 +2,7 @@ package collectors
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	cephconn "github.com/red-hat-storage/ocs-operator/metrics/v4/internal/ceph"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -73,8 +74,8 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 }
 
 // RegisterPersistentVolumeAttributesCollector registers PV attribute collector to registry
-func RegisterPersistentVolumeAttributesCollector(registry *prometheus.Registry) {
-	pvAttributesCollector := NewPersistentVolumeAttributesCollector()
+func RegisterPersistentVolumeAttributesCollector(registry *prometheus.Registry, conn *cephconn.Conn) {
+	pvAttributesCollector := NewPersistentVolumeAttributesCollector(conn)
 	registry.MustRegister(pvAttributesCollector)
 }
 

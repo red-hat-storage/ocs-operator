@@ -10,6 +10,7 @@ import (
 	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	cephconn "github.com/red-hat-storage/ocs-operator/metrics/v4/internal/ceph"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/collectors"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/exporter"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/handler"
@@ -71,12 +72,15 @@ func main() {
 	exporterMux := http.NewServeMux()
 	handler.RegisterExporterMuxHandlers(exporterMux, exporterRegistry, promHandlerOpts(exporterRegistry))
 
+	cephConn := cephconn.NewConn(opts)
+	defer cephConn.Close()
+
 	customResourceRegistry := prometheus.NewRegistry()
 	// Add custom resource collectors to the registry.
 	collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
 
 	// Add persistent volume attributes collector to the registry.
-	collectors.RegisterPersistentVolumeAttributesCollector(customResourceRegistry)
+	collectors.RegisterPersistentVolumeAttributesCollector(customResourceRegistry, cephConn)
 
 	// Add blocklist collector to the registry
 	collectors.RegisterCephBlocklistCollector(customResourceRegistry)

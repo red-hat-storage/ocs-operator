@@ -50,6 +50,15 @@ github.com/ceph/ceph-csi-operator/api/v1
 github.com/ceph/ceph-csi/api/deploy/ocp
 # github.com/ceph/go-ceph v0.36.0
 ## explicit; go 1.24.0
+github.com/ceph/go-ceph/internal/callbacks
+github.com/ceph/go-ceph/internal/cutil
+github.com/ceph/go-ceph/internal/dlsym
+github.com/ceph/go-ceph/internal/errutil
+github.com/ceph/go-ceph/internal/log
+github.com/ceph/go-ceph/internal/retry
+github.com/ceph/go-ceph/internal/timespec
+github.com/ceph/go-ceph/rados
+github.com/ceph/go-ceph/rbd
 github.com/ceph/go-ceph/rgw/admin
 # github.com/cespare/xxhash/v2 v2.3.0
 ## explicit; go 1.11
