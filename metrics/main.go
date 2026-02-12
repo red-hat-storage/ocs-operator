@@ -76,16 +76,16 @@ func main() {
 	collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
 
 	// Add persistent volume attributes collector to the registry.
-	collectors.RegisterPersistentVolumeAttributesCollector(customResourceRegistry, opts)
+	collectors.RegisterPersistentVolumeAttributesCollector(customResourceRegistry)
 
 	// Add blocklist collector to the registry
-	collectors.RegisterCephBlocklistCollector(customResourceRegistry, opts)
+	collectors.RegisterCephBlocklistCollector(customResourceRegistry)
 
 	// Add rbd children collector to the registry
-	collectors.RegisterCephRBDChildrenCollector(customResourceRegistry, opts)
+	collectors.RegisterCephRBDChildrenCollector(customResourceRegistry)
 
 	// Add CephFS subvolume count collector to the registry
-	collectors.RegisterCephFSMetricsCollector(customResourceRegistry, opts)
+	collectors.RegisterCephFSMetricsCollector(customResourceRegistry)
 
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
@@ -93,7 +93,7 @@ func main() {
 
 	rbdRegistry := prometheus.NewRegistry()
 	// Add rbd mirror metrics collector to registry
-	collectors.RegisterRBDMirrorCollector(rbdRegistry, opts)
+	collectors.RegisterRBDMirrorCollector(rbdRegistry)
 
 	// server rbd mirror metrics
 	handler.RegisterRBDMirrorMuxHandlers(customResourceMux, rbdRegistry, promHandlerOpts(rbdRegistry))

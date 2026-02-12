@@ -1,17 +1,9 @@
 package collectors
 
 import (
-	"time"
-
 	"github.com/prometheus/client_golang/prometheus"
-	internalcache "github.com/red-hat-storage/ocs-operator/metrics/v4/internal/cache"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
 
@@ -78,79 +70,31 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 		healthScoreCollector.Run(opts.StopCh)
 		registry.MustRegister(healthScoreCollector)
 	}
-
-}
-
-var pvStoreEnabled bool
-var pvStore *internalcache.PersistentVolumeStore
-
-func enablePVStore(opts *options.Options) {
-	pvStore = internalcache.NewPersistentVolumeStore(opts)
-	client := clientset.NewForConfigOrDie(opts.Kubeconfig)
-	lw := internalcache.CreatePersistentVolumeListWatch(client, "")
-	reflector := cache.NewReflector(lw, &corev1.PersistentVolume{}, pvStore, 10*time.Minute)
-	go reflector.Run(opts.StopCh)
-	pvStoreEnabled = true
-}
-
-var rbdMirrorStoreEnabled bool
-var rbdMirrorStore *internalcache.RBDMirrorStore
-
-func enableRBDMirrorStore(opts *options.Options) {
-	rbdMirrorStore = internalcache.NewRBDMirrorStore(opts)
-	rookClient := rookclient.NewForConfigOrDie(opts.Kubeconfig)
-	lw := internalcache.CreateCephBlockPoolListWatch(rookClient, searchInNamespace(opts), "")
-	reflector := cache.NewReflector(lw, &cephv1.CephBlockPool{}, rbdMirrorStore, 30*time.Second)
-	go reflector.Run(opts.StopCh)
-	rbdMirrorStoreEnabled = true
-}
-
-var cephBlocklistStore *internalcache.CephBlocklistStore
-
-func enableCephBlocklistMirrorStore(opts *options.Options) {
-	cephBlocklistStore = internalcache.NewCephBlocklistStore(opts)
-	rookClient := rookclient.NewForConfigOrDie(opts.Kubeconfig)
-	lw := internalcache.CreateCephBlockPoolListWatch(rookClient, searchInNamespace(opts), "")
-	reflector := cache.NewReflector(lw, &cephv1.CephBlockPool{}, cephBlocklistStore, 30*time.Second)
-	go reflector.Run(opts.StopCh)
 }
 
 // RegisterPersistentVolumeAttributesCollector registers PV attribute collector to registry
-func RegisterPersistentVolumeAttributesCollector(registry *prometheus.Registry, opts *options.Options) {
-	if !pvStoreEnabled {
-		enablePVStore(opts)
-	}
-	pvAttributesCollector := NewPersistentVolumeAttributesCollector(pvStore, opts)
+func RegisterPersistentVolumeAttributesCollector(registry *prometheus.Registry) {
+	pvAttributesCollector := NewPersistentVolumeAttributesCollector()
 	registry.MustRegister(pvAttributesCollector)
 }
 
 // RegisterRBDMirrorCollector registers RBD mirror metrics collector to registry
-func RegisterRBDMirrorCollector(registry *prometheus.Registry, opts *options.Options) {
-	if !pvStoreEnabled {
-		enablePVStore(opts)
-	}
-	if !rbdMirrorStoreEnabled {
-		enableRBDMirrorStore(opts)
-	}
-	rbdMirrorCollector := NewRBDMirrorCollector(rbdMirrorStore, pvStore)
+func RegisterRBDMirrorCollector(registry *prometheus.Registry) {
+	rbdMirrorCollector := NewRBDMirrorCollector()
 	registry.MustRegister(rbdMirrorCollector)
 }
 
-func RegisterCephBlocklistCollector(registry *prometheus.Registry, opts *options.Options) {
-	enableCephBlocklistMirrorStore(opts)
-	blocklistCollector := NewCephBlocklistCollector(cephBlocklistStore, pvStore, opts)
+func RegisterCephBlocklistCollector(registry *prometheus.Registry) {
+	blocklistCollector := NewCephBlocklistCollector()
 	registry.MustRegister(blocklistCollector)
 }
 
-func RegisterCephRBDChildrenCollector(registry *prometheus.Registry, opts *options.Options) {
-	enablePVStore(opts)
-	childrenCollector := NewCephRBDChildrenCollector(pvStore, opts)
-	go childrenCollector.Run(opts.StopCh)
+func RegisterCephRBDChildrenCollector(registry *prometheus.Registry) {
+	childrenCollector := NewCephRBDChildrenCollector()
 	registry.MustRegister(childrenCollector)
 }
 
-func RegisterCephFSMetricsCollector(registry *prometheus.Registry, opts *options.Options) {
-	enablePVStore(opts)
-	cephFSMetricsCollector := NewCephFSSubvolumeCountCollector(pvStore, opts)
+func RegisterCephFSMetricsCollector(registry *prometheus.Registry) {
+	cephFSMetricsCollector := NewCephFSSubvolumeCountCollector()
 	registry.MustRegister(cephFSMetricsCollector)
 }
