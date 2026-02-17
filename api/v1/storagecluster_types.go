@@ -280,9 +280,12 @@ type ManageCephObjectStores struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 	GatewayInstances  int    `json:"gatewayInstances,omitempty"`
 	DisableRoute      bool   `json:"disableRoute,omitempty"`
-	HostNetwork       *bool  `json:"hostNetwork,omitempty"`
-	GatewayPort       int    `json:"gatewayPort,omitempty"`
-	GatewaySecurePort int    `json:"gatewaySecurePort,omitempty"`
+	// DisableHttp, if true, will prevent creation of insecure ceph RGW http route. It will also delete any
+	// existing insecure ceph RGW http route.
+	DisableHttp       bool  `json:"disableHttp,omitempty"`
+	HostNetwork       *bool `json:"hostNetwork,omitempty"`
+	GatewayPort       int   `json:"gatewayPort,omitempty"`
+	GatewaySecurePort int   `json:"gatewaySecurePort,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph obc's
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
