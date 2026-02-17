@@ -236,6 +236,9 @@ type ManageCephBlockPools struct {
 	DefaultVirtualizationStorageClass bool `json:"defaultVirtualizationStorageClass,omitempty"`
 	// PoolSpec specifies the pool specification for the default cephBlockPool
 	PoolSpec *rookCephv1.PoolSpec `json:"poolSpec,omitempty"`
+	// CreateEcMetadataPool specifies the list of metadata pools for erasure coded pools if the pool is erasure coded
+	// it has to be unique list of pool names and the operator will create the pools with replica 3 and the same crush ruleset as the data pool
+	CreateEcMetadataPool map[string]struct{} `json:"createEcMetadataPool,omitempty"`
 }
 
 // ManageCephNonResilientPools defines how to reconcile ceph non-resilient pools
@@ -273,6 +276,10 @@ type ManageCephFilesystems struct {
 	DataPoolSpec *rookCephv1.PoolSpec `json:"dataPoolSpec,omitempty"`
 	// AdditionalDataPools specifies list of additional named cephfs data pools
 	AdditionalDataPools []rookCephv1.NamedPoolSpec `json:"additionalDataPools,omitempty"`
+	// enableEcStorageclass specifies whether to storage class with erasure coded pools for cephfs
+	EnableEcStorageClass bool `json:"enableEcStorageClass,omitempty"`
+	// enableReplicatedStorageClass specifies whether to storage class with replicated pools for cephfs
+	EnableReplicatedStorageClass bool `json:"enableReplicatedStorageClass,omitempty"`
 }
 
 // ManageCephObjectStores defines how to reconcile CephObjectStores
