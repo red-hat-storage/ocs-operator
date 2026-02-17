@@ -273,7 +273,7 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			name: "mon with custom tolerations",
+			name: "mon with custom tolerations (additive merge)",
 			specified: rookCephv1.Placement{
 				Tolerations: []corev1.Toleration{
 					{
@@ -285,6 +285,7 @@ func TestGetPlacement(t *testing.T) {
 			},
 			component: "mon",
 			expected: rookCephv1.Placement{
+				// mon has no default tolerations, so only custom toleration is present
 				Tolerations: []corev1.Toleration{
 					{
 						Key:      "custom-toleration",
@@ -522,7 +523,7 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			name: "noobaa-core with custom tolerations and node affinity",
+			name: "noobaa-core with custom tolerations and node affinity (additive merge)",
 			specified: rookCephv1.Placement{
 				Tolerations: []corev1.Toleration{
 					{
@@ -549,7 +550,9 @@ func TestGetPlacement(t *testing.T) {
 			},
 			component: "noobaa-core",
 			expected: rookCephv1.Placement{
+				// noobaa-core has default OCS toleration, so both are merged
 				Tolerations: []corev1.Toleration{
+					getOcsToleration(),
 					{
 						Key:      "custom-noobaa-toleration",
 						Operator: corev1.TolerationOpExists,
@@ -574,7 +577,7 @@ func TestGetPlacement(t *testing.T) {
 			},
 		},
 		{
-			name: "api-server with custom toleration",
+			name: "api-server with custom toleration (additive merge)",
 			specified: rookCephv1.Placement{
 				Tolerations: []corev1.Toleration{
 					{
@@ -586,7 +589,9 @@ func TestGetPlacement(t *testing.T) {
 			},
 			component: "api-server",
 			expected: rookCephv1.Placement{
+				// api-server has default OCS toleration, so both are merged
 				Tolerations: []corev1.Toleration{
+					getOcsToleration(),
 					{
 						Key:      "custom-api-toleration",
 						Operator: corev1.TolerationOpExists,
@@ -623,7 +628,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			name:      "component with label selector",
-			component: "all",
+			component: rookCephv1.KeyAll,
 			expected: rookCephv1.Placement{
 				Tolerations: []corev1.Toleration{
 					getOcsToleration(),
@@ -647,7 +652,7 @@ func TestGetPlacement(t *testing.T) {
 		},
 		{
 			name:      "component with empty label selector",
-			component: "all",
+			component: rookCephv1.KeyAll,
 			expected: rookCephv1.Placement{
 				Tolerations: []corev1.Toleration{
 					getOcsToleration(),
@@ -703,6 +708,65 @@ func TestGetPlacement(t *testing.T) {
 				sc.Spec.LabelSelector = &metav1.LabelSelector{}
 			}
 			result := getPlacement(sc, tt.component)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAppendUniqueTolerations(t *testing.T) {
+	tol1 := corev1.Toleration{
+		Key:      "key1",
+		Operator: corev1.TolerationOpEqual,
+		Value:    "value1",
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
+	tol2 := corev1.Toleration{
+		Key:      "key2",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoExecute,
+	}
+
+	testCases := []struct {
+		name       string
+		base       []corev1.Toleration
+		additional []corev1.Toleration
+		expected   []corev1.Toleration
+	}{
+		{
+			name:       "empty base",
+			base:       nil,
+			additional: []corev1.Toleration{tol1},
+			expected:   []corev1.Toleration{tol1},
+		},
+		{
+			name:       "empty additional",
+			base:       []corev1.Toleration{tol1},
+			additional: nil,
+			expected:   []corev1.Toleration{tol1},
+		},
+		{
+			name:       "no duplicates",
+			base:       []corev1.Toleration{tol1},
+			additional: []corev1.Toleration{tol2},
+			expected:   []corev1.Toleration{tol1, tol2},
+		},
+		{
+			name:       "with duplicates",
+			base:       []corev1.Toleration{tol1, tol2},
+			additional: []corev1.Toleration{tol1}, // duplicate
+			expected:   []corev1.Toleration{tol1, tol2},
+		},
+		{
+			name:       "all duplicates",
+			base:       []corev1.Toleration{tol1},
+			additional: []corev1.Toleration{tol1},
+			expected:   []corev1.Toleration{tol1},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			result := appendUniqueTolerations(tt.base, tt.additional)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
