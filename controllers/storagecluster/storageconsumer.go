@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -265,6 +266,9 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 		scItem.Name = scName
 		scSpec = append(scSpec, scItem)
 	}
+	slices.SortFunc(scSpec, func(a, b ocsv1a1.StorageClassSpec) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 	return scSpec, nil
 }
 
@@ -301,6 +305,9 @@ func getLocalVolumeSnapshotClassNames(ctx context.Context, kubeClient client.Cli
 		vscItem.Name = vscName
 		vscSpec = append(vscSpec, vscItem)
 	}
+	slices.SortFunc(vscSpec, func(a, b ocsv1a1.VolumeSnapshotClassSpec) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 	return vscSpec, nil
 }
 
@@ -341,6 +348,9 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 		vgscItem.Name = vgscName
 		vgscSpec = append(vgscSpec, vgscItem)
 	}
+	slices.SortFunc(vgscSpec, func(a, b ocsv1a1.VolumeGroupSnapshotClassSpec) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 	return vgscSpec, nil
 }
 
@@ -356,5 +366,8 @@ func getLocalNetworkFenceClassNames(storageCluster *ocsv1.StorageCluster) []ocsv
 		nfcItem.Name = nfcName
 		nfcSpec = append(nfcSpec, nfcItem)
 	}
+	slices.SortFunc(nfcSpec, func(a, b ocsv1a1.NetworkFenceClassesSpec) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 	return nfcSpec
 }
