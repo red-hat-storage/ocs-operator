@@ -3,14 +3,17 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	ifaces "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces"
 
+	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type OCSProviderClient struct {
@@ -188,4 +191,37 @@ func (cc *OCSProviderClient) GetBlockPoolsInfo(ctx context.Context, storageClust
 	defer cancel()
 
 	return cc.Client.GetBlockPoolsInfo(apiCtx, req)
+}
+
+// notifyWithReason RPC call for Notify API request
+func (cc *OCSProviderClient) notifyWithReason(ctx context.Context, consumerUUID string, reason pb.NotifyReason, payload any) (*pb.NotifyResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal notify payload: %w", err)
+	}
+
+	req := &pb.NotifyRequest{
+		StorageConsumerUUID: consumerUUID,
+		Reason:              reason,
+		Payload:             payloadBytes,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.Notify(apiCtx, req)
+}
+
+// NotifyObcCreated RPC call for Notify API request with OBC_CREATED reason
+func (cc *OCSProviderClient) NotifyObcCreated(ctx context.Context, consumerUUID string, obcDetails *nbv1.ObjectBucketClaim) (*pb.NotifyResponse, error) {
+	return cc.notifyWithReason(ctx, consumerUUID, pb.NotifyReason_OBC_CREATED, obcDetails)
+}
+
+// NotifyObcDeleted RPC call for Notify API request with OBC_DELETED reason
+func (cc *OCSProviderClient) NotifyObcDeleted(ctx context.Context, consumerUUID string, obcDetails types.NamespacedName) (*pb.NotifyResponse, error) {
+	return cc.notifyWithReason(ctx, consumerUUID, pb.NotifyReason_OBC_DELETED, obcDetails)
 }
