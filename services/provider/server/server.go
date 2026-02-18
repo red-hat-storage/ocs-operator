@@ -790,8 +790,7 @@ func (s *OCSProviderServer) getOBCConfigMapVersions(ctx context.Context, obcList
 func (s *OCSProviderServer) getOBResourceVersions(ctx context.Context, obcList []string, consumer *ocsv1alpha1.StorageConsumer) ([]string, error) {
 	list := &nbv1.ObjectBucketList{}
 
-	err := s.client.List(ctx, list, client.InNamespace(consumer.Namespace),
-		client.MatchingLabels{noobaaAppLabel: noobaa})
+	err := s.client.List(ctx, list, client.MatchingLabels{noobaaAppLabel: noobaa})
 	if err != nil {
 		return nil, err
 	}
@@ -822,7 +821,7 @@ func (s *OCSProviderServer) getOBCSecretVersions(ctx context.Context, obcList []
 	versions := []string{}
 	for _, v := range list.Items {
 		if slices.Contains(obcList, v.Name) {
-			versions = append(versions, v.Name)
+			versions = append(versions, v.ResourceVersion)
 		}
 	}
 
