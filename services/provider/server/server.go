@@ -391,10 +391,11 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			}
 		}
 
+		zeroNonHashableFields(consumer)
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumer,
-			cephConnection.Spec,
+			cephConnection.GetGeneration(),
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
@@ -682,10 +683,11 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "failed to produce client state")
 	}
 
+	zeroNonHashableFields(storageConsumer)
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
-		cephConnection.Spec,
+		cephConnection.GetGeneration(),
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
@@ -706,6 +708,12 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		DesiredClientOperatorChannel: channelName,
 		DesiredConfigHash:            desiredClientConfigHash,
 	}, nil
+}
+
+func zeroNonHashableFields(consumer *ocsv1alpha1.StorageConsumer) {
+	consumer.ManagedFields = nil
+	consumer.ResourceVersion = ""
+	consumer.Status.LastHeartbeat.Time = time.Time{}
 }
 
 func getDesiredClientConfigHash(parts ...any) string {
