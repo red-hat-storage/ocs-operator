@@ -35,7 +35,9 @@ type StorageClusterSpec struct {
 	// ExternalStorage is optional and defaults to false. When set to true, OCS will
 	// connect to an external OCS Storage Cluster instead of provisioning one locally.
 	ExternalStorage ExternalStorageClusterSpec `json:"externalStorage,omitempty"`
-	// HostNetwork defaults to false
+	// HostNetwork defaults to false.
+	// Deprecated: use spec.network.hostNetwork instead.
+	// +deprecated
 	HostNetwork bool `json:"hostNetwork,omitempty"`
 	// Placement is optional and used to specify placements of OCS components(except csi) explicitly
 	// The specified placement here will be selectively merged with the default placement for the components
