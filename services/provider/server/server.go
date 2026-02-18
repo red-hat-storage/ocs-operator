@@ -742,6 +742,10 @@ func getDesiredClientConfigHash(parts ...any) string {
 	return util.CalculateMD5Hash(parts)
 }
 
+func sortResourceVersions(rv []string) {
+	slices.Sort(rv)
+}
+
 /*
 getOBCResourcesForConsumer returns list of OBC Resource Versions and their names for a storage consumer
 */
@@ -763,6 +767,8 @@ func (s *OCSProviderServer) getOBCResourcesForConsumer(ctx context.Context, cons
 		obcNames = append(obcNames, obc.Name)
 	}
 
+	sortResourceVersions(resourceVersions)
+
 	return resourceVersions, obcNames, nil
 }
 
@@ -782,6 +788,8 @@ func (s *OCSProviderServer) getOBCConfigMapVersions(ctx context.Context, obcList
 			versions = append(versions, v.ResourceVersion)
 		}
 	}
+
+	sortResourceVersions(versions)
 
 	return versions, nil
 }
@@ -807,6 +815,8 @@ func (s *OCSProviderServer) getOBResourceVersions(ctx context.Context, obcList [
 		}
 	}
 
+	sortResourceVersions(versions)
+
 	return versions, nil
 }
 
@@ -824,6 +834,8 @@ func (s *OCSProviderServer) getOBCSecretVersions(ctx context.Context, obcList []
 			versions = append(versions, v.ResourceVersion)
 		}
 	}
+
+	sortResourceVersions(versions)
 
 	return versions, nil
 }
