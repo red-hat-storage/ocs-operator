@@ -2927,6 +2927,11 @@ spec:
                             type: object
                             x-kubernetes-preserve-unknown-fields: true
                         type: object
+                      disableHttp:
+                        description: |-
+                          DisableHttp, if true, will prevent creation of insecure ceph RGW http route. It will also delete any
+                          existing insecure ceph RGW http route.
+                        type: boolean
                       disableRoute:
                         type: boolean
                       gatewayInstances:
