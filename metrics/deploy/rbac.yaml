@@ -25,10 +25,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - persistentvolumes
-  - persistentvolumeclaims
-  - nodes
-  - pods
   - configmaps
   - secrets
   verbs:

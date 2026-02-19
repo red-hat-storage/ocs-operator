@@ -117,11 +117,8 @@ func buildSubVolumeGroupToConsumerMap(client rookclient.Interface, ns string) ma
 		if groupName == "" {
 			groupName = svg.Name
 		}
-		for _, ref := range svg.OwnerReferences {
-			if ref.Kind == "StorageConsumer" {
-				groupToConsumer[groupName] = ref.Name
-				break
-			}
+		if name := consumerOwnerName(svg.OwnerReferences); name != "" {
+			groupToConsumer[groupName] = name
 		}
 	}
 	return groupToConsumer

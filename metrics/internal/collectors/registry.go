@@ -8,17 +8,23 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const (
-	// name of the project/exporter
-	namespace = "ocs"
-)
+const namespace = "ocs"
 
-func searchInNamespace(opts *options.Options) (returnNamespace string) {
-	returnNamespace = metav1.NamespaceAll
+func searchInNamespace(opts *options.Options) string {
 	if opts != nil && len(opts.AllowedNamespaces) == 1 {
-		returnNamespace = opts.AllowedNamespaces[0]
+		return opts.AllowedNamespaces[0]
 	}
-	return
+	return metav1.NamespaceAll
+}
+
+// consumerOwnerName returns the name of the StorageConsumer owner, or "".
+func consumerOwnerName(refs []metav1.OwnerReference) string {
+	for _, ref := range refs {
+		if ref.Kind == "StorageConsumer" {
+			return ref.Name
+		}
+	}
+	return ""
 }
 
 // RegisterCustomResourceCollectors registers the custom resource collectors

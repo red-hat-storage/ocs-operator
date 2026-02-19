@@ -254,11 +254,8 @@ func buildRadosNamespaceToConsumerMap(client rookclient.Interface, ns string) ma
 		if radosNSName == "<implicit>" {
 			radosNSName = ""
 		}
-		for _, ref := range rns.OwnerReferences {
-			if ref.Kind == "StorageConsumer" {
-				nsToConsumer[radosNSName] = ref.Name
-				break
-			}
+		if name := consumerOwnerName(rns.OwnerReferences); name != "" {
+			nsToConsumer[radosNSName] = name
 		}
 	}
 	return nsToConsumer

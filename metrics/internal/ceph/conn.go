@@ -94,37 +94,40 @@ func (c *Conn) connect() error {
 		return fmt.Errorf("failed to create rados connection: %w", err)
 	}
 
+	ok := false
+	defer func() {
+		if !ok {
+			conn.Shutdown()
+		}
+	}()
+
 	for _, opt := range []struct{ key, val string }{
 		{"rados_osd_op_timeout", "30"},
 		{"rados_mon_op_timeout", "30"},
 		{"client_mount_timeout", "30"},
 	} {
 		if err := conn.SetConfigOption(opt.key, opt.val); err != nil {
-			conn.Shutdown()
 			return fmt.Errorf("failed to set %s: %w", opt.key, err)
 		}
 	}
 
 	if err := conn.ReadDefaultConfigFile(); err != nil {
-		conn.Shutdown()
 		return fmt.Errorf("failed to read ceph config: %w", err)
 	}
 
 	if err := conn.SetConfigOption("mon_host", c.monitors); err != nil {
-		conn.Shutdown()
 		return fmt.Errorf("failed to set mon_host: %w", err)
 	}
 
 	if err := conn.SetConfigOption("key", c.userKey); err != nil {
-		conn.Shutdown()
 		return fmt.Errorf("failed to set key: %w", err)
 	}
 
 	if err := conn.Connect(); err != nil {
-		conn.Shutdown()
 		return fmt.Errorf("failed to connect to ceph: %w", err)
 	}
 
+	ok = true
 	klog.Info("connected to ceph cluster")
 	c.conn = conn
 	return nil
