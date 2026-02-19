@@ -13,24 +13,21 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const (
-	pvMetadataKey = "csi.storage.k8s.io/pv/name"
-)
+const pvMetadataKey = "csi.storage.k8s.io/pv/name"
 
 var _ prometheus.Collector = &CephRBDCollector{}
 
-// CephRBDCollector collects PV metadata and RBD children count metrics
-// by querying Ceph directly via go-ceph.
+// CephRBDCollector collects PV metadata, children count, and mirror
+// state for RBD images using go-ceph.
 type CephRBDCollector struct {
 	conn          *cephconn.Conn
 	rookClient    rookclient.Interface
 	namespace     string
 	pvMetadata    *prometheus.Desc
 	childrenCount *prometheus.Desc
+	mirrorState   *prometheus.Desc
 }
 
-// NewCephRBDCollector returns a collector that uses a live Ceph connection
-// to enumerate RBD images across all pools and rados namespaces.
 func NewCephRBDCollector(conn *cephconn.Conn, opts *options.Options) *CephRBDCollector {
 	client, err := rookclient.NewForConfig(opts.Kubeconfig)
 	if err != nil {
@@ -54,12 +51,19 @@ func NewCephRBDCollector(conn *cephconn.Conn, opts *options.Options) *CephRBDCol
 			[]string{"image", "pool_name", "radosnamespace", "consumer_name"},
 			nil,
 		),
+		mirrorState: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "rbd_mirror", "image_state"),
+			"Mirrored image state",
+			[]string{"image", "pool_name", "site_name", "consumer_name"},
+			nil,
+		),
 	}
 }
 
 func (c *CephRBDCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.pvMetadata
 	ch <- c.childrenCount
+	ch <- c.mirrorState
 }
 
 func (c *CephRBDCollector) Collect(ch chan<- prometheus.Metric) {
@@ -72,7 +76,6 @@ func (c *CephRBDCollector) Collect(ch chan<- prometheus.Metric) {
 	pools, err := conn.ListPools()
 	if err != nil {
 		klog.Errorf("failed to list ceph pools: %v", err)
-		// Pool listing failure usually means the mon connection is stale.
 		c.conn.Reconnect()
 		return
 	}
@@ -84,7 +87,16 @@ func (c *CephRBDCollector) Collect(ch chan<- prometheus.Metric) {
 		if err != nil {
 			continue
 		}
-		c.collectPool(ioctx, pool, "", nsToConsumer, ch)
+
+		mirrorMode, _ := rbd.GetMirrorMode(ioctx)
+		mirrored := mirrorMode != rbd.MirrorModeDisabled
+
+		var peerMap map[string]string
+		if mirrored {
+			peerMap = buildMirrorPeerMap(ioctx)
+		}
+
+		c.collectPool(ioctx, pool, "", nsToConsumer, mirrored, peerMap, ch)
 
 		namespaces, err := rbd.NamespaceList(ioctx)
 		if err != nil {
@@ -93,19 +105,37 @@ func (c *CephRBDCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 		for _, ns := range namespaces {
 			ioctx.SetNamespace(ns)
-			c.collectPool(ioctx, pool, ns, nsToConsumer, ch)
+			c.collectPool(ioctx, pool, ns, nsToConsumer, mirrored, peerMap, ch)
 		}
 		ioctx.Destroy()
 	}
 }
 
-func (c *CephRBDCollector) collectPool(ioctx *rados.IOContext, pool, radosNamespace string, nsToConsumer map[string]string, ch chan<- prometheus.Metric) {
+func (c *CephRBDCollector) collectPool(
+	ioctx *rados.IOContext,
+	pool, radosNamespace string,
+	nsToConsumer map[string]string,
+	mirrored bool,
+	peerMap map[string]string,
+	ch chan<- prometheus.Metric,
+) {
+	consumerName := nsToConsumer[radosNamespace]
+
+	c.collectImageMetrics(ioctx, pool, radosNamespace, consumerName, ch)
+	if mirrored {
+		c.collectMirrorStatus(ioctx, pool, radosNamespace, consumerName, peerMap, ch)
+	}
+}
+
+func (c *CephRBDCollector) collectImageMetrics(
+	ioctx *rados.IOContext,
+	pool, radosNamespace, consumerName string,
+	ch chan<- prometheus.Metric,
+) {
 	imageNames, err := rbd.GetImageNames(ioctx)
 	if err != nil {
 		return
 	}
-
-	consumerName := nsToConsumer[radosNamespace]
 
 	for _, imageName := range imageNames {
 		img, err := rbd.OpenImageReadOnly(ioctx, imageName, rbd.NoSnapshot)
@@ -114,7 +144,7 @@ func (c *CephRBDCollector) collectPool(ioctx *rados.IOContext, pool, radosNamesp
 			continue
 		}
 
-		// Images without PV metadata aren't CSI-provisioned; skip them.
+		// Not a CSI-provisioned image; skip.
 		pvName, err := img.GetMetadata(pvMetadataKey)
 		if err != nil {
 			img.Close()
@@ -138,6 +168,51 @@ func (c *CephRBDCollector) collectPool(ioctx *rados.IOContext, pool, radosNamesp
 			imageName, pool, radosNamespace, consumerName,
 		)
 	}
+}
+
+func (c *CephRBDCollector) collectMirrorStatus(
+	ioctx *rados.IOContext,
+	pool, radosNamespace, consumerName string,
+	peerMap map[string]string,
+	ch chan<- prometheus.Metric,
+) {
+	statuses, err := rbd.MirrorImageGlobalStatusList(ioctx, "", 0)
+	if err != nil {
+		klog.Errorf("failed to list mirror image status for pool %s namespace %q: %v", pool, radosNamespace, err)
+		return
+	}
+
+	for _, item := range statuses {
+		for _, site := range item.Status.SiteStatuses {
+			// Local site, not a peer.
+			if site.MirrorUUID == "" {
+				continue
+			}
+
+			siteName := peerMap[site.MirrorUUID]
+
+			ch <- prometheus.MustNewConstMetric(c.mirrorState,
+				prometheus.GaugeValue, float64(site.State),
+				item.Status.Name, pool, siteName, consumerName,
+			)
+		}
+	}
+}
+
+// buildMirrorPeerMap maps peer MirrorUUID -> site name.
+func buildMirrorPeerMap(ioctx *rados.IOContext) map[string]string {
+	peerMap := make(map[string]string)
+
+	peers, err := rbd.ListMirrorPeerSite(ioctx)
+	if err != nil {
+		klog.Errorf("failed to list mirror peer sites: %v", err)
+		return peerMap
+	}
+
+	for _, peer := range peers {
+		peerMap[peer.MirrorUUID] = peer.SiteName
+	}
+	return peerMap
 }
 
 func buildRadosNamespaceToConsumerMap(client rookclient.Interface, ns string) map[string]string {

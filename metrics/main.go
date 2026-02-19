@@ -85,10 +85,6 @@ func main() {
 	customResourceMux := http.NewServeMux()
 	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry, promHandlerOpts(customResourceRegistry))
 
-	rbdRegistry := prometheus.NewRegistry()
-	collectors.RegisterRBDMirrorCollector(rbdRegistry)
-	handler.RegisterRBDMirrorMuxHandlers(customResourceMux, rbdRegistry, promHandlerOpts(rbdRegistry))
-
 	var rg run.Group
 	rg.Add(listenAndServe(exporterMux, opts.ExporterHost, opts.ExporterPort))
 	rg.Add(listenAndServe(customResourceMux, opts.Host, opts.Port))

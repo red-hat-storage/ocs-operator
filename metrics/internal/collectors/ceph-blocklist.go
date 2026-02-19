@@ -23,5 +23,7 @@ func (c *CephBlocklistCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *CephBlocklistCollector) Collect(ch chan<- prometheus.Metric) {
-	// TODO: re-implement without cache, query ceph osd blocklist and correlate with nodes directly
+	// TODO: Needs design discussion. The old impl correlated blocklist IPs
+	// with per-image watchers (via PV cache) to map to nodes. Without the
+	// cache we don't have that mapping. Remote consumers also need rethinking.
 }

@@ -146,5 +146,5 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ocs-metrics-reader
 rules:
-  - nonResourceURLs: ["/metrics","/metrics/rbd-mirror", "/healthz"]
+  - nonResourceURLs: ["/metrics", "/healthz"]
     verbs: ["get"]

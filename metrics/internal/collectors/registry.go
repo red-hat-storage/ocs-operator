@@ -80,12 +80,6 @@ func RegisterCephRBDCollector(registry *prometheus.Registry, conn *cephconn.Conn
 	}
 }
 
-// RegisterRBDMirrorCollector registers RBD mirror metrics collector to registry
-func RegisterRBDMirrorCollector(registry *prometheus.Registry) {
-	rbdMirrorCollector := NewRBDMirrorCollector()
-	registry.MustRegister(rbdMirrorCollector)
-}
-
 // RegisterCephBlocklistCollector registers the Ceph blocklist collector to registry
 func RegisterCephBlocklistCollector(registry *prometheus.Registry) {
 	blocklistCollector := NewCephBlocklistCollector()
