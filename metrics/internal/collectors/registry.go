@@ -92,8 +92,9 @@ func RegisterCephBlocklistCollector(registry *prometheus.Registry) {
 	registry.MustRegister(blocklistCollector)
 }
 
-// RegisterCephFSMetricsCollector registers the CephFS subvolume count collector to registry
-func RegisterCephFSMetricsCollector(registry *prometheus.Registry) {
-	cephFSMetricsCollector := NewCephFSSubvolumeCountCollector()
-	registry.MustRegister(cephFSMetricsCollector)
+func RegisterCephFSMetricsCollector(registry *prometheus.Registry, conn *cephconn.Conn, opts *options.Options) {
+	cephFSCollector := NewCephFSSubvolumeCountCollector(conn, opts)
+	if cephFSCollector != nil {
+		registry.MustRegister(cephFSCollector)
+	}
 }

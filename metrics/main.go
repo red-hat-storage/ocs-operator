@@ -79,7 +79,7 @@ func main() {
 	collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
 	collectors.RegisterCephRBDCollector(customResourceRegistry, cephConn, opts)
 	collectors.RegisterCephBlocklistCollector(customResourceRegistry)
-	collectors.RegisterCephFSMetricsCollector(customResourceRegistry)
+	collectors.RegisterCephFSMetricsCollector(customResourceRegistry, cephConn, opts)
 
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
