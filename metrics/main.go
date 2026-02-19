@@ -46,6 +46,10 @@ func main() {
 	klog.SetLogger(zapr.NewLogger(logr))
 	defer klog.Flush()
 
+	if len(opts.AllowedNamespaces) == 0 {
+		klog.Fatal("at least one namespace must be specified via --namespaces")
+	}
+
 	klog.Infof("using options: %+v", opts)
 	opts.StopCh = make(chan struct{})
 	defer close(opts.StopCh)
@@ -108,9 +112,10 @@ func listenAndServe(mux *http.ServeMux, host string, port int) (func() error, fu
 		return http.Serve(listener, mux)
 	}
 	cleanup := func(error) {
-		err := listener.Close()
-		if err != nil {
-			klog.Errorf("failed to close listener: %v", err)
+		if listener != nil {
+			if err := listener.Close(); err != nil {
+				klog.Errorf("failed to close listener: %v", err)
+			}
 		}
 	}
 	return serve, cleanup

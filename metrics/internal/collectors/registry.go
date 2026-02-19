@@ -75,9 +75,11 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 
 func RegisterCephRBDCollector(registry *prometheus.Registry, conn *cephconn.Conn, opts *options.Options) {
 	rbdCollector := NewCephRBDCollector(conn, opts)
-	if rbdCollector != nil {
-		registry.MustRegister(rbdCollector)
+	if rbdCollector == nil {
+		klog.Error("CephRBD collector not registered: failed to create rook client")
+		return
 	}
+	registry.MustRegister(rbdCollector)
 }
 
 // RegisterCephBlocklistCollector registers the Ceph blocklist collector to registry
@@ -88,7 +90,9 @@ func RegisterCephBlocklistCollector(registry *prometheus.Registry) {
 
 func RegisterCephFSMetricsCollector(registry *prometheus.Registry, conn *cephconn.Conn, opts *options.Options) {
 	cephFSCollector := NewCephFSSubvolumeCountCollector(conn, opts)
-	if cephFSCollector != nil {
-		registry.MustRegister(cephFSCollector)
+	if cephFSCollector == nil {
+		klog.Error("CephFS subvolume count collector not registered: failed to create rook client")
+		return
 	}
+	registry.MustRegister(cephFSCollector)
 }

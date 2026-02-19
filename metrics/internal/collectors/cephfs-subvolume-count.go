@@ -14,13 +14,12 @@ import (
 
 var _ prometheus.Collector = &CephFSSubvolumeCountCollector{}
 
-// CephFSSubvolumeCountCollector counts subvolumes per SubVolumeGroup
-// using go-ceph FSAdmin.
+// CephFSSubvolumeCountCollector counts subvolumes per SubVolumeGroup.
 type CephFSSubvolumeCountCollector struct {
-	conn            *cephconn.Conn
-	rookClient      rookclient.Interface
-	namespace       string
-	subvolumeCount  *prometheus.Desc
+	conn           *cephconn.Conn
+	rookClient     rookclient.Interface
+	namespace      string
+	subvolumeCount *prometheus.Desc
 }
 
 func NewCephFSSubvolumeCountCollector(conn *cephconn.Conn, opts *options.Options) *CephFSSubvolumeCountCollector {
@@ -51,11 +50,12 @@ func (c *CephFSSubvolumeCountCollector) Describe(ch chan<- *prometheus.Desc) {
 // Internal consumers can use kube_persistentvolume_info in PromQL.
 
 func (c *CephFSSubvolumeCountCollector) Collect(ch chan<- prometheus.Metric) {
-	conn, err := c.conn.Get()
+	conn, release, err := c.conn.Get()
 	if err != nil {
 		klog.Errorf("failed to get ceph connection: %v", err)
 		return
 	}
+	defer release()
 
 	fsa := admin.NewFromConn(conn)
 
@@ -68,12 +68,14 @@ func (c *CephFSSubvolumeCountCollector) Collect(ch chan<- prometheus.Metric) {
 
 	groupToConsumer := buildSubVolumeGroupToConsumerMap(c.rookClient, c.namespace)
 
+	anyVolumeSucceeded := false
 	for _, volume := range volumes {
 		groups, err := fsa.ListSubVolumeGroups(volume)
 		if err != nil {
 			klog.Errorf("failed to list subvolume groups for volume %s: %v", volume, err)
 			continue
 		}
+		anyVolumeSucceeded = true
 
 		for _, group := range groups {
 			subvolumes, err := fsa.ListSubVolumes(volume, group)
@@ -89,6 +91,11 @@ func (c *CephFSSubvolumeCountCollector) Collect(ch chan<- prometheus.Metric) {
 				consumerName,
 			)
 		}
+	}
+
+	if len(volumes) > 0 && !anyVolumeSucceeded {
+		klog.Error("failed to list subvolume groups for any volume, reconnecting")
+		c.conn.Reconnect()
 	}
 }
 

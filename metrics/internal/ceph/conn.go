@@ -14,15 +14,16 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// Conn wraps a go-ceph rados connection with lazy initialization and
-// reconnection. It reads credentials from K8s secrets and monitor
-// addresses from the rook-ceph-csi-config configmap at connect time.
+// Conn wraps a rados connection with ref-counted access.
+// Callers must call the release function returned by Get when done.
 type Conn struct {
 	mu       sync.Mutex
 	conn     *rados.Conn
+	refs     int
+	stale    bool
 	client   clientset.Interface
-	ns       string // ceph cluster namespace (e.g. openshift-storage)
-	authNs   string // namespace where ceph auth configmap lives
+	ns       string
+	authNs   string
 	userID   string
 	userKey  string
 	monitors string
@@ -47,22 +48,50 @@ func NewConn(opts *options.Options) *Conn {
 	}
 }
 
-// Get returns a connected rados.Conn, creating or reconnecting as needed.
-func (c *Conn) Get() (*rados.Conn, error) {
+// Get returns a connected rados.Conn and a release function.
+func (c *Conn) Get() (*rados.Conn, func(), error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.conn != nil {
-		return c.conn, nil
+	if c.stale && c.conn != nil && c.refs == 0 {
+		c.conn.Shutdown()
+		c.conn = nil
+		c.stale = false
 	}
 
+	if c.conn == nil {
+		if err := c.connect(); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	c.refs++
+	var once sync.Once
+	release := func() {
+		once.Do(func() {
+			c.mu.Lock()
+			defer c.mu.Unlock()
+			c.refs--
+			if c.stale && c.refs == 0 && c.conn != nil {
+				c.conn.Shutdown()
+				c.conn = nil
+				c.stale = false
+			}
+		})
+	}
+
+	return c.conn, release, nil
+}
+
+// connect creates a new rados connection. Caller must hold mu.
+func (c *Conn) connect() error {
 	if err := c.fetchCredentials(); err != nil {
-		return nil, fmt.Errorf("failed to fetch ceph credentials: %w", err)
+		return fmt.Errorf("failed to fetch ceph credentials: %w", err)
 	}
 
 	conn, err := rados.NewConnWithUser(c.userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create rados connection: %w", err)
+		return fmt.Errorf("failed to create rados connection: %w", err)
 	}
 
 	for _, opt := range []struct{ key, val string }{
@@ -72,36 +101,36 @@ func (c *Conn) Get() (*rados.Conn, error) {
 	} {
 		if err := conn.SetConfigOption(opt.key, opt.val); err != nil {
 			conn.Shutdown()
-			return nil, fmt.Errorf("failed to set %s: %w", opt.key, err)
+			return fmt.Errorf("failed to set %s: %w", opt.key, err)
 		}
 	}
 
 	if err := conn.ReadDefaultConfigFile(); err != nil {
 		conn.Shutdown()
-		return nil, fmt.Errorf("failed to read ceph config: %w", err)
+		return fmt.Errorf("failed to read ceph config: %w", err)
 	}
 
 	if err := conn.SetConfigOption("mon_host", c.monitors); err != nil {
 		conn.Shutdown()
-		return nil, fmt.Errorf("failed to set mon_host: %w", err)
+		return fmt.Errorf("failed to set mon_host: %w", err)
 	}
 
 	if err := conn.SetConfigOption("key", c.userKey); err != nil {
 		conn.Shutdown()
-		return nil, fmt.Errorf("failed to set key: %w", err)
+		return fmt.Errorf("failed to set key: %w", err)
 	}
 
 	if err := conn.Connect(); err != nil {
 		conn.Shutdown()
-		return nil, fmt.Errorf("failed to connect to ceph: %w", err)
+		return fmt.Errorf("failed to connect to ceph: %w", err)
 	}
 
 	klog.Info("connected to ceph cluster")
 	c.conn = conn
-	return c.conn, nil
+	return nil
 }
 
-// Close shuts down the connection.
+// Close shuts down the connection immediately.
 func (c *Conn) Close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -112,9 +141,18 @@ func (c *Conn) Close() {
 	}
 }
 
-// Reconnect forces a new connection on the next Get call.
+// Reconnect marks the connection as stale. Shutdown is deferred
+// until all active references are released.
 func (c *Conn) Reconnect() {
-	c.Close()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.stale = true
+	if c.refs == 0 && c.conn != nil {
+		c.conn.Shutdown()
+		c.conn = nil
+		c.stale = false
+	}
 }
 
 func (c *Conn) fetchCredentials() error {
