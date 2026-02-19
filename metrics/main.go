@@ -76,19 +76,9 @@ func main() {
 	defer cephConn.Close()
 
 	customResourceRegistry := prometheus.NewRegistry()
-	// Add custom resource collectors to the registry.
 	collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
-
-	// Add persistent volume attributes collector to the registry.
-	collectors.RegisterPersistentVolumeAttributesCollector(customResourceRegistry, cephConn)
-
-	// Add blocklist collector to the registry
+	collectors.RegisterCephRBDCollector(customResourceRegistry, cephConn, opts)
 	collectors.RegisterCephBlocklistCollector(customResourceRegistry)
-
-	// Add rbd children collector to the registry
-	collectors.RegisterCephRBDChildrenCollector(customResourceRegistry)
-
-	// Add CephFS subvolume count collector to the registry
 	collectors.RegisterCephFSMetricsCollector(customResourceRegistry)
 
 	// serves custom resources metrics
@@ -96,10 +86,7 @@ func main() {
 	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry, promHandlerOpts(customResourceRegistry))
 
 	rbdRegistry := prometheus.NewRegistry()
-	// Add rbd mirror metrics collector to registry
 	collectors.RegisterRBDMirrorCollector(rbdRegistry)
-
-	// server rbd mirror metrics
 	handler.RegisterRBDMirrorMuxHandlers(customResourceMux, rbdRegistry, promHandlerOpts(rbdRegistry))
 
 	var rg run.Group
@@ -108,8 +95,7 @@ func main() {
 
 	klog.Infof("Running metrics server on %s:%v", opts.Host, opts.Port)
 	klog.Infof("Running telemetry server on %s:%v", opts.ExporterHost, opts.ExporterPort)
-	err = rg.Run()
-	if err != nil {
+	if err = rg.Run(); err != nil {
 		klog.Fatalf("metrics and telemetry servers terminated: %v", err)
 	}
 }
@@ -118,7 +104,8 @@ func listenAndServe(mux *http.ServeMux, host string, port int) (func() error, fu
 	var listener net.Listener
 	serve := func() error {
 		addr := net.JoinHostPort(host, strconv.Itoa(port))
-		listener, err := net.Listen("tcp", addr)
+		var err error
+		listener, err = net.Listen("tcp", addr)
 		if err != nil {
 			return err
 		}

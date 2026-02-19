@@ -73,10 +73,11 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 	}
 }
 
-// RegisterPersistentVolumeAttributesCollector registers PV attribute collector to registry
-func RegisterPersistentVolumeAttributesCollector(registry *prometheus.Registry, conn *cephconn.Conn) {
-	pvAttributesCollector := NewPersistentVolumeAttributesCollector(conn)
-	registry.MustRegister(pvAttributesCollector)
+func RegisterCephRBDCollector(registry *prometheus.Registry, conn *cephconn.Conn, opts *options.Options) {
+	rbdCollector := NewCephRBDCollector(conn, opts)
+	if rbdCollector != nil {
+		registry.MustRegister(rbdCollector)
+	}
 }
 
 // RegisterRBDMirrorCollector registers RBD mirror metrics collector to registry
@@ -85,16 +86,13 @@ func RegisterRBDMirrorCollector(registry *prometheus.Registry) {
 	registry.MustRegister(rbdMirrorCollector)
 }
 
+// RegisterCephBlocklistCollector registers the Ceph blocklist collector to registry
 func RegisterCephBlocklistCollector(registry *prometheus.Registry) {
 	blocklistCollector := NewCephBlocklistCollector()
 	registry.MustRegister(blocklistCollector)
 }
 
-func RegisterCephRBDChildrenCollector(registry *prometheus.Registry) {
-	childrenCollector := NewCephRBDChildrenCollector()
-	registry.MustRegister(childrenCollector)
-}
-
+// RegisterCephFSMetricsCollector registers the CephFS subvolume count collector to registry
 func RegisterCephFSMetricsCollector(registry *prometheus.Registry) {
 	cephFSMetricsCollector := NewCephFSSubvolumeCountCollector()
 	registry.MustRegister(cephFSMetricsCollector)

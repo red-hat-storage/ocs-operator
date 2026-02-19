@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/ceph/go-ceph/rados"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Conn wraps a go-ceph rados connection with lazy initialization and
@@ -57,32 +57,43 @@ func (c *Conn) Get() (*rados.Conn, error) {
 	}
 
 	if err := c.fetchCredentials(); err != nil {
-		return nil, fmt.Errorf("failed to fetch ceph credentials: %v", err)
+		return nil, fmt.Errorf("failed to fetch ceph credentials: %w", err)
 	}
 
 	conn, err := rados.NewConnWithUser(c.userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create rados connection: %v", err)
+		return nil, fmt.Errorf("failed to create rados connection: %w", err)
+	}
+
+	for _, opt := range []struct{ key, val string }{
+		{"rados_osd_op_timeout", "30"},
+		{"rados_mon_op_timeout", "30"},
+		{"client_mount_timeout", "30"},
+	} {
+		if err := conn.SetConfigOption(opt.key, opt.val); err != nil {
+			conn.Shutdown()
+			return nil, fmt.Errorf("failed to set %s: %w", opt.key, err)
+		}
 	}
 
 	if err := conn.ReadDefaultConfigFile(); err != nil {
 		conn.Shutdown()
-		return nil, fmt.Errorf("failed to read ceph config: %v", err)
+		return nil, fmt.Errorf("failed to read ceph config: %w", err)
 	}
 
 	if err := conn.SetConfigOption("mon_host", c.monitors); err != nil {
 		conn.Shutdown()
-		return nil, fmt.Errorf("failed to set mon_host: %v", err)
+		return nil, fmt.Errorf("failed to set mon_host: %w", err)
 	}
 
 	if err := conn.SetConfigOption("key", c.userKey); err != nil {
 		conn.Shutdown()
-		return nil, fmt.Errorf("failed to set key: %v", err)
+		return nil, fmt.Errorf("failed to set key: %w", err)
 	}
 
 	if err := conn.Connect(); err != nil {
 		conn.Shutdown()
-		return nil, fmt.Errorf("failed to connect to ceph: %v", err)
+		return nil, fmt.Errorf("failed to connect to ceph: %w", err)
 	}
 
 	klog.Info("connected to ceph cluster")
@@ -110,7 +121,7 @@ func (c *Conn) fetchCredentials() error {
 	secret, err := c.client.CoreV1().Secrets(c.ns).Get(
 		context.TODO(), cephAuthSecretName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get secret %s/%s: %v", c.ns, cephAuthSecretName, err)
+		return fmt.Errorf("failed to get secret %s/%s: %w", c.ns, cephAuthSecretName, err)
 	}
 
 	id, ok := secret.Data["userID"]
@@ -127,7 +138,7 @@ func (c *Conn) fetchCredentials() error {
 	configmap, err := c.client.CoreV1().ConfigMaps(c.authNs).Get(
 		context.TODO(), csiConfigMapName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get configmap %s/%s: %v", c.authNs, csiConfigMapName, err)
+		return fmt.Errorf("failed to get configmap %s/%s: %w", c.authNs, csiConfigMapName, err)
 	}
 
 	data, ok := configmap.Data["csi-cluster-config-json"]
@@ -137,15 +148,12 @@ func (c *Conn) fetchCredentials() error {
 
 	var configs []csiClusterConfig
 	if err := json.Unmarshal([]byte(data), &configs); err != nil {
-		return fmt.Errorf("failed to parse csi cluster config: %v", err)
+		return fmt.Errorf("failed to parse csi cluster config: %w", err)
 	}
 
 	for _, cfg := range configs {
 		if cfg.Namespace == c.ns && len(cfg.Monitors) > 0 {
-			c.monitors = cfg.Monitors[0]
-			for _, m := range cfg.Monitors[1:] {
-				c.monitors += "," + m
-			}
+			c.monitors = strings.Join(cfg.Monitors, ",")
 			return nil
 		}
 	}
