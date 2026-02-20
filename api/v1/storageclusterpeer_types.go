@@ -49,6 +49,7 @@ type StorageClusterPeerSpec struct {
 // StorageClusterPeerStatus defines the observed state of StorageClusterPeer
 type StorageClusterPeerStatus struct {
 	State    StorageClusterPeerState `json:"state,omitempty"`
+	Reason   string                  `json:"reason,omitempty"`
 	PeerInfo *PeerInfo               `json:"peerInfo"`
 }
 
