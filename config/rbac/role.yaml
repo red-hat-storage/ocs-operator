@@ -243,8 +243,11 @@ rules:
   - objectbucketclaims
   - objectbuckets
   verbs:
+  - create
+  - delete
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - ocs.openshift.io
