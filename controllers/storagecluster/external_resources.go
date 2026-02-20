@@ -20,6 +20,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -457,6 +458,35 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		return err
 	}
 
+	// create virtualization storageclass if VirtualMachineCRD is present
+	var scc StorageClassConfiguration
+	crdUid, err := DetectVirtPlatform(context.TODO(), r.Client)
+	if err != nil {
+		return err
+	}
+	if crdUid {
+		scc = StorageClassConfiguration{
+			storageClass: util.NewDefaultVirtRbdStorageClass(
+				instance.Namespace,
+				util.GenerateNameForCephBlockPool(instance.Name),
+				"rook-csi-rbd-provisioner",
+				"rook-csi-rbd-node",
+				instance.Namespace,
+				"",
+				"",
+				instance.Spec.ManagedResources.CephBlockPools.DefaultVirtualizationStorageClass,
+			),
+			reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
+			isClusterExternal: true,
+		}
+		scc.storageClass.Name = util.GenerateNameForCephBlockPoolVirtualizationStorageClass(instance)
+		err = r.createExternalModeStorageClasses([]StorageClassConfiguration{scc}, instance.Namespace)
+		if err != nil {
+			r.Log.Error(err, "Failed to create Virtualization StorageClass.")
+			return err
+		}
+	}
+
 	if rgwEndpoint != "" {
 		if err := checkEndpointReachable(rgwEndpoint, 5*time.Second); err != nil {
 			r.Log.Error(err, "RGW endpoint is not reachable.", "RGWEndpoint", rgwEndpoint)
@@ -474,6 +504,16 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		}
 	}
 	return nil
+}
+
+func DetectVirtPlatform(ctx context.Context, kubeClient client.Client) (bool, error) {
+	crd := &metav1.PartialObjectMetadata{}
+	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
+	crd.Name = VirtualMachineCrdName
+	if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
+		return false, err
+	}
+	return crd.UID != "", nil
 }
 
 func (r *StorageClusterReconciler) createExternalModeStorageClasses(sccs []StorageClassConfiguration, namespace string) error {
