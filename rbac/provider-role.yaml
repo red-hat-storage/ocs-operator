@@ -124,3 +124,14 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+      - objectbucket.io
+    resources:
+      - objectbucketclaims
+      - objectbuckets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete

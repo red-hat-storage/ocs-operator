@@ -85,6 +85,7 @@ type StorageConsumerReconciler struct {
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpools;cephfilesystems;cephnfses,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=objectbucket.io,resources=objectbucketclaims;objectbuckets,verbs=get;list;watch;create;update;delete
 
 // Reconcile reads that state of the cluster for a StorageConsumer object and makes changes based on the state read
 // and what is in the StorageConsumer.Spec
