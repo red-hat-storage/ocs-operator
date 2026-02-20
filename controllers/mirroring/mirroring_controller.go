@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strconv"
 	"time"
@@ -353,7 +354,8 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 		labels := cephBlockPool.GetLabels()
 		forInternalUseOnly, _ := strconv.ParseBool(labels[util.ForInternalUseOnlyLabelKey])
 		forbidMirroring, _ := strconv.ParseBool(labels[util.ForbidMirroringLabel])
-		if forInternalUseOnly || forbidMirroring {
+		erasureCodedPool := !reflect.DeepEqual(cephBlockPool.Spec.ErasureCoded, rookCephv1.ErasureCodedSpec{})
+		if forInternalUseOnly || forbidMirroring || erasureCodedPool {
 			continue
 		}
 		blockPoolByName[cephBlockPool.Name] = cephBlockPool
