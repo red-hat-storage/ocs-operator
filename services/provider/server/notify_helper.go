@@ -22,8 +22,8 @@ const (
 	annotationKeyRemoteObcCreation     = "remote-obc-creation"
 	labelKeyRemoteObcOriginalName      = "remote-obc-original-name"
 	labelKeyRemoteObcOriginalNamespace = "remote-obc-original-namespace"
-	labelKeyRemoteObcConsumerName      = "storage-consumer-name"
-	labelKeyRemoteObcConsumerUUID      = "storage-consumer-uuid"
+	labelKeyObcConsumerName            = "storage-consumer-name"
+	labelKeyObcConsumerUUID            = "storage-consumer-uuid"
 	prefixOfHashedName                 = "remote-obc"
 )
 
@@ -34,13 +34,8 @@ const (
 //   - The OBC is named with an obscure name to avoid collisions
 //   - Owner reference is set to the storage consumer
 //   - Label added: original indicates that the information is about the client cluster OBC
-//     1. "remote-obc-original-name": "<original-obc-name>"       // name provided by the client
-//     2. "remote-obc-original-namespace": "<original-obc-namespace>"    // namespace provided by the client
-//     3. "remote-obc-consumer-name": "<consumer-name>" // name of the storage consumer
-//     4. "remote-obc-consumer-uuid": "<consumer-uuid>" // UUID of the storage consumer
-//   - Annotations added:
-//     1. "remote-obc-creation": "true" // used by MCG CLI
-func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsumerUUID string, obcDetails *nbv1.ObjectBucketClaim) error {
+//   - Annotations added: "remote-obc-creation": "true" (used by MCG CLI)
+func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsumerUUID string, obc *nbv1.ObjectBucketClaim) error {
 	logger := klog.FromContext(ctx).WithName("handleObcCreate")
 	logger.Info("handleObcCreate: Starting handleObcCreate", "storageConsumerUUID", storageConsumerUUID)
 
@@ -50,33 +45,33 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 	}
 	storageConsumerName := storageConsumer.Name
 
-	obcNameClient := obcDetails.Name
-	namespaceNameClient := obcDetails.Namespace
-	if obcNameClient == "" || namespaceNameClient == "" {
+	obcName := obc.Name
+	obcNamespace := obc.Namespace
+	if obcName == "" || obcNamespace == "" {
 		return status.Error(codes.InvalidArgument, "missing OBC name or namespace")
 	}
 
-	logger.Info("handleObcCreate: Building OBC object", "storageConsumerUUID", storageConsumerUUID, "obcNameClient", obcNameClient, "namespaceNameClient", namespaceNameClient)
-	obc := &nbv1.ObjectBucketClaim{}
-	obc.Name = getObcHashedName(storageConsumerUUID, obcNameClient, namespaceNameClient)
-	obc.Namespace = storageConsumer.Namespace
+	logger.Info("handleObcCreate: Building OBC object", "storageConsumerUUID", storageConsumerUUID, "OBC Name", obcName, "OBC Namespace", obcNamespace)
+	localObc := &nbv1.ObjectBucketClaim{}
+	localObc.Name = getObcHashedName(storageConsumerUUID, obcName, obcNamespace)
+	localObc.Namespace = storageConsumer.Namespace
 
-	util.AddLabel(obc, labelKeyRemoteObcConsumerName, storageConsumerName)
-	util.AddLabel(obc, labelKeyRemoteObcConsumerUUID, storageConsumerUUID)
-	util.AddLabel(obc, labelKeyRemoteObcOriginalName, obcNameClient)
-	util.AddLabel(obc, labelKeyRemoteObcOriginalNamespace, namespaceNameClient)
+	util.AddLabel(localObc, labelKeyObcConsumerName, storageConsumerName)
+	util.AddLabel(localObc, labelKeyObcConsumerUUID, storageConsumerUUID)
+	util.AddLabel(localObc, labelKeyRemoteObcOriginalName, obcName)
+	util.AddLabel(localObc, labelKeyRemoteObcOriginalNamespace, obcNamespace)
 
-	util.AddAnnotation(obc, annotationKeyRemoteObcCreation, "true")
+	util.AddAnnotation(localObc, annotationKeyRemoteObcCreation, "true")
 
-	obc.Spec = obcDetails.Spec
+	localObc.Spec = obc.Spec
 
-	if err := controllerutil.SetOwnerReference(storageConsumer, obc, s.scheme); err != nil {
-		return status.Errorf(codes.Internal, "failed to set owner reference for OBC name %s namespace %s: %v", obcNameClient, namespaceNameClient, err)
+	if err := controllerutil.SetOwnerReference(storageConsumer, localObc, s.scheme); err != nil {
+		return status.Errorf(codes.Internal, "failed to set owner reference for OBC name %s namespace %s: %v", obcName, obcNamespace, err)
 	}
 
-	logger.Info("handleObcCreate: Creating OBC resource", "namespaced/name", client.ObjectKeyFromObject(obc))
-	if err := s.client.Create(ctx, obc); client.IgnoreAlreadyExists(err) != nil {
-		return status.Errorf(codes.Internal, "failed to create OBC name %s namespace %s: %v", obcNameClient, namespaceNameClient, err)
+	logger.Info("handleObcCreate: Creating OBC resource", "namespaced/name", client.ObjectKeyFromObject(localObc))
+	if err := s.client.Create(ctx, localObc); client.IgnoreAlreadyExists(err) != nil {
+		return status.Errorf(codes.Internal, "failed to create OBC name %s namespace %s: %v", obcName, obcNamespace, err)
 	}
 	return nil
 }
@@ -95,37 +90,37 @@ func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsume
 	}
 	storageConsumerName := storageConsumer.Name
 
-	obcNameClient := obcDetails.Name
-	namespaceNameClient := obcDetails.Namespace
-	if obcNameClient == "" || namespaceNameClient == "" {
+	obcName := obcDetails.Name
+	obcNamespace := obcDetails.Namespace
+	if obcName == "" || obcNamespace == "" {
 		logger.Error(nil, "handleObcDelete: missing OBC name or namespace", obcDetails)
 		return status.Error(codes.InvalidArgument, "missing OBC name or namespace")
 	}
 
 	labelSelector := map[string]string{
-		labelKeyRemoteObcOriginalName:      obcNameClient,
-		labelKeyRemoteObcOriginalNamespace: namespaceNameClient,
-		labelKeyRemoteObcConsumerName:      storageConsumerName,
+		labelKeyRemoteObcOriginalName:      obcName,
+		labelKeyRemoteObcOriginalNamespace: obcNamespace,
+		labelKeyObcConsumerName:            storageConsumerName,
 	}
-	namespaceObc := storageConsumer.Namespace
+	localObcNamespace := storageConsumer.Namespace
 	obcList := &nbv1.ObjectBucketClaimList{}
-	if err := s.client.List(ctx, obcList, client.InNamespace(namespaceObc), client.MatchingLabels(labelSelector)); err != nil {
-		logger.Error(err, "handleObcDelete: Failed to list OBC resources", "namespace", namespaceObc, "labels", labelSelector)
-		return status.Errorf(codes.Internal, "failed to list OBCs for deletion name %s namespace %s: %v", obcNameClient, namespaceNameClient, err)
+	if err := s.client.List(ctx, obcList, client.InNamespace(localObcNamespace), client.MatchingLabels(labelSelector)); err != nil {
+		logger.Error(err, "handleObcDelete: Failed to list OBC resources", "namespace", localObcNamespace, "labels", labelSelector)
+		return status.Errorf(codes.Internal, "failed to list OBCs for deletion name %s namespace %s: %v", obcName, obcNamespace, err)
 	}
 	if len(obcList.Items) == 0 {
-		logger.Info("handleObcDelete: OBC not found", "namespace", namespaceObc, "labels", labelSelector)
+		logger.Info("handleObcDelete: OBC not found", "namespace", localObcNamespace, "labels", labelSelector)
 		return nil
 	}
 	if len(obcList.Items) > 1 {
-		logger.Error(nil, "handleObcDelete: Multiple OBCs matched labels", "namespace", namespaceObc, "labels", labelSelector, "count", len(obcList.Items))
-		return status.Errorf(codes.Internal, "multiple OBCs matched for deletion name %s namespace %s", obcNameClient, namespaceNameClient)
+		logger.Error(nil, "handleObcDelete: Multiple OBCs matched labels", "namespace", localObcNamespace, "labels", labelSelector, "count", len(obcList.Items))
+		return status.Errorf(codes.Internal, "multiple OBCs matched for deletion name %s namespace %s", obcName, obcNamespace)
 	}
 
-	obc := &obcList.Items[0]
-	logger.Info("handleObcDelete: Deleting OBC resource", "namespaced/name", client.ObjectKeyFromObject(obc))
-	if err := s.client.Delete(ctx, obc); client.IgnoreNotFound(err) != nil {
-		return status.Errorf(codes.Internal, "failed to delete OBC name %s namespace %s: %v", obcNameClient, namespaceNameClient, err)
+	localObc := &obcList.Items[0]
+	logger.Info("handleObcDelete: Deleting OBC resource", "namespaced/name", client.ObjectKeyFromObject(localObc))
+	if err := s.client.Delete(ctx, localObc); client.IgnoreNotFound(err) != nil {
+		return status.Errorf(codes.Internal, "failed to delete OBC name %s namespace %s: %v", obcName, obcNamespace, err)
 	}
 	return nil
 }
