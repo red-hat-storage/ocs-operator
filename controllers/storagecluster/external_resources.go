@@ -257,6 +257,15 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 	// this stores only the StorageClasses specified in the Secret
 	availableSCCs := []StorageClassConfiguration{}
 
+	var fsid string
+	if cephCluster, err := util.GetCephClusterInNamespace(r.ctx, r.Client, instance.Namespace); err != nil {
+		return err
+	} else if cephCluster.Status.CephStatus == nil || cephCluster.Status.CephStatus.FSID == "" {
+		return fmt.Errorf("waiting for Ceph FSID")
+	} else {
+		fsid = cephCluster.Status.CephStatus.FSID
+	}
+
 	data, ok := externalOCSResources[instance.UID]
 	if !ok {
 		return fmt.Errorf("Unable to retrieve external resource from externalOCSResources")
@@ -342,7 +351,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-cephfs-provisioner",
 						"rook-csi-cephfs-node",
 						instance.Namespace,
-						"",
+						util.CalculateCephFsStorageID(fsid, "csi"),
 					),
 					reconcileStrategy: ReconcileStrategy(scManagedResources.CephFilesystems.ReconcileStrategy),
 					isClusterExternal: true,
@@ -356,7 +365,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-rbd-provisioner",
 						"rook-csi-rbd-node",
 						instance.Namespace,
-						"",
+						util.CalculateCephRbdStorageID(fsid, ""),
 						"",
 						scManagedResources.CephBlockPools.DefaultStorageClass,
 					),
@@ -372,7 +381,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-rbd-provisioner",
 						"rook-csi-rbd-node",
 						instance.Namespace,
-						"",
+						util.CalculateCephRbdStorageID(fsid, strings.TrimPrefix(d.Name, fmt.Sprintf("%s-", cephRbdRadosNamespaceStorageClassNamePrefix))),
 						"",
 						scManagedResources.CephBlockPools.DefaultStorageClass,
 					),
@@ -399,7 +408,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-rbd-provisioner",
 						"rook-csi-rbd-node",
 						instance.Namespace,
-						"",
+						util.CalculateCephRbdStorageID(fsid, ""),
 						"",
 					),
 					isClusterExternal: true,

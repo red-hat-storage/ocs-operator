@@ -123,12 +123,25 @@ func (r *StorageClusterReconciler) getClusterIDAndSecretName(instance *ocsv1.Sto
 
 // ensureCreated functions ensures that snpashotter classes are created
 func (obj *ocsSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+
+	var fsid string
+	if cephCluster, err := util.GetCephClusterInNamespace(r.ctx, r.Client, instance.Namespace); err != nil {
+		return reconcile.Result{}, err
+	} else if cephCluster.Status.CephStatus == nil || cephCluster.Status.CephStatus.FSID == "" {
+		return reconcile.Result{}, fmt.Errorf("waiting for Ceph FSID")
+	} else {
+		fsid = cephCluster.Status.CephStatus.FSID
+	}
+
+	rbdStorageID := util.CalculateCephRbdStorageID(fsid, "")
+	cephFsStorageID := util.CalculateCephFsStorageID(fsid, "csi")
+
 	rbdClusterID, rbdProvisionerSecret, err := r.getClusterIDAndSecretName(instance, util.RbdSnapshotter)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 	rbdSnapClass := SnapshotClassConfiguration{
-		snapshotClass:     util.NewDefaultRbdSnapshotClass(rbdClusterID, rbdProvisionerSecret, instance.Namespace, ""),
+		snapshotClass:     util.NewDefaultRbdSnapshotClass(rbdClusterID, rbdProvisionerSecret, instance.Namespace, rbdStorageID),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
 	}
 	rbdSnapClass.snapshotClass.Name = util.GenerateNameForSnapshotClass(instance.Name, util.RbdSnapshotter)
@@ -139,7 +152,7 @@ func (obj *ocsSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance
 		return reconcile.Result{}, err
 	}
 	cephFsSnapClass := SnapshotClassConfiguration{
-		snapshotClass:     util.NewDefaultCephFsSnapshotClass(cephfsClusterID, cephfsProvisionerSecret, instance.Namespace, ""),
+		snapshotClass:     util.NewDefaultCephFsSnapshotClass(cephfsClusterID, cephfsProvisionerSecret, instance.Namespace, cephFsStorageID),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephFilesystems.ReconcileStrategy),
 	}
 	cephFsSnapClass.snapshotClass.Name = util.GenerateNameForSnapshotClass(instance.Name, util.CephfsSnapshotter)

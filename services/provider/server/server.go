@@ -1010,7 +1010,7 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 		consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
 		if rns := consumerConfig.GetRbdRadosNamespaceName(); rns != "" {
 			clientInfo.RadosNamespace = rns
-			clientInfo.RbdStorageID = calculateCephRbdStorageID(fsid, rns)
+			clientInfo.RbdStorageID = util.CalculateCephRbdStorageID(fsid, rns)
 			clientInfo.ClientProfiles[clientInfoRbdClientProfileKey] = consumerConfig.GetRbdClientProfileName()
 		}
 
@@ -1115,14 +1115,6 @@ func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consume
 	return clientMappingConfig.Data[consumer.Status.Client.ID] != "", nil
 }
 
-func calculateCephRbdStorageID(cephfsid, radosnamespacename string) string {
-	return util.CalculateMD5Hash([2]string{cephfsid, radosnamespacename})
-}
-
-func calculateCephFsStorageID(cephfsid, subVolumeGroupName string) string {
-	return util.CalculateMD5Hash([2]string{cephfsid, subVolumeGroupName})
-}
-
 func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Logger, consumer *ocsv1alpha1.StorageConsumer) ([]client.Object, error) {
 
 	consumerConfigMap := &v1.ConfigMap{}
@@ -1154,11 +1146,11 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 		fsid = cephCluster.Status.CephStatus.FSID
 	}
 
-	rbdStorageId := calculateCephRbdStorageID(
+	rbdStorageId := util.CalculateCephRbdStorageID(
 		fsid,
 		consumerConfig.GetRbdRadosNamespaceName(),
 	)
-	cephFsStorageId := calculateCephFsStorageID(
+	cephFsStorageId := util.CalculateCephFsStorageID(
 		fsid,
 		consumerConfig.GetSubVolumeGroupName(),
 	)
