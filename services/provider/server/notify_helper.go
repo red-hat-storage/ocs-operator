@@ -47,9 +47,6 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 
 	obcName := obc.Name
 	obcNamespace := obc.Namespace
-	if obcName == "" || obcNamespace == "" {
-		return status.Error(codes.InvalidArgument, "missing OBC name or namespace")
-	}
 
 	logger.Info("handleObcCreate: Building OBC object", "storageConsumerUUID", storageConsumerUUID, "OBC Name", obcName, "OBC Namespace", obcNamespace)
 	localObc := &nbv1.ObjectBucketClaim{}
@@ -92,10 +89,6 @@ func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsume
 
 	obcName := obcDetails.Name
 	obcNamespace := obcDetails.Namespace
-	if obcName == "" || obcNamespace == "" {
-		logger.Error(nil, "handleObcDelete: missing OBC name or namespace", obcDetails)
-		return status.Error(codes.InvalidArgument, "missing OBC name or namespace")
-	}
 
 	labelSelector := map[string]string{
 		labelKeyRemoteObcOriginalName:      obcName,
