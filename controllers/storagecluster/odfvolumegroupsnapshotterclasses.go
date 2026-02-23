@@ -1,8 +1,8 @@
 package storagecluster
 
 import (
+	"encoding/json"
 	"fmt"
-	"reflect"
 	"strconv"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -12,8 +12,9 @@ import (
 	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -28,40 +29,40 @@ func (r *StorageClusterReconciler) createOdfGroupSnapshotClasses(vgsc OdfGroupSn
 	if vgsc.reconcileStrategy == ReconcileStrategyIgnore {
 		return nil
 	}
-	vsc := vgsc.groupSnapshotClass
-	existing := &odfgsapiv1b1.VolumeGroupSnapshotClass{}
-	err := r.Client.Get(r.ctx, types.NamespacedName{Name: vsc.Name, Namespace: vsc.Namespace}, existing)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Since the SnapshotClass is not found, we will create a new one
-			r.Log.Info("Creating GroupSnapshotClass.", "GroupSnapshotClass", klog.KRef("", vsc.Name))
-			err = r.Client.Create(r.ctx, vsc)
-			if err != nil {
-				r.Log.Error(err, "Failed to create GroupSnapshotClass.", "GroupSnapshotClass", klog.KRef("", vsc.Name))
-				return err
-			}
-			return nil
-		}
 
-		r.Log.Error(err, "Failed to 'Get' GroupSnapshotClass.", "GroupSnapshotClass", klog.KRef("", vsc.Name))
+	vsc := &odfgsapiv1b1.VolumeGroupSnapshotClass{}
+	vsc.Name = vgsc.groupSnapshotClass.Name
+	err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(vsc), vsc)
+	if client.IgnoreNotFound(err) != nil {
+		r.Log.Error(err, "Failed to 'Get' GroupSnapshotClass.", "GroupSnapshotClass", client.ObjectKeyFromObject(vsc))
 		return err
 	}
-	if vgsc.reconcileStrategy == ReconcileStrategyInit {
+
+	// If found and reconcileStrategy is init we skip
+	if !errors.IsNotFound(err) && vgsc.reconcileStrategy == ReconcileStrategyInit {
 		return nil
 	}
-	if existing.DeletionTimestamp != nil {
-		return fmt.Errorf("failed to restore GroupSnapshotClass %q because it is marked for deletion", existing.Name)
+
+	if vsc.DeletionTimestamp != nil {
+		return fmt.Errorf("failed to restore GroupSnapshotClass %q because it is marked for deletion", vsc.Name)
 	}
-	// if there is a mismatch in the parameters of existing vs created resources,
-	if !reflect.DeepEqual(vsc.Parameters, existing.Parameters) {
-		// we have to update the existing SnapshotClass
-		r.Log.Info("GroupSnapshotClass needs to be updated", "GroupSnapshotClass", klog.KRef("", existing.Name))
-		existing.ObjectMeta.OwnerReferences = vsc.ObjectMeta.OwnerReferences
-		vsc.ObjectMeta = existing.ObjectMeta
-		if err := r.Client.Update(r.ctx, vsc); err != nil {
-			r.Log.Error(err, "GroupSnapshotClass updation failed.", "GroupSnapshotClass", klog.KRef("", existing.Name))
-			return err
+
+	_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, vsc, func() error {
+
+		// Unmarshal follows merge semantics, that means that we don't need to worry about overriding the status,
+		// or any metadata fields. There is an exception when it comes to creationTimestamp which gets serialized into
+		// default value.
+		desiredBytes := util.JsonMustMarshal(vgsc.groupSnapshotClass)
+		creationTimestamp := vsc.GetCreationTimestamp()
+		if err := json.Unmarshal(desiredBytes, vsc); err != nil {
+			return fmt.Errorf("failed to unmarshal %s configuration response: %v", vsc.GetName(), err)
 		}
+		vsc.SetCreationTimestamp(creationTimestamp)
+		return nil
+	})
+	if err != nil {
+		r.Log.Error(err, "Failed to create or update GroupSnapshotClass.", "GroupSnapshotClass", client.ObjectKeyFromObject(vsc))
+		return err
 	}
 
 	return nil

@@ -8,12 +8,12 @@ import (
 	"net"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	"github.com/go-logr/logr"
@@ -26,6 +26,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -257,6 +258,18 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 	// this stores only the StorageClasses specified in the Secret
 	availableSCCs := []StorageClassConfiguration{}
 
+	var fsid string
+	if cephCluster, err := util.GetCephClusterInNamespace(r.ctx, r.Client, instance.Namespace); err != nil {
+		return err
+	} else if cephCluster.Status.CephStatus == nil || cephCluster.Status.CephStatus.FSID == "" {
+		return fmt.Errorf("waiting for Ceph FSID")
+	} else {
+		fsid = cephCluster.Status.CephStatus.FSID
+	}
+
+	rbdStorageID := util.CalculateCephRbdStorageID(fsid, getExternalModeRadosNamespaceName(instance))
+	cephFsStorageID := util.CalculateCephFsStorageID(fsid, "csi")
+
 	data, ok := externalOCSResources[instance.UID]
 	if !ok {
 		return fmt.Errorf("Unable to retrieve external resource from externalOCSResources")
@@ -342,7 +355,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-cephfs-provisioner",
 						"rook-csi-cephfs-node",
 						instance.Namespace,
-						"",
+						cephFsStorageID,
 					),
 					reconcileStrategy: ReconcileStrategy(scManagedResources.CephFilesystems.ReconcileStrategy),
 					isClusterExternal: true,
@@ -356,7 +369,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-rbd-provisioner",
 						"rook-csi-rbd-node",
 						instance.Namespace,
-						"",
+						rbdStorageID,
 						"",
 						scManagedResources.CephBlockPools.DefaultStorageClass,
 					),
@@ -372,7 +385,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-rbd-provisioner",
 						"rook-csi-rbd-node",
 						instance.Namespace,
-						"",
+						rbdStorageID,
 						"",
 						scManagedResources.CephBlockPools.DefaultStorageClass,
 					),
@@ -399,7 +412,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-rbd-provisioner",
 						"rook-csi-rbd-node",
 						instance.Namespace,
-						"",
+						rbdStorageID,
 						"",
 					),
 					isClusterExternal: true,
@@ -519,56 +532,37 @@ func (r *StorageClusterReconciler) createExternalModeStorageClasses(sccs []Stora
 			}
 		}
 
-		scRecreated := false
 		existing := &storagev1.StorageClass{}
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, existing)
-
-		if errors.IsNotFound(err) {
-			// Since the StorageClass is not found, we will create a new one
-			r.Log.Info("Creating StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
-			err = r.Client.Create(context.TODO(), sc)
-			if err != nil {
-				return err
-			}
-		} else if err != nil {
+		existing.Name = sc.Name
+		err := r.Client.Get(context.TODO(), client.ObjectKeyFromObject(existing), existing)
+		if client.IgnoreNotFound(err) != nil {
 			return err
-		} else {
-			if scc.reconcileStrategy == ReconcileStrategyInit {
-				continue
-			}
-			if existing.DeletionTimestamp != nil {
-				return fmt.Errorf("failed to restore StorageClass  %s because it is marked for deletion", existing.Name)
-			}
-			if !reflect.DeepEqual(sc.Parameters, existing.Parameters) || existing.Labels[util.ExternalClassLabelKey] != sc.Labels[util.ExternalClassLabelKey] {
-				// Since we have to update the existing StorageClass
-				// So, we will delete the existing storageclass and create a new one
-				r.Log.Info("StorageClass needs to be updated, deleting it.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
-				err = r.Client.Delete(context.TODO(), existing)
-				if err != nil {
-					r.Log.Error(err, "Failed to delete StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
-					return err
-				}
-				r.Log.Info("Creating StorageClass.", "StorageClass", klog.KRef(sc.Namespace, sc.Name))
-				err = r.Client.Create(context.TODO(), sc)
-				if err != nil {
-					r.Log.Info("Failed to create StorageClass.", "StorageClass", klog.KRef(sc.Namespace, sc.Name))
-					return err
-				}
-				scRecreated = true
-			}
-			if !scRecreated {
-				// Delete existing key rotation annotation and set it on sc only when it is false
-				delete(existing.Annotations, defaults.KeyRotationEnableAnnotation)
-				if krState := sc.GetAnnotations()[defaults.KeyRotationEnableAnnotation]; krState == "false" {
-					util.AddAnnotation(existing, defaults.KeyRotationEnableAnnotation, krState)
-				}
+		}
 
-				err = r.Client.Update(context.TODO(), existing)
-				if err != nil {
-					r.Log.Error(err, "Failed to update annotations on the StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
-					return err
-				}
+		// If found and reconcileStrategy is init we skip
+		if !errors.IsNotFound(err) && scc.reconcileStrategy == ReconcileStrategyInit {
+			continue
+		}
+
+		if existing.DeletionTimestamp != nil {
+			return fmt.Errorf("failed to restore StorageClass %s because it is marked for deletion", existing.Name)
+		}
+
+		_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, existing, func() error {
+			// Unmarshal follows merge semantics, that means that we don't need to worry about overriding the status,
+			// or any metadata fields. There is an exception when it comes to creationTimestamp which gets serialized into
+			// default value.
+			desiredBytes := util.JsonMustMarshal(scc.storageClass)
+			creationTimestamp := existing.GetCreationTimestamp()
+			if err := json.Unmarshal(desiredBytes, existing); err != nil {
+				return fmt.Errorf("failed to unmarshal %s configuration response: %v", existing.GetName(), err)
 			}
+			existing.SetCreationTimestamp(creationTimestamp)
+			return nil
+		})
+		if err != nil {
+			r.Log.Error(err, "Failed to create or update StorageClass.", "StorageClass", client.ObjectKeyFromObject(existing))
+			return err
 		}
 	}
 	if len(skippedSC) > 0 {
@@ -789,4 +783,15 @@ func (r *StorageClusterReconciler) configureCsiDrivers(availableSCCs []StorageCl
 		}
 	}
 	return nil
+}
+
+func getExternalModeRadosNamespaceName(storageCluster *ocsv1.StorageCluster) string {
+	resources := externalOCSResources[storageCluster.UID]
+	idx := slices.IndexFunc(resources, func(resource ExternalResource) bool {
+		return resource.Kind == "CephBlockPoolRadosNamespace"
+	})
+	if idx == -1 {
+		return ""
+	}
+	return resources[idx].Data["radosNamespaceName"]
 }
