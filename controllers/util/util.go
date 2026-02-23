@@ -10,6 +10,7 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -185,4 +186,16 @@ func GetFullTopologyLabel(failuredomain string) string {
 		return "kubernetes.io/hostname"
 	}
 	return ""
+}
+
+func IsForbiddenError(err error) bool {
+	statusErr, ok := err.(*errors.StatusError)
+	if ok {
+		for i := range statusErr.ErrStatus.Details.Causes {
+			if statusErr.ErrStatus.Details.Causes[i].Type == metav1.CauseTypeForbidden {
+				return true
+			}
+		}
+	}
+	return false
 }

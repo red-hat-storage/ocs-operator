@@ -14,7 +14,6 @@ import (
 	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	"github.com/go-logr/logr"
@@ -27,6 +26,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -258,6 +258,18 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 	// this stores only the StorageClasses specified in the Secret
 	availableSCCs := []StorageClassConfiguration{}
 
+	var fsid string
+	if cephCluster, err := util.GetCephClusterInNamespace(r.ctx, r.Client, instance.Namespace); err != nil {
+		return err
+	} else if cephCluster.Status.CephStatus == nil || cephCluster.Status.CephStatus.FSID == "" {
+		return fmt.Errorf("waiting for Ceph FSID")
+	} else {
+		fsid = cephCluster.Status.CephStatus.FSID
+	}
+
+	rbdStorageID := util.CalculateCephRbdStorageID(fsid, getExternalModeRadosNamespaceName(instance))
+	cephFsStorageID := util.CalculateCephFsStorageID(fsid, "csi")
+
 	data, ok := externalOCSResources[instance.UID]
 	if !ok {
 		return fmt.Errorf("Unable to retrieve external resource from externalOCSResources")
@@ -343,7 +355,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-cephfs-provisioner",
 						"rook-csi-cephfs-node",
 						instance.Namespace,
-						"",
+						cephFsStorageID,
 					),
 					reconcileStrategy: ReconcileStrategy(scManagedResources.CephFilesystems.ReconcileStrategy),
 					isClusterExternal: true,
@@ -357,7 +369,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-rbd-provisioner",
 						"rook-csi-rbd-node",
 						instance.Namespace,
-						"",
+						rbdStorageID,
 						"",
 						scManagedResources.CephBlockPools.DefaultStorageClass,
 					),
@@ -373,7 +385,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-rbd-provisioner",
 						"rook-csi-rbd-node",
 						instance.Namespace,
-						"",
+						rbdStorageID,
 						"",
 						scManagedResources.CephBlockPools.DefaultStorageClass,
 					),
@@ -400,7 +412,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-rbd-provisioner",
 						"rook-csi-rbd-node",
 						instance.Namespace,
-						"",
+						rbdStorageID,
 						"",
 					),
 					isClusterExternal: true,
@@ -520,56 +532,54 @@ func (r *StorageClusterReconciler) createExternalModeStorageClasses(sccs []Stora
 			}
 		}
 
-		scRecreated := false
 		existing := &storagev1.StorageClass{}
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}, existing)
+		existing.Name = sc.Name
+		if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(existing), existing); client.IgnoreNotFound(err) != nil {
+			return err
+		}
 
-		if errors.IsNotFound(err) {
-			// Since the StorageClass is not found, we will create a new one
-			r.Log.Info("Creating StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
-			err = r.Client.Create(context.TODO(), sc)
-			if err != nil {
-				return err
+		// If found and reconcileStrategy is init we skip
+		if existing.UID != "" && scc.reconcileStrategy == ReconcileStrategyInit {
+			continue
+		}
+
+		mutateFn := func() error {
+			if len(existing.Labels) == 0 {
+				existing.Labels = map[string]string{}
+			}
+			if len(existing.Annotations) == 0 {
+				existing.Annotations = map[string]string{}
+			}
+			maps.Copy(existing.Labels, sc.Labels)
+			maps.Copy(existing.Annotations, sc.Annotations)
+
+			existing.AllowVolumeExpansion = sc.AllowVolumeExpansion
+			existing.Parameters = sc.Parameters
+			existing.Provisioner = sc.Provisioner
+			existing.ReclaimPolicy = sc.ReclaimPolicy
+			existing.VolumeBindingMode = sc.VolumeBindingMode
+			return nil
+		}
+		_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, existing, mutateFn)
+		if util.IsForbiddenError(err) {
+			if err := r.Client.Delete(r.ctx, existing); client.IgnoreNotFound(err) != nil {
+				return fmt.Errorf("failed to replace StorageClass %v: %v", sc.GetName(), err)
+			}
+
+			// k8s doesn't allow us to create objects when resourceVersion is set, as we are DeepCopying the
+			// object, the resource version also gets copied, hence we need to set it to empty before creating it
+			existing.SetResourceVersion("")
+			if err := r.Client.Create(r.ctx, existing); err != nil {
+				return fmt.Errorf("failed to replace StorageClass %v: %v", sc.GetName(), err)
 			}
 		} else if err != nil {
-			return err
-		} else {
-			if scc.reconcileStrategy == ReconcileStrategyInit {
-				continue
-			}
-			if existing.DeletionTimestamp != nil {
-				return fmt.Errorf("failed to restore StorageClass  %s because it is marked for deletion", existing.Name)
-			}
-			if !reflect.DeepEqual(sc.Parameters, existing.Parameters) || existing.Labels[util.ExternalClassLabelKey] != sc.Labels[util.ExternalClassLabelKey] {
-				// Since we have to update the existing StorageClass
-				// So, we will delete the existing storageclass and create a new one
-				r.Log.Info("StorageClass needs to be updated, deleting it.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
-				err = r.Client.Delete(context.TODO(), existing)
-				if err != nil {
-					r.Log.Error(err, "Failed to delete StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
-					return err
-				}
-				r.Log.Info("Creating StorageClass.", "StorageClass", klog.KRef(sc.Namespace, sc.Name))
-				err = r.Client.Create(context.TODO(), sc)
-				if err != nil {
-					r.Log.Info("Failed to create StorageClass.", "StorageClass", klog.KRef(sc.Namespace, sc.Name))
-					return err
-				}
-				scRecreated = true
-			}
-			if !scRecreated {
-				// Delete existing key rotation annotation and set it on sc only when it is false
-				delete(existing.Annotations, defaults.KeyRotationEnableAnnotation)
-				if krState := sc.GetAnnotations()[defaults.KeyRotationEnableAnnotation]; krState == "false" {
-					util.AddAnnotation(existing, defaults.KeyRotationEnableAnnotation, krState)
-				}
+			return fmt.Errorf(
+				"failed to create or update StorageClass %v: %v", sc.GetName(), err)
+		}
 
-				err = r.Client.Update(context.TODO(), existing)
-				if err != nil {
-					r.Log.Error(err, "Failed to update annotations on the StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
-					return err
-				}
-			}
+		if err != nil {
+			r.Log.Error(err, "Failed to create or update StorageClass.", "StorageClass", client.ObjectKeyFromObject(existing))
+			return err
 		}
 	}
 	if len(skippedSC) > 0 {
