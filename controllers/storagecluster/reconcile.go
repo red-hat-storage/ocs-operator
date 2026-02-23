@@ -529,6 +529,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			&ocsSnapshotClass{},
 			&ocsGroupSnapshotClass{},
 			&ocsOdfGroupSnapshotClass{},
+			&ocsNetworkFenceClass{},
 			&ocsNoobaaSystem{},
 			&odfInfoConfig{},
 		}
