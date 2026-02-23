@@ -112,11 +112,6 @@ func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsume
 		logger.Info("handleObcDelete: OBC not found", "namespace", localObcNamespace, "labels", labelSelector)
 		return nil
 	}
-	if len(obcList.Items) > 1 {
-		logger.Error(nil, "handleObcDelete: Multiple OBCs matched labels", "namespace", localObcNamespace, "labels", labelSelector, "count", len(obcList.Items))
-		return status.Errorf(codes.Internal, "multiple OBCs matched for deletion name %s namespace %s", obcName, obcNamespace)
-	}
-
 	localObc := &obcList.Items[0]
 	logger.Info("handleObcDelete: Deleting OBC resource", "namespaced/name", client.ObjectKeyFromObject(localObc))
 	if err := s.client.Delete(ctx, localObc); client.IgnoreNotFound(err) != nil {
