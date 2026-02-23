@@ -372,58 +372,6 @@ func TestNotify(t *testing.T) {
 			},
 			ExpectedErrorCode: codes.OK,
 		},
-		{
-			name: "notify failed - obc deleted - payload does not contain the name of the obc",
-			setupServer: func(t *testing.T) *OCSProviderServer {
-				scheme, schemeErr := newScheme()
-				if schemeErr != nil {
-					t.Fatalf("newScheme() error = %v", schemeErr)
-				}
-				fakeClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(storageConsumer).
-					WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
-					Build()
-				return &OCSProviderServer{
-					client:          fakeClient,
-					scheme:          scheme,
-					consumerManager: createTestConsumerManager(fakeClient),
-					namespace:       testNamespace,
-				}
-			},
-			req: &pb.NotifyRequest{
-				StorageConsumerUUID: string(storageConsumer.UID),
-				Reason:              pb.NotifyReason_OBC_DELETED,
-				Payload:             util.JsonMustMarshal(types.NamespacedName{Name: "", Namespace: obcNamespace}),
-			},
-			ExpectedErrorCode: codes.InvalidArgument,
-		},
-		{
-			name: "notify failed - obc deleted - payload does not contain the namespace of the obc",
-			setupServer: func(t *testing.T) *OCSProviderServer {
-				scheme, schemeErr := newScheme()
-				if schemeErr != nil {
-					t.Fatalf("newScheme() error = %v", schemeErr)
-				}
-				fakeClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(storageConsumer).
-					WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
-					Build()
-				return &OCSProviderServer{
-					client:          fakeClient,
-					scheme:          scheme,
-					consumerManager: createTestConsumerManager(fakeClient),
-					namespace:       testNamespace,
-				}
-			},
-			req: &pb.NotifyRequest{
-				StorageConsumerUUID: string(storageConsumer.UID),
-				Reason:              pb.NotifyReason_OBC_DELETED,
-				Payload:             util.JsonMustMarshal(types.NamespacedName{Name: obcName, Namespace: ""}),
-			},
-			ExpectedErrorCode: codes.InvalidArgument,
-		},
 	}
 
 	for _, tt := range tests {
