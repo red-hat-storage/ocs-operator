@@ -60,7 +60,7 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 
 	util.AddAnnotation(localObc, annotationKeyRemoteObcCreation, "true")
 
-	localObc.Spec = obc.Spec
+	obc.Spec.DeepCopyInto(&localObc.Spec)
 
 	if err := controllerutil.SetOwnerReference(storageConsumer, localObc, s.scheme); err != nil {
 		return status.Errorf(codes.Internal, "failed to set owner reference for OBC name %s namespace %s: %v", obcName, obcNamespace, err)
