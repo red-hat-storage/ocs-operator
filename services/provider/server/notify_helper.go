@@ -49,22 +49,25 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 	obcNamespace := obc.Namespace
 
 	logger.Info("handleObcCreate: Building OBC object", "storageConsumerUUID", storageConsumerUUID, "OBC Name", obcName, "OBC Namespace", obcNamespace)
-	obc.Name = getObcHashedName(storageConsumerUUID, obcName, obcNamespace)
-	obc.Namespace = storageConsumer.Namespace
+	localObc := &nbv1.ObjectBucketClaim{}
+	localObc.Name = getObcHashedName(storageConsumerUUID, obcName, obcNamespace)
+	localObc.Namespace = storageConsumer.Namespace
 
-	util.AddLabel(obc, labelKeyObcConsumerName, storageConsumerName)
-	util.AddLabel(obc, labelKeyObcConsumerUUID, storageConsumerUUID)
-	util.AddLabel(obc, labelKeyRemoteObcOriginalName, obcName)
-	util.AddLabel(obc, labelKeyRemoteObcOriginalNamespace, obcNamespace)
+	util.AddLabel(localObc, labelKeyObcConsumerName, storageConsumerName)
+	util.AddLabel(localObc, labelKeyObcConsumerUUID, storageConsumerUUID)
+	util.AddLabel(localObc, labelKeyRemoteObcOriginalName, obcName)
+	util.AddLabel(localObc, labelKeyRemoteObcOriginalNamespace, obcNamespace)
 
-	util.AddAnnotation(obc, annotationKeyRemoteObcCreation, "true")
+	util.AddAnnotation(localObc, annotationKeyRemoteObcCreation, "true")
 
-	if err := controllerutil.SetOwnerReference(storageConsumer, obc, s.scheme); err != nil {
+	localObc.Spec = obc.Spec
+
+	if err := controllerutil.SetOwnerReference(storageConsumer, localObc, s.scheme); err != nil {
 		return status.Errorf(codes.Internal, "failed to set owner reference for OBC name %s namespace %s: %v", obcName, obcNamespace, err)
 	}
 
-	logger.Info("handleObcCreate: Creating OBC resource", "namespaced/name", client.ObjectKeyFromObject(obc))
-	if err := s.client.Create(ctx, obc); client.IgnoreAlreadyExists(err) != nil {
+	logger.Info("handleObcCreate: Creating OBC resource", "namespaced/name", client.ObjectKeyFromObject(localObc))
+	if err := s.client.Create(ctx, localObc); client.IgnoreAlreadyExists(err) != nil {
 		return status.Errorf(codes.Internal, "failed to create OBC name %s namespace %s: %v", obcName, obcNamespace, err)
 	}
 	return nil
