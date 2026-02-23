@@ -128,6 +128,16 @@ func createExternalClusterReconcilerFromCustomResources(
 			},
 		},
 	}
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit-cephcluster",
+		},
+		Status: cephv1.ClusterStatus{
+			CephStatus: &cephv1.CephStatus{
+				FSID: "random",
+			},
+		},
+	}
 	if extResource, err := findNamedResourceFromArray(extResources, "ceph-rgw"); err == nil {
 		servEndpoint := extResource.Data["endpoint"]
 		startServerAt(t, servEndpoint)
@@ -146,7 +156,7 @@ func createExternalClusterReconcilerFromCustomResources(
 		t.Fatalf("failed to create external secret: %v", err)
 	}
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
-	clientObjs := []client.Object{cr, externalSecret}
+	clientObjs := []client.Object{cr, externalSecret, cephCluster}
 	for _, obj := range clientObjs {
 		if err = reconciler.Client.Create(context.TODO(), obj); err != nil {
 			t.Fatalf("failed to create a needed runtime object: %v", err)

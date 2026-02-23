@@ -8,6 +8,7 @@ import (
 	"net"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -789,4 +790,16 @@ func (r *StorageClusterReconciler) configureCsiDrivers(availableSCCs []StorageCl
 		}
 	}
 	return nil
+}
+
+func getExternalModeRadosNamespaceName(storageCluster *ocsv1.StorageCluster) string {
+	resources := externalOCSResources[storageCluster.UID]
+	idx := slices.IndexFunc(resources, func(resource ExternalResource) bool {
+		return resource.Kind == "CephBlockPoolRadosNamespace"
+	})
+	if idx == -1 {
+		// empty string is also a valid value it represents the implicit/default radosnamespace
+		return ""
+	}
+	return resources[idx].Data["radosNamespaceName"]
 }
