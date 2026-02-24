@@ -97,17 +97,13 @@ func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsume
 	}
 	localObcNamespace := storageConsumer.Namespace
 	obcList := &nbv1.ObjectBucketClaimList{}
-	if err := s.client.List(ctx, obcList, client.InNamespace(localObcNamespace), client.MatchingLabels(labelSelector)); err != nil {
+	if err := s.client.List(ctx, obcList, client.InNamespace(localObcNamespace), client.MatchingLabels(labelSelector), client.Limit(1)); err != nil {
 		logger.Error(err, "handleObcDelete: Failed to list OBC resources", "namespace", localObcNamespace, "labels", labelSelector)
 		return status.Errorf(codes.Internal, "failed to list OBCs for deletion name %s namespace %s: %v", obcName, obcNamespace, err)
 	}
 	if len(obcList.Items) == 0 {
 		logger.Info("handleObcDelete: OBC not found", "namespace", localObcNamespace, "labels", labelSelector)
 		return nil
-	}
-	if len(obcList.Items) > 1 {
-		logger.Error(nil, "handleObcDelete: Multiple OBCs matched labels", "namespace", localObcNamespace, "labels", labelSelector, "count", len(obcList.Items))
-		return status.Errorf(codes.Internal, "multiple OBCs matched for deletion name %s namespace %s", obcName, obcNamespace)
 	}
 
 	localObc := &obcList.Items[0]
