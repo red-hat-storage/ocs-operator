@@ -83,7 +83,6 @@ const (
 	noobaaAppLabel                = "app"
 	noobaa                        = "noobaa"
 	consumerUUID                  = "storage-consumer-uuid"
-	consumerName                  = "storage-consumer-name"
 )
 
 var (
@@ -2254,10 +2253,14 @@ func (s *OCSProviderServer) appendHostedOBCResources(
 ) ([]client.Object, error) {
 
 	obcList := &nbv1.ObjectBucketClaimList{}
-	if err := s.client.List(ctx, obcList, client.InNamespace(consumer.Namespace), client.MatchingLabels{
-		consumerUUID:   string(consumer.GetUID()),
-		noobaaAppLabel: noobaa,
-	}); err != nil {
+	if err := s.client.List(
+		ctx,
+		obcList,
+		client.InNamespace(consumer.Namespace),
+		client.MatchingLabels{
+			consumerUUID:   string(consumer.GetUID()),
+			noobaaAppLabel: noobaa,
+		}); err != nil {
 		return nil, fmt.Errorf("failed to list hosted OBCs for consumer %v. %v", consumer.GetUID(), err)
 	}
 
@@ -2315,7 +2318,10 @@ func (s *OCSProviderServer) appendNooBaaSecret(
 	consumer *ocsv1alpha1.StorageConsumer,
 ) ([]client.Object, error) {
 	list := &v1.SecretList{}
-	if err := s.client.List(ctx, list, client.InNamespace(consumer.Namespace),
+	if err := s.client.List(
+		ctx,
+		list,
+		client.InNamespace(consumer.Namespace),
 		client.MatchingLabels{noobaaAppLabel: noobaa}); err != nil {
 		return nil, err
 	}
