@@ -217,8 +217,8 @@ func (cc *OCSProviderClient) notifyWithReason(ctx context.Context, consumerUUID 
 }
 
 // NotifyObcCreated RPC call for Notify API request with OBC_CREATED reason
-func (cc *OCSProviderClient) NotifyObcCreated(ctx context.Context, consumerUUID string, obcDetails *nbv1.ObjectBucketClaim) (*pb.NotifyResponse, error) {
-	return cc.notifyWithReason(ctx, consumerUUID, pb.NotifyReason_OBC_CREATED, obcDetails)
+func (cc *OCSProviderClient) NotifyObcCreated(ctx context.Context, consumerUUID string, obc *nbv1.ObjectBucketClaim) (*pb.NotifyResponse, error) {
+	return cc.notifyWithReason(ctx, consumerUUID, pb.NotifyReason_OBC_CREATED, obc)
 }
 
 // NotifyObcDeleted RPC call for Notify API request with OBC_DELETED reason
