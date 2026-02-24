@@ -605,6 +605,16 @@ spec:
           - get
           - list
           - watch
+        - apiGroups:
+          - objectbucket.io
+          resources:
+          - objectbuckets
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - delete
         serviceAccountName: ocs-provider-server
       deployments:
       - name: ocs-operator
