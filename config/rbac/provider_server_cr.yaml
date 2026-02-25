@@ -37,3 +37,13 @@ rules:
     - get
     - list
     - watch
+- apiGroups:
+    - objectbucket.io
+  resources:
+    - objectbuckets
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - delete

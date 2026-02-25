@@ -80,6 +80,9 @@ const (
 	mirroringTokenKey             = "rbdMirrorBootstrapPeerSecretName"
 	clientInfoRbdClientProfileKey = "csiop-rbd-client-profile"
 	csiCephUserCurrGen            = 1
+	noobaaAppLabel                = "app"
+	noobaa                        = "noobaa"
+	consumerUUID                  = "storage-consumer-uuid"
 )
 
 var (
@@ -391,7 +394,28 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			}
 		}
 
-		desiredClientConfigHash := getDesiredClientConfigHash(
+		obcResourceVersions, obcList, err := s.getOBCResourcesForConsumer(ctx, consumer)
+		if err != nil {
+			logger.Error(err, "failed to get hosted OBC resource versions for consumer", consumer.GetUID())
+			return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
+		}
+		obResourceVersions, err := s.getOBResourceVersions(ctx, obcList, consumer)
+		if err != nil {
+			logger.Error(err, "failed to get hosted OB resource versions for consumer", consumer.GetUID())
+			return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
+		}
+		obcConfigMapResourceVersions, err := s.getOBCConfigMapVersions(ctx, obcList, consumer)
+		if err != nil {
+			logger.Error(err, "failed to get ConfigMap resource versions for hosted OBC", consumer.GetUID())
+			return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
+		}
+		obcSecretResourceVersions, err := s.getOBCSecretVersions(ctx, obcList, consumer)
+		if err != nil {
+			logger.Error(err, "failed to get hosted OBC secrets", consumer.GetUID())
+			return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
+		}
+
+		hashParts := []any{
 			channelName,
 			consumer,
 			cephConnection.Spec,
@@ -408,8 +432,12 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			vGSClassesResourceVersion,
 			odfVGSClassesResourceVersion,
 			useHostNetworkForCtrlPlugin,
-		)
-		response.DesiredStateHash = desiredClientConfigHash
+		}
+		hashParts = append(hashParts, obcResourceVersions)
+		hashParts = append(hashParts, obcConfigMapResourceVersions)
+		hashParts = append(hashParts, obcSecretResourceVersions)
+		hashParts = append(hashParts, obResourceVersions)
+		response.DesiredStateHash = getDesiredClientConfigHash(hashParts...)
 
 		logger.Info("successfully returned the config details to the client")
 		return response, nil
@@ -682,7 +710,27 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "failed to produce client state")
 	}
 
-	desiredClientConfigHash := getDesiredClientConfigHash(
+	obcResourceVersions, obcList, err := s.getOBCResourcesForConsumer(ctx, storageConsumer)
+	if err != nil {
+		logger.Error(err, "failed to get hosted OBC resource versions for consumer", storageConsumer.GetUID())
+		return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
+	}
+	obResourceVersions, err := s.getOBResourceVersions(ctx, obcList, storageConsumer)
+	if err != nil {
+		logger.Error(err, "failed to get hosted OB resource versions for consumer", storageConsumer.GetUID())
+		return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
+	}
+	obcConfigMapResourceVersions, err := s.getOBCConfigMapVersions(ctx, obcList, storageConsumer)
+	if err != nil {
+		logger.Error(err, "failed to get ConfigMap resource versions for hosted OBC", storageConsumer.GetUID())
+		return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
+	}
+	obcSecretResourceVersions, err := s.getOBCSecretVersions(ctx, obcList, storageConsumer)
+	if err != nil {
+		logger.Error(err, "failed to get hosted OBC secrets", storageConsumer.GetUID())
+		return nil, status.Errorf(codes.Internal, "Failed to produce client state hash")
+	}
+	hashParts := []any{
 		channelName,
 		storageConsumer,
 		cephConnection.Spec,
@@ -699,7 +747,13 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		vGSClassesResourceVersion,
 		odfVGSClassesResourceVersion,
 		util.ShouldUseHostNetworking(storageCluster),
-	)
+	}
+
+	hashParts = append(hashParts, obcResourceVersions)
+	hashParts = append(hashParts, obcConfigMapResourceVersions)
+	hashParts = append(hashParts, obcSecretResourceVersions)
+	hashParts = append(hashParts, obResourceVersions)
+	desiredClientConfigHash := getDesiredClientConfigHash(hashParts...)
 
 	logger.Info("Successfully processed status report")
 	return &pb.ReportStatusResponse{
@@ -710,6 +764,104 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 
 func getDesiredClientConfigHash(parts ...any) string {
 	return util.CalculateMD5Hash(parts)
+}
+
+func sortResourceVersions(rv []string) {
+	slices.Sort(rv)
+}
+
+/*
+getOBCResourcesForConsumer returns list of OBC Resource Versions and their names for a storage consumer
+*/
+func (s *OCSProviderServer) getOBCResourcesForConsumer(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) ([]string, []string, error) {
+	obcList := &nbv1.ObjectBucketClaimList{}
+	if err := s.client.List(ctx, obcList, client.InNamespace(consumer.Namespace), client.MatchingLabels{
+		consumerUUID:   string(consumer.GetUID()),
+		noobaaAppLabel: noobaa,
+	}); err != nil {
+		if meta.IsNoMatchError(err) {
+			return nil, nil, nil
+		}
+		return nil, nil, err
+	}
+	resourceVersions, obcNames := []string{}, []string{}
+	for i := range obcList.Items {
+		obc := &obcList.Items[i]
+		resourceVersions = append(resourceVersions, obc.ResourceVersion)
+		obcNames = append(obcNames, obc.Name)
+	}
+
+	sortResourceVersions(resourceVersions)
+
+	return resourceVersions, obcNames, nil
+}
+
+// getOBCConfigMapVersions returns a list of Resource Versions of the OBC ConfigMaps for the consumer
+func (s *OCSProviderServer) getOBCConfigMapVersions(ctx context.Context, obcList []string, consumer *ocsv1alpha1.StorageConsumer) ([]string, error) {
+	list := &v1.ConfigMapList{}
+
+	err := s.client.List(ctx, list, client.InNamespace(consumer.Namespace),
+		client.MatchingLabels{noobaaAppLabel: noobaa})
+	if err != nil {
+		return nil, err
+	}
+
+	versions := []string{}
+	for _, v := range list.Items {
+		if slices.Contains(obcList, v.Name) {
+			versions = append(versions, v.ResourceVersion)
+		}
+	}
+
+	sortResourceVersions(versions)
+
+	return versions, nil
+}
+
+// getOBResourceVersions returns a list of Resource Versions of the OB's for the storage consumer
+func (s *OCSProviderServer) getOBResourceVersions(ctx context.Context, obcList []string, consumer *ocsv1alpha1.StorageConsumer) ([]string, error) {
+	list := &nbv1.ObjectBucketList{}
+
+	err := s.client.List(ctx, list, client.MatchingLabels{noobaaAppLabel: noobaa})
+	if err != nil {
+		return nil, err
+	}
+
+	versions := []string{}
+	obList := []string{}
+	for _, v := range obcList {
+		obList = append(obList, fmt.Sprintf("obc-%s-%s", consumer.Namespace, v))
+	}
+
+	for _, v := range list.Items {
+		if slices.Contains(obList, v.Name) {
+			versions = append(versions, v.ResourceVersion)
+		}
+	}
+
+	sortResourceVersions(versions)
+
+	return versions, nil
+}
+
+// getOBCSecretVersions returns a list of Resource Versions of the OBC secrets for the consumer
+func (s *OCSProviderServer) getOBCSecretVersions(ctx context.Context, obcList []string, consumer *ocsv1alpha1.StorageConsumer) ([]string, error) {
+	list := &v1.SecretList{}
+	if err := s.client.List(ctx, list, client.InNamespace(consumer.Namespace),
+		client.MatchingLabels{noobaaAppLabel: noobaa}); err != nil {
+		return nil, err
+	}
+
+	versions := []string{}
+	for _, v := range list.Items {
+		if slices.Contains(obcList, v.Name) {
+			versions = append(versions, v.ResourceVersion)
+		}
+	}
+
+	sortResourceVersions(versions)
+
+	return versions, nil
 }
 
 func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (string, error) {
@@ -1327,6 +1479,16 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	kubeResources, err = s.appendHostedOBCResources(
+		ctx,
+		kubeResources,
+		consumer,
+	)
+
+	if err != nil {
+		return nil, err
 	}
 
 	return kubeResources, nil
@@ -2080,6 +2242,121 @@ func (s *OCSProviderServer) appendClientProfileMappingKubeResources(
 				},
 			},
 		)
+	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendHostedOBCResources(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]client.Object, error) {
+
+	obcList := &nbv1.ObjectBucketClaimList{}
+	if err := s.client.List(
+		ctx,
+		obcList,
+		client.InNamespace(consumer.Namespace),
+		client.MatchingLabels{
+			consumerUUID:   string(consumer.GetUID()),
+			noobaaAppLabel: noobaa,
+		}); err != nil {
+		return nil, fmt.Errorf("failed to list hosted OBCs for consumer %v. %v", consumer.GetUID(), err)
+	}
+
+	// OB, ConfigMap and Secrets can be obtained by using the OBC names
+	var obcNames []string
+	for i := range obcList.Items {
+		obc := &obcList.Items[i]
+		obcNames = append(obcNames, obc.Name)
+		kubeResources = append(kubeResources, obc)
+	}
+
+	kubeResources, err := s.appendNooBaaObjectBucket(ctx, obcNames, kubeResources, consumer)
+	if err != nil {
+		return kubeResources, fmt.Errorf("failed to get hosted OBs for consumer %v. %v", consumer.GetUID(), err)
+	}
+
+	kubeResources, err = s.appendNooBaaConfigMap(ctx, obcNames, kubeResources, consumer)
+	if err != nil {
+		return kubeResources, fmt.Errorf("failed to get hosted OBC ConfifMap for consumer %v. %v", consumer.GetUID(), err)
+	}
+
+	kubeResources, err = s.appendNooBaaSecret(ctx, obcNames, kubeResources, consumer)
+	if err != nil {
+		return kubeResources, fmt.Errorf("failed to get hosted OBC secrets for consumer %v. %v", consumer.GetUID(), err)
+	}
+
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendNooBaaConfigMap(
+	ctx context.Context,
+	obcNames []string,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]client.Object, error) {
+	list := &v1.ConfigMapList{}
+
+	if err := s.client.List(ctx, list, client.InNamespace(consumer.Namespace),
+		client.MatchingLabels{noobaaAppLabel: noobaa}); err != nil {
+		return nil, err
+	}
+
+	for _, v := range list.Items {
+		if slices.Contains(obcNames, v.Name) {
+			kubeResources = append(kubeResources, &v)
+		}
+	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendNooBaaSecret(
+	ctx context.Context,
+	obcNames []string,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]client.Object, error) {
+	list := &v1.SecretList{}
+	if err := s.client.List(
+		ctx,
+		list,
+		client.InNamespace(consumer.Namespace),
+		client.MatchingLabels{noobaaAppLabel: noobaa}); err != nil {
+		return nil, err
+	}
+
+	for _, v := range list.Items {
+		if slices.Contains(obcNames, v.Name) {
+			kubeResources = append(kubeResources, &v)
+		}
+	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendNooBaaObjectBucket(
+	ctx context.Context,
+	obcNames []string,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]client.Object, error) {
+
+	list := &nbv1.ObjectBucketList{}
+
+	if err := s.client.List(ctx, list, client.MatchingLabels{noobaaAppLabel: noobaa}); err != nil {
+		return nil, err
+	}
+
+	obList := []string{}
+	for _, v := range obcNames {
+		obList = append(obList, fmt.Sprintf("obc-%s-%s", consumer.Namespace, v))
+	}
+
+	for i := range list.Items {
+		ob := &list.Items[i]
+		if slices.Contains(obList, ob.Name) {
+			kubeResources = append(kubeResources, ob)
+		}
 	}
 	return kubeResources, nil
 }
