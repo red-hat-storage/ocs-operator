@@ -422,6 +422,22 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 // OffboardConsumer RPC call to delete the StorageConsumer CR
 func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
 	logger := klog.FromContext(ctx).WithName("OffboardConsumer").WithValues("consumer", req.StorageConsumerUUID)
+
+	// in case storage consumer has OBCs do not continue with the offboarding until all the OBCs are deleted
+	const labelKeyRemoteObcConsumerUUID = "storage-consumer-uuid"
+
+	obcList := &nbv1.ObjectBucketClaimList{}
+	if err := s.client.List(ctx, obcList, &client.MatchingLabels{
+		labelKeyRemoteObcConsumerUUID: req.StorageConsumerUUID,
+	}, client.Limit(1)); err != nil {
+		logger.Error(err, "failed to list OBCs for offboarding")
+		return nil, status.Errorf(codes.Internal, "failed to offboard storageConsumer with the provided UUID. %v", err)
+	}
+	if len(obcList.Items) > 0 {
+		logger.Info("StorageConsumer has OBCs, will not continue with offboarding")
+		return nil, status.Errorf(codes.FailedPrecondition, "storageConsumer has OBCs, will not continue with offboarding")
+	}
+
 	logger.Info("Starting OffboardConsumer RPC", "request", req)
 	err := s.consumerManager.ClearClientInformation(ctx, req.StorageConsumerUUID)
 	if err != nil {
