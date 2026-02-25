@@ -890,7 +890,7 @@ func createMetricsExporterRoles(ctx context.Context, r *StorageClusterReconciler
 			},
 			{
 				APIGroups: []string{"ceph.rook.io"},
-				Resources: []string{"cephobjectstores", "cephclusters", "cephblockpools", "cephrbdmirrors", "cephblockpoolradosnamespaces"},
+				Resources: []string{"cephobjectstores", "cephclusters", "cephblockpools", "cephrbdmirrors", "cephblockpoolradosnamespaces", "cephfilesystemsubvolumegroups"},
 				Verbs:     []string{"get", "list", "watch"},
 			},
 			{
@@ -917,11 +917,7 @@ func createMetricsExporterRoles(ctx context.Context, r *StorageClusterReconciler
 		return nil
 	})
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func createMetricsExporterRolebindings(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
@@ -1015,11 +1011,7 @@ func createMetricsExporterRolebindings(ctx context.Context, r *StorageClusterRec
 		return nil
 	})
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func createRookCephClusterRolebindings(ctx context.Context,

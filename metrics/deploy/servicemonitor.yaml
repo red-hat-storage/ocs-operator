@@ -27,15 +27,6 @@ spec:
       serverName: ocs-metrics-exporter.openshift-storage.svc
   - bearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token"
     interval: 1m
-    port: https-main
-    path: /metrics/rbd-mirror
-    scheme: https
-    tlsConfig:
-      caFile: /etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt
-      insecureSkipVerify: false
-      serverName: ocs-metrics-exporter.openshift-storage.svc
-  - bearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token"
-    interval: 1m
     port: https-self
     path: /metrics
     scheme: https
