@@ -2232,7 +2232,7 @@ func (s *OCSProviderServer) appendHostedOBCResources(
 		client.InNamespace(consumer.Namespace),
 		client.MatchingLabels{
 			consumerUUID:   string(consumer.GetUID()),
-			noobaaAppLabel: noobaa,
+			noobaaLabelKey: noobaaLabelValue,
 		}); err != nil {
 		return nil, fmt.Errorf("failed to list hosted OBCs for consumer %v. %v", consumer.GetUID(), err)
 	}
@@ -2272,7 +2272,7 @@ func (s *OCSProviderServer) appendNooBaaConfigMap(
 	list := &v1.ConfigMapList{}
 
 	if err := s.client.List(ctx, list, client.InNamespace(consumer.Namespace),
-		client.MatchingLabels{noobaaAppLabel: noobaa}); err != nil {
+		client.MatchingLabels{noobaaLabelKey: noobaaLabelValue}); err != nil {
 		return nil, err
 	}
 
@@ -2295,7 +2295,7 @@ func (s *OCSProviderServer) appendNooBaaSecret(
 		ctx,
 		list,
 		client.InNamespace(consumer.Namespace),
-		client.MatchingLabels{noobaaAppLabel: noobaa}); err != nil {
+		client.MatchingLabels{noobaaLabelKey: noobaaLabelValue}); err != nil {
 		return nil, err
 	}
 
@@ -2316,7 +2316,7 @@ func (s *OCSProviderServer) appendNooBaaObjectBucket(
 
 	list := &nbv1.ObjectBucketList{}
 
-	if err := s.client.List(ctx, list, client.MatchingLabels{noobaaAppLabel: noobaa}); err != nil {
+	if err := s.client.List(ctx, list, client.MatchingLabels{noobaaLabelKey: noobaaLabelValue}); err != nil {
 		return nil, err
 	}
 
