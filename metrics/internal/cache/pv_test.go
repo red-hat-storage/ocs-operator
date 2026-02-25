@@ -44,6 +44,9 @@ var _ = Describe("PersistentVolume Cache", func() {
 		pvStore.getNodeNameForPVFn = func(pv *corev1.PersistentVolume, kubeClient kubernetes.Interface) (string, error) {
 			return "node-for-valid-pv", nil
 		}
+		pvStore.runCephRBDChildrenCountFn = func(config *cephMonitorConfig, pool, namespace, image string) (int, error) {
+			return 0, nil
+		}
 
 		When("PV is missing required fields", func() {
 			It("should not add the PV to cache", func() {
