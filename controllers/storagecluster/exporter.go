@@ -465,7 +465,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							"--ceph-auth-namespace", r.OperatorNamespace,
 							"--alertmanager-url", alertManagerURL,
 						},
-						Command: []string{"/usr/local/bin/metrics-exporter"},
+						Command: []string{"/usr/bin/tini", "--", "/usr/local/bin/metrics-exporter"},
 						Image:   r.images.OCSMetricsExporter,
 						Name:    metricsExporterName,
 						LivenessProbe: &corev1.Probe{
