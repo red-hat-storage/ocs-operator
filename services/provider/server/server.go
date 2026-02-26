@@ -306,7 +306,6 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			}
 
 			kubeResource.GetObjectKind().SetGroupVersionKind(gvk)
-			sanitizeKubeResource(kubeResource)
 			kubeResourceBytes := util.JsonMustMarshal(kubeResource)
 			response.KubeObjects = append(response.KubeObjects, &pb.KubeObject{Bytes: kubeResourceBytes})
 		}
@@ -1177,6 +1176,7 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 
 	kubeResources := []client.Object{}
 	if cephConnection, err := s.getDesiredCephConnection(ctx, consumer, storageCluster); err == nil {
+		sanitizeKubeResource(cephConnection)
 		kubeResources = append(kubeResources, cephConnection)
 	} else {
 		return nil, err
@@ -1487,8 +1487,9 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 		nfsClientProfile.Spec.Nfs = &csiopv1.NfsConfigSpec{}
 	}
 
-	for _, profileObj := range profileMap {
-		kubeResources = append(kubeResources, profileObj)
+	for i := range profileMap {
+		sanitizeKubeResource(profileMap[i])
+		kubeResources = append(kubeResources, profileMap[i])
 	}
 	return kubeResources, nil
 }
@@ -1597,6 +1598,7 @@ func (s *OCSProviderServer) appendCephClientSecretKubeResource(
 	// clearing the secretType to be empty/Opaque instead of type rook.
 	cephUserSecret.Type = ""
 
+	sanitizeKubeResource(cephUserSecret)
 	return append(kubeResources, cephUserSecret), nil
 }
 
@@ -1711,7 +1713,10 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 			}
 		},
 	)
-	kubeResources = append(kubeResources, resources...)
+	for i := range resources {
+		sanitizeKubeResource(resources[i])
+		kubeResources = append(kubeResources, resources[i])
+	}
 
 	return kubeResources, nil
 }
@@ -1778,7 +1783,10 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 			}
 		},
 	)
-	kubeResources = append(kubeResources, resources...)
+	for i := range resources {
+		sanitizeKubeResource(resources[i])
+		kubeResources = append(kubeResources, resources[i])
+	}
 
 	return kubeResources, nil
 }
@@ -1838,7 +1846,10 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 			}
 		},
 	)
-	kubeResources = append(kubeResources, resources...)
+	for i := range resources {
+		sanitizeKubeResource(resources[i])
+		kubeResources = append(kubeResources, resources[i])
+	}
 
 	return kubeResources, nil
 }
@@ -1884,7 +1895,10 @@ func (s *OCSProviderServer) appendOdfVolumeGroupSnapshotClassKubeResources(
 			}
 		},
 	)
-	kubeResources = append(kubeResources, resources...)
+	for i := range resources {
+		sanitizeKubeResource(resources[i])
+		kubeResources = append(kubeResources, resources[i])
+	}
 
 	return kubeResources, nil
 }
@@ -1934,7 +1948,10 @@ func (s *OCSProviderServer) appendNetworkFenceClassKubeResources(
 			}
 		},
 	)
-	kubeResources = append(kubeResources, resources...)
+	for i := range resources {
+		sanitizeKubeResource(resources[i])
+		kubeResources = append(kubeResources, resources[i])
+	}
 
 	return kubeResources, nil
 }
@@ -1965,7 +1982,10 @@ func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
 			)
 		},
 	)
-	kubeResources = append(kubeResources, resources...)
+	for i := range resources {
+		sanitizeKubeResource(resources[i])
+		kubeResources = append(kubeResources, resources[i])
+	}
 
 	return kubeResources, nil
 }
@@ -1997,7 +2017,10 @@ func (s *OCSProviderServer) appendVolumeGroupReplicationClassKubeResources(
 			)
 		},
 	)
-	kubeResources = append(kubeResources, resources...)
+	for i := range resources {
+		sanitizeKubeResource(resources[i])
+		kubeResources = append(kubeResources, resources[i])
+	}
 
 	return kubeResources, nil
 }
@@ -2031,6 +2054,7 @@ func (s *OCSProviderServer) appendClusterResourceQuotaKubeResources(
 			},
 		}
 
+		sanitizeKubeResource(clusterResourceQuota)
 		kubeResources = append(kubeResources, clusterResourceQuota)
 	}
 	return kubeResources, nil
@@ -2062,24 +2086,23 @@ func (s *OCSProviderServer) appendClientProfileMappingKubeResources(
 
 	remoteClientProfileName := mirroringTargetInfo.ClientProfiles[clientInfoRbdClientProfileKey]
 	if len(blockPoolMapping) > 0 && remoteClientProfileName != "" {
-		kubeResources = append(
-			kubeResources,
-			&csiopv1.ClientProfileMapping{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      consumer.Status.Client.Name,
-					Namespace: consumer.Status.Client.OperatorNamespace,
-				},
-				Spec: csiopv1.ClientProfileMappingSpec{
-					Mappings: []csiopv1.MappingsSpec{
-						{
-							LocalClientProfile:  consumerConfig.GetRbdClientProfileName(),
-							RemoteClientProfile: remoteClientProfileName,
-							BlockPoolIdMapping:  blockPoolMapping,
-						},
+		clientProfileMapping := &csiopv1.ClientProfileMapping{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      consumer.Status.Client.Name,
+				Namespace: consumer.Status.Client.OperatorNamespace,
+			},
+			Spec: csiopv1.ClientProfileMappingSpec{
+				Mappings: []csiopv1.MappingsSpec{
+					{
+						LocalClientProfile:  consumerConfig.GetRbdClientProfileName(),
+						RemoteClientProfile: remoteClientProfileName,
+						BlockPoolIdMapping:  blockPoolMapping,
 					},
 				},
 			},
-		)
+		}
+		sanitizeKubeResource(clientProfileMapping)
+		kubeResources = append(kubeResources, clientProfileMapping)
 	}
 	return kubeResources, nil
 }
@@ -2122,30 +2145,31 @@ func (s *OCSProviderServer) appendNoobaaKubeResources(
 		return kubeResources, fmt.Errorf("no Host found in noobaa-mgmt route Ingress")
 	}
 
-	kubeResources = append(kubeResources,
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
+	noobaaSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "noobaa-remote-join-secret",
+			Namespace: consumer.Status.Client.OperatorNamespace,
+		},
+		Data: map[string][]byte{
+			"auth_token": authToken,
+			"mgmt_addr":  []byte(noobaaMgmtAddress),
+		},
+	}
+	noobaaCR := &nbv1.NooBaa{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "noobaa-remote",
+			Namespace: consumer.Status.Client.OperatorNamespace,
+		},
+		Spec: nbv1.NooBaaSpec{
+			JoinSecret: &v1.SecretReference{
 				Name:      "noobaa-remote-join-secret",
 				Namespace: consumer.Status.Client.OperatorNamespace,
 			},
-			Data: map[string][]byte{
-				"auth_token": authToken,
-				"mgmt_addr":  []byte(noobaaMgmtAddress),
-			},
 		},
-		&nbv1.NooBaa{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "noobaa-remote",
-				Namespace: consumer.Status.Client.OperatorNamespace,
-			},
-			Spec: nbv1.NooBaaSpec{
-				JoinSecret: &v1.SecretReference{
-					Name:      "noobaa-remote-join-secret",
-					Namespace: consumer.Status.Client.OperatorNamespace,
-				},
-			},
-		},
-	)
+	}
+	sanitizeKubeResource(noobaaSecret)
+	sanitizeKubeResource(noobaaCR)
+	kubeResources = append(kubeResources, noobaaSecret, noobaaCR)
 
 	return kubeResources, nil
 }
