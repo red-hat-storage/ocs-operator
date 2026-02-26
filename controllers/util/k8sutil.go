@@ -68,6 +68,7 @@ const (
 	ForbidMirroringLabel                   = "ocs.openshift.io/forbid-mirroring"
 	BlockPoolMirroringTargetIDAnnotation   = "ocs.openshift.io/mirroring-target-id"
 	RequestMaintenanceModeAnnotation       = "ocs.openshift.io/request-maintenance-mode"
+	InMaintenanceModeAnnotation            = "ocs.openshift.io/in-maintenance-mode"
 	CephRBDMirrorName                      = "cephrbdmirror"
 	OcsClientTimeout                       = 10 * time.Second
 	StorageClientMappingConfigName         = "storage-client-mapping"

@@ -307,6 +307,12 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 	}
 
 	maintenanceModeRequested := len(storageConsumers.Items) >= 1
+	storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, clientMappingConfig.Namespace)
+	if err != nil {
+		r.log.Error(err, "failed to get StorageCluster")
+		return true
+	}
+	annotations := storageCluster.GetAnnotations()
 
 	if shouldMirror && !maintenanceModeRequested {
 		_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, rbdMirror, func() error {
@@ -320,10 +326,27 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 			r.log.Error(err, "Failed to create/update the CephRBDMirror", "CephRBDMirror", rbdMirror.Name)
 			return true
 		}
+		if _, exists := annotations[util.InMaintenanceModeAnnotation]; exists {
+			r.log.Info("Removing maintenance mode annotation from StorageCluster", "StorageCluster", storageCluster.Name)
+			delete(annotations, util.InMaintenanceModeAnnotation)
+			if err := r.update(storageCluster); err != nil {
+				r.log.Error(err, "failed to remove maintenance mode annotation from StorageCluster", "StorageCluster", storageCluster.Name)
+				return true
+			}
+		}
 	} else {
 		if err := r.delete(rbdMirror); err != nil {
 			r.log.Error(err, "failed to delete CephRBDMirror", "CephRBDMirror", rbdMirror.Name)
 			return true
+		}
+		if maintenanceModeRequested {
+			if util.AddAnnotation(storageCluster, util.InMaintenanceModeAnnotation, "true") {
+				r.log.Info("Adding maintenance mode annotation to StorageCluster", "StorageCluster", storageCluster.Name)
+				if err := r.update(storageCluster); err != nil {
+					r.log.Error(err, "failed to add maintenance mode annotation to StorageCluster", "StorageCluster", storageCluster.Name)
+					return true
+				}
+			}
 		}
 	}
 
