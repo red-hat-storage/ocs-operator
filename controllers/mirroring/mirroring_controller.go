@@ -362,6 +362,24 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 		}
 	}
 
+	annotations := storageCluster.GetAnnotations()
+	if maintenanceModeRequested {
+		if util.AddAnnotation(storageCluster, util.InMaintenanceModeAnnotation, "true") {
+			r.log.Info("Adding maintenance mode annotation to StorageCluster", "StorageCluster", storageCluster.Name)
+			if err := r.update(storageCluster); err != nil {
+				r.log.Error(err, "failed to add maintenance mode annotation to StorageCluster", "StorageCluster", storageCluster.Name)
+				return true
+			}
+		}
+	} else if _, exists := annotations[util.InMaintenanceModeAnnotation]; exists {
+		r.log.Info("Removing maintenance mode annotation from StorageCluster", "StorageCluster", storageCluster.Name)
+		delete(annotations, util.InMaintenanceModeAnnotation)
+		if err := r.update(storageCluster); err != nil {
+			r.log.Error(err, "failed to remove maintenance mode annotation from StorageCluster", "StorageCluster", storageCluster.Name)
+			return true
+		}
+	}
+
 	return false
 }
 
