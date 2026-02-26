@@ -1,6 +1,7 @@
 package storagecluster
 
 import (
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -40,11 +41,11 @@ func getDaemonResources(name string, sc *ocsv1.StorageCluster) corev1.ResourceRe
 		// Fallback to plain daemon resources map if not found in profiled resources map
 		defaultResourceRequirements = defaults.DaemonResources[name]
 	}
-	// Rolling back the IBM Z CPU adjustment for now
-	// TODO: Revisit this when we have a better understanding of QOS working with Limits & Requests
-	// if runtime.GOARCH == IbmZCpuArch { // Adjust resources for IBM Z platform
-	// 	defaultResourceRequirements = adjustResource(defaultResourceRequirements, IbmZCpuAdjustFactor)
-	// }
+	// Adjust CPU requests for IBM Z platform (skip noobaa resources)
+	// TODO: don't skip noobaa resources after noobaa adds priorityClass to it's pods
+	if runtime.GOARCH == IbmZCpuArch && !strings.Contains(strings.ToLower(name), "noobaa") {
+		defaultResourceRequirements = adjustCPURequests(defaultResourceRequirements, IbmZCpuAdjustFactor)
+	}
 
 	specifiedResourceRequirements, specified := sc.Spec.Resources[name]
 	// if specified resource requirements is present but empty, the intention is to have no resource requirements
@@ -64,22 +65,18 @@ func getDaemonResources(name string, sc *ocsv1.StorageCluster) corev1.ResourceRe
 	return resourceRequirements
 }
 
-// adjustResource multiplies the requests and limits by the adjustFactor
-func adjustResource(resourceRequirements corev1.ResourceRequirements, adjustFactor float64) corev1.ResourceRequirements {
+// adjustCPURequests multiplies the CPU requests by the adjustFactor
+func adjustCPURequests(resourceRequirements corev1.ResourceRequirements, adjustFactor float64) corev1.ResourceRequirements {
 	resourceRequirementsCopy := resourceRequirements.DeepCopy()
 	if resourceRequirementsCopy.Requests != nil {
 		if cpuRequest, exists := resourceRequirementsCopy.Requests[corev1.ResourceCPU]; exists {
 			resourceRequirementsCopy.Requests[corev1.ResourceCPU] = adjustCpuResource(cpuRequest, adjustFactor)
 		}
 	}
-	if resourceRequirementsCopy.Limits != nil {
-		if cpuLimit, exists := resourceRequirementsCopy.Limits[corev1.ResourceCPU]; exists {
-			resourceRequirementsCopy.Limits[corev1.ResourceCPU] = adjustCpuResource(cpuLimit, adjustFactor)
-		}
-	}
 	return *resourceRequirementsCopy
 }
 
+// adjustCpuResource multiplies the CPU requests by the adjustFactor
 func adjustCpuResource(cpuQty resource.Quantity, adjustFactor float64) resource.Quantity {
 	str := strconv.FormatInt(int64(float64(cpuQty.MilliValue())*adjustFactor), 10) + "m"
 	return resource.MustParse(str)
