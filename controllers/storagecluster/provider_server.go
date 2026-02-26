@@ -332,7 +332,7 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 	serviceType := corev1.ServiceTypeClusterIP
 	if instance.Spec.ProviderAPIServerServiceType != "" {
 		serviceType = instance.Spec.ProviderAPIServerServiceType
-	} else if instance.Spec.HostNetwork {
+	} else if instance.Spec.Network != nil && instance.Spec.Network.HostNetwork {
 		serviceType = corev1.ServiceTypeNodePort
 	}
 	return &corev1.Service{
