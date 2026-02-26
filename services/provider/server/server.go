@@ -1244,15 +1244,15 @@ func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.Block
 }
 
 func (s *OCSProviderServer) isSystemInMaintenanceMode(ctx context.Context) (bool, error) {
-	// found - false, not found - true
-	cephRBDMirrors := &rookCephv1.CephRBDMirror{}
-	cephRBDMirrors.Name = util.CephRBDMirrorName
-	cephRBDMirrors.Namespace = s.namespace
-	err := s.client.Get(ctx, client.ObjectKeyFromObject(cephRBDMirrors), cephRBDMirrors)
-	if client.IgnoreNotFound(err) != nil {
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
 		return false, err
 	}
-	return kerrors.IsNotFound(err), nil
+	val, exists := storageCluster.GetAnnotations()[util.InMaintenanceModeAnnotation]
+	if !exists {
+		return false, nil
+	}
+	return strconv.ParseBool(val)
 }
 
 func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (bool, error) {
