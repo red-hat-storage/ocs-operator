@@ -215,20 +215,20 @@ func TestNotify(t *testing.T) {
 				}, obc); err != nil {
 					t.Fatalf("expected OBC to be created: %v", err)
 				}
-				if obc.Labels[labelKeyRemoteObcOriginalName] != obcName {
-					t.Fatalf("expected label %s=test-obc, got %v", labelKeyRemoteObcOriginalName, obc.Labels)
+				if obc.Labels[remoteObcOriginalNameLabelKey] != obcName {
+					t.Fatalf("expected label %s=test-obc, got %v", remoteObcOriginalNameLabelKey, obc.Labels)
 				}
-				if obc.Labels[labelKeyRemoteObcOriginalNamespace] != obcNamespace {
-					t.Fatalf("expected label %s=app-namespace, got %v", labelKeyRemoteObcOriginalNamespace, obc.Labels)
+				if obc.Labels[remoteObcOriginalNamespaceLabelKey] != obcNamespace {
+					t.Fatalf("expected label %s=app-namespace, got %v", remoteObcOriginalNamespaceLabelKey, obc.Labels)
 				}
-				if obc.Labels[labelKeyObcConsumerName] != storageConsumer.Name {
-					t.Fatalf("expected label %s=%s, got %v", labelKeyObcConsumerName, storageConsumer.Name, obc.Labels)
+				if obc.Labels[storageConsumerNameLabelKey] != storageConsumer.Name {
+					t.Fatalf("expected label %s=%s, got %v", storageConsumerNameLabelKey, storageConsumer.Name, obc.Labels)
 				}
-				if obc.Labels[labelKeyObcConsumerUUID] != string(storageConsumer.UID) {
-					t.Fatalf("expected label %s=%s, got %v", labelKeyObcConsumerUUID, storageConsumer.UID, obc.Labels)
+				if obc.Labels[storageConsumerUUIDLabelKey] != string(storageConsumer.UID) {
+					t.Fatalf("expected label %s=%s, got %v", storageConsumerUUIDLabelKey, storageConsumer.UID, obc.Labels)
 				}
-				if obc.Annotations[annotationKeyRemoteObcCreation] != "true" {
-					t.Fatalf("expected annotation %s=true, got %v", annotationKeyRemoteObcCreation, obc.Annotations)
+				if obc.Annotations[remoteObcCreationAnnotationKey] != "true" {
+					t.Fatalf("expected annotation %s=true, got %v", remoteObcCreationAnnotationKey, obc.Annotations)
 				}
 				if len(obc.OwnerReferences) == 0 {
 					t.Fatalf("expected ownerReferences to be set")
@@ -306,9 +306,9 @@ func TestNotify(t *testing.T) {
 						Name:      obcHashedName,
 						Namespace: testNamespace,
 						Labels: map[string]string{
-							labelKeyRemoteObcOriginalName:      obcName,
-							labelKeyRemoteObcOriginalNamespace: obcNamespace,
-							labelKeyObcConsumerName:            storageConsumer.Name,
+							remoteObcOriginalNameLabelKey:      obcName,
+							remoteObcOriginalNamespaceLabelKey: obcNamespace,
+							storageConsumerNameLabelKey:        storageConsumer.Name,
 						},
 					},
 				}

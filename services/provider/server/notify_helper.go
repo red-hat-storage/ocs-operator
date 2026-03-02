@@ -19,11 +19,11 @@ import (
 )
 
 const (
-	annotationKeyRemoteObcCreation     = "remote-obc-creation"
-	labelKeyRemoteObcOriginalName      = "remote-obc-original-name"
-	labelKeyRemoteObcOriginalNamespace = "remote-obc-original-namespace"
-	labelKeyObcConsumerName            = "storage-consumer-name"
-	labelKeyObcConsumerUUID            = "storage-consumer-uuid"
+	remoteObcCreationAnnotationKey     = "remote-obc-creation"
+	remoteObcOriginalNameLabelKey      = "remote-obc-original-name"
+	remoteObcOriginalNamespaceLabelKey = "remote-obc-original-namespace"
+	storageConsumerNameLabelKey        = "storage-consumer-name"
+	storageConsumerUUIDLabelKey        = "storage-consumer-uuid"
 	prefixOfHashedName                 = "remote-obc"
 )
 
@@ -53,12 +53,12 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 	localObc.Name = getObcHashedName(storageConsumerUUID, obcName, obcNamespace)
 	localObc.Namespace = storageConsumer.Namespace
 
-	util.AddLabel(localObc, labelKeyObcConsumerName, storageConsumerName)
-	util.AddLabel(localObc, labelKeyObcConsumerUUID, storageConsumerUUID)
-	util.AddLabel(localObc, labelKeyRemoteObcOriginalName, obcName)
-	util.AddLabel(localObc, labelKeyRemoteObcOriginalNamespace, obcNamespace)
+	util.AddLabel(localObc, storageConsumerNameLabelKey, storageConsumerName)
+	util.AddLabel(localObc, storageConsumerUUIDLabelKey, storageConsumerUUID)
+	util.AddLabel(localObc, remoteObcOriginalNameLabelKey, obcName)
+	util.AddLabel(localObc, remoteObcOriginalNamespaceLabelKey, obcNamespace)
 
-	util.AddAnnotation(localObc, annotationKeyRemoteObcCreation, "true")
+	util.AddAnnotation(localObc, remoteObcCreationAnnotationKey, "true")
 
 	obc.Spec.DeepCopyInto(&localObc.Spec)
 
@@ -91,9 +91,9 @@ func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsume
 	obcNamespace := obcNamespacedName.Namespace
 
 	labelSelector := map[string]string{
-		labelKeyRemoteObcOriginalName:      obcName,
-		labelKeyRemoteObcOriginalNamespace: obcNamespace,
-		labelKeyObcConsumerName:            storageConsumerName,
+		remoteObcOriginalNameLabelKey:      obcName,
+		remoteObcOriginalNamespaceLabelKey: obcNamespace,
+		storageConsumerNameLabelKey:        storageConsumerName,
 	}
 	localObcNamespace := storageConsumer.Namespace
 	obcList := &nbv1.ObjectBucketClaimList{}
