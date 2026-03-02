@@ -77,7 +77,7 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 // It is a synchronous call, we do not wait for resources to be deleted.
 // Notes:
 //   - OBC is deleted from the storage consumer namespace using the labels set during creation.
-func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsumerUUID string, obcDetails types.NamespacedName) error {
+func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsumerUUID string, obcNamespacedName types.NamespacedName) error {
 	logger := klog.FromContext(ctx).WithName("handleObcDelete")
 	logger.Info("handleObcDelete: Starting handleObcDelete", "storageConsumerUUID", storageConsumerUUID)
 
@@ -87,8 +87,8 @@ func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsume
 	}
 	storageConsumerName := storageConsumer.Name
 
-	obcName := obcDetails.Name
-	obcNamespace := obcDetails.Namespace
+	obcName := obcNamespacedName.Name
+	obcNamespace := obcNamespacedName.Namespace
 
 	labelSelector := map[string]string{
 		labelKeyRemoteObcOriginalName:      obcName,

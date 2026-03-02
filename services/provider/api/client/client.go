@@ -222,6 +222,6 @@ func (cc *OCSProviderClient) NotifyObcCreated(ctx context.Context, consumerUUID 
 }
 
 // NotifyObcDeleted RPC call for Notify API request with OBC_DELETED reason
-func (cc *OCSProviderClient) NotifyObcDeleted(ctx context.Context, consumerUUID string, obcDetails types.NamespacedName) (*pb.NotifyResponse, error) {
-	return cc.notifyWithReason(ctx, consumerUUID, pb.NotifyReason_OBC_DELETED, obcDetails)
+func (cc *OCSProviderClient) NotifyObcDeleted(ctx context.Context, consumerUUID string, obcNamespacedName types.NamespacedName) (*pb.NotifyResponse, error) {
+	return cc.notifyWithReason(ctx, consumerUUID, pb.NotifyReason_OBC_DELETED, obcNamespacedName)
 }
