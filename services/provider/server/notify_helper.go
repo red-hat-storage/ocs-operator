@@ -37,14 +37,14 @@ const (
 //   - Label added: original indicates that the information is about the client cluster OBC
 //   - Annotations added: "remote-obc-creation": "true" (used by MCG CLI)
 func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsumer *ocsv1alpha1.StorageConsumer, obc *nbv1.ObjectBucketClaim) error {
-	logger := klog.FromContext(ctx).WithName("handleObcCreate")
 	storageConsumerUUID := string(storageConsumer.UID)
-	logger.Info("handleObcCreate: Starting handleObcCreate", "storageConsumerUUID", storageConsumerUUID)
+	logger := klog.FromContext(ctx).WithName("handleObcCreated").WithValues("storageConsumerUUID", storageConsumerUUID, "storageConsumer name", storageConsumer.Name)
+	logger.Info("Starting handleObcCreated")
 
 	obcName := obc.Name
 	obcNamespace := obc.Namespace
 
-	logger.Info("handleObcCreate: Building OBC object", "storageConsumerUUID", storageConsumerUUID, "OBC Name", obcName, "OBC Namespace", obcNamespace)
+	logger.Info("Building OBC object", "storageConsumerUUID", storageConsumerUUID, "OBC Name", obcName, "OBC Namespace", obcNamespace)
 	localObc := &nbv1.ObjectBucketClaim{}
 	localObc.Name = getObcHashedName(storageConsumerUUID, obcName, obcNamespace)
 	localObc.Namespace = storageConsumer.Namespace
@@ -62,7 +62,7 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 		return status.Errorf(codes.Internal, "failed to set owner reference for OBC name %s namespace %s: %v", obcName, obcNamespace, err)
 	}
 
-	logger.Info("handleObcCreate: Creating OBC resource", "namespaced/name", client.ObjectKeyFromObject(localObc))
+	logger.Info("Creating OBC resource", "namespaced/name", client.ObjectKeyFromObject(localObc))
 	if err := s.client.Create(ctx, localObc); client.IgnoreAlreadyExists(err) != nil {
 		return status.Errorf(codes.Internal, "failed to create OBC name %s namespace %s: %v", obcName, obcNamespace, err)
 	}
@@ -75,8 +75,8 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 //   - OBC is deleted from the storage consumer namespace using the labels set during creation.
 func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsumer *ocsv1alpha1.StorageConsumer, obcNamespacedName types.NamespacedName) error {
 	storageConsumerUUID := string(storageConsumer.UID)
-	logger := klog.FromContext(ctx).WithName("handleObcDelete")
-	logger.Info("handleObcDelete: Starting handleObcDelete", "storageConsumerUUID", storageConsumerUUID)
+	logger := klog.FromContext(ctx).WithName("handleObcDeleted").WithValues("storageConsumerUUID", storageConsumerUUID, "storageConsumer name", storageConsumer.Name)
+	logger.Info("Starting handleObcDeleted")
 
 	obcName := obcNamespacedName.Name
 	obcNamespace := obcNamespacedName.Namespace
@@ -89,16 +89,16 @@ func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsume
 	localObcNamespace := storageConsumer.Namespace
 	obcList := &nbv1.ObjectBucketClaimList{}
 	if err := s.client.List(ctx, obcList, client.InNamespace(localObcNamespace), client.MatchingLabels(labelSelector), client.Limit(1)); err != nil {
-		logger.Error(err, "handleObcDelete: Failed to list OBC resources", "namespace", localObcNamespace, "labels", labelSelector)
+		logger.Error(err, "Failed to list OBC resources", "namespace", localObcNamespace, "labels", labelSelector)
 		return status.Errorf(codes.Internal, "failed to list OBCs for deletion name %s namespace %s: %v", obcName, obcNamespace, err)
 	}
 	if len(obcList.Items) == 0 {
-		logger.Info("handleObcDelete: OBC not found", "namespace", localObcNamespace, "labels", labelSelector)
+		logger.Info("OBC not found", "namespace", localObcNamespace, "labels", labelSelector)
 		return nil
 	}
 
 	localObc := &obcList.Items[0]
-	logger.Info("handleObcDelete: Deleting OBC resource", "namespaced/name", client.ObjectKeyFromObject(localObc))
+	logger.Info("Deleting OBC resource", "namespaced/name", client.ObjectKeyFromObject(localObc))
 	if err := s.client.Delete(ctx, localObc); client.IgnoreNotFound(err) != nil {
 		return status.Errorf(codes.Internal, "failed to delete OBC name %s namespace %s: %v", obcName, obcNamespace, err)
 	}
