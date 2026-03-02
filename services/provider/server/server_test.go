@@ -129,6 +129,26 @@ func TestGetKubeResourcesForClass(t *testing.T) {
 	}
 }
 
+// newNotifyTestServer creates an OCSProviderServer for Notify tests with the given objects pre-seeded in the fake client.
+func newNotifyTestServer(t *testing.T, objs ...client.Object) *OCSProviderServer {
+	t.Helper()
+	scheme, schemeErr := newScheme()
+	if schemeErr != nil {
+		t.Fatalf("newScheme() error = %v", schemeErr)
+	}
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(objs...).
+		WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
+		Build()
+	return &OCSProviderServer{
+		client:          fakeClient,
+		scheme:          scheme,
+		consumerManager: createTestConsumerManager(fakeClient),
+		namespace:       testNamespace,
+	}
+}
+
 func TestNotify(t *testing.T) {
 	ctx := context.Background()
 	storageConsumer := &ocsv1a1.StorageConsumer{
@@ -173,7 +193,7 @@ func TestNotify(t *testing.T) {
 		{
 			name: "notify failed - unknown reason",
 			setupServer: func(t *testing.T) *OCSProviderServer {
-				return &OCSProviderServer{}
+				return newNotifyTestServer(t, storageConsumer)
 			},
 			req: &pb.NotifyRequest{
 				StorageConsumerUUID: string(storageConsumer.UID),
@@ -182,23 +202,21 @@ func TestNotify(t *testing.T) {
 			ExpectedErrorCode: codes.InvalidArgument,
 		},
 		{
+			name: "notify failed - storage consumer not found",
+			setupServer: func(t *testing.T) *OCSProviderServer {
+				return newNotifyTestServer(t)
+			},
+			req: &pb.NotifyRequest{
+				StorageConsumerUUID: "non-existent-uuid",
+				Reason:              pb.NotifyReason_OBC_CREATED,
+				Payload:             obcCreatePayloadBytes,
+			},
+			ExpectedErrorCode: codes.Internal,
+		},
+		{
 			name: "notify succeeded - obc created",
 			setupServer: func(t *testing.T) *OCSProviderServer {
-				scheme, schemeErr := newScheme()
-				if schemeErr != nil {
-					t.Fatalf("newScheme() error = %v", schemeErr)
-				}
-				fakeClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(storageConsumer).
-					WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
-					Build()
-				return &OCSProviderServer{
-					client:          fakeClient,
-					scheme:          scheme,
-					consumerManager: createTestConsumerManager(fakeClient),
-					namespace:       testNamespace,
-				}
+				return newNotifyTestServer(t, storageConsumer)
 			},
 			req: &pb.NotifyRequest{
 				StorageConsumerUUID: string(storageConsumer.UID),
@@ -251,7 +269,7 @@ func TestNotify(t *testing.T) {
 		{
 			name: "notify failed - obc created - invalid JSON payload",
 			setupServer: func(t *testing.T) *OCSProviderServer {
-				return &OCSProviderServer{}
+				return newNotifyTestServer(t, storageConsumer)
 			},
 			req: &pb.NotifyRequest{
 				StorageConsumerUUID: string(storageConsumer.UID),
@@ -263,10 +281,6 @@ func TestNotify(t *testing.T) {
 		{
 			name: "notify succeeded - obc created - OBC already exists",
 			setupServer: func(t *testing.T) *OCSProviderServer {
-				scheme, schemeErr := newScheme()
-				if schemeErr != nil {
-					t.Fatalf("newScheme() error = %v", schemeErr)
-				}
 				obcHashedName := getObcHashedName(string(storageConsumer.UID), obcName, obcNamespace)
 				existingObc := &nbv1.ObjectBucketClaim{
 					ObjectMeta: metav1.ObjectMeta{
@@ -274,17 +288,7 @@ func TestNotify(t *testing.T) {
 						Namespace: testNamespace,
 					},
 				}
-				fakeClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(storageConsumer, existingObc).
-					WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
-					Build()
-				return &OCSProviderServer{
-					client:          fakeClient,
-					scheme:          scheme,
-					consumerManager: createTestConsumerManager(fakeClient),
-					namespace:       testNamespace,
-				}
+				return newNotifyTestServer(t, storageConsumer, existingObc)
 			},
 			req: &pb.NotifyRequest{
 				StorageConsumerUUID: string(storageConsumer.UID),
@@ -296,10 +300,6 @@ func TestNotify(t *testing.T) {
 		{
 			name: "notify succeeded - obc deleted",
 			setupServer: func(t *testing.T) *OCSProviderServer {
-				scheme, schemeErr := newScheme()
-				if schemeErr != nil {
-					t.Fatalf("newScheme() error = %v", schemeErr)
-				}
 				obcHashedName := getObcHashedName(string(storageConsumer.UID), obcName, obcNamespace)
 				obc := &nbv1.ObjectBucketClaim{
 					ObjectMeta: metav1.ObjectMeta{
@@ -312,17 +312,7 @@ func TestNotify(t *testing.T) {
 						},
 					},
 				}
-				fakeClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(storageConsumer, obc). // add the obc to the created resources
-					WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
-					Build()
-				return &OCSProviderServer{
-					client:          fakeClient,
-					scheme:          scheme,
-					consumerManager: createTestConsumerManager(fakeClient),
-					namespace:       testNamespace,
-				}
+				return newNotifyTestServer(t, storageConsumer, obc)
 			},
 			req: &pb.NotifyRequest{
 				StorageConsumerUUID: string(storageConsumer.UID),
@@ -348,22 +338,7 @@ func TestNotify(t *testing.T) {
 		{
 			name: "notify succeeded - obc deleted - obc does not exist",
 			setupServer: func(t *testing.T) *OCSProviderServer {
-				scheme, schemeErr := newScheme()
-				if schemeErr != nil {
-					t.Fatalf("newScheme() error = %v", schemeErr)
-				}
-				// Storage consumer exists but no OBC in the cluster
-				fakeClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(storageConsumer).
-					WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
-					Build()
-				return &OCSProviderServer{
-					client:          fakeClient,
-					scheme:          scheme,
-					consumerManager: createTestConsumerManager(fakeClient),
-					namespace:       testNamespace,
-				}
+				return newNotifyTestServer(t, storageConsumer)
 			},
 			req: &pb.NotifyRequest{
 				StorageConsumerUUID: string(storageConsumer.UID),

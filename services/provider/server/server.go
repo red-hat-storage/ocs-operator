@@ -2321,6 +2321,11 @@ func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (
 	logger := klog.FromContext(ctx).WithName("Notify").WithValues("StorageConsumerUUID", req.StorageConsumerUUID)
 	logger.Info("Starting Notify RPC", "reason", req.Reason)
 
+	storageConsumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer: storageConsumerUUID=%s", req.StorageConsumerUUID)
+	}
+
 	switch req.Reason {
 	case pb.NotifyReason_OBC_CREATED:
 		obc := &nbv1.ObjectBucketClaim{}
@@ -2328,7 +2333,7 @@ func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (
 			logger.Error(err, "Notify RPC: Failed to unmarshal OBC created payload")
 			return nil, status.Errorf(codes.InvalidArgument, "Notify RPC: failed to unmarshal OBC create payload: %v", err)
 		}
-		if err := s.handleObcCreated(ctx, req.StorageConsumerUUID, obc); err != nil {
+		if err := s.handleObcCreated(ctx, storageConsumer, obc); err != nil {
 			logger.Error(err, "Notify RPC: Failed to handle OBC creation")
 			return nil, err
 		}
@@ -2338,7 +2343,7 @@ func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (
 			logger.Error(err, "Notify RPC: Failed to unmarshal OBC deleted payload")
 			return nil, status.Errorf(codes.InvalidArgument, "Notify RPC: failed to unmarshal OBC delete payload: %v", err)
 		}
-		if err := s.handleObcDeleted(ctx, req.StorageConsumerUUID, obcNamespacedName); err != nil {
+		if err := s.handleObcDeleted(ctx, storageConsumer, obcNamespacedName); err != nil {
 			logger.Error(err, "Notify RPC: Failed to handle OBC deletion")
 			return nil, err
 		}

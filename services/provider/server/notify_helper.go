@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
@@ -35,15 +36,10 @@ const (
 //   - Owner reference is set to the storage consumer
 //   - Label added: original indicates that the information is about the client cluster OBC
 //   - Annotations added: "remote-obc-creation": "true" (used by MCG CLI)
-func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsumerUUID string, obc *nbv1.ObjectBucketClaim) error {
+func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsumer *ocsv1alpha1.StorageConsumer, obc *nbv1.ObjectBucketClaim) error {
 	logger := klog.FromContext(ctx).WithName("handleObcCreate")
+	storageConsumerUUID := string(storageConsumer.UID)
 	logger.Info("handleObcCreate: Starting handleObcCreate", "storageConsumerUUID", storageConsumerUUID)
-
-	storageConsumer, err := s.consumerManager.Get(ctx, storageConsumerUUID)
-	if err != nil {
-		return status.Errorf(codes.Internal, "OBC cannot be created due to failed StorageConsumer lookup: storageConsumerUUID=%s", storageConsumerUUID)
-	}
-	storageConsumerName := storageConsumer.Name
 
 	obcName := obc.Name
 	obcNamespace := obc.Namespace
@@ -53,7 +49,7 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 	localObc.Name = getObcHashedName(storageConsumerUUID, obcName, obcNamespace)
 	localObc.Namespace = storageConsumer.Namespace
 
-	util.AddLabel(localObc, storageConsumerNameLabelKey, storageConsumerName)
+	util.AddLabel(localObc, storageConsumerNameLabelKey, storageConsumer.Name)
 	util.AddLabel(localObc, storageConsumerUUIDLabelKey, storageConsumerUUID)
 	util.AddLabel(localObc, remoteObcOriginalNameLabelKey, obcName)
 	util.AddLabel(localObc, remoteObcOriginalNamespaceLabelKey, obcNamespace)
@@ -77,15 +73,10 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 // It is a synchronous call, we do not wait for resources to be deleted.
 // Notes:
 //   - OBC is deleted from the storage consumer namespace using the labels set during creation.
-func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsumerUUID string, obcNamespacedName types.NamespacedName) error {
+func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsumer *ocsv1alpha1.StorageConsumer, obcNamespacedName types.NamespacedName) error {
+	storageConsumerUUID := string(storageConsumer.UID)
 	logger := klog.FromContext(ctx).WithName("handleObcDelete")
 	logger.Info("handleObcDelete: Starting handleObcDelete", "storageConsumerUUID", storageConsumerUUID)
-
-	storageConsumer, err := s.consumerManager.Get(ctx, storageConsumerUUID)
-	if err != nil {
-		return status.Errorf(codes.Internal, "OBC cannot be deleted due to failed StorageConsumer lookup: storageConsumerUUID=%s", storageConsumerUUID)
-	}
-	storageConsumerName := storageConsumer.Name
 
 	obcName := obcNamespacedName.Name
 	obcNamespace := obcNamespacedName.Namespace
@@ -93,7 +84,7 @@ func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsume
 	labelSelector := map[string]string{
 		remoteObcOriginalNameLabelKey:      obcName,
 		remoteObcOriginalNamespaceLabelKey: obcNamespace,
-		storageConsumerNameLabelKey:        storageConsumerName,
+		storageConsumerNameLabelKey:        storageConsumer.Name,
 	}
 	localObcNamespace := storageConsumer.Namespace
 	obcList := &nbv1.ObjectBucketClaimList{}
