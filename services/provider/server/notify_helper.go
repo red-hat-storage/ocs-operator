@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -46,7 +45,7 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 
 	logger.Info("Building OBC object", "storageConsumerUUID", storageConsumerUUID, "OBC Name", obcName, "OBC Namespace", obcNamespace)
 	localObc := &nbv1.ObjectBucketClaim{}
-	localObc.Name = getObcHashedName(storageConsumerUUID, obcName, obcNamespace)
+	localObc.Name = getObcHashedName(client.ObjectKeyFromObject(storageConsumer), obcName, obcNamespace)
 	localObc.Namespace = storageConsumer.Namespace
 
 	util.AddLabel(localObc, storageConsumerNameLabelKey, storageConsumer.Name)
@@ -108,20 +107,19 @@ func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsume
 // getObcHashedName creates a stable hash for OBC name
 // obcName and obcNamespace are from the client cluster
 // this function is based on getStorageRequestHash function
-func getObcHashedName(storageConsumerUUID, obcName, obcNamespace string) string {
+func getObcHashedName(storageConsumerNamespacedName types.NamespacedName, obcName string, obcNamespace string) string {
 	s := struct {
-		StorageConsumerUUID string `json:"storageConsumerUUID"`
-		ObcName             string `json:"obcName"`
-		ObcNamespace        string `json:"obcNamespace"`
+		StorageConsumerNamespace string `json:"storageConsumerNamespace"`
+		StorageConsumerName      string `json:"storageConsumerName"`
+		ObcName                  string `json:"obcName"`
+		ObcNamespace             string `json:"obcNamespace"`
 	}{
-		storageConsumerUUID,
+		storageConsumerNamespacedName.Namespace,
+		storageConsumerNamespacedName.Name,
 		obcName,
 		obcNamespace,
 	}
-	obcHash, err := json.Marshal(s)
-	if err != nil {
-		panic("failed to marshal obc hash")
-	}
+	obcHash := util.JsonMustMarshal(s)
 	md5Sum := md5.Sum(obcHash)
 	hashString := hex.EncodeToString(md5Sum[:16])
 	return fmt.Sprintf("%s-%s", prefixOfHashedName, hashString)

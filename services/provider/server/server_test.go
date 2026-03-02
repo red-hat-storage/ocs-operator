@@ -225,7 +225,10 @@ func TestNotify(t *testing.T) {
 			},
 			ExpectedErrorCode: codes.OK,
 			validate: func(t *testing.T, srv *OCSProviderServer) {
-				expectedName := getObcHashedName(string(storageConsumer.UID), obcName, obcNamespace)
+				expectedName := getObcHashedName(types.NamespacedName{
+					Name:      storageConsumer.Name,
+					Namespace: storageConsumer.Namespace,
+				}, obcName, obcNamespace)
 				obc := &nbv1.ObjectBucketClaim{}
 				if err := srv.client.Get(ctx, types.NamespacedName{
 					Name:      expectedName,
@@ -281,7 +284,10 @@ func TestNotify(t *testing.T) {
 		{
 			name: "notify succeeded - obc created - OBC already exists",
 			setupServer: func(t *testing.T) *OCSProviderServer {
-				obcHashedName := getObcHashedName(string(storageConsumer.UID), obcName, obcNamespace)
+				obcHashedName := getObcHashedName(types.NamespacedName{
+					Name:      storageConsumer.Name,
+					Namespace: storageConsumer.Namespace,
+				}, obcName, obcNamespace)
 				existingObc := &nbv1.ObjectBucketClaim{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      obcHashedName,
@@ -300,7 +306,10 @@ func TestNotify(t *testing.T) {
 		{
 			name: "notify succeeded - obc deleted",
 			setupServer: func(t *testing.T) *OCSProviderServer {
-				obcHashedName := getObcHashedName(string(storageConsumer.UID), obcName, obcNamespace)
+				obcHashedName := getObcHashedName(types.NamespacedName{
+					Name:      storageConsumer.Name,
+					Namespace: storageConsumer.Namespace,
+				}, obcName, obcNamespace)
 				obc := &nbv1.ObjectBucketClaim{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      obcHashedName,
@@ -321,7 +330,10 @@ func TestNotify(t *testing.T) {
 			},
 			ExpectedErrorCode: codes.OK,
 			validate: func(t *testing.T, srv *OCSProviderServer) {
-				expectedName := getObcHashedName(string(storageConsumer.UID), obcName, obcNamespace)
+				expectedName := getObcHashedName(types.NamespacedName{
+					Name:      storageConsumer.Name,
+					Namespace: storageConsumer.Namespace,
+				}, obcName, obcNamespace)
 				obc := &nbv1.ObjectBucketClaim{}
 				err := srv.client.Get(ctx, types.NamespacedName{
 					Name:      expectedName,
