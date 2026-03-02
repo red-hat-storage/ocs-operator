@@ -2323,7 +2323,7 @@ func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (
 
 	switch req.Reason {
 	case pb.NotifyReason_UNKNOWN:
-		return nil, status.Errorf(codes.Internal, "Notify RPC: unknown reason specified in Notify RPC request")
+		return nil, status.Errorf(codes.InvalidArgument, "Notify RPC: unknown reason specified in Notify RPC request")
 	case pb.NotifyReason_OBC_CREATED:
 		obcDetails := &nbv1.ObjectBucketClaim{}
 		if err := json.Unmarshal(req.Payload, obcDetails); err != nil {

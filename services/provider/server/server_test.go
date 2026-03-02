@@ -179,7 +179,7 @@ func TestNotify(t *testing.T) {
 				StorageConsumerUUID: string(storageConsumer.UID),
 				Reason:              pb.NotifyReason_UNKNOWN,
 			},
-			ExpectedErrorCode: codes.Internal,
+			ExpectedErrorCode: codes.InvalidArgument,
 		},
 		{
 			name: "notify succeeded - obc created",
