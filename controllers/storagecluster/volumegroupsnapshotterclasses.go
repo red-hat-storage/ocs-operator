@@ -84,7 +84,7 @@ func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, ins
 			rbdClusterID,
 			rbdProvisionerSecret,
 			instance.Namespace,
-			util.GenerateNameForCephBlockPool(instance.Name),
+			util.GetPoolName(instance.Spec.ManagedResources.CephBlockPools, instance.Name),
 			"",
 		),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
