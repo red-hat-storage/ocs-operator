@@ -324,8 +324,8 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			case "ObjectBucketClaim", "ObjectBucket":
 				// Skip sanitization for OBC/OB to preserve their full structure
 			case "Secret", "ConfigMap":
-				// Skip sanitization for ConfigMap and Secret owned by OBC
 				if !isOwnedByObjectBucketClaim(kubeResource) {
+					// Sanitize ConfigMaps and Secrets not owned by OBC
 					sanitizeKubeResource(kubeResource)
 				}
 			default:
