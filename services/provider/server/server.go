@@ -320,7 +320,17 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			}
 
 			kubeResource.GetObjectKind().SetGroupVersionKind(gvk)
-			sanitizeKubeResource(kubeResource)
+			switch gvk.Kind {
+			case "ObjectBucketClaim", "ObjectBucket":
+				// Skip sanitization for OBC/OB to preserve their full structure
+			case "Secret", "ConfigMap":
+				// Skip sanitization for ConfigMap and Secret owned by OBC
+				if !isOwnedByObjectBucketClaim(kubeResource) {
+					sanitizeKubeResource(kubeResource)
+				}
+			default:
+				sanitizeKubeResource(kubeResource)
+			}
 			kubeResourceBytes := util.JsonMustMarshal(kubeResource)
 			response.KubeObjects = append(response.KubeObjects, &pb.KubeObject{Bytes: kubeResourceBytes})
 		}
@@ -2341,6 +2351,13 @@ func (s *OCSProviderServer) getOdfVolumeGroupSnapshotClassesResourceVersion(ctx 
 		}
 		return versions
 	})
+}
+
+// isOwnedByObjectBucketClaim returns true if the object has an owner reference to an ObjectBucketClaim.
+func isOwnedByObjectBucketClaim(obj client.Object) bool {
+	return slices.IndexFunc(obj.GetOwnerReferences(), func(ref metav1.OwnerReference) bool {
+		return ref.Kind == "ObjectBucketClaim"
+	}) >= 0
 }
 
 func sanitizeKubeResource(obj client.Object) {
