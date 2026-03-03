@@ -1616,25 +1616,43 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 		scMap[util.GenerateNameForCephBlockPoolStorageClass(storageCluster)] = func() *storagev1.StorageClass {
 			return util.NewDefaultRbdStorageClass(
 				consumerConfig.GetRbdClientProfileName(),
-				util.GenerateNameForCephBlockPool(storageCluster.Name),
+				util.If(
+					util.IsDefaultPoolErasureCodingEnabled(storageCluster.Spec.ManagedResources.CephBlockPools),
+					storageCluster.Spec.ManagedResources.CephBlockPools.ErasureCodedMetadataPool,
+					util.GenerateNameForCephBlockPool(storageCluster.Name),
+				),
 				consumerConfig.GetCsiRbdProvisionerCephUserName(),
 				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
 				remoteRbdStorageId,
 				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
+				util.If(
+					util.IsDefaultPoolErasureCodingEnabled(storageCluster.Spec.ManagedResources.CephBlockPools),
+					util.GenerateNameForCephBlockPool(storageCluster.Name),
+					"",
+				),
 			)
 		}
 		scMap[util.GenerateNameForCephBlockPoolVirtualizationStorageClass(storageCluster)] = func() *storagev1.StorageClass {
 			return util.NewDefaultVirtRbdStorageClass(
 				consumerConfig.GetRbdClientProfileName(),
-				util.GenerateNameForCephBlockPool(storageCluster.Name),
+				util.If(
+					util.IsDefaultPoolErasureCodingEnabled(storageCluster.Spec.ManagedResources.CephBlockPools),
+					storageCluster.Spec.ManagedResources.CephBlockPools.ErasureCodedMetadataPool,
+					util.GenerateNameForCephBlockPool(storageCluster.Name),
+				),
 				consumerConfig.GetCsiRbdProvisionerCephUserName(),
 				consumerConfig.GetCsiRbdNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				rbdStorageId,
 				remoteRbdStorageId,
 				storageCluster.Spec.ManagedResources.CephBlockPools.DefaultVirtualizationStorageClass,
+				util.If(
+					util.IsDefaultPoolErasureCodingEnabled(storageCluster.Spec.ManagedResources.CephBlockPools),
+					util.GenerateNameForCephBlockPool(storageCluster.Name),
+					"",
+				),
 			)
 		}
 		if kmsConfig, err := util.GetKMSConfigMap(defaults.KMSConfigMapName, storageCluster, s.client); err == nil && kmsConfig != nil {
@@ -1642,12 +1660,21 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 			scMap[util.GenerateNameForEncryptedCephBlockPoolStorageClass(storageCluster)] = func() *storagev1.StorageClass {
 				return util.NewDefaultEncryptedRbdStorageClass(
 					consumerConfig.GetRbdClientProfileName(),
-					util.GenerateNameForCephBlockPool(storageCluster.Name),
+					util.If(
+						util.IsDefaultPoolErasureCodingEnabled(storageCluster.Spec.ManagedResources.CephBlockPools),
+						storageCluster.Spec.ManagedResources.CephBlockPools.ErasureCodedMetadataPool,
+						util.GenerateNameForCephBlockPool(storageCluster.Name),
+					),
 					consumerConfig.GetCsiRbdProvisionerCephUserName(),
 					consumerConfig.GetCsiRbdNodeCephUserName(),
 					consumer.Status.Client.OperatorNamespace,
 					kmsServiceName,
 					consumer.GetAnnotations()[defaults.KeyRotationEnableAnnotation],
+					util.If(
+						util.IsDefaultPoolErasureCodingEnabled(storageCluster.Spec.ManagedResources.CephBlockPools),
+						util.GenerateNameForCephBlockPool(storageCluster.Name),
+						"",
+					),
 				)
 			}
 		}
@@ -1800,7 +1827,11 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 				consumerConfig.GetRbdClientProfileName(),
 				consumerConfig.GetCsiRbdProvisionerCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
-				util.GenerateNameForCephBlockPool(storageCluster.Name),
+				util.If(
+					util.IsDefaultPoolErasureCodingEnabled(storageCluster.Spec.ManagedResources.CephBlockPools),
+					storageCluster.Spec.ManagedResources.CephBlockPools.ErasureCodedMetadataPool,
+					util.GenerateNameForCephBlockPool(storageCluster.Name),
+				),
 				rbdStorageId,
 			)
 		}
