@@ -24,12 +24,17 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 type StorageClusterPeerState string
+type StorageClusterPeerFailureReason string
 
 const (
 	StorageClusterPeerStateInitializing StorageClusterPeerState = "Initializing"
 	StorageClusterPeerStatePending      StorageClusterPeerState = "Pending"
 	StorageClusterPeerStatePeered       StorageClusterPeerState = "Peered"
 	StorageClusterPeerStateFailed       StorageClusterPeerState = "Failed"
+
+	StorageClusterPeerFailureReasonClusterNotFound         StorageClusterPeerFailureReason = "CLUSTER_NOT_FOUND"
+	StorageClusterPeerFailureReasonInvalidOnboardingTicket StorageClusterPeerFailureReason = "INVALID_ONBOARDING_TICKET"
+	StorageClusterPeerFailureReasonConnectionFailed        StorageClusterPeerFailureReason = "CONNECTION_FAILED"
 )
 
 type PeerInfo struct {
@@ -48,8 +53,9 @@ type StorageClusterPeerSpec struct {
 
 // StorageClusterPeerStatus defines the observed state of StorageClusterPeer
 type StorageClusterPeerStatus struct {
-	State    StorageClusterPeerState `json:"state,omitempty"`
-	PeerInfo *PeerInfo               `json:"peerInfo"`
+	State         StorageClusterPeerState         `json:"state,omitempty"`
+	FailureReason StorageClusterPeerFailureReason `json:"failureReason,omitempty"`
+	PeerInfo      *PeerInfo                       `json:"peerInfo"`
 }
 
 //+kubebuilder:object:root=true
