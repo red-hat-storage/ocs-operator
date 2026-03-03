@@ -493,6 +493,18 @@ type MonitoringSpec struct {
 	// DisableBlackboxExporter disables deployment of Blackbox Exporter for network health checks
 	// +optional
 	DisableBlackboxExporter bool `json:"disableBlackboxExporter,omitempty"`
+	// DisabledAlerts lists alerts to exclude from ODF health score calculation.
+	// Alerts still fire in Prometheus but are excluded from health score.
+	// +optional
+	DisabledAlerts []string `json:"disabledAlerts,omitempty"`
+}
+
+// DisabledAlert represents an alert that has been disabled
+type DisabledAlert struct {
+	// AlertName is the name of the alert to disable
+	AlertName string `json:"alertName"`
+	// DisabledAt is the timestamp when the alert was disabled
+	DisabledAt metav1.Time `json:"disabledAt"`
 }
 
 // EncryptionSpec defines if encryption should be enabled for the Storage Cluster
@@ -545,6 +557,13 @@ type MirroringSpec struct {
 type KMSServerConnectionStatus struct {
 	KMSServerAddress         string `json:"kmsServerAddress,omitempty"`
 	KMSServerConnectionError string `json:"kmsServerConnectionError,omitempty"`
+}
+
+// MonitoringStatus defines the observed monitoring state
+type MonitoringStatus struct {
+	// DisabledAlerts tracks when each alert was disabled
+	// +optional
+	DisabledAlerts []DisabledAlert `json:"disabledAlerts,omitempty"`
 }
 
 // StorageClusterStatus defines the observed state of StorageCluster
@@ -605,6 +624,10 @@ type StorageClusterStatus struct {
 
 	// KMSServerConnection holds the connection state to the KMS server.
 	KMSServerConnection KMSServerConnectionStatus `json:"kmsServerConnection,omitempty"`
+
+	// Monitoring tracks monitoring-related status
+	// +optional
+	Monitoring MonitoringStatus `json:"monitoring,omitempty"`
 
 	// CurrentMonCount holds the value of ceph mons configured in ceph cluster.
 	CurrentMonCount int `json:"currentMonCount,omitempty"`

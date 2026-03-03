@@ -3637,6 +3637,13 @@ spec:
                     description: DisableBlackboxExporter disables deployment of Blackbox
                       Exporter for network health checks
                     type: boolean
+                  disabledAlerts:
+                    description: |-
+                      DisabledAlerts lists alerts to exclude from ODF health score calculation.
+                      Alerts still fire in Prometheus but are excluded from health score.
+                    items:
+                      type: string
+                    type: array
                   labels:
                     additionalProperties:
                       type: string
@@ -9166,6 +9173,29 @@ spec:
                 description: LastAppliedResourceProfile is the resource profile that
                   was last applied successfully & is currently in use.
                 type: string
+              monitoring:
+                description: Monitoring tracks monitoring-related status
+                properties:
+                  disabledAlerts:
+                    description: DisabledAlerts tracks when each alert was disabled
+                    items:
+                      description: DisabledAlert represents an alert that has been
+                        disabled
+                      properties:
+                        alertName:
+                          description: AlertName is the name of the alert to disable
+                          type: string
+                        disabledAt:
+                          description: DisabledAt is the timestamp when the alert
+                            was disabled
+                          format: date-time
+                          type: string
+                      required:
+                      - alertName
+                      - disabledAt
+                      type: object
+                    type: array
+                type: object
               nodeTopologies:
                 description: |-
                   NodeTopologies is a list of topology labels on all nodes matching
