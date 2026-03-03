@@ -327,6 +327,7 @@ func NewDefaultCephFsStorageClass(
 	nodeSecret,
 	namespace,
 	storageId string,
+	dataPoolName string,
 ) *storagev1.StorageClass {
 
 	sc := &storagev1.StorageClass{
@@ -353,6 +354,10 @@ func NewDefaultCephFsStorageClass(
 
 	if storageId != "" {
 		AddLabel(sc, storageIdLabelKey, storageId)
+	}
+
+	if dataPoolName != "" {
+		sc.Parameters["pool"] = dataPoolName
 	}
 	return sc
 }

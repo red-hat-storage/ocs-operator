@@ -1699,6 +1699,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 				consumerConfig.GetCsiCephFsNodeCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
 				cephFsStorageId,
+				storageCluster.Spec.ManagedResources.CephFilesystems.DefaultStorageClassDataPoolName,
 			)
 		}
 	}

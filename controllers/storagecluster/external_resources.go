@@ -343,6 +343,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 						"rook-csi-cephfs-node",
 						instance.Namespace,
 						"",
+						"",
 					),
 					reconcileStrategy: ReconcileStrategy(scManagedResources.CephFilesystems.ReconcileStrategy),
 					isClusterExternal: true,
