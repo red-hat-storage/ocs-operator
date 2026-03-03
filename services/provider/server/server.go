@@ -2333,6 +2333,7 @@ func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (
 
 	storageConsumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
 	if err != nil {
+		logger.Error(err, "Notify RPC: Failed to get StorageConsumer")
 		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer: storageConsumerUUID=%s", req.StorageConsumerUUID)
 	}
 
