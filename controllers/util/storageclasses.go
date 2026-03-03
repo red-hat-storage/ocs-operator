@@ -85,6 +85,7 @@ func NewDefaultRbdStorageClass(
 	storageId,
 	remoteRbdStorageId string,
 	isDefaultStorageClass bool,
+	dataPoolName string,
 ) *storagev1.StorageClass {
 
 	sc := &storagev1.StorageClass{
@@ -101,6 +102,7 @@ func NewDefaultRbdStorageClass(
 		Parameters: map[string]string{
 			"clusterID":                 clusterID,
 			"pool":                      poolName,
+			"dataPool":                  dataPoolName,
 			"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 			"csi.storage.k8s.io/fstype": "ext4",
 			"imageFormat":               "2",
@@ -147,6 +149,7 @@ func NewDefaultVirtRbdStorageClass(
 	storageId,
 	remoteRbdStorageId string,
 	isDefaultVirtStorageClass bool,
+	dataPoolName string,
 ) *storagev1.StorageClass {
 
 	sc := &storagev1.StorageClass{
@@ -163,6 +166,7 @@ func NewDefaultVirtRbdStorageClass(
 		Parameters: map[string]string{
 			"clusterID":                 clusterID,
 			"pool":                      poolName,
+			"dataPool":                  dataPoolName,
 			"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 			"csi.storage.k8s.io/fstype": "ext4",
 			"imageFormat":               "2",
@@ -210,6 +214,7 @@ func NewDefaultEncryptedRbdStorageClass(
 	namespace,
 	encryptionServiceName string,
 	KeyRotationAnnotationValue string,
+	dataPoolName string,
 ) *storagev1.StorageClass {
 
 	sc := &storagev1.StorageClass{
@@ -228,6 +233,7 @@ func NewDefaultEncryptedRbdStorageClass(
 		Parameters: map[string]string{
 			"clusterID":                 clusterID,
 			"pool":                      poolName,
+			"dataPool":                  dataPoolName,
 			"imageFeatures":             "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
 			"csi.storage.k8s.io/fstype": "ext4",
 			"imageFormat":               "2",
@@ -244,6 +250,7 @@ func NewDefaultEncryptedRbdStorageClass(
 	if KeyRotationAnnotationValue != "" {
 		AddAnnotation(sc, defaults.KeyRotationEnableAnnotation, KeyRotationAnnotationValue)
 	}
+
 	return sc
 }
 

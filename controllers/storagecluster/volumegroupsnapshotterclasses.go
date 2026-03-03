@@ -84,7 +84,11 @@ func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, ins
 			rbdClusterID,
 			rbdProvisionerSecret,
 			instance.Namespace,
-			util.GenerateNameForCephBlockPool(instance.Name),
+			util.If(
+				util.IsDefaultPoolErasureCodingEnabled(instance.Spec.ManagedResources.CephBlockPools),
+				instance.Spec.ManagedResources.CephBlockPools.ErasureCodedMetadataPool,
+				util.GenerateNameForCephBlockPool(instance.Name),
+			),
 			"",
 		),
 		reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
