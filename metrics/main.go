@@ -10,6 +10,7 @@ import (
 	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	cephconn "github.com/red-hat-storage/ocs-operator/metrics/v4/internal/ceph"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/collectors"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/exporter"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/handler"
@@ -45,6 +46,10 @@ func main() {
 	klog.SetLogger(zapr.NewLogger(logr))
 	defer klog.Flush()
 
+	if len(opts.AllowedNamespaces) == 0 {
+		klog.Fatal("at least one namespace must be specified via --namespaces")
+	}
+
 	klog.Infof("using options: %+v", opts)
 	opts.StopCh = make(chan struct{})
 	defer close(opts.StopCh)
@@ -71,32 +76,18 @@ func main() {
 	exporterMux := http.NewServeMux()
 	handler.RegisterExporterMuxHandlers(exporterMux, exporterRegistry, promHandlerOpts(exporterRegistry))
 
+	cephConn := cephconn.NewConn(opts)
+	defer cephConn.Close()
+
 	customResourceRegistry := prometheus.NewRegistry()
-	// Add custom resource collectors to the registry.
 	collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
-
-	// Add persistent volume attributes collector to the registry.
-	collectors.RegisterPersistentVolumeAttributesCollector(customResourceRegistry, opts)
-
-	// Add blocklist collector to the registry
-	collectors.RegisterCephBlocklistCollector(customResourceRegistry, opts)
-
-	// Add rbd children collector to the registry
-	collectors.RegisterCephRBDChildrenCollector(customResourceRegistry, opts)
-
-	// Add CephFS subvolume count collector to the registry
-	collectors.RegisterCephFSMetricsCollector(customResourceRegistry, opts)
+	collectors.RegisterCephRBDCollector(customResourceRegistry, cephConn, opts)
+	collectors.RegisterCephBlocklistCollector(customResourceRegistry)
+	collectors.RegisterCephFSMetricsCollector(customResourceRegistry, cephConn, opts)
 
 	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
 	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry, promHandlerOpts(customResourceRegistry))
-
-	rbdRegistry := prometheus.NewRegistry()
-	// Add rbd mirror metrics collector to registry
-	collectors.RegisterRBDMirrorCollector(rbdRegistry, opts)
-
-	// server rbd mirror metrics
-	handler.RegisterRBDMirrorMuxHandlers(customResourceMux, rbdRegistry, promHandlerOpts(rbdRegistry))
 
 	var rg run.Group
 	rg.Add(listenAndServe(exporterMux, opts.ExporterHost, opts.ExporterPort))
@@ -104,8 +95,7 @@ func main() {
 
 	klog.Infof("Running metrics server on %s:%v", opts.Host, opts.Port)
 	klog.Infof("Running telemetry server on %s:%v", opts.ExporterHost, opts.ExporterPort)
-	err = rg.Run()
-	if err != nil {
+	if err = rg.Run(); err != nil {
 		klog.Fatalf("metrics and telemetry servers terminated: %v", err)
 	}
 }
@@ -114,16 +104,18 @@ func listenAndServe(mux *http.ServeMux, host string, port int) (func() error, fu
 	var listener net.Listener
 	serve := func() error {
 		addr := net.JoinHostPort(host, strconv.Itoa(port))
-		listener, err := net.Listen("tcp", addr)
+		var err error
+		listener, err = net.Listen("tcp", addr)
 		if err != nil {
 			return err
 		}
 		return http.Serve(listener, mux)
 	}
 	cleanup := func(error) {
-		err := listener.Close()
-		if err != nil {
-			klog.Errorf("failed to close listener: %v", err)
+		if listener != nil {
+			if err := listener.Close(); err != nil {
+				klog.Errorf("failed to close listener: %v", err)
+			}
 		}
 	}
 	return serve, cleanup
