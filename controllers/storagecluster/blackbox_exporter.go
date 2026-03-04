@@ -399,6 +399,7 @@ func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context,
 							},
 							SecurityContext: &corev1.SecurityContext{
 								RunAsNonRoot: ptr.To(true),
+								RunAsUser:    ptr.To(int64(65534)),
 								Capabilities: &corev1.Capabilities{
 									Add: []corev1.Capability{"NET_RAW"},
 								},
