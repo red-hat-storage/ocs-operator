@@ -2381,7 +2381,7 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 	obcName := obc.Name
 	obcNamespace := obc.Namespace
 
-	logger.Info("Building OBC object", "storageConsumerUUID", storageConsumerUUID, "OBC Name", obcName, "OBC Namespace", obcNamespace)
+	logger.Info("Building OBC object", "OBC Name", obcName, "OBC Namespace", obcNamespace)
 	localObc := &nbv1.ObjectBucketClaim{}
 	localObc.Name = getObcHashedName(client.ObjectKeyFromObject(storageConsumer), obcName, obcNamespace)
 	localObc.Namespace = storageConsumer.Namespace
