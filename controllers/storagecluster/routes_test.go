@@ -21,10 +21,17 @@ func TestCephRGWRoutes(t *testing.T) {
 		label                string
 		createRuntimeObjects bool
 		platform             configv1.PlatformType
+		disableHttp          bool
 	}{
 		{
-			label:                "case 1", // Ensure that RGW routes are created on non-cloud Platform
+			label:                "case 1: Ensure that RGW routes are created on non-cloud Platform",
 			createRuntimeObjects: false,
+			disableHttp:          false,
+		},
+		{
+			label:                "case 2: Ensure http route is not created if DisableHttp is set to true",
+			createRuntimeObjects: false,
+			disableHttp:          true,
 		},
 	}
 
@@ -32,6 +39,7 @@ func TestCephRGWRoutes(t *testing.T) {
 		platform.SetFakePlatformInstanceForTesting(true, c.platform)
 		var objects []client.Object
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
+		cr.Spec.ManagedResources.CephObjectStores.DisableHttp = c.disableHttp
 		if c.createRuntimeObjects {
 			objects = createUpdateRuntimeObjects(t) //nolint:staticcheck //no need to use objects as they update in runtime
 		}
@@ -96,11 +104,17 @@ func assertCephRGWRoutes(t *testing.T, reconciler *StorageClusterReconciler, cr 
 				},
 			},
 		}
-		assert.Equal(t, expectedCos[0].ObjectMeta.Name, actualCos.ObjectMeta.Name)
-		assert.Equal(t, expectedCos[0].Spec, actualCos.Spec)
-		assert.Equal(t, expectedCos[1].ObjectMeta.Name, actualCosSecure.ObjectMeta.Name)
-		assert.Equal(t, expectedCos[1].Spec, actualCosSecure.Spec)
+		if cr.Spec.ManagedResources.CephObjectStores.DisableHttp {
+			assert.Equal(t, 1, len(expectedCos))
+			assert.Equal(t, expectedCos[0].ObjectMeta.Name, actualCosSecure.ObjectMeta.Name)
+			assert.Equal(t, expectedCos[0].Spec, actualCosSecure.Spec)
+		} else {
+			assert.Equal(t, 2, len(expectedCos))
+			assert.Equal(t, expectedCos[0].ObjectMeta.Name, actualCosSecure.ObjectMeta.Name)
+			assert.Equal(t, expectedCos[0].Spec, actualCosSecure.Spec)
+			assert.Equal(t, expectedCos[1].ObjectMeta.Name, actualCos.ObjectMeta.Name)
+			assert.Equal(t, expectedCos[1].Spec, actualCos.Spec)
+		}
 	}
-
 	assert.Equal(t, len(expectedCos[0].OwnerReferences), 1)
 }

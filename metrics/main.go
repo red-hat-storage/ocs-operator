@@ -72,31 +72,25 @@ func main() {
 	handler.RegisterExporterMuxHandlers(exporterMux, exporterRegistry, promHandlerOpts(exporterRegistry))
 
 	customResourceRegistry := prometheus.NewRegistry()
-	// Add custom resource collectors to the registry.
-	collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
 
-	// Add persistent volume attributes collector to the registry.
-	collectors.RegisterPersistentVolumeAttributesCollector(customResourceRegistry, opts)
+	if opts.NoCeph {
+		collectors.RegisterNonCephCollectors(customResourceRegistry, opts)
+	} else {
+		collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
+		collectors.RegisterPersistentVolumeAttributesCollector(customResourceRegistry, opts)
+		collectors.RegisterCephBlocklistCollector(customResourceRegistry, opts)
+		collectors.RegisterCephRBDChildrenCollector(customResourceRegistry, opts)
+		collectors.RegisterCephFSMetricsCollector(customResourceRegistry, opts)
+	}
 
-	// Add blocklist collector to the registry
-	collectors.RegisterCephBlocklistCollector(customResourceRegistry, opts)
-
-	// Add rbd children collector to the registry
-	collectors.RegisterCephRBDChildrenCollector(customResourceRegistry, opts)
-
-	// Add CephFS subvolume count collector to the registry
-	collectors.RegisterCephFSMetricsCollector(customResourceRegistry, opts)
-
-	// serves custom resources metrics
 	customResourceMux := http.NewServeMux()
 	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry, promHandlerOpts(customResourceRegistry))
 
-	rbdRegistry := prometheus.NewRegistry()
-	// Add rbd mirror metrics collector to registry
-	collectors.RegisterRBDMirrorCollector(rbdRegistry, opts)
-
-	// server rbd mirror metrics
-	handler.RegisterRBDMirrorMuxHandlers(customResourceMux, rbdRegistry, promHandlerOpts(rbdRegistry))
+	if !opts.NoCeph {
+		rbdRegistry := prometheus.NewRegistry()
+		collectors.RegisterRBDMirrorCollector(rbdRegistry, opts)
+		handler.RegisterRBDMirrorMuxHandlers(customResourceMux, rbdRegistry, promHandlerOpts(rbdRegistry))
+	}
 
 	var rg run.Group
 	rg.Add(listenAndServe(exporterMux, opts.ExporterHost, opts.ExporterPort))

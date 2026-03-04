@@ -468,7 +468,7 @@ func TestGetDaemonResources(t *testing.T) {
 	}
 }
 
-func TestAdjustResource(t *testing.T) {
+func TestAdjustCPURequests(t *testing.T) {
 	testCases := []struct {
 		name                         string
 		inputResourceRequirements    corev1.ResourceRequirements
@@ -476,15 +476,11 @@ func TestAdjustResource(t *testing.T) {
 		expectedResourceRequirements corev1.ResourceRequirements
 	}{
 		{
-			name: "adjust CPU requests and limits by 50%",
+			name: "adjust CPU requests by 50%",
 			inputResourceRequirements: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("1"),
 					corev1.ResourceMemory: resource.MustParse("2Gi"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("2"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
 				},
 			},
 			adjustFactor: 0.5,
@@ -492,10 +488,6 @@ func TestAdjustResource(t *testing.T) {
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("0.5"),
 					corev1.ResourceMemory: resource.MustParse("2Gi"), // memory unchanged
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("1"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"), // memory unchanged
 				},
 			},
 		},
@@ -505,17 +497,11 @@ func TestAdjustResource(t *testing.T) {
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU: resource.MustParse("999m"),
 				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("1500m"),
-				},
 			},
 			adjustFactor: 0.5,
 			expectedResourceRequirements: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU: resource.MustParse("499m"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("750m"),
 				},
 			},
 		},
@@ -531,7 +517,6 @@ func TestAdjustResource(t *testing.T) {
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU: resource.MustParse("1.5"),
 				},
-				Limits: corev1.ResourceList{},
 			},
 		},
 		{
@@ -540,18 +525,13 @@ func TestAdjustResource(t *testing.T) {
 				Requests: corev1.ResourceList{
 					corev1.ResourceMemory: resource.MustParse("2Gi"),
 				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
-				},
 			},
 			adjustFactor: 0.5,
 			expectedResourceRequirements: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceMemory: resource.MustParse("2Gi"),
 				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
-				},
+				// Limits unchanged: adjustCPURequests only adjusts CPU in Requests, does not add Limits
 			},
 		},
 		{
@@ -560,7 +540,6 @@ func TestAdjustResource(t *testing.T) {
 			adjustFactor:              0.5,
 			expectedResourceRequirements: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{},
-				Limits:   corev1.ResourceList{},
 			},
 		},
 		{
@@ -575,14 +554,13 @@ func TestAdjustResource(t *testing.T) {
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU: resource.MustParse("0m"),
 				},
-				Limits: corev1.ResourceList{},
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := adjustResource(tc.inputResourceRequirements, tc.adjustFactor)
+			result := adjustCPURequests(tc.inputResourceRequirements, tc.adjustFactor)
 
 			// Verify the original is not modified
 			assert.NotSame(t, &tc.inputResourceRequirements, &result, "Original should not be modified")

@@ -347,6 +347,7 @@ func (r *StorageClusterReconciler) getNodeIPs(ctx context.Context) ([]string, er
 
 // createBlackboxDeployment deploys the Blackbox Exporter
 func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context, instance *ocsv1.StorageCluster) error {
+	placement := getPlacement(instance, defaults.BlackboxExporterKey)
 	desired := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      blackboxExporterName,
@@ -362,6 +363,10 @@ func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context,
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: blackboxServiceAccount,
+					Tolerations:        placement.Tolerations,
+					Affinity: &corev1.Affinity{
+						NodeAffinity: placement.NodeAffinity,
+					},
 					SecurityContext: &corev1.PodSecurityContext{
 						Sysctls: []corev1.Sysctl{
 							{

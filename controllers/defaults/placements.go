@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	APIServerKey       = "api-server"
-	MetricsExporterKey = "metrics-exporter"
+	APIServerKey        = "api-server"
+	MetricsExporterKey  = "metrics-exporter"
+	BlackboxExporterKey = "blackbox-exporter"
 
 	monLableSelector = "rook-ceph-mon"
 	// osdLabelSelector is the key in OSD pod. Used
@@ -125,6 +126,13 @@ var (
 		},
 
 		MetricsExporterKey: {
+			Tolerations: []corev1.Toleration{
+				getOcsToleration(),
+			},
+			NodeAffinity: DefaultNodeAffinity,
+		},
+
+		BlackboxExporterKey: {
 			Tolerations: []corev1.Toleration{
 				getOcsToleration(),
 			},
