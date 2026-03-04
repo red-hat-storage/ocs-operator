@@ -102,6 +102,15 @@ message NfsDriverRequirements {
     optional bool ctrlPluginHostNetwork = 1;
 }
 
+// ExternalEndpointConfig holds an external endpoint info/config (e.g. NooBaa S3, NooBaa IAM, RGW S3 etc)
+// that the client may expose via a reverse proxy for the Object Browser.
+message ExternalEndpointConfig {
+    // path the reverse proxy exposes for connecting to this endpoint (must be unique)
+    string exposeAs = 1;
+    // route or URL of the endpoint
+    string endpointUrl = 2;
+}
+
 // GetDesiredClientStateResponse holds the response for the GetDesiredClientState API request
 message GetDesiredClientStateResponse{
     // Note: kubeResources name is reserved till 4.20
@@ -124,6 +133,10 @@ message GetDesiredClientStateResponse{
     optional RbdDriverRequirements rbdDriverRequirements = 7;
     optional CephFsDriverRequirements CephFsDriverRequirements = 8;
     optional NfsDriverRequirements NfsDriverRequirements = 9;
+    // externalEndpointConfig lists external endpoints (e.g. NooBaa S3, NooBaa IAM, RGW S3 etc) that the
+    // client may expose via a reverse proxy for the Object Browser
+    // if empty or unset, the client should configure no proxy locations for external endpoints
+    repeated ExternalEndpointConfig externalEndpointConfig = 10;
 }
 
 

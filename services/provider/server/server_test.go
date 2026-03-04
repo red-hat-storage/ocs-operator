@@ -8,12 +8,17 @@ import (
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 
+	routev1 "github.com/openshift/api/route/v1"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestReplaceMsgr1PortWithMsgr2(t *testing.T) {
@@ -145,5 +150,137 @@ func TestNotify_Unimplemented(t *testing.T) {
 
 	if status.Code(err) != codes.Unimplemented {
 		t.Fatalf("expected Unimplemented, got %v", status.Code(err))
+	}
+}
+
+func TestGetExternalEndpointConfig(t *testing.T) {
+	namespace := "test-ns"
+	ctx := context.Background()
+
+	routeWithTLSAndAdmitted := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{Name: noobaaS3RouteName, Namespace: namespace},
+		Spec: routev1.RouteSpec{
+			TLS: &routev1.TLSConfig{Termination: routev1.TLSTerminationEdge},
+		},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{{
+				Host: "s3.example.com",
+				Conditions: []routev1.RouteIngressCondition{{
+					Type:   routev1.RouteAdmitted,
+					Status: corev1.ConditionTrue,
+				}},
+			}},
+		},
+	}
+
+	routeNoTLSAdmitted := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{Name: noobaaS3RouteName, Namespace: namespace},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{{
+				Host: "s3.example.com",
+				Conditions: []routev1.RouteIngressCondition{{
+					Type:   routev1.RouteAdmitted,
+					Status: corev1.ConditionTrue,
+				}},
+			}},
+		},
+	}
+
+	routeAdmittedButNoHost := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{Name: noobaaS3RouteName, Namespace: namespace},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{{
+				Host: "",
+				Conditions: []routev1.RouteIngressCondition{{
+					Type:   routev1.RouteAdmitted,
+					Status: corev1.ConditionTrue,
+				}},
+			}},
+		},
+	}
+
+	routeNotAdmitted := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{Name: noobaaS3RouteName, Namespace: namespace},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{{
+				Host: "s3.example.com",
+				Conditions: []routev1.RouteIngressCondition{{
+					Type:   routev1.RouteAdmitted,
+					Status: corev1.ConditionFalse,
+				}},
+			}},
+		},
+	}
+
+	tests := []struct {
+		name       string
+		objects    []client.Object
+		namespace  string
+		wantConfig []*pb.ExternalEndpointConfig
+		wantErr    bool
+	}{
+		{
+			name:       "route not found returns nil config and no error",
+			objects:    nil,
+			namespace:  namespace,
+			wantConfig: nil,
+			wantErr:    false,
+		},
+		{
+			name:       "route with TLS and admitted ingress returns https URL",
+			objects:    []client.Object{routeWithTLSAndAdmitted},
+			namespace:  namespace,
+			wantConfig: []*pb.ExternalEndpointConfig{{ExposeAs: "noobaaS3", EndpointUrl: "https://s3.example.com"}},
+			wantErr:    false,
+		},
+		{
+			name:       "route without TLS and admitted ingress returns http URL",
+			objects:    []client.Object{routeNoTLSAdmitted},
+			namespace:  namespace,
+			wantConfig: []*pb.ExternalEndpointConfig{{ExposeAs: "noobaaS3", EndpointUrl: "http://s3.example.com"}},
+			wantErr:    false,
+		},
+		{
+			name:       "route admitted but empty host returns nil config",
+			objects:    []client.Object{routeAdmittedButNoHost},
+			namespace:  namespace,
+			wantConfig: nil,
+			wantErr:    false,
+		},
+		{
+			name:       "route not admitted returns nil config",
+			objects:    []client.Object{routeNotAdmitted},
+			namespace:  namespace,
+			wantConfig: nil,
+			wantErr:    false,
+		},
+	}
+
+	scheme, err := newScheme()
+	assert.NoError(t, err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.objects...).
+				Build()
+			srv := &OCSProviderServer{client: fakeClient}
+
+			got, err := srv.getExternalEndpointConfig(ctx, tt.namespace)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("getExternalEndpointConfig() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if len(got) != len(tt.wantConfig) {
+				t.Errorf("getExternalEndpointConfig() length = %d, want %d", len(got), len(tt.wantConfig))
+			} else {
+				for i := range got {
+					if got[i].GetExposeAs() != tt.wantConfig[i].GetExposeAs() || got[i].GetEndpointUrl() != tt.wantConfig[i].GetEndpointUrl() {
+						t.Errorf("getExternalEndpointConfig()[%d] = ExposeAs=%q EndpointUrl=%q, want ExposeAs=%q EndpointUrl=%q",
+							i, got[i].GetExposeAs(), got[i].GetEndpointUrl(), tt.wantConfig[i].GetExposeAs(), tt.wantConfig[i].GetEndpointUrl())
+					}
+				}
+			}
+		})
 	}
 }

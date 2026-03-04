@@ -80,6 +80,8 @@ const (
 	mirroringTokenKey             = "rbdMirrorBootstrapPeerSecretName"
 	clientInfoRbdClientProfileKey = "csiop-rbd-client-profile"
 	csiCephUserCurrGen            = 1
+
+	noobaaS3RouteName = "s3"
 )
 
 var (
@@ -391,6 +393,15 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			}
 		}
 
+		externalEndpointConfig, err := s.getExternalEndpointConfig(ctx, s.namespace)
+		if err != nil {
+			logger.Error(err, "failed to get external endpoint config")
+			return nil, status.Errorf(codes.Internal, "failed to get external endpoint config: %v", err)
+		}
+		if externalEndpointConfig != nil {
+			response.ExternalEndpointConfig = externalEndpointConfig
+		}
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumer,
@@ -408,6 +419,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			vGSClassesResourceVersion,
 			odfVGSClassesResourceVersion,
 			useHostNetworkForCtrlPlugin,
+			externalEndpointConfig,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -537,6 +549,47 @@ func (s *OCSProviderServer) getOnboardingValidationKey(ctx context.Context) (*rs
 	}
 
 	return publicKey, nil
+}
+
+func (s *OCSProviderServer) getExternalEndpointConfig(ctx context.Context, namespace string) ([]*pb.ExternalEndpointConfig, error) {
+	// currently fetches NooBaa S3 Route only
+	// can be extended for RGW S3, NooBaa IAM, etc later
+	s3Route := &routev1.Route{}
+	if err := s.client.Get(ctx, types.NamespacedName{Name: noobaaS3RouteName, Namespace: namespace}, s3Route); err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, nil // do not error if Route not found, simply add no config
+		}
+		return nil, err
+	}
+
+	scheme := "http"
+	if s3Route.Spec.TLS != nil && s3Route.Spec.TLS.Termination != "" {
+		scheme = "https"
+	}
+
+	var host string
+	for i := range s3Route.Status.Ingress {
+		ing := &s3Route.Status.Ingress[i]
+		for c := range ing.Conditions {
+			if ing.Conditions[c].Type == routev1.RouteAdmitted && ing.Conditions[c].Status == corev1.ConditionTrue {
+				if ing.Host != "" {
+					host = ing.Host
+					break
+				}
+			}
+		}
+		if host != "" {
+			break
+		}
+	}
+	if host == "" {
+		return nil, nil
+	}
+
+	endpointURL := scheme + "://" + host
+	return []*pb.ExternalEndpointConfig{
+		{ExposeAs: "noobaaS3", EndpointUrl: endpointURL},
+	}, nil
 }
 
 func decodeAndValidateTicket(logger logr.Logger, ticket string, pubKey *rsa.PublicKey) (*services.OnboardingTicket, error) {
@@ -682,6 +735,12 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "failed to produce client state")
 	}
 
+	externalEndpointConfig, err := s.getExternalEndpointConfig(ctx, s.namespace)
+	if err != nil {
+		logger.Error(err, "failed to get external endpoint config")
+		return nil, status.Errorf(codes.Internal, "failed to get external endpoint config: %v", err)
+	}
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		storageConsumer,
@@ -699,6 +758,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		vGSClassesResourceVersion,
 		odfVGSClassesResourceVersion,
 		util.ShouldUseHostNetworking(storageCluster),
+		externalEndpointConfig,
 	)
 
 	logger.Info("Successfully processed status report")
