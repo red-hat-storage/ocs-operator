@@ -64,6 +64,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -87,6 +88,7 @@ const (
 	remoteObcCreationAnnotationKey     = "remote-obc-creation"
 	remoteObcOriginalNameLabelKey      = "remote-obc-original-name"
 	remoteObcOriginalNamespaceLabelKey = "remote-obc-original-namespace"
+	remoteObcOriginalUIDLabelKey       = "remote-obc-original-uid"
 	storageConsumerNameLabelKey        = "storage-consumer-name"
 	storageConsumerUUIDLabelKey        = "storage-consumer-uuid"
 	prefixOfHashedName                 = "remote-obc"
@@ -2366,6 +2368,7 @@ func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (
 }
 
 // handleObcCreated create the OBC that the client cluster asked for on the provider cluster.
+// we use createOrUpdate to handle the case where the OBC already exists and needs to be updated
 // It is a synchronous call, we do not wait for resources to be created.
 // Notes:
 //   - OBC is created in the storage consumer namespace (and not the provider server namespace in case it would be moved)
@@ -2381,27 +2384,34 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 	obcName := obc.Name
 	obcNamespace := obc.Namespace
 
-	logger.Info("Building OBC object", "OBC Name", obcName, "OBC Namespace", obcNamespace)
+	logger.Info("CreateOrUpdate OBC object", "OBC Name", obcName, "OBC Namespace", obcNamespace)
 	localObc := &nbv1.ObjectBucketClaim{}
 	localObc.Name = getObcHashedName(client.ObjectKeyFromObject(storageConsumer), obcName, obcNamespace)
 	localObc.Namespace = storageConsumer.Namespace
 
-	util.AddLabel(localObc, storageConsumerNameLabelKey, storageConsumer.Name)
-	util.AddLabel(localObc, storageConsumerUUIDLabelKey, storageConsumerUUID)
-	util.AddLabel(localObc, remoteObcOriginalNameLabelKey, obcName)
-	util.AddLabel(localObc, remoteObcOriginalNamespaceLabelKey, obcNamespace)
+	if _, err := ctrl.CreateOrUpdate(ctx, s.client, localObc, func() error {
+		if localObc.Labels == nil {
+			localObc.Labels = map[string]string{}
+		}
+		localObc.Labels[storageConsumerNameLabelKey] = storageConsumer.Name
+		localObc.Labels[storageConsumerUUIDLabelKey] = storageConsumerUUID
+		localObc.Labels[remoteObcOriginalNameLabelKey] = obcName
+		localObc.Labels[remoteObcOriginalNamespaceLabelKey] = obcNamespace
+		localObc.Labels[remoteObcOriginalUIDLabelKey] = string(obc.UID)
 
-	util.AddAnnotation(localObc, remoteObcCreationAnnotationKey, "true")
+		if localObc.Annotations == nil {
+			localObc.Annotations = map[string]string{}
+		}
+		localObc.Annotations[remoteObcCreationAnnotationKey] = "true" // used in mcg-cli
 
-	obc.Spec.DeepCopyInto(&localObc.Spec)
+		if err := controllerutil.SetOwnerReference(storageConsumer, localObc, s.scheme); err != nil {
+			return status.Errorf(codes.Internal, "failed to set owner reference for OBC name %s namespace %s: %v", obcName, obcNamespace, err)
+		}
 
-	if err := controllerutil.SetOwnerReference(storageConsumer, localObc, s.scheme); err != nil {
-		return status.Errorf(codes.Internal, "failed to set owner reference for OBC name %s namespace %s: %v", obcName, obcNamespace, err)
-	}
-
-	logger.Info("Creating OBC resource", "namespaced/name", client.ObjectKeyFromObject(localObc))
-	if err := s.client.Create(ctx, localObc); client.IgnoreAlreadyExists(err) != nil {
-		return status.Errorf(codes.Internal, "failed to create OBC name %s namespace %s: %v", obcName, obcNamespace, err)
+		localObc.Spec = obc.Spec // shadow copy, under the assumption that that the OBC was send for creation only and would not be used in other places
+		return nil
+	}); err != nil {
+		return status.Errorf(codes.Internal, "failed to create/update OBC name %s namespace %s: %v", obcName, obcNamespace, err)
 	}
 	return nil
 }
