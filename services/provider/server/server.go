@@ -2333,7 +2333,7 @@ func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (
 
 	storageConsumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
 	if err != nil {
-		logger.Error(err, "Notify RPC: Failed to get StorageConsumer")
+		logger.Error(err, "Failed to get StorageConsumer")
 		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer: storageConsumerUUID=%s", req.StorageConsumerUUID)
 	}
 
@@ -2341,27 +2341,27 @@ func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (
 	case pb.NotifyReason_OBC_CREATED:
 		obc := &nbv1.ObjectBucketClaim{}
 		if err := json.Unmarshal(req.Payload, obc); err != nil {
-			logger.Error(err, "Notify RPC: Failed to unmarshal OBC created payload")
-			return nil, status.Errorf(codes.InvalidArgument, "Notify RPC: failed to unmarshal OBC create payload: %v", err)
+			logger.Error(err, "Failed to unmarshal OBC created payload")
+			return nil, status.Errorf(codes.InvalidArgument, "failed to unmarshal OBC create payload: %v", err)
 		}
 		if err := s.handleObcCreated(ctx, storageConsumer, obc); err != nil {
-			logger.Error(err, "Notify RPC: Failed to handle OBC creation")
+			logger.Error(err, "Failed to handle OBC creation")
 			return nil, err
 		}
 	case pb.NotifyReason_OBC_DELETED:
 		var obcNamespacedName types.NamespacedName
 		if err := json.Unmarshal(req.Payload, &obcNamespacedName); err != nil {
-			logger.Error(err, "Notify RPC: Failed to unmarshal OBC deleted payload")
-			return nil, status.Errorf(codes.InvalidArgument, "Notify RPC: failed to unmarshal OBC delete payload: %v", err)
+			logger.Error(err, "Failed to unmarshal OBC deleted payload")
+			return nil, status.Errorf(codes.InvalidArgument, "failed to unmarshal OBC delete payload: %v", err)
 		}
 		if err := s.handleObcDeleted(ctx, storageConsumer, obcNamespacedName); err != nil {
-			logger.Error(err, "Notify RPC: Failed to handle OBC deletion")
+			logger.Error(err, "Failed to handle OBC deletion")
 			return nil, err
 		}
 	default:
-		return nil, status.Errorf(codes.InvalidArgument, "Notify RPC: failed to find known reason in the Notify RPC request")
+		return nil, status.Errorf(codes.InvalidArgument, "failed to find known reason in the Notify RPC request")
 	}
-	logger.Info("Notify RPC: Successfully completed Notify RPC", "reason", req.Reason)
+	logger.Info("Successfully completed Notify RPC", "reason", req.Reason)
 	return &pb.NotifyResponse{}, nil
 }
 
