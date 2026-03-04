@@ -20,6 +20,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -254,7 +255,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		Kind:       instance.Kind,
 		Name:       instance.Name,
 	}
-	// this stores only the StorageClasses specified in the Secret
+
 	availableSCCs := []StorageClassConfiguration{}
 
 	data, ok := externalOCSResources[instance.UID]
@@ -450,7 +451,42 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		return err
 	}
 
-	// creating only the available storageClasses
+	// create virtualization storageclass if VirtualMachineCRD is present
+	var scc StorageClassConfiguration
+	crd := &metav1.PartialObjectMetadata{}
+	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
+	crd.Name = VirtualMachineCrdName
+	if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
+		return err
+	}
+	if crd.UID != "" {
+		scc = StorageClassConfiguration{
+			storageClass: util.NewDefaultVirtRbdStorageClass(
+				instance.Namespace,
+				util.GenerateNameForCephBlockPool(instance.Name),
+				"rook-csi-rbd-provisioner",
+				"rook-csi-rbd-node",
+				instance.Namespace,
+				"",
+				"",
+				instance.Spec.ManagedResources.CephBlockPools.DefaultVirtualizationStorageClass,
+			),
+			reconcileStrategy: ReconcileStrategy(instance.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),
+			isClusterExternal: true,
+		}
+		scc.storageClass.Name = util.GenerateNameForCephBlockPoolVirtualizationStorageClass(instance)
+		availableSCCs = append(availableSCCs, scc)
+	} else {
+		scName := util.GenerateNameForCephBlockPoolVirtualizationStorageClass(instance)
+		existingSC := &storagev1.StorageClass{}
+		existingSC.Name = scName
+		if err := r.Client.Delete(r.ctx, existingSC); client.IgnoreNotFound(err) != nil {
+			r.Log.Error(err, "Failed to delete Virtualization StorageClass ", scName)
+			return err
+		}
+	}
+
+	// creating the available storageClasses
 	err = r.createExternalModeStorageClasses(availableSCCs, instance.Namespace)
 	if err != nil {
 		r.Log.Error(err, "Failed to create needed StorageClasses.")
