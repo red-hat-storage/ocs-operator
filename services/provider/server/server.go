@@ -104,6 +104,8 @@ type OCSProviderServer struct {
 	namespace                 string
 }
 
+type stringPair [2]string
+
 func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderServer, error) {
 	scheme, err := newScheme()
 	if err != nil {
@@ -683,24 +685,9 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "failed to produce client state")
 	}
 
-	obcResourceVersions, obcList, err := s.getOBCResourceVersions(ctx, logger, storageConsumer)
+	obcResourceVersions, err := s.getOBCResourceVersions(ctx, logger, storageConsumer)
 	if err != nil {
 		logger.Error(err, "failed to get hosted OBC resource versions for consumer", storageConsumer.GetUID())
-		return nil, status.Errorf(codes.Internal, "Failed to produce client state")
-	}
-	obResourceVersions, err := s.getOBResourceVersions(ctx, obcList, storageConsumer)
-	if err != nil {
-		logger.Error(err, "failed to get hosted OB resource versions for consumer", storageConsumer.GetUID())
-		return nil, status.Errorf(codes.Internal, "Failed to produce client state")
-	}
-	obcConfigMapResourceVersions, err := s.getOBCConfigMapVersions(ctx, obcList, storageConsumer)
-	if err != nil {
-		logger.Error(err, "failed to get ConfigMap resource versions for hosted OBC", storageConsumer.GetUID())
-		return nil, status.Errorf(codes.Internal, "Failed to produce client state")
-	}
-	obcSecretResourceVersions, err := s.getOBCSecretVersions(ctx, obcList, storageConsumer)
-	if err != nil {
-		logger.Error(err, "failed to get hosted OBC secrets", storageConsumer.GetUID())
 		return nil, status.Errorf(codes.Internal, "Failed to produce client state")
 	}
 
@@ -722,9 +709,6 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		odfVGSClassesResourceVersion,
 		util.ShouldUseHostNetworking(storageCluster),
 		obcResourceVersions,
-		obcConfigMapResourceVersions,
-		obcSecretResourceVersions,
-		obResourceVersions,
 	)
 
 	logger.Info("Successfully processed status report")
@@ -738,43 +722,18 @@ func getDesiredClientConfigHash(parts ...any) string {
 	return util.CalculateMD5Hash(parts)
 }
 
-// sortResourceVersions sorts the resource pairs based on their ResourceVersion
-func sortResourceVersions(resources []services.ResourcePair) {
-	slices.SortFunc(resources, func(r1, r2 services.ResourcePair) int {
-		if r1.ResourceVersion > r2.ResourceVersion {
-			return 1
-		} else if r1.ResourceVersion < r2.ResourceVersion {
-			return -1
-		}
-		return 0
-	})
+func comparestringPair(a, b stringPair) int {
+	if r := strings.Compare(a[0], b[0]); r != 0 {
+		return r
+	} else {
+		return strings.Compare(a[1], b[1])
+	}
 }
 
 /*
-getOBCResourceVersions returns list of OBC Resource Versions and the OBC's for a storage consumer
+getOBCResourceVersions returns a single list containing OBC, OB, ConfigMap and Secret ResourceVersions for a storage consumer
 */
-func (s *OCSProviderServer) getOBCResourceVersions(ctx context.Context, logger logr.Logger, consumer *ocsv1alpha1.StorageConsumer) (resources []services.ResourcePair, obcs []client.Object, err error) {
-	obcs, err = s.getOBCsForConsumer(ctx, consumer)
-	if err != nil {
-		logger.Error(err, "failed to list OBC's for consumer")
-		return nil, nil, fmt.Errorf("failed to list OBC's for consumer. error is %v", err)
-	}
-
-	for i := range obcs {
-		resources = append(resources, services.ResourcePair{
-			ResourceName:    "obc",
-			ResourceVersion: obcs[i].GetResourceVersion(),
-		})
-	}
-
-	sortResourceVersions(resources)
-	return
-}
-
-/*
-getOBCsForConsumer returns list of OBC's for a storage consumer
-*/
-func (s *OCSProviderServer) getOBCsForConsumer(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) ([]client.Object, error) {
+func (s *OCSProviderServer) getOBCResourceVersions(ctx context.Context, logger logr.Logger, consumer *ocsv1alpha1.StorageConsumer) (resourceVersions []stringPair, err error) {
 	obcList := &nbv1.ObjectBucketClaimList{}
 	if err := s.client.List(
 		ctx,
@@ -783,87 +742,55 @@ func (s *OCSProviderServer) getOBCsForConsumer(ctx context.Context, consumer *oc
 		client.MatchingLabels{
 			consumerUUID: string(consumer.GetUID()),
 		}); err != nil {
-		return nil, err
+		logger.Error(err, "failed to list OBC's for consumer")
+		return nil, fmt.Errorf("failed to list OBC's for consumer. error is %v", err)
 	}
-	resources := []client.Object{}
+
 	for i := range obcList.Items {
-		obc := &obcList.Items[i]
-		resources = append(resources, obc)
-	}
+		resourceVersions = append(resourceVersions, stringPair{"obc", obcList.Items[i].GetResourceVersion()})
 
-	return resources, nil
-}
-
-// getOBCConfigMapVersions returns a list of Resource Versions of the OBC ConfigMaps for the consumer
-func (s *OCSProviderServer) getOBCConfigMapVersions(ctx context.Context, obcList []client.Object, consumer *ocsv1alpha1.StorageConsumer) ([]services.ResourcePair, error) {
-
-	versions := []services.ResourcePair{}
-	for i := range obcList {
-		configMap := &v1.ConfigMap{}
-		if err := s.client.Get(
-			ctx,
-			types.NamespacedName{Namespace: consumer.Namespace, Name: obcList[i].GetName()},
-			configMap,
-		); err != nil {
-			return nil, err
-		}
-		versions = append(versions, services.ResourcePair{
-			ResourceName:    "configmap",
-			ResourceVersion: configMap.ResourceVersion,
-		})
-	}
-
-	sortResourceVersions(versions)
-	return versions, nil
-}
-
-// getOBResourceVersions returns a list of Resource Versions of the OB's for the storage consumer
-func (s *OCSProviderServer) getOBResourceVersions(ctx context.Context, obcList []client.Object, consumer *ocsv1alpha1.StorageConsumer) ([]services.ResourcePair, error) {
-	versions := []services.ResourcePair{}
-
-	for i := range obcList {
 		ob := &nbv1.ObjectBucket{}
 		if err := s.client.Get(
 			ctx,
-			types.NamespacedName{
-				Namespace: consumer.Namespace,
-				Name:      fmt.Sprintf("obc-%s-%s", consumer.Namespace, obcList[i].GetName()),
+			client.ObjectKey{
+				Name: fmt.Sprintf("obc-%s-%s", consumer.Namespace, obcList.Items[i].GetName()),
 			},
 			ob,
 		); err != nil {
 			return nil, err
 		}
 
-		versions = append(versions, services.ResourcePair{
-			ResourceName:    "ob",
-			ResourceVersion: ob.ResourceVersion,
+		resourceVersions = append(resourceVersions, stringPair{"ob", ob.ResourceVersion})
+
+		configMap := &v1.ConfigMap{}
+		if err := s.client.Get(
+			ctx,
+			types.NamespacedName{Namespace: consumer.Namespace, Name: obcList.Items[i].GetName()},
+			configMap,
+		); err != nil {
+			return nil, err
+		}
+		resourceVersions = append(resourceVersions, stringPair{
+			"configmap",
+			configMap.ResourceVersion,
 		})
-	}
 
-	sortResourceVersions(versions)
-	return versions, nil
-}
-
-// getOBCSecretVersions returns a list of Resource Versions of the OBC secrets for the consumer
-func (s *OCSProviderServer) getOBCSecretVersions(ctx context.Context, obcList []client.Object, consumer *ocsv1alpha1.StorageConsumer) ([]services.ResourcePair, error) {
-	versions := []services.ResourcePair{}
-	for i := range obcList {
 		secret := &v1.Secret{}
 		if err := s.client.Get(
 			ctx,
-			types.NamespacedName{Namespace: consumer.Namespace, Name: obcList[i].GetName()},
+			types.NamespacedName{Namespace: consumer.Namespace, Name: obcList.Items[i].GetName()},
 			secret,
 		); err != nil {
 			return nil, err
 		}
-		versions = append(versions, services.ResourcePair{
-			ResourceName:    "secret",
-			ResourceVersion: secret.ResourceVersion,
+		resourceVersions = append(resourceVersions, stringPair{
+			"secret",
+			secret.ResourceVersion,
 		})
 	}
 
-	sortResourceVersions(versions)
-	return versions, nil
+	slices.SortFunc(resourceVersions, comparestringPair)
+	return
 }
 
 func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (string, error) {
