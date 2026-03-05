@@ -21,14 +21,16 @@ import (
 )
 
 const (
-	healthScorePrometheusRuleName = "ocs-prometheus-rules"
-	healthScoreRuleGroupName      = "odf_healthchecks.rules"
-	alertManagerClientTimeout     = 10 * time.Second
-	prometheusRuleFetchTimeout    = 10 * time.Second
-	defaultAlertManagerURL        = "https://alertmanager-main.openshift-monitoring.svc.cluster.local:9094"
-	serviceAccountSecretsPath     = "/var/run/secrets/kubernetes.io/serviceaccount"
-	serviceAccountCACert          = serviceAccountSecretsPath + "/service-ca.crt"
-	serviceAccountToken           = serviceAccountSecretsPath + "/token"
+	healthScorePrometheusRuleName     = "ocs-prometheus-rules"
+	healthScoreRuleGroupName          = "odf_healthchecks.rules"
+	cephHealthScorePrometheusRuleName = "prometheus-ceph-rules"
+	cephHealthScoreRuleGroupName      = "cluster-state-alert.rules"
+	alertManagerClientTimeout         = 10 * time.Second
+	prometheusRuleFetchTimeout        = 10 * time.Second
+	defaultAlertManagerURL            = "https://alertmanager-main.openshift-monitoring.svc.cluster.local:9094"
+	serviceAccountSecretsPath         = "/var/run/secrets/kubernetes.io/serviceaccount"
+	serviceAccountCACert              = serviceAccountSecretsPath + "/service-ca.crt"
+	serviceAccountToken               = serviceAccountSecretsPath + "/token"
 )
 
 // Severity point deductions
@@ -123,8 +125,25 @@ func (c *HealthScoreCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (c *HealthScoreCollector) fetchHealthAlertNames() []string {
-	ctx, cancel := context.WithTimeout(context.Background(), prometheusRuleFetchTimeout)
-	defer cancel()
+	alertNames := make(map[string]bool)
+
+	// Define which PrometheusRules to scrape for health alerts
+	rulesToScrape := []struct {
+		name      string
+		namespace string
+		groupName string
+	}{
+		{
+			name:      healthScorePrometheusRuleName, // "ocs-prometheus-rules"
+			namespace: c.operatorNamespace,
+			groupName: healthScoreRuleGroupName, // "odf_healthchecks.rules"
+		},
+		{
+			name:      cephHealthScorePrometheusRuleName, // "prometheus-ceph-rules"
+			namespace: c.operatorNamespace,
+			groupName: cephHealthScoreRuleGroupName, // "cluster-state-alert.rules"
+		},
+	}
 
 	gvr := schema.GroupVersionResource{
 		Group:    "monitoring.coreos.com",
@@ -132,37 +151,55 @@ func (c *HealthScoreCollector) fetchHealthAlertNames() []string {
 		Resource: "prometheusrules",
 	}
 
-	u, err := c.dynClient.Resource(gvr).Namespace(c.operatorNamespace).Get(ctx, healthScorePrometheusRuleName, metav1.GetOptions{})
-	if err != nil {
-		klog.Errorf("Failed to get PrometheusRule %s: %v", healthScorePrometheusRuleName, err)
-		return nil
-	}
+	for _, ruleRef := range rulesToScrape {
+		ctx, cancel := context.WithTimeout(context.Background(), prometheusRuleFetchTimeout)
 
-	var promRule monitoringv1.PrometheusRule
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &promRule); err != nil {
-		klog.Errorf("Failed to decode PrometheusRule %s: %v", healthScorePrometheusRuleName, err)
-		return nil
-	}
+		u, err := c.dynClient.Resource(gvr).Namespace(ruleRef.namespace).Get(
+			ctx,
+			ruleRef.name,
+			metav1.GetOptions{},
+		)
+		cancel()
 
-	var alertNames []string
-	groupFound := false
-	for _, group := range promRule.Spec.Groups {
-		if group.Name != healthScoreRuleGroupName {
+		if err != nil {
+			klog.Warningf("Failed to get PrometheusRule %s/%s: %v", ruleRef.namespace, ruleRef.name, err)
 			continue
 		}
-		groupFound = true
-		for _, rule := range group.Rules {
-			if rule.Alert != "" {
-				alertNames = append(alertNames, rule.Alert)
+
+		var promRule monitoringv1.PrometheusRule
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &promRule); err != nil {
+			klog.Warningf("Failed to decode PrometheusRule %s/%s: %v", ruleRef.namespace, ruleRef.name, err)
+			continue
+		}
+		groupFound := false
+		for _, group := range promRule.Spec.Groups {
+			if ruleRef.groupName != "" && group.Name != ruleRef.groupName {
+				continue
+			}
+			groupFound = true
+			for _, rule := range group.Rules {
+				if rule.Alert != "" {
+					alertNames[rule.Alert] = true
+				}
 			}
 		}
+
+		if !groupFound {
+			klog.Warningf("PrometheusRule %s missing expected group %s in namespace %s", ruleRef.name, ruleRef.groupName, ruleRef.namespace)
+		}
+	}
+	// Convert map to slice
+	var result []string
+	for name := range alertNames {
+		result = append(result, name)
 	}
 
-	if !groupFound {
-		klog.Warningf("PrometheusRule %s missing expected group %s in namespace %s", healthScorePrometheusRuleName, healthScoreRuleGroupName, c.operatorNamespace)
+	if len(result) == 0 {
+		klog.Warning("No health alert names found in any configured PrometheusRules")
 	}
 
-	return alertNames
+	return result
+
 }
 
 // Alert represents an AlertManager alert
