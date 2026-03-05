@@ -2402,7 +2402,7 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 		if localObc.Annotations == nil {
 			localObc.Annotations = map[string]string{}
 		}
-		localObc.Annotations[remoteObcCreationAnnotationKey] = "true" // used in mcg-cli
+		localObc.Annotations[remoteObcCreationAnnotationKey] = "true"
 
 		if err := controllerutil.SetOwnerReference(storageConsumer, localObc, s.scheme); err != nil {
 			return status.Errorf(codes.Internal, "failed to set owner reference for OBC name %s namespace %s: %v", obcName, obcNamespace, err)
