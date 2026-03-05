@@ -2379,16 +2379,16 @@ func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (
 func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsumer *ocsv1alpha1.StorageConsumer, obc *nbv1.ObjectBucketClaim) error {
 	storageConsumerUUID := string(storageConsumer.UID)
 	logger := klog.FromContext(ctx).WithName("handleObcCreated").WithValues("storageConsumerUUID", storageConsumerUUID, "storageConsumer name", storageConsumer.Name)
-	logger.Info("Starting handleObcCreated")
 
 	obcName := obc.Name
 	obcNamespace := obc.Namespace
+	logger.Info("Starting handleObcCreated", "Original OBC Name", obcName, "OBC Namespace", obcNamespace)
 
-	logger.Info("CreateOrUpdate OBC object", "OBC Name", obcName, "OBC Namespace", obcNamespace)
 	localObc := &nbv1.ObjectBucketClaim{}
 	localObc.Name = getObcHashedName(client.ObjectKeyFromObject(storageConsumer), obcName, obcNamespace)
 	localObc.Namespace = storageConsumer.Namespace
 
+	logger.Info("CreateOrUpdate OBC object", "OBC Name", localObc.Name, "OBC Namespace", localObc.Namespace)
 	if _, err := ctrl.CreateOrUpdate(ctx, s.client, localObc, func() error {
 		if localObc.Labels == nil {
 			localObc.Labels = map[string]string{}
@@ -2423,10 +2423,10 @@ func (s *OCSProviderServer) handleObcCreated(ctx context.Context, storageConsume
 func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsumer *ocsv1alpha1.StorageConsumer, obcNamespacedName types.NamespacedName) error {
 	storageConsumerUUID := string(storageConsumer.UID)
 	logger := klog.FromContext(ctx).WithName("handleObcDeleted").WithValues("storageConsumerUUID", storageConsumerUUID, "storageConsumer name", storageConsumer.Name)
-	logger.Info("Starting handleObcDeleted")
 
 	obcName := obcNamespacedName.Name
 	obcNamespace := obcNamespacedName.Namespace
+	logger.Info("Starting handleObcDeleted", "Original OBC Name", obcName, "OBC Namespace", obcNamespace)
 
 	labelSelector := map[string]string{
 		remoteObcOriginalNameLabelKey:      obcName,
