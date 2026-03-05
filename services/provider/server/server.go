@@ -2454,7 +2454,6 @@ func (s *OCSProviderServer) handleObcDeleted(ctx context.Context, storageConsume
 
 // getObcHashedName creates a stable hash for OBC name
 // obcName and obcNamespace are from the client cluster
-// this function is based on getStorageRequestHash function
 func getObcHashedName(storageConsumerNamespacedName types.NamespacedName, obcName string, obcNamespace string) string {
 	s := struct {
 		StorageConsumerNamespace string `json:"storageConsumerNamespace"`
