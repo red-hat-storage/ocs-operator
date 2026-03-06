@@ -65,3 +65,27 @@ func GenerateNameForCephRbdMirror(initData *ocsv1.StorageCluster) string {
 func GenerateStorageQuotaName(storageClassName, quotaName string) string {
 	return fmt.Sprintf("%s-%s", storageClassName, quotaName)
 }
+
+func GetDataPoolName(cephBlockpool ocsv1.ManageCephBlockPools, storageclusterName string) string {
+	if IsDay1ErasureCodingEnabled(cephBlockpool) {
+		return GenerateNameForCephBlockPool(storageclusterName)
+	}
+
+	return ""
+}
+
+func GetPoolName(cephBlockpool ocsv1.ManageCephBlockPools, storageclusterName string) string {
+	if IsDay1ErasureCodingEnabled(cephBlockpool) {
+		return cephBlockpool.ErasureCodedMetadataPool
+	}
+
+	return GenerateNameForCephBlockPool(storageclusterName)
+}
+func IsDay1ErasureCodingEnabled(cephBlockpool ocsv1.ManageCephBlockPools) bool {
+	// if ec is enabled set the pool names differently
+	// Change the pool name for the default storageclass only if ec spec was chosen for default day-1 cephBlockpool
+	if cephBlockpool.ErasureCodedMetadataPool != "" && cephBlockpool.PoolSpec.IsErasureCoded() {
+		return true
+	}
+	return false
+}
