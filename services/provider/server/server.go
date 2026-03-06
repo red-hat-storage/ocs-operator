@@ -393,7 +393,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
-			consumer,
+			zerodNonHashableFields(consumer),
 			cephConnection.Spec,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
@@ -684,7 +684,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
-		storageConsumer,
+		zerodNonHashableFields(storageConsumer),
 		cephConnection.Spec,
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
@@ -706,6 +706,15 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		DesiredClientOperatorChannel: channelName,
 		DesiredConfigHash:            desiredClientConfigHash,
 	}, nil
+}
+
+func zerodNonHashableFields(consumer *ocsv1alpha1.StorageConsumer) *ocsv1alpha1.StorageConsumer {
+	consumerCopy := &ocsv1alpha1.StorageConsumer{}
+	consumerCopy.DeepCopyInto(consumer)
+	consumerCopy.ManagedFields = nil
+	consumerCopy.ResourceVersion = ""
+	consumerCopy.Status.LastHeartbeat.Time = time.Time{}
+	return consumerCopy
 }
 
 func getDesiredClientConfigHash(parts ...any) string {
