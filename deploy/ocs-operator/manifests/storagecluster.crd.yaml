@@ -3639,6 +3639,12 @@ spec:
                     description: DisableBlackboxExporter disables deployment of Blackbox
                       Exporter for network health checks
                     type: boolean
+                  disabledAlerts:
+                    description: DisabledAlerts lists alert names to exclude from
+                      health score calculation
+                    items:
+                      type: string
+                    type: array
                   labels:
                     additionalProperties:
                       type: string

@@ -493,6 +493,9 @@ type MonitoringSpec struct {
 	// DisableBlackboxExporter disables deployment of Blackbox Exporter for network health checks
 	// +optional
 	DisableBlackboxExporter bool `json:"disableBlackboxExporter,omitempty"`
+	// DisabledAlerts lists alert names to exclude from health score calculation
+	// +optional
+	DisabledAlerts []string `json:"disabledAlerts,omitempty"`
 }
 
 // EncryptionSpec defines if encryption should be enabled for the Storage Cluster
