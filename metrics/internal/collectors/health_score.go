@@ -238,8 +238,17 @@ func (c *HealthScoreCollector) queryFiringHealthAlerts(ctx context.Context, aler
 func (c *HealthScoreCollector) calculateHealthScore(firingAlerts []Alert) int {
 	score := 100
 
+	// Track unique alerts by name to avoid double-counting
+	seenAlerts := make(map[string]string) // alertname -> severity
 	for _, alert := range firingAlerts {
+		alertName := alert.Labels["alertname"]
 		severity := alert.Labels["severity"]
+
+		// Only count each unique alert name once
+		if _, exists := seenAlerts[alertName]; exists {
+			klog.Infof("Skipping duplicate alert: %s (already counted)", alertName)
+			continue
+		}
 
 		deduction := 0
 		switch severity {
@@ -252,6 +261,9 @@ func (c *HealthScoreCollector) calculateHealthScore(firingAlerts []Alert) int {
 		default:
 			continue
 		}
+
+		seenAlerts[alertName] = severity
+		klog.Infof("Alert: %s, Severity: %s, Deduction: %d", alertName, severity, deduction)
 
 		score -= deduction
 	}
