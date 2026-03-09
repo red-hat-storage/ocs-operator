@@ -41,6 +41,10 @@ service OCSProvider {
   // Notify RPC call for action on for client cluster
   rpc Notify(NotifyRequest)
   returns (NotifyResponse) {}
+
+  // GetClientAlerts RPC call to get firing alerts relevant to a specific storage consumer
+  rpc GetClientAlerts(GetClientAlertsRequest)
+  returns (GetClientAlertsResponse) {}
 }
 
 // OnboardConsumerRequest holds the required information to validate the consumer and create StorageConsumer
@@ -264,4 +268,26 @@ message NotifyRequest {
 // NotifyResponse holds the response for the Notify API request
 message NotifyResponse {
 
+}
+
+// GetClientAlertsRequest holds the required information to get alerts for a storage consumer
+message GetClientAlertsRequest {
+  // K8s UID (UUID) of the consumer cluster
+  string storageConsumerUUID = 1;
+}
+
+// AlertInfo holds information about a single firing alert
+message AlertInfo {
+  // alertName is the name of the alert rule
+  string alertName = 1;
+  // labels holds all the labels associated with the alert
+  map<string, string> labels = 2;
+  // value is the numeric value of the alert expression
+  double value = 3;
+}
+
+// GetClientAlertsResponse holds the response for the GetClientAlerts API request
+message GetClientAlertsResponse {
+  // alerts is the list of firing alerts relevant to the storage consumer
+  repeated AlertInfo alerts = 1;
 }

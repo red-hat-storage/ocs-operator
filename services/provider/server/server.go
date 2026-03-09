@@ -7,6 +7,7 @@ import (
 	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -14,7 +15,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"reflect"
 	"slices"
@@ -27,6 +30,7 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
 	ocsVersion "github.com/red-hat-storage/ocs-operator/v4/version"
@@ -44,6 +48,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	prometheusconfig "github.com/prometheus/common/config"
 	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"google.golang.org/grpc"
@@ -2493,4 +2498,134 @@ func getObcHashedName(
 	md5Sum := md5.Sum(obcHash)
 	hashString := hex.EncodeToString(md5Sum[:16])
 	return fmt.Sprintf("%s-%s", prefixOfHashedName, hashString)
+}
+
+const (
+	alertsClientTimeout      = 10 * time.Second
+	storageConsumerNameLabel = "storage_consumer_name"
+)
+
+// prometheusAlertsResponse represents the response from the Prometheus /api/v1/alerts endpoint
+type prometheusAlertsResponse struct {
+	Status string `json:"status"`
+	Data   struct {
+		Alerts []prometheusAlert `json:"alerts"`
+	} `json:"data"`
+}
+
+type prometheusAlert struct {
+	Labels      map[string]string `json:"labels"`
+	Annotations map[string]string `json:"annotations"`
+	State       string            `json:"state"`
+	Value       string            `json:"value"`
+}
+
+func getPrometheusURL(operatorNamespace string) (string, error) {
+	prometheusURL := "https://prometheus-k8s.openshift-monitoring.svc.cluster.local:9091"
+	if isROSAHCP, err := platform.IsPlatformROSAHCP(); err != nil {
+		return "", err
+	} else if isROSAHCP {
+		prometheusURL = fmt.Sprintf("https://prometheus.%s.svc.cluster.local:9339", operatorNamespace)
+	}
+	return prometheusURL, nil
+}
+
+func newPrometheusHTTPClient(ctx context.Context) (*http.Client, error) {
+	secrets := "/var/run/secrets/kubernetes.io/serviceaccount"
+	caCertPath := secrets + "/service-ca.crt"
+	tokenPath := secrets + "/token"
+
+	tlsConfig, err := prometheusconfig.NewTLSConfig(&prometheusconfig.TLSConfig{
+		CAFile: caCertPath,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create TLS config: %v", err)
+	}
+	settings := prometheusconfig.TLSRoundTripperSettings{}
+	newRT := func(cfg *tls.Config) (http.RoundTripper, error) {
+		return &http.Transport{TLSClientConfig: cfg}, nil
+	}
+	tlsRoundTripper, err := prometheusconfig.NewTLSRoundTripperWithContext(ctx, tlsConfig, settings, newRT)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create TLS round tripper: %v", err)
+	}
+	roundTripper := prometheusconfig.NewAuthorizationCredentialsRoundTripper(
+		"Bearer",
+		prometheusconfig.NewFileSecret(tokenPath),
+		tlsRoundTripper,
+	)
+	return &http.Client{
+		Transport: roundTripper,
+		Timeout:   alertsClientTimeout,
+	}, nil
+}
+
+// GetClientAlerts queries Prometheus for firing alerts relevant to a specific storage consumer
+func (s *OCSProviderServer) GetClientAlerts(ctx context.Context, req *pb.GetClientAlertsRequest) (*pb.GetClientAlertsResponse, error) {
+	logger := klog.FromContext(ctx).WithName("GetClientAlerts").WithValues("StorageConsumerUUID", req.StorageConsumerUUID)
+	logger.Info("Starting GetClientAlerts RPC")
+
+	storageConsumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		logger.Error(err, "Failed to get StorageConsumer")
+		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer: storageConsumerUUID=%s", req.StorageConsumerUUID)
+	}
+	consumerName := storageConsumer.Name
+
+	prometheusURL, err := getPrometheusURL(s.namespace)
+	if err != nil {
+		logger.Error(err, "Failed to determine Prometheus URL")
+		return nil, status.Errorf(codes.Internal, "failed to determine Prometheus URL: %v", err)
+	}
+
+	httpClient, err := newPrometheusHTTPClient(ctx)
+	if err != nil {
+		logger.Error(err, "Failed to create Prometheus HTTP client")
+		return nil, status.Errorf(codes.Internal, "failed to create Prometheus HTTP client: %v", err)
+	}
+
+	alertsURL := fmt.Sprintf("%s/api/v1/alerts", prometheusURL)
+	resp, err := httpClient.Get(alertsURL)
+	if err != nil {
+		logger.Error(err, "Failed to query Prometheus alerts")
+		return nil, status.Errorf(codes.Internal, "failed to query Prometheus alerts: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Error(err, "Failed to read Prometheus alerts response")
+		return nil, status.Errorf(codes.Internal, "failed to read Prometheus alerts response: %v", err)
+	}
+
+	var alertsResp prometheusAlertsResponse
+	if err := json.Unmarshal(body, &alertsResp); err != nil {
+		logger.Error(err, "Failed to unmarshal Prometheus alerts response")
+		return nil, status.Errorf(codes.Internal, "failed to unmarshal Prometheus alerts response: %v", err)
+	}
+
+	var alerts []*pb.AlertInfo
+	for i := range alertsResp.Data.Alerts {
+		alert := &alertsResp.Data.Alerts[i]
+		if alert.State != "firing" {
+			continue
+		}
+		if alert.Labels[storageConsumerNameLabel] != consumerName {
+			continue
+		}
+		var value float64
+		if alert.Value != "" {
+			if v, err := strconv.ParseFloat(alert.Value, 64); err == nil {
+				value = v
+			}
+		}
+		alerts = append(alerts, &pb.AlertInfo{
+			AlertName: alert.Labels["alertname"],
+			Labels:    alert.Labels,
+			Value:     value,
+		})
+	}
+
+	logger.Info("Successfully completed GetClientAlerts RPC", "alertCount", len(alerts))
+	return &pb.GetClientAlertsResponse{Alerts: alerts}, nil
 }

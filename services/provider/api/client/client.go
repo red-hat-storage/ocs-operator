@@ -225,3 +225,19 @@ func (cc *OCSProviderClient) NotifyObcCreated(ctx context.Context, consumerUUID 
 func (cc *OCSProviderClient) NotifyObcDeleted(ctx context.Context, consumerUUID string, obcNamespacedName types.NamespacedName) (*pb.NotifyResponse, error) {
 	return cc.notifyWithReason(ctx, consumerUUID, pb.NotifyReason_OBC_DELETED, obcNamespacedName)
 }
+
+// GetClientAlerts RPC call to get firing alerts relevant to a specific storage consumer
+func (cc *OCSProviderClient) GetClientAlerts(ctx context.Context, consumerUUID string) (*pb.GetClientAlertsResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("provider client is closed")
+	}
+
+	req := &pb.GetClientAlertsRequest{
+		StorageConsumerUUID: consumerUUID,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.GetClientAlerts(apiCtx, req)
+}
