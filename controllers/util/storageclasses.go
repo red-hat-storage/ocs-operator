@@ -420,7 +420,7 @@ func StorageClassFromExisting(
 	replicationID := ""
 	groupReplicationID := ""
 	operatorNamespace := consumer.Status.Client.OperatorNamespace
-	noobaaStorageClassName := consumer.Namespace + NoobaaDriverNameSuffix
+	NoobaaProvisionerName := consumer.Namespace + NoobaaProvisionerNameSuffix
 	switch storageClass.Provisioner {
 	case RbdDriverName:
 		clientProfileName = consumerConfig.GetRbdClientProfileName()
@@ -449,7 +449,7 @@ func StorageClassFromExisting(
 		provisionerSecretName = consumerConfig.GetCsiNfsProvisionerCephUserName()
 		nodeSecretName = consumerConfig.GetCsiNfsNodeCephUserName()
 		storageId = nfsStorageId
-	case noobaaStorageClassName:
+	case NoobaaProvisionerName:
 		return storageClass, nil
 	default:
 		return nil, UnsupportedProvisioner
