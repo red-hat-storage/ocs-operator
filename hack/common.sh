@@ -45,7 +45,7 @@ BUNDLE_FULL_IMAGE_NAME="${BUNDLE_FULL_IMAGE_NAME:=${IMAGE_REGISTRY}/${REGISTRY_N
 
 # Bundle images of Dependencies of OCS Operator
 NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20250730"
-ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-b0d17ebba"
+ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-76dd3bdbe"
 OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-7c764ee"
 # Below bundles are dependencies of ocs-client-operator, Ref- https://github.com/red-hat-storage/ocs-client-operator/blob/main/bundle/metadata/dependencies.yaml
 CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME="quay.io/csiaddons/k8s-bundle:v0.12.0"
