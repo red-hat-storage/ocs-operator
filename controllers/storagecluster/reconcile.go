@@ -346,6 +346,48 @@ func (r *StorageClusterReconciler) reconcileCrdWatches(obj client.Object, crdNam
 	return nil
 }
 
+func (r *StorageClusterReconciler) reconcileDisabledAlertsStatus(instance *ocsv1.StorageCluster) error {
+	if instance.Spec.Monitoring == nil {
+		return nil
+	}
+
+	// Get desired alert names from spec
+	desiredAlerts := make(map[string]bool)
+	for _, alertName := range instance.Spec.Monitoring.DisabledAlerts {
+		desiredAlerts[alertName] = true
+	}
+
+	// Build new status - preserve existing timestamps for alerts still disabled
+	var newDisabledAlerts []ocsv1.DisabledAlert
+	existingAlerts := make(map[string]metav1.Time)
+
+	// Preserve existing timestamps
+	for _, da := range instance.Status.Monitoring.DisabledAlerts {
+		existingAlerts[da.AlertName] = da.DisabledAt
+	}
+
+	// Add alerts with timestamps
+	for alertName := range desiredAlerts {
+		if disabledAt, exists := existingAlerts[alertName]; exists {
+			// Preserve original timestamp
+			newDisabledAlerts = append(newDisabledAlerts, ocsv1.DisabledAlert{
+				AlertName:  alertName,
+				DisabledAt: disabledAt,
+			})
+		} else {
+			// New alert - set current timestamp
+			newDisabledAlerts = append(newDisabledAlerts, ocsv1.DisabledAlert{
+				AlertName:  alertName,
+				DisabledAt: metav1.Now(),
+			})
+		}
+	}
+
+	// Update status
+	instance.Status.Monitoring.DisabledAlerts = newDisabledAlerts
+	return nil
+}
+
 func (r *StorageClusterReconciler) reconcilePhases(
 	ctx context.Context,
 	instance *ocsv1.StorageCluster) (reconcile.Result, error) {
@@ -715,6 +757,11 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		}
 		if err := r.enablePrometheusRules(ctx, instance); err != nil {
 			r.Log.Error(err, "Failed to reconcile prometheus rules.")
+			return reconcile.Result{}, err
+		}
+		// Reconcile disabled alerts status with timestamps
+		if err := r.reconcileDisabledAlertsStatus(instance); err != nil {
+			r.Log.Error(err, "Failed to reconcile disabled alerts status.")
 			return reconcile.Result{}, err
 		}
 	}

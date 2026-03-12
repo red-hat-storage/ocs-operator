@@ -24,7 +24,12 @@ const (
 
 // enablePrometheusRules is a wrapper around CreateOrUpdatePrometheusRule()
 func (r *StorageClusterReconciler) enablePrometheusRules(ctx context.Context, instance *ocsv1.StorageCluster) error {
-	rule, err := getPrometheusRules(instance.Spec.ExternalStorage.Enable, instance.Namespace)
+	var disabledAlerts []string
+	if instance.Spec.Monitoring != nil {
+		disabledAlerts = instance.Spec.Monitoring.DisabledAlerts
+	}
+
+	rule, err := getPrometheusRules(instance.Spec.ExternalStorage.Enable, instance.Namespace, disabledAlerts)
 	if err != nil {
 		r.Log.Error(err, "Prometheus rules file not found.")
 		return err
@@ -41,7 +46,7 @@ func (r *StorageClusterReconciler) enablePrometheusRules(ctx context.Context, in
 	return nil
 }
 
-func getPrometheusRules(isExternal bool, namespace string) (*monitoringv1.PrometheusRule, error) {
+func getPrometheusRules(isExternal bool, namespace string, disabledAlerts []string) (*monitoringv1.PrometheusRule, error) {
 	var err error
 	if namespace == "" {
 		return nil, fmt.Errorf("empty namespace passed")
@@ -65,8 +70,43 @@ func getPrometheusRules(isExternal bool, namespace string) (*monitoringv1.Promet
 	if err != nil {
 		return nil, err
 	}
+	if len(disabledAlerts) > 0 {
+		ruleSpec.Groups = filterDisabledAlertsFromGroups(ruleSpec.Groups, disabledAlerts)
+	}
 	rule.Spec = *ruleSpec
 	return rule, nil
+}
+
+// filterDisabledAlertsFromGroups removes rules whose alert name is in disabledAlerts list
+func filterDisabledAlertsFromGroups(groups []monitoringv1.RuleGroup, disabledAlerts []string) []monitoringv1.RuleGroup {
+	disabledSet := make(map[string]bool)
+	for _, alert := range disabledAlerts {
+		disabledSet[alert] = true
+	}
+
+	var filteredGroups []monitoringv1.RuleGroup
+	for _, group := range groups {
+		var filteredRules []monitoringv1.Rule
+		for _, rule := range group.Rules {
+			// Check if this rule's alert name is in disabled list
+			// Alert name is typically in rule.Alert field for alerting rules
+			if rule.Alert != "" && disabledSet[rule.Alert] {
+				// Skip this rule (it's disabled)
+				continue
+			}
+			filteredRules = append(filteredRules, rule)
+		}
+		// Only include group if it has rules remaining
+		if len(filteredRules) > 0 {
+			group.Rules = filteredRules
+			filteredGroups = append(filteredGroups, group)
+		}
+	}
+	// Ensure we return an empty slice instead of nil
+	if filteredGroups == nil {
+		return []monitoringv1.RuleGroup{}
+	}
+	return filteredGroups
 }
 
 func getPrometheusRuleSpecFrom(filePath string) (*monitoringv1.PrometheusRuleSpec, error) {
