@@ -18,14 +18,18 @@ package storagecluster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net"
 	"slices"
 
 	securityv1 "github.com/openshift/api/security/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
+	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -282,6 +286,15 @@ func mergeStringSlices(existing, desired []string) []string {
 // createBlackboxConfigMap creates or updates the ConfigMap
 func (r *StorageClusterReconciler) createBlackboxConfigMap(ctx context.Context, instance *ocsv1.StorageCluster) error {
 
+	// Build config with optional source_ip_address binding
+	blackboxConfig := `
+modules:
+  icmp_internal:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: ip4
+`
 	desired := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      blackboxConfigMapName,
@@ -289,14 +302,7 @@ func (r *StorageClusterReconciler) createBlackboxConfigMap(ctx context.Context, 
 			Labels:    blackboxExporterLabels,
 		},
 		Data: map[string]string{
-			"config.yml": `
-modules:
-  icmp_internal:
-    prober: icmp
-    timeout: 5s
-    icmp:
-      preferred_ip_protocol: ip4
-`,
+			"config.yml": blackboxConfig,
 		},
 	}
 
@@ -326,7 +332,11 @@ modules:
 	return nil
 }
 
-func (r *StorageClusterReconciler) getNodeIPs(ctx context.Context) ([]string, error) {
+// getNodeIPs returns node IPs for Blackbox probing.
+// When Multus is enabled:
+//   - If AddressRanges.Public is configured, uses those CIDRs to match node shim IPs
+//   - Otherwise, auto-detects by parsing k8s.ovn.org/host-cidrs annotation and filtering management IPs
+func (r *StorageClusterReconciler) getNodeIPs(ctx context.Context, instance *ocsv1.StorageCluster) ([]string, error) {
 	nodes := &corev1.NodeList{}
 	err := r.List(ctx, nodes, client.MatchingLabels{defaults.NodeAffinityKey: ""})
 	if err != nil {
@@ -334,20 +344,167 @@ func (r *StorageClusterReconciler) getNodeIPs(ctx context.Context) ([]string, er
 	}
 
 	var ips []string
+	useMultus := util.IsMultus(instance.Spec.Network)
+
 	for _, node := range nodes.Items {
-		for _, addr := range node.Status.Addresses {
-			if addr.Type == corev1.NodeInternalIP {
-				ips = append(ips, addr.Address)
-				break
+		var targetIP string
+
+		if useMultus {
+			r.Log.V(1).Info("Multus enabled: extracting public network shim IP", "node", node.Name)
+
+			if instance.Spec.Network.AddressRanges != nil && len(instance.Spec.Network.AddressRanges.Public) > 0 {
+				targetIP = r.extractIPFromCIDRs(node, instance.Spec.Network.AddressRanges.Public)
+				if targetIP != "" {
+					r.Log.V(1).Info("Found shim IP via AddressRanges", "node", node.Name, "ip", targetIP)
+				}
+			}
+
+			if targetIP == "" {
+				targetIP = r.extractPublicShimIPFromHostCIDRs(node)
+				if targetIP != "" {
+					r.Log.V(1).Info("Found shim IP via auto-detection", "node", node.Name, "ip", targetIP)
+				}
+			}
+		}
+
+		// Fallback to NodeInternalIP if Multus not enabled or no shim IP found
+		if targetIP == "" {
+			targetIP = r.getNodeInternalIP(node)
+		}
+
+		if targetIP != "" {
+			ips = append(ips, targetIP)
+		}
+	}
+
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("no suitable node IPs found for Blackbox probing")
+	}
+
+	r.Log.V(1).Info("Successfully retrieved node IPs for Blackbox probing", "count", len(ips), "ips", ips)
+	return ips, nil
+}
+
+// extractIPFromCIDRs finds the first node IP that matches any of the provided CIDR ranges.
+// Used when AddressRanges.Public is explicitly configured.
+func (r *StorageClusterReconciler) extractIPFromCIDRs(node corev1.Node, cidrs v1.CIDRList) string {
+	if len(cidrs) == 0 {
+		return ""
+	}
+
+	// Parse host-cidrs annotation to get all node interface IPs
+	hostCIDRsJSON, ok := node.Annotations["k8s.ovn.org/host-cidrs"]
+	if !ok || hostCIDRsJSON == "" {
+		return ""
+	}
+
+	var hostCIDRStrings []string
+	if err := json.Unmarshal([]byte(hostCIDRsJSON), &hostCIDRStrings); err != nil {
+		r.Log.V(1).Info("Failed to parse host-cidrs annotation", "node", node.Name, "error", err)
+		return ""
+	}
+
+	// Check each host CIDR against the configured public ranges
+	for _, hostCIDR := range hostCIDRStrings {
+		hostIP, _, err := net.ParseCIDR(hostCIDR)
+		if err != nil {
+			continue
+		}
+		hostIPStr := hostIP.String()
+
+		// Skip management IP (matches NodeInternalIP)
+		if r.isManagementIP(node, hostIPStr) {
+			continue
+		}
+
+		// Check if this IP falls within any configured public CIDR
+		for _, publicCIDR := range cidrs {
+			_, publicNet, err := net.ParseCIDR(string(publicCIDR))
+			if err != nil {
+				r.Log.V(1).Info("Invalid public CIDR in AddressRanges", "cidr", publicCIDR, "error", err)
+				continue
+			}
+			if publicNet.Contains(hostIP) {
+				return hostIPStr
 			}
 		}
 	}
-	return ips, nil
+	return ""
+}
+
+// extractPublicShimIPFromHostCIDRs auto-detects the public network shim IP by:
+// 1. Parsing k8s.ovn.org/host-cidrs annotation
+// 2. Filtering out the management IP (NodeInternalIP)
+// 3. Returning the first remaining IP (assumed to be the public shim)
+// Used as fallback when AddressRanges.Public is not configured.
+// k8s.ovn.org/host-cidrs: '["10.8.128.206/21","172.22.0.7/24","192.168.252.6/24"]'
+func (r *StorageClusterReconciler) extractPublicShimIPFromHostCIDRs(node corev1.Node) string {
+	hostCIDRsJSON, ok := node.Annotations["k8s.ovn.org/host-cidrs"]
+	if !ok || hostCIDRsJSON == "" {
+		return ""
+	}
+
+	var cidrs []string
+	if err := json.Unmarshal([]byte(hostCIDRsJSON), &cidrs); err != nil {
+		r.Log.V(1).Info("Failed to parse host-cidrs annotation", "node", node.Name, "error", err)
+		return ""
+	}
+
+	for _, cidr := range cidrs {
+		ip, _, err := net.ParseCIDR(cidr)
+		if err != nil {
+			continue
+		}
+		ipStr := ip.String()
+
+		// Skip management IP
+		if r.isManagementIP(node, ipStr) {
+			continue
+		}
+
+		// Return first non-management IP (assumed to be public shim)
+		return ipStr
+	}
+	return ""
+}
+
+// isManagementIP checks if the given IP matches the node's InternalIP address.
+func (r *StorageClusterReconciler) isManagementIP(node corev1.Node, ip string) bool {
+	for _, addr := range node.Status.Addresses {
+		if addr.Type == corev1.NodeInternalIP && addr.Address == ip {
+			return true
+		}
+	}
+	return false
+}
+
+// getNodeInternalIP returns the node's InternalIP address as fallback.
+func (r *StorageClusterReconciler) getNodeInternalIP(node corev1.Node) string {
+	for _, addr := range node.Status.Addresses {
+		if addr.Type == corev1.NodeInternalIP {
+			return addr.Address
+		}
+	}
+	return ""
 }
 
 // createBlackboxDeployment deploys the Blackbox Exporter
 func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context, instance *ocsv1.StorageCluster) error {
 	placement := getPlacement(instance, defaults.BlackboxExporterKey)
+	podAnnotations := map[string]string{}
+	if util.IsMultus(instance.Spec.Network) {
+		r.Log.Info("Multus is enabled, attempting to configure public network for Blackbox Exporter")
+		net, err := getMultusPublicNetwork(instance)
+		if err != nil {
+			r.Log.Error(err, "Failed to get Multus public network for Blackbox Exporter")
+			return err
+		}
+		if net != "" {
+			r.Log.Info("Using Multus public network for Blackbox Exporter", "network", net)
+			podAnnotations["k8s.v1.cni.cncf.io/networks"] = net
+		}
+	}
+
 	desired := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      blackboxExporterName,
@@ -359,7 +516,8 @@ func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context,
 			Selector: &metav1.LabelSelector{MatchLabels: blackboxExporterLabels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: blackboxExporterLabels,
+					Labels:      blackboxExporterLabels,
+					Annotations: podAnnotations,
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: blackboxServiceAccount,
@@ -527,10 +685,15 @@ func (r *StorageClusterReconciler) createBlackboxService(ctx context.Context, in
 
 // createBlackboxProbe creates or updates the Probe
 func (r *StorageClusterReconciler) createBlackboxProbe(ctx context.Context, instance *ocsv1.StorageCluster) error {
-	nodeIPs, err := r.getNodeIPs(ctx)
+	nodeIPs, err := r.getNodeIPs(ctx, instance)
 	if err != nil {
 		r.Log.Error(err, "Failed to get node IPs")
 		return err
+	}
+
+	networkType := "default-sdn"
+	if util.IsMultus(instance.Spec.Network) {
+		networkType = "multus-public"
 	}
 
 	desired := &monitoringv1.Probe{
@@ -548,12 +711,13 @@ func (r *StorageClusterReconciler) createBlackboxProbe(ctx context.Context, inst
 				StaticConfig: &monitoringv1.ProbeTargetStaticConfig{
 					Targets: nodeIPs,
 					Labels: map[string]string{
-						"job": blackboxExporterName,
+						"job":          blackboxExporterName,
+						"network_type": networkType,
 					},
 				},
 			},
 			Interval:      blackboxScrapeInterval,
-			ScrapeTimeout: "5s",
+			ScrapeTimeout: "10s",
 		},
 	}
 	actual := &monitoringv1.Probe{
