@@ -405,6 +405,12 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			}
 		}
 
+		obcResourceVersions, err := s.getOBCResourceVersions(ctx, logger, consumer)
+		if err != nil {
+			logger.Error(err, "failed to get hosted OBC resource versions for consumer", consumer.GetUID())
+			return nil, status.Errorf(codes.Internal, "Failed to produce client state")
+		}
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			consumer,
@@ -422,6 +428,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			vGSClassesResourceVersion,
 			odfVGSClassesResourceVersion,
 			useHostNetworkForCtrlPlugin,
+			obcResourceVersions,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -1429,6 +1436,16 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 		}
 	}
 
+	kubeResources, err = s.appendOBCResources(
+		ctx,
+		kubeResources,
+		consumer,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return kubeResources, nil
 }
 
@@ -2181,6 +2198,82 @@ func (s *OCSProviderServer) appendClientProfileMappingKubeResources(
 			},
 		)
 	}
+	return kubeResources, nil
+}
+
+func (s *OCSProviderServer) appendOBCResources(
+	ctx context.Context,
+	kubeResources []client.Object,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]client.Object, error) {
+
+	obcList := &nbv1.ObjectBucketClaimList{}
+	if err := s.client.List(
+		ctx,
+		obcList,
+		client.InNamespace(consumer.Namespace),
+		client.MatchingLabels{
+			storageConsumerUUIDLabelKey: string(consumer.GetUID()),
+		},
+	); err != nil {
+		return nil, fmt.Errorf("failed to list OBCs for consumer %v. %v", consumer.GetUID(), err)
+	}
+
+	// OB, ConfigMap and Secrets can be obtained by using the OBC names
+	for i := range obcList.Items {
+		obc := &obcList.Items[i]
+		remoteOBCUID := obc.GetLabels()[remoteObcUIDLabelKey]
+		remoteOBCName := obc.GetLabels()[remoteObcNameLabelKey]
+		remoteOBCNamespace := obc.GetLabels()[remoteObcNamespaceLabelKey]
+
+		ob := &nbv1.ObjectBucket{}
+		ob.Name = fmt.Sprintf("obc-%s-%s", consumer.Namespace, obc.GetName())
+		if err := s.client.Get(
+			ctx,
+			client.ObjectKeyFromObject(ob),
+			ob,
+		); err != nil {
+			return nil, fmt.Errorf("failed to get OB for consumer. error is %v", err)
+		}
+
+		ob.SetName(remoteOBCName)
+		kubeResources = append(kubeResources, ob)
+
+		configMap := &v1.ConfigMap{}
+		configMap.Namespace = consumer.Namespace
+		configMap.Name = obc.GetName()
+		if err := s.client.Get(
+			ctx,
+			client.ObjectKeyFromObject(configMap),
+			configMap,
+		); err != nil {
+			return nil, fmt.Errorf("failed to get ConfigMap for OBC %s. error is %v", obc.Name, err)
+		}
+		configMap.SetName(remoteOBCName)
+		configMap.SetNamespace(remoteOBCNamespace)
+		kubeResources = append(kubeResources, configMap)
+
+		secret := &v1.Secret{}
+		secret.Namespace = consumer.Namespace
+		secret.Name = obc.GetName()
+		if err := s.client.Get(
+			ctx,
+			client.ObjectKeyFromObject(secret),
+			secret,
+		); err != nil {
+			return nil, fmt.Errorf("failed to get Secret for OBC %s. error is %v", obc.Name, err)
+		}
+
+		secret.SetName(remoteOBCName)
+		secret.SetNamespace(remoteOBCNamespace)
+		kubeResources = append(kubeResources, secret)
+
+		obc.SetName(remoteOBCName)
+		obc.SetNamespace(remoteOBCNamespace)
+		obc.SetUID(types.UID(remoteOBCUID))
+		kubeResources = append(kubeResources, obc)
+	}
+
 	return kubeResources, nil
 }
 
