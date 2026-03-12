@@ -263,6 +263,35 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		return fmt.Errorf("Unable to retrieve external resource from externalOCSResources")
 	}
 
+	// Create CephBlockPoolRadosNamespace if present in external resources.
+	// This must happen before processing StorageClass resources, as all RBD storage classes
+	// need the rados namespace client profile when one exists.
+	radosNamespaceName = ""
+	for _, d := range data {
+		if d.Kind != "CephBlockPoolRadosNamespace" {
+			continue
+		}
+		radosNamespaceName = d.Data["radosNamespaceName"]
+		rbdPool := d.Data["pool"]
+		objectMeta := metav1.ObjectMeta{
+			Name:            radosNamespaceName,
+			Namespace:       instance.Namespace,
+			OwnerReferences: []metav1.OwnerReference{ownerRef},
+		}
+		radosNamespace := &cephv1.CephBlockPoolRadosNamespace{ObjectMeta: objectMeta}
+		mutateFn := func() error {
+			radosNamespace.Spec = cephv1.CephBlockPoolRadosNamespaceSpec{
+				BlockPoolName: rbdPool,
+			}
+			return nil
+		}
+		_, err := ctrl.CreateOrUpdate(r.ctx, r.Client, radosNamespace, mutateFn)
+		if err != nil {
+			r.Log.Error(err, "Could not create CephBlockPoolRadosNamespace.", "CephBlockPoolRadosNamespace", klog.KRef(radosNamespace.Namespace, radosNamespace.Name))
+			return err
+		}
+	}
+
 	var extCephObjectStores []*cephv1.CephObjectStore
 	for _, d := range data {
 		objectMeta := metav1.ObjectMeta{
@@ -315,22 +344,6 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				r.Log.Error(err, "Could not create CephFilesystemSubVolumeGroup.", "CephFilesystemSubVolumeGroup", klog.KRef(found.Namespace, found.Name))
 				return err
 			}
-		case "CephBlockPoolRadosNamespace":
-			radosNamespaceName = d.Data["radosNamespaceName"]
-			rbdPool := d.Data["pool"]
-			objectMeta.Name = radosNamespaceName
-			radosNamespace := &cephv1.CephBlockPoolRadosNamespace{ObjectMeta: objectMeta}
-			mutateFn := func() error {
-				radosNamespace.Spec = cephv1.CephBlockPoolRadosNamespaceSpec{
-					BlockPoolName: rbdPool,
-				}
-				return nil
-			}
-			_, err := ctrl.CreateOrUpdate(context.TODO(), r.Client, radosNamespace, mutateFn)
-			if err != nil {
-				r.Log.Error(err, "Could not create CephBlockPoolRadosNamespace.", "CephBlockPoolRadosNamespace", klog.KRef(radosNamespace.Namespace, radosNamespace.Name))
-				return err
-			}
 
 		case "StorageClass":
 			scManagedResources := &instance.Spec.ManagedResources
@@ -352,7 +365,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 			} else if d.Name == cephRbdStorageClassName {
 				scc = StorageClassConfiguration{
 					storageClass: util.NewDefaultRbdStorageClass(
-						instance.Namespace,
+						r.getExternalModeRbdClientProfileName(instance.Namespace),
 						util.GenerateNameForCephBlockPool(instance.Name),
 						"rook-csi-rbd-provisioner",
 						"rook-csi-rbd-node",
@@ -368,7 +381,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 			} else if strings.HasPrefix(d.Name, cephRbdRadosNamespaceStorageClassNamePrefix) { // ceph-rbd-rados-namespace-<radosNamespaceName>
 				scc = StorageClassConfiguration{
 					storageClass: util.NewDefaultRbdStorageClass(
-						instance.Namespace,
+						r.getExternalModeRbdClientProfileName(instance.Namespace),
 						util.GenerateNameForCephBlockPool(instance.Name),
 						"rook-csi-rbd-provisioner",
 						"rook-csi-rbd-node",
@@ -395,7 +408,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				}
 				scc = StorageClassConfiguration{
 					storageClass: util.NewDefaultNonResilientRbdStorageClass(
-						instance.Namespace,
+						r.getExternalModeRbdClientProfileName(instance.Namespace),
 						topologyConstrainedPools,
 						"rook-csi-rbd-provisioner",
 						"rook-csi-rbd-node",
@@ -477,6 +490,27 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 	return nil
 }
 
+// getExternalModeRbdClientProfileName returns the client profile name for RBD storage classes in external mode.
+// If a CephBlockPoolRadosNamespace exists and is ready, its client profile name is returned.
+// If no rados namespace is configured, the default client profile name (namespace) is returned.
+func (r *StorageClusterReconciler) getExternalModeRbdClientProfileName(namespace string) string {
+	if radosNamespaceName == "" {
+		return namespace
+	}
+	radosNamespace := cephv1.CephBlockPoolRadosNamespace{}
+	err := r.Client.Get(r.ctx, types.NamespacedName{Name: radosNamespaceName, Namespace: namespace}, &radosNamespace)
+	if err != nil ||
+		radosNamespace.Status == nil ||
+		radosNamespace.Status.Phase != cephv1.ConditionReady ||
+		radosNamespace.Status.Info["clusterID"] == "" {
+		r.Log.Info("Waiting for radosNamespace to be Ready",
+			"radosNamespace", klog.KRef(namespace, radosNamespaceName),
+		)
+		return namespace
+	}
+	return radosNamespace.Status.Info["clusterID"]
+}
+
 func (r *StorageClusterReconciler) createExternalModeStorageClasses(sccs []StorageClassConfiguration, namespace string) error {
 	var skippedSC []string
 	for _, scc := range sccs {
@@ -485,28 +519,8 @@ func (r *StorageClusterReconciler) createExternalModeStorageClasses(sccs []Stora
 		}
 		sc := scc.storageClass
 
-		switch {
-		case strings.Contains(sc.Name, "-rados-namespace"):
-			// if rados namespace is provided, update the `storageclass cluster-id = rados-namespace cluster-id`
-			if radosNamespaceName == "" {
-				r.Log.Info("radosNamespaceName not updated successfully")
-				skippedSC = append(skippedSC, sc.Name)
-				continue
-			}
-			radosNamespace := cephv1.CephBlockPoolRadosNamespace{}
-			key := types.NamespacedName{Name: radosNamespaceName, Namespace: namespace}
-			err := r.Client.Get(context.TODO(), key, &radosNamespace)
-			if err != nil || radosNamespace.Status == nil || radosNamespace.Status.Phase != cephv1.ConditionType(util.PhaseReady) || radosNamespace.Status.Info["clusterID"] == "" {
-				r.Log.Info("Waiting for radosNamespace to be Ready. Skip reconciling StorageClass",
-					"radosNamespace", klog.KRef(key.Namespace, key.Name),
-					"StorageClass", klog.KRef("", sc.Name),
-				)
-				skippedSC = append(skippedSC, sc.Name)
-				continue
-			}
-			sc.Parameters["clusterID"] = radosNamespace.Status.Info["clusterID"]
-		case strings.Contains(sc.Name, "-nfs") || strings.Contains(sc.Provisioner, util.NfsDriverName):
-			// wait for CephNFS to be ready
+		// wait for CephNFS to be ready
+		if strings.Contains(sc.Name, "-nfs") || strings.Contains(sc.Provisioner, util.NfsDriverName) {
 			cephNFS := cephv1.CephNFS{}
 			key := types.NamespacedName{Name: sc.Parameters["nfsCluster"], Namespace: namespace}
 			err := r.Client.Get(context.TODO(), key, &cephNFS)
