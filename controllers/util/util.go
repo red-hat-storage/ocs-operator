@@ -107,6 +107,14 @@ func AddLabel(obj metav1.Object, key string, value string) bool {
 	return false
 }
 
+func CalculateCephRbdStorageID(cephfsid, radosnamespacename string) string {
+	return CalculateMD5Hash([2]string{cephfsid, radosnamespacename})
+}
+
+func CalculateCephFsStorageID(cephfsid, subVolumeGroupName string) string {
+	return CalculateMD5Hash([2]string{cephfsid, subVolumeGroupName})
+}
+
 func CalculateMD5Hash(value any) string {
 	data, err := json.Marshal(value)
 	if err != nil {
