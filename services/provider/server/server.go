@@ -2222,7 +2222,7 @@ func (s *OCSProviderServer) appendOBCResources(
 	// OB, ConfigMap and Secrets can be obtained by using the OBC names
 	for i := range obcList.Items {
 		obc := &obcList.Items[i]
-		ownerRef := getRemoteOBCOwnerReference(obc)
+		remoteOBCUID := obc.GetLabels()[remoteObcUIDLabelKey]
 		remoteOBCName := obc.GetLabels()[remoteObcNameLabelKey]
 		remoteOBCNamespace := obc.GetLabels()[remoteObcNamespaceLabelKey]
 
@@ -2251,7 +2251,6 @@ func (s *OCSProviderServer) appendOBCResources(
 		}
 		configMap.SetName(remoteOBCName)
 		configMap.SetNamespace(remoteOBCNamespace)
-		configMap.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
 		kubeResources = append(kubeResources, configMap)
 
 		secret := &v1.Secret{}
@@ -2267,11 +2266,11 @@ func (s *OCSProviderServer) appendOBCResources(
 
 		secret.SetName(remoteOBCName)
 		secret.SetNamespace(remoteOBCNamespace)
-		secret.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
 		kubeResources = append(kubeResources, secret)
 
 		obc.SetName(remoteOBCName)
 		obc.SetNamespace(remoteOBCNamespace)
+		obc.SetUID(types.UID(remoteOBCUID))
 		kubeResources = append(kubeResources, obc)
 	}
 
@@ -2675,18 +2674,4 @@ func getObcHashedName(
 	md5Sum := md5.Sum(obcHash)
 	hashString := hex.EncodeToString(md5Sum[:16])
 	return fmt.Sprintf("%s-%s", prefixOfHashedName, hashString)
-}
-
-func getRemoteOBCOwnerReference(obc *nbv1.ObjectBucketClaim) metav1.OwnerReference {
-	labels := obc.GetLabels()
-	controller := true
-	ownerRef :=
-		metav1.OwnerReference{
-			Name:       labels[remoteObcNameLabelKey],
-			UID:        types.UID(labels[remoteObcUIDLabelKey]),
-			Controller: &controller,
-			Kind:       obc.GetObjectKind().GroupVersionKind().Kind,
-		}
-
-	return ownerRef
 }
