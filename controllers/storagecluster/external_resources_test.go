@@ -563,6 +563,7 @@ func TestErasureCodedExternalResources(t *testing.T) {
 					"",
 					"",
 					cr.Spec.ManagedResources.CephBlockPools.DefaultStorageClass,
+					"",
 				),
 				isClusterExternal: true,
 				reconcileStrategy: ReconcileStrategy(cr.Spec.ManagedResources.CephBlockPools.ReconcileStrategy),

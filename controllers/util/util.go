@@ -186,3 +186,18 @@ func GetFullTopologyLabel(failuredomain string) string {
 	}
 	return ""
 }
+
+// If implements an if/else expression
+func If[T any](cond bool, trueVal, falseVal T) T {
+	if cond {
+		return trueVal
+	} else {
+		return falseVal
+	}
+}
+
+func IsDefaultPoolErasureCodingEnabled(cephBlockpool ocsv1.ManageCephBlockPools) bool {
+	// if ec is enabled set the pool names differently
+	// Change the pool name for the default storageclass only if ec spec was chosen for default day-1 cephBlockpool
+	return cephBlockpool.ErasureCodedMetadataPool != "" && cephBlockpool.PoolSpec.IsErasureCoded()
+}
