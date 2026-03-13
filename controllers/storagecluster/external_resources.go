@@ -404,6 +404,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 					),
 					isClusterExternal: true,
 				}
+				scc.storageClass.Name = util.GenerateNameForNonResilientCephBlockPoolStorageClass(instance)
 			} else if d.Name == cephRgwStorageClassName {
 				rgwEndpoint = d.Data[externalCephRgwEndpointKey]
 				// rgw-endpoint is no longer needed in the 'd.Data' dictionary,
