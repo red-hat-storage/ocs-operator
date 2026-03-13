@@ -95,7 +95,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy, rados_namespace) group_left() (max by(namespace, managedBy, rados_namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 1
+        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy, rados_namespace, consumer_name) group_left() (max by(namespace, managedBy, rados_namespace, consumer_name) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 1
       for: 1m
       labels:
         mirroring_image_status: unknown
@@ -111,7 +111,7 @@ spec:
         severity_level: warning
         storage_type: ceph
       expr: |
-        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy, rados_namespace) group_left() (max by(namespace, managedBy, rados_namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 2
+        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy, rados_namespace, consumer_name) group_left() (max by(namespace, managedBy, rados_namespace, consumer_name) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 2
       for: 1m
       labels:
         mirroring_image_status: warning
@@ -127,43 +127,40 @@ spec:
         severity_level: error
         storage_type: ceph
       expr: |
-        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy, rados_namespace) group_left() (max by(namespace, managedBy, rados_namespace) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 3
+        (ocs_pool_mirroring_image_health{job="ocs-metrics-exporter"}  * on (namespace, managedBy, rados_namespace, consumer_name) group_left() (max by(namespace, managedBy, rados_namespace, consumer_name) (ocs_pool_mirroring_status{job="ocs-metrics-exporter"}))) == 3
       for: 10s
       labels:
         mirroring_image_status: error
         severity: critical
     - alert: ODFPersistentVolumeMirrorStatus
       annotations:
-        description: Persistent volume {{ $labels.name }}/{{ $labels.namespace }}
-          is not mirrored properly to peer site {{ $labels.site_name }} for more than
-          1m. RBD image={{ $labels.image }} and CephBlockPool={{ $labels.pool_name
-          }}. Please check namespace:cluster {{ $labels.namespace }}:{{ $labels.managedBy
-          }}.
-        message: Persistent volume {{ $labels.name }}/{{ $labels.namespace }} is not
-          mirrored properly to peer site {{ $labels.site_name }} in namespace:cluster
-          {{ $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Persistent volume {{ $labels.name }} is not mirrored properly
+          to peer site {{ $labels.site_name }} for more than 1m. RBD image={{ $labels.image
+          }} and CephBlockPool={{ $labels.pool_name }}. Please check namespace {{
+          $labels.namespace }}.
+        message: Persistent volume {{ $labels.name }} is not mirrored properly to
+          peer site {{ $labels.site_name }} in namespace {{ $labels.namespace }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFPersistentVolumeMirrorStatus.md
         severity_level: error
         storage_type: ceph
       expr: |
-        ocs_rbd_mirror_image_state{job="ocs-metrics-exporter"} * on(image,pool_name) group_left(name,namespace,managedBy) ocs_rbd_pv_metadata{job="ocs-metrics-exporter"} == 1
+        ocs_rbd_mirror_image_state{job="ocs-metrics-exporter"} * on(image,pool_name,consumer_name) group_left(name) ocs_rbd_pv_metadata{job="ocs-metrics-exporter"} == 1
       for: 1m
       labels:
         severity: critical
     - alert: ODFPersistentVolumeMirrorStatus
       annotations:
-        description: Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace
-          }} to peer site {{ $labels.site_name }} for more than 1m. RBD image={{ $labels.image
-          }} and CephBlockPool={{ $labels.pool_name }}. Please check namespace:cluster
-          {{ $labels.namespace }}:{{ $labels.managedBy }}
-        message: Status unknown for Persistent volume {{ $labels.name }}/{{ $labels.namespace
-          }} mirroring to peer site {{ $labels.site_name }} in namespace:cluster {{
-          $labels.namespace }}:{{ $labels.managedBy }}.
+        description: Status unknown for Persistent volume {{ $labels.name }} to peer
+          site {{ $labels.site_name }} for more than 1m. RBD image={{ $labels.image
+          }} and CephBlockPool={{ $labels.pool_name }}. Please check namespace {{
+          $labels.namespace }}.
+        message: Status unknown for Persistent volume {{ $labels.name }} mirroring
+          to peer site {{ $labels.site_name }} in namespace {{ $labels.namespace }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFPersistentVolumeMirrorStatus.md
         severity_level: warning
         storage_type: ceph
       expr: |
-        ocs_rbd_mirror_image_state{job="ocs-metrics-exporter"} * on(image,pool_name) group_left(name,namespace,managedBy) ocs_rbd_pv_metadata{job="ocs-metrics-exporter"} == 0
+        ocs_rbd_mirror_image_state{job="ocs-metrics-exporter"} * on(image,pool_name,consumer_name) group_left(name) ocs_rbd_pv_metadata{job="ocs-metrics-exporter"} == 0
       for: 1m
       labels:
         severity: warning
