@@ -97,7 +97,7 @@ spec:
             memory: 50Mi
         readinessProbe:
           httpGet:
-            path: /metrics
+            path: /readyz
             port: 8080
             scheme: HTTP
           initialDelaySeconds: 15
@@ -113,8 +113,6 @@ spec:
         - /usr/local/bin/metrics-exporter
         args:
           - '--namespaces'
-          - openshift-storage
-          - '--ceph-auth-namespace'
           - openshift-storage
         securityContext:
           capabilities:

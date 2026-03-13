@@ -10,6 +10,7 @@ import (
 	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	cephconn "github.com/red-hat-storage/ocs-operator/metrics/v4/internal/ceph"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/collectors"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/exporter"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/handler"
@@ -30,24 +31,24 @@ func (log promhttplogger) Println(v ...interface{}) {
 func main() {
 	opts := options.NewOptions()
 	opts.AddFlags()
-	// parses the flags and ExitOnError so errors can be ignored
 	opts.Parse()
 	if opts.Help {
-		// prints usage messages for flags
 		opts.Usage()
 		os.Exit(0)
 	}
 
-	logr := zap.Must(zap.NewProduction())
+	zapLogger := zap.Must(zap.NewProduction())
 	if opts.IsDevelopment {
-		logr = zap.Must(zap.NewDevelopment())
+		zapLogger = zap.Must(zap.NewDevelopment())
 	}
-	klog.SetLogger(zapr.NewLogger(logr))
+	klog.SetLogger(zapr.NewLogger(zapLogger))
 	defer klog.Flush()
 
+	if len(opts.AllowedNamespaces) == 0 {
+		klog.Fatal("at least one namespace must be specified via --namespaces")
+	}
+
 	klog.Infof("using options: %+v", opts)
-	opts.StopCh = make(chan struct{})
-	defer close(opts.StopCh)
 
 	kubeconfig, err := clientcmd.BuildConfigFromFlags(opts.Apiserver, opts.KubeconfigPath)
 	if err != nil {
@@ -64,33 +65,49 @@ func main() {
 	}
 
 	exporterRegistry := prometheus.NewRegistry()
-	// Add exporter self metrics collectors to the registry.
 	exporter.RegisterExporterCollectors(exporterRegistry)
 
-	// serves exporter self metrics
 	exporterMux := http.NewServeMux()
 	handler.RegisterExporterMuxHandlers(exporterMux, exporterRegistry, promHandlerOpts(exporterRegistry))
 
-	customResourceRegistry := prometheus.NewRegistry()
+	var rbdConn, cephfsConn *cephconn.Conn
+	if !opts.NoCeph {
+		var err error
+		rbdConn, err = cephconn.NewConn(opts)
+		if err != nil {
+			klog.Fatalf("failed to initialize rbd ceph connection: %v", err)
+		}
+		defer rbdConn.Close()
+		cephfsConn, err = cephconn.NewConn(opts)
+		if err != nil {
+			klog.Fatalf("failed to initialize cephfs ceph connection: %v", err)
+		}
+		defer cephfsConn.Close()
+	}
 
+	// StopCh must close before connections so scan goroutines stop using them.
+	opts.StopCh = make(chan struct{})
+	defer close(opts.StopCh)
+
+	customResourceRegistry := prometheus.NewRegistry()
+	readyFn := func() bool { return true }
 	if opts.NoCeph {
 		collectors.RegisterNonCephCollectors(customResourceRegistry, opts)
 	} else {
 		collectors.RegisterCustomResourceCollectors(customResourceRegistry, opts)
-		collectors.RegisterPersistentVolumeAttributesCollector(customResourceRegistry, opts)
-		collectors.RegisterCephBlocklistCollector(customResourceRegistry, opts)
-		collectors.RegisterCephRBDChildrenCollector(customResourceRegistry, opts)
-		collectors.RegisterCephFSMetricsCollector(customResourceRegistry, opts)
+		collectors.RegisterCephRBDCollector(customResourceRegistry, rbdConn, opts)
+		collectors.RegisterCephBlocklistCollector(customResourceRegistry)
+		collectors.RegisterCephFSMetricsCollector(customResourceRegistry, cephfsConn, opts)
+		readyFn = collectors.CephReady
 	}
 
 	customResourceMux := http.NewServeMux()
-	handler.RegisterCustomResourceMuxHandlers(customResourceMux, customResourceRegistry, exporterRegistry, promHandlerOpts(customResourceRegistry))
-
-	if !opts.NoCeph {
-		rbdRegistry := prometheus.NewRegistry()
-		collectors.RegisterRBDMirrorCollector(rbdRegistry, opts)
-		handler.RegisterRBDMirrorMuxHandlers(customResourceMux, rbdRegistry, promHandlerOpts(rbdRegistry))
-	}
+	handler.RegisterCustomResourceMuxHandlers(customResourceMux, handler.CustomResourceMuxConfig{
+		CustomResourceRegistry: customResourceRegistry,
+		ExporterRegistry:       exporterRegistry,
+		HandlerOpts:            promHandlerOpts(customResourceRegistry),
+		ReadyFn:                readyFn,
+	})
 
 	var rg run.Group
 	rg.Add(listenAndServe(exporterMux, opts.ExporterHost, opts.ExporterPort))
@@ -98,8 +115,7 @@ func main() {
 
 	klog.Infof("Running metrics server on %s:%v", opts.Host, opts.Port)
 	klog.Infof("Running telemetry server on %s:%v", opts.ExporterHost, opts.ExporterPort)
-	err = rg.Run()
-	if err != nil {
+	if err = rg.Run(); err != nil {
 		klog.Fatalf("metrics and telemetry servers terminated: %v", err)
 	}
 }
@@ -108,16 +124,18 @@ func listenAndServe(mux *http.ServeMux, host string, port int) (func() error, fu
 	var listener net.Listener
 	serve := func() error {
 		addr := net.JoinHostPort(host, strconv.Itoa(port))
-		listener, err := net.Listen("tcp", addr)
+		var err error
+		listener, err = net.Listen("tcp", addr)
 		if err != nil {
 			return err
 		}
 		return http.Serve(listener, mux)
 	}
 	cleanup := func(error) {
-		err := listener.Close()
-		if err != nil {
-			klog.Errorf("failed to close listener: %v", err)
+		if listener != nil {
+			if err := listener.Close(); err != nil {
+				klog.Errorf("failed to close listener: %v", err)
+			}
 		}
 	}
 	return serve, cleanup

@@ -1,171 +1,166 @@
 package collectors
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	internalcache "github.com/red-hat-storage/ocs-operator/metrics/v4/internal/cache"
+	cephconn "github.com/red-hat-storage/ocs-operator/metrics/v4/internal/ceph"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
 
 const (
-	// name of the project/exporter
-	namespace = "ocs"
+	namespace     = "ocs"
+	pvMetadataKey = "csi.storage.k8s.io/pv/name"
 )
 
-func searchInNamespace(opts *options.Options) (returnNamespace string) {
-	returnNamespace = metav1.NamespaceAll
+func searchInNamespace(opts *options.Options) string {
 	if opts != nil && len(opts.AllowedNamespaces) == 1 {
-		returnNamespace = opts.AllowedNamespaces[0]
+		return opts.AllowedNamespaces[0]
 	}
-	return
+	return metav1.NamespaceAll
+}
+
+var (
+	cephScannersExpected atomic.Int32
+	cephScannersReady    atomic.Int32
+)
+
+// CephReady reports whether all registered Ceph scanners have completed
+// their first scan.
+func CephReady() bool {
+	expected := cephScannersExpected.Load()
+	return expected > 0 && cephScannersReady.Load() >= expected
+}
+
+func registerCephScanner() {
+	cephScannersExpected.Add(1)
+}
+
+func runScanLoop(stopCh <-chan struct{}, interval time.Duration, scan func()) {
+	scan()
+	cephScannersReady.Add(1)
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stopCh:
+			return
+		case <-ticker.C:
+			scan()
+		}
+	}
+}
+
+func consumerOwnerName(refs []metav1.OwnerReference) string {
+	for _, ref := range refs {
+		if ref.Kind == "StorageConsumer" {
+			return ref.Name
+		}
+	}
+	return ""
 }
 
 // RegisterCustomResourceCollectors registers the custom resource collectors
-// in the given prometheus.Registry
-// This is used to expose metrics about the Custom Resources
+// in the given prometheus.Registry.
 func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *options.Options) {
 	cephObjectStoreCollector := NewCephObjectStoreCollector(opts)
-	cephBlockPoolCollector := NewCephBlockPoolCollector(opts)
 	cephClusterCollector := NewCephClusterCollector(opts)
-	storageClusterCollector := NewStorageClusterCollector(opts)
-	storageAutoScalerCollector := NewStorageAutoScalerCollector(opts)
 	OBMetricsCollector := NewObjectBucketCollector(opts)
-	clusterAdvanceFeatureCollector := NewClusterAdvancedFeatureCollector(opts)
-	storageConsumerCollector := NewStorageConsumerCollector(opts)
-	operatorConditionCollector := NewOperatorConditionCollector(opts)
-	healthScoreCollector, healthScoreErr := NewHealthScoreCollector(opts)
+
 	cephObjectStoreCollector.Run(opts.StopCh)
-	cephBlockPoolCollector.Run(opts.StopCh)
 	cephClusterCollector.Run(opts.StopCh)
 	OBMetricsCollector.Run(opts.StopCh)
 	registry.MustRegister(
 		cephObjectStoreCollector,
-		cephBlockPoolCollector,
 		cephClusterCollector,
 		OBMetricsCollector,
 	)
-	if clusterAdvanceFeatureCollector != nil {
-		clusterAdvanceFeatureCollector.Run(opts.StopCh)
-		registry.MustRegister(clusterAdvanceFeatureCollector)
+
+	if c := NewCephBlockPoolCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
 	}
-	if storageConsumerCollector != nil {
-		storageConsumerCollector.Run(opts.StopCh)
-		registry.MustRegister(storageConsumerCollector)
+	if c := NewClusterAdvancedFeatureCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
 	}
-	if storageClusterCollector != nil {
-		storageClusterCollector.Run(opts.StopCh)
-		registry.MustRegister(storageClusterCollector)
+	if c := NewStorageConsumerCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
 	}
-	if storageAutoScalerCollector != nil {
-		storageAutoScalerCollector.Run(opts.StopCh)
-		registry.MustRegister(storageAutoScalerCollector)
+	if c := NewStorageClusterCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
 	}
-	if operatorConditionCollector != nil {
-		operatorConditionCollector.Run(opts.StopCh)
-		registry.MustRegister(operatorConditionCollector)
+	if c := NewStorageAutoScalerCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
 	}
+	if c := NewOperatorConditionCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
+	}
+
+	healthScoreCollector, healthScoreErr := NewHealthScoreCollector(opts)
 	if healthScoreErr != nil {
 		klog.Errorf("Health score collector not registered: %v", healthScoreErr)
 	} else if healthScoreCollector != nil {
 		healthScoreCollector.Run(opts.StopCh)
 		registry.MustRegister(healthScoreCollector)
 	}
-
 }
 
 // RegisterNonCephCollectors registers only the collectors that don't
 // depend on Ceph CRDs or tooling. Used in external mode and NooBaa standalone.
 func RegisterNonCephCollectors(registry *prometheus.Registry, opts *options.Options) {
-	operatorConditionCollector := NewOperatorConditionCollector(opts)
-	if operatorConditionCollector != nil {
-		operatorConditionCollector.Run(opts.StopCh)
-		registry.MustRegister(operatorConditionCollector)
+	if c := NewOperatorConditionCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
 	}
-	storageClusterCollector := NewStorageClusterCollector(opts)
-	if storageClusterCollector != nil {
-		storageClusterCollector.Run(opts.StopCh)
-		registry.MustRegister(storageClusterCollector)
+	if c := NewStorageClusterCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
 	}
 }
 
-var pvStoreEnabled bool
-var pvStore *internalcache.PersistentVolumeStore
-
-func enablePVStore(opts *options.Options) {
-	pvStore = internalcache.NewPersistentVolumeStore(opts)
-	client := clientset.NewForConfigOrDie(opts.Kubeconfig)
-	lw := internalcache.CreatePersistentVolumeListWatch(client, "")
-	reflector := cache.NewReflector(lw, &corev1.PersistentVolume{}, pvStore, 10*time.Minute)
-	go reflector.Run(opts.StopCh)
-	pvStoreEnabled = true
-}
-
-var rbdMirrorStoreEnabled bool
-var rbdMirrorStore *internalcache.RBDMirrorStore
-
-func enableRBDMirrorStore(opts *options.Options) {
-	rbdMirrorStore = internalcache.NewRBDMirrorStore(opts)
-	rookClient := rookclient.NewForConfigOrDie(opts.Kubeconfig)
-	lw := internalcache.CreateCephBlockPoolListWatch(rookClient, searchInNamespace(opts), "")
-	reflector := cache.NewReflector(lw, &cephv1.CephBlockPool{}, rbdMirrorStore, 30*time.Second)
-	go reflector.Run(opts.StopCh)
-	rbdMirrorStoreEnabled = true
-}
-
-var cephBlocklistStore *internalcache.CephBlocklistStore
-
-func enableCephBlocklistMirrorStore(opts *options.Options) {
-	cephBlocklistStore = internalcache.NewCephBlocklistStore(opts)
-	rookClient := rookclient.NewForConfigOrDie(opts.Kubeconfig)
-	lw := internalcache.CreateCephBlockPoolListWatch(rookClient, searchInNamespace(opts), "")
-	reflector := cache.NewReflector(lw, &cephv1.CephBlockPool{}, cephBlocklistStore, 30*time.Second)
-	go reflector.Run(opts.StopCh)
-}
-
-// RegisterPersistentVolumeAttributesCollector registers PV attribute collector to registry
-func RegisterPersistentVolumeAttributesCollector(registry *prometheus.Registry, opts *options.Options) {
-	if !pvStoreEnabled {
-		enablePVStore(opts)
+func RegisterCephRBDCollector(registry *prometheus.Registry, conn *cephconn.Conn, opts *options.Options) {
+	if len(opts.AllowedNamespaces) == 0 {
+		klog.Error("CephRBD collector not registered: no allowed namespaces")
+		return
 	}
-	pvAttributesCollector := NewPersistentVolumeAttributesCollector(pvStore, opts)
-	registry.MustRegister(pvAttributesCollector)
+	client, err := rookclient.NewForConfig(opts.Kubeconfig)
+	if err != nil {
+		klog.Errorf("CephRBD collector not registered: %v", err)
+		return
+	}
+	registerCephScanner()
+	rbdCollector := NewCephRBDCollector(conn, client, opts.AllowedNamespaces[0], opts.ScanInterval)
+	rbdCollector.Run(opts.StopCh)
+	registry.MustRegister(rbdCollector)
 }
 
-// RegisterRBDMirrorCollector registers RBD mirror metrics collector to registry
-func RegisterRBDMirrorCollector(registry *prometheus.Registry, opts *options.Options) {
-	if !pvStoreEnabled {
-		enablePVStore(opts)
-	}
-	if !rbdMirrorStoreEnabled {
-		enableRBDMirrorStore(opts)
-	}
-	rbdMirrorCollector := NewRBDMirrorCollector(rbdMirrorStore, pvStore)
-	registry.MustRegister(rbdMirrorCollector)
-}
-
-func RegisterCephBlocklistCollector(registry *prometheus.Registry, opts *options.Options) {
-	enableCephBlocklistMirrorStore(opts)
-	blocklistCollector := NewCephBlocklistCollector(cephBlocklistStore, pvStore, opts)
+// RegisterCephBlocklistCollector registers the Ceph blocklist collector to registry
+func RegisterCephBlocklistCollector(registry *prometheus.Registry) {
+	blocklistCollector := NewCephBlocklistCollector()
 	registry.MustRegister(blocklistCollector)
 }
 
-func RegisterCephRBDChildrenCollector(registry *prometheus.Registry, opts *options.Options) {
-	enablePVStore(opts)
-	childrenCollector := NewCephRBDChildrenCollector(pvStore, opts)
-	go childrenCollector.Run(opts.StopCh)
-	registry.MustRegister(childrenCollector)
-}
-
-func RegisterCephFSMetricsCollector(registry *prometheus.Registry, opts *options.Options) {
-	enablePVStore(opts)
-	cephFSMetricsCollector := NewCephFSSubvolumeCountCollector(pvStore, opts)
-	registry.MustRegister(cephFSMetricsCollector)
+func RegisterCephFSMetricsCollector(registry *prometheus.Registry, conn *cephconn.Conn, opts *options.Options) {
+	if len(opts.AllowedNamespaces) == 0 {
+		klog.Error("CephFS collector not registered: no allowed namespaces")
+		return
+	}
+	client, err := rookclient.NewForConfig(opts.Kubeconfig)
+	if err != nil {
+		klog.Errorf("CephFS collector not registered: %v", err)
+		return
+	}
+	registerCephScanner()
+	cephFSCollector := NewCephFSSubvolumeCountCollector(conn, client, opts.AllowedNamespaces[0], opts.ScanInterval)
+	cephFSCollector.Run(opts.StopCh)
+	registry.MustRegister(cephFSCollector)
 }
