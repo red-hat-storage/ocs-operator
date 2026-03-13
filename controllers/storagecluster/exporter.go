@@ -28,6 +28,8 @@ const (
 	metricsExporterName     = "ocs-metrics-exporter"
 	prometheusRoleName      = "ocs-metrics-svc"
 	metricsExporterRoleName = metricsExporterName
+	metricsMainPort         = 18080
+	metricsSelfPort         = 18081
 	portMetricsMain         = "https-main"
 	portMetricsSelf         = "https-self"
 	metricsPath             = "/metrics"
@@ -95,17 +97,18 @@ func (r *StorageClusterReconciler) enableMetricsExporter(
 		return err
 	}
 
+	// start the exporter service
+	_, err := createMetricsExporterService(ctx, r, instance)
+	if err != nil {
+		return err
+	}
+
 	// create the metrics exporter deployment
 	if err := deployMetricsExporter(ctx, r, instance); err != nil {
 		r.Log.Error(err, "failed to create ocs-metric-exporter deployment")
 		return err
 	}
 
-	// start the exporter service
-	_, err := createMetricsExporterService(ctx, r, instance)
-	if err != nil {
-		return err
-	}
 	// add the servicemonitor
 	_, err = createMetricsExporterServiceMonitor(ctx, r, instance)
 	if err != nil {
@@ -400,7 +403,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 						Image: r.images.KubeRBACProxy,
 						Args: []string{
 							"--secure-listen-address", "0.0.0.0:8443",
-							"--upstream", "http://127.0.0.1:8080/",
+							"--upstream", fmt.Sprintf("http://127.0.0.1:%d/", metricsMainPort),
 							"--tls-cert-file", "/etc/tls/private/tls.crt",
 							"--tls-private-key-file", "/etc/tls/private/tls.key",
 							"--tls-cipher-suites", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
@@ -439,7 +442,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 						Image: r.images.KubeRBACProxy,
 						Args: []string{
 							"--secure-listen-address", "0.0.0.0:9443",
-							"--upstream", "http://127.0.0.1:8081/",
+							"--upstream", fmt.Sprintf("http://127.0.0.1:%d/", metricsSelfPort),
 							"--tls-cert-file", "/etc/tls/private/tls.crt",
 							"--tls-private-key-file", "/etc/tls/private/tls.key",
 							"--tls-cipher-suites", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
@@ -465,6 +468,10 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 								"--namespaces", instance.Namespace,
 								"--ceph-auth-namespace", r.OperatorNamespace,
 								"--alertmanager-url", alertManagerURL,
+								"--host", "127.0.0.1",
+								"--port", fmt.Sprintf("%d", metricsMainPort),
+								"--exporter-host", "127.0.0.1",
+								"--exporter-port", fmt.Sprintf("%d", metricsSelfPort),
 							}
 							if instance.Spec.ExternalStorage.Enable || r.IsNoobaaStandalone {
 								args = append(args, "--no-ceph")
@@ -478,7 +485,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							ProbeHandler: corev1.ProbeHandler{
 								HTTPGet: &corev1.HTTPGetAction{
 									Path:   "/healthz",
-									Port:   intstr.FromInt32(8080),
+									Port:   intstr.FromInt32(metricsMainPort),
 									Scheme: corev1.URISchemeHTTP,
 								},
 							},
@@ -488,7 +495,7 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							ProbeHandler: corev1.ProbeHandler{
 								HTTPGet: &corev1.HTTPGetAction{
 									Path:   "/healthz",
-									Port:   intstr.FromInt32(8080),
+									Port:   intstr.FromInt32(metricsMainPort),
 									Scheme: corev1.URISchemeHTTP,
 								},
 							},
