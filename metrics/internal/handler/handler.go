@@ -8,38 +8,42 @@ import (
 )
 
 const (
-	metricsPath    = "/metrics"
-	healthzPath    = "/healthz"
-	rbdMetricsPath = metricsPath + "/rbd-mirror"
+	metricsPath = "/metrics"
+	healthzPath = "/healthz"
+	readyzPath  = "/readyz"
 )
 
-// RegisterExporterMuxHandlers registers the handlers needed to serve the
-// exporter self metrics
+type CustomResourceMuxConfig struct {
+	CustomResourceRegistry *prometheus.Registry
+	ExporterRegistry       *prometheus.Registry
+	HandlerOpts            promhttp.HandlerOpts
+	ReadyFn                func() bool
+}
+
 func RegisterExporterMuxHandlers(mux *http.ServeMux, exporterRegistry *prometheus.Registry, opts promhttp.HandlerOpts) {
 	metricsHandler := promhttp.HandlerFor(exporterRegistry, opts)
 	mux.Handle(metricsPath, metricsHandler)
 }
 
-// RegisterRBDMirrorMuxHandlers registers handlers needed to serve RBD mirror metrics
-func RegisterRBDMirrorMuxHandlers(mux *http.ServeMux, rbdRegistry *prometheus.Registry, opts promhttp.HandlerOpts) {
-	metricsHandler := promhttp.HandlerFor(rbdRegistry, opts)
-
-	mux.Handle(rbdMetricsPath, metricsHandler)
-}
-
-// RegisterCustomResourceMuxHandlers registers the handlers needed to serve metrics
-// about Custom Resources
-func RegisterCustomResourceMuxHandlers(mux *http.ServeMux, customResourceRegistry *prometheus.Registry, exporterRegistry *prometheus.Registry, opts promhttp.HandlerOpts) {
-	// Instrument metricsPath handler and register it inside the exporterRegistry
-	metricsHandler := InstrumentMetricHandler(exporterRegistry,
-		promhttp.HandlerFor(customResourceRegistry, opts),
+func RegisterCustomResourceMuxHandlers(mux *http.ServeMux, cfg CustomResourceMuxConfig) {
+	metricsHandler := InstrumentMetricHandler(cfg.ExporterRegistry,
+		promhttp.HandlerFor(cfg.CustomResourceRegistry, cfg.HandlerOpts),
 	)
 	mux.Handle(metricsPath, metricsHandler)
 
-	// Add healthzPath handler
 	mux.HandleFunc(healthzPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
+
+	if cfg.ReadyFn != nil {
+		mux.HandleFunc(readyzPath, func(w http.ResponseWriter, _ *http.Request) {
+			if cfg.ReadyFn() {
+				w.WriteHeader(http.StatusOK)
+			} else {
+				w.WriteHeader(http.StatusServiceUnavailable)
+			}
+		})
+	}
 }
 
 // InstrumentMetricHandler is a middleware that wraps the provided http.Handler

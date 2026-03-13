@@ -3,6 +3,7 @@ package options
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/rest"
@@ -16,21 +17,21 @@ const (
 	exporterMetricsPort       = 8081
 )
 
-// Options are the configurable parameters for kube-events-exporter.
+// Options are the configurable parameters for ocs-metrics-exporter.
 type Options struct {
-	Apiserver         string
-	KubeconfigPath    string
-	Host              string
-	Port              int
-	ExporterHost      string
-	ExporterPort      int
-	Help              bool
-	AllowedNamespaces []string
-	CephAuthNamespace string
-	AlertManagerURL   string
+	Apiserver          string
+	KubeconfigPath     string
+	Host               string
+	Port               int
+	ExporterHost       string
+	ExporterPort       int
+	Help               bool
+	AllowedNamespaces  []string
+	AlertManagerURL    string
+	ScanInterval       time.Duration
 	DisableHealthScore bool
 	NoCeph             bool
-	IsDevelopment     bool
+	IsDevelopment      bool
 
 	flags      *pflag.FlagSet
 	StopCh     chan struct{}
@@ -59,10 +60,10 @@ func (o *Options) AddFlags() {
 	o.flags.IntVar(&o.ExporterPort, "exporter-port", exporterMetricsPort, "Port to expose exporter self metrics on.")
 	o.flags.BoolVar(&o.Help, "help", false, "To display Usage information.")
 	o.flags.StringArrayVar(&o.AllowedNamespaces, "namespaces", []string{"openshift-storage"}, "List of namespaces to be monitored.")
-	o.flags.StringVar(&o.CephAuthNamespace, "ceph-auth-namespace", "openshift-storage", "Namespace to fetch the Ceph auth from.")
 	o.flags.StringVar(&o.AlertManagerURL, "alertmanager-url", "", "AlertManager URL for querying alerts. If not specified, defaults to openshift-monitoring AlertManager.")
 	o.flags.BoolVar(&o.DisableHealthScore, "disable-health-score", false, "Disable health score metric collection for internal storage clusters.")
 	o.flags.BoolVar(&o.NoCeph, "no-ceph", false, "Skip Ceph-dependent collectors (for external mode or NooBaa standalone).")
+	o.flags.DurationVar(&o.ScanInterval, "scan-interval", 5*time.Minute, "Interval between background Ceph scans.")
 	o.flags.BoolVar(&o.IsDevelopment, "development", false, "If we are running in development mode")
 }
 
