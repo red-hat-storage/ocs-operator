@@ -236,7 +236,6 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 		if availableServices.CephFs {
 			if err := r.reconcileCephClientCephFSProvisioner(
 				util.GenerateCsiCephFsProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
-				util.GenerateNameForCephFilesystem(storageCluster.Name),
 				consumerResources.GetSubVolumeGroupName(),
 				consumerConfigMap,
 				csiCephUserCurrGen,
@@ -245,7 +244,6 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 			}
 			if err := r.reconcileCephClientCephFSNode(
 				util.GenerateCsiCephFsNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
-				util.GenerateNameForCephFilesystem(storageCluster.Name),
 				consumerResources.GetSubVolumeGroupName(),
 				consumerConfigMap,
 				csiCephUserCurrGen,
@@ -679,7 +677,6 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDNode(
 
 func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
 	cephClientName string,
-	cephFileSystemName string,
 	subVolumeGroupName string,
 	additionalOwner client.Object,
 	csiCephUserGeneration int64,
@@ -699,7 +696,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
 		cephClient.Spec.Caps = map[string]string{
 			"mon": "allow r, allow command 'osd blocklist'",
 			"mgr": "allow rw",
-			"osd": fmt.Sprintf("allow rw tag cephfs metadata=%s", cephFileSystemName),
+			"osd": "allow rw tag cephfs metadata=*",
 			"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
 		}
 		return nil
@@ -711,7 +708,6 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
 
 func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode(
 	cephClientName string,
-	cephFileSystemName string,
 	subVolumeGroupName string,
 	additionalOwner client.Object,
 	csiCephUserGeneration int64,
@@ -731,7 +727,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode(
 		cephClient.Spec.Caps = map[string]string{
 			"mon": "allow r",
 			"mgr": "allow rw",
-			"osd": fmt.Sprintf("allow rw tag cephfs *=%s", cephFileSystemName),
+			"osd": "allow rw tag cephfs *=*",
 			"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
 		}
 		return nil
