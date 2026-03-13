@@ -15,10 +15,33 @@ import (
 )
 
 const (
-	// component within the project/exporter
 	poolMirroringSubsystem = "pool_mirroring"
 	defaultRadosNamespace  = "internal"
 )
+
+// imageHealthValue maps a Ceph image health string to its numeric gauge value.
+// Returns -1 if the health string isn't recognized.
+func imageHealthValue(health string) float64 {
+	switch health {
+	case "OK":
+		return 0
+	case "UNKNOWN":
+		return 1
+	case "WARNING":
+		return 2
+	case "ERROR":
+		return 3
+	default:
+		return -1
+	}
+}
+
+func boolToFloat64(b bool) float64 {
+	if b {
+		return 1
+	}
+	return 0
+}
 
 var _ prometheus.Collector = &CephBlockPoolCollector{}
 
@@ -35,7 +58,8 @@ type CephBlockPoolCollector struct {
 func NewCephBlockPoolCollector(opts *options.Options) *CephBlockPoolCollector {
 	client, err := rookclient.NewForConfig(opts.Kubeconfig)
 	if err != nil {
-		klog.Error(err)
+		klog.Errorf("failed to create rook client for CephBlockPool collector: %v", err)
+		return nil
 	}
 
 	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephblockpools", searchInNamespace(opts), fields.Everything())
@@ -48,13 +72,13 @@ func NewCephBlockPoolCollector(opts *options.Options) *CephBlockPoolCollector {
 		MirroringImageHealth: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, poolMirroringSubsystem, "image_health"),
 			`Pool Mirroring Image Health. 0=OK, 1=UNKNOWN, 2=WARNING & 3=ERROR`,
-			[]string{"name", "namespace", "rados_namespace"},
+			[]string{"name", "namespace", "rados_namespace", "consumer_name"},
 			nil,
 		),
 		MirroringStatus: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, poolMirroringSubsystem, "status"),
 			`Pool Mirroring Status.  0=Disabled, 1=Enabled`,
-			[]string{"name", "namespace", "rados_namespace"},
+			[]string{"name", "namespace", "rados_namespace", "consumer_name"},
 			nil,
 		),
 		Informer:          sharedIndexInformer,
@@ -99,52 +123,50 @@ func (c *CephBlockPoolCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func getAllBlockPoolsNamespaces(lister cephv1listers.CephBlockPoolRadosNamespaceLister, namespaces []string) (radosNamespaces []*cephv1.CephBlockPoolRadosNamespace) {
-	var tempRadosNamespaces []*cephv1.CephBlockPoolRadosNamespace
-	var err error
+func getAllBlockPoolsNamespaces(lister cephv1listers.CephBlockPoolRadosNamespaceLister, namespaces []string) []*cephv1.CephBlockPoolRadosNamespace {
 	if len(namespaces) == 0 {
-		radosNamespaces, err = lister.List(labels.Everything())
+		result, err := lister.List(labels.Everything())
 		if err != nil {
-			klog.Errorf("couldn't list CephBlockPools. %v", err)
+			klog.Errorf("couldn't list CephBlockPoolRadosNamespaces: %v", err)
+			return nil
 		}
-		return
+		return result
 	}
-	for _, namespace := range namespaces {
-		tempRadosNamespaces, err = lister.CephBlockPoolRadosNamespaces(namespace).List(labels.Everything())
+	var result []*cephv1.CephBlockPoolRadosNamespace
+	for _, ns := range namespaces {
+		items, err := lister.CephBlockPoolRadosNamespaces(ns).List(labels.Everything())
 		if err != nil {
-			klog.Errorf("couldn't list CephBlockPool in namespace %s. %v", namespace, err)
+			klog.Errorf("couldn't list CephBlockPoolRadosNamespaces in namespace %s: %v", ns, err)
 			continue
 		}
-		radosNamespaces = append(radosNamespaces, tempRadosNamespaces...)
+		result = append(result, items...)
 	}
-	return
+	return result
 }
 
-func getAllBlockPools(lister cephv1listers.CephBlockPoolLister, namespaces []string) (cephBlockPools []*cephv1.CephBlockPool) {
-	var tempCephBlockPools []*cephv1.CephBlockPool
-	var err error
+func getAllBlockPools(lister cephv1listers.CephBlockPoolLister, namespaces []string) []*cephv1.CephBlockPool {
 	if len(namespaces) == 0 {
-		cephBlockPools, err = lister.List(labels.Everything())
+		result, err := lister.List(labels.Everything())
 		if err != nil {
-			klog.Errorf("couldn't list CephBlockPools. %v", err)
+			klog.Errorf("couldn't list CephBlockPools: %v", err)
+			return nil
 		}
-		return
+		return result
 	}
-	for _, namespace := range namespaces {
-		tempCephBlockPools, err = lister.CephBlockPools(namespace).List(labels.Everything())
+	var result []*cephv1.CephBlockPool
+	for _, ns := range namespaces {
+		pools, err := lister.CephBlockPools(ns).List(labels.Everything())
 		if err != nil {
-			klog.Errorf("couldn't list CephBlockPool in namespace %s. %v", namespace, err)
+			klog.Errorf("couldn't list CephBlockPools in namespace %s: %v", ns, err)
 			continue
 		}
-		cephBlockPools = append(cephBlockPools, tempCephBlockPools...)
+		result = append(result, pools...)
 	}
-	return
+	return result
 }
 
 func (c *CephBlockPoolCollector) collectMirroringImageHealth(cephBlockPools []*cephv1.CephBlockPool, ch chan<- prometheus.Metric) {
 	for _, cephBlockPool := range cephBlockPools {
-		var imageHealth string
-
 		if !cephBlockPool.Spec.Mirroring.Enabled {
 			continue
 		}
@@ -155,105 +177,55 @@ func (c *CephBlockPoolCollector) collectMirroringImageHealth(cephBlockPools []*c
 			continue
 		}
 
-		switch mirroringStatus.Summary.ImageHealth {
-		case "OK":
-			ch <- prometheus.MustNewConstMetric(c.MirroringImageHealth,
-				prometheus.GaugeValue, 0,
-				cephBlockPool.Name,
-				cephBlockPool.Namespace, defaultRadosNamespace)
-		case "UNKNOWN":
-			ch <- prometheus.MustNewConstMetric(c.MirroringImageHealth,
-				prometheus.GaugeValue, 1,
-				cephBlockPool.Name,
-				cephBlockPool.Namespace, defaultRadosNamespace)
-		case "WARNING":
-			ch <- prometheus.MustNewConstMetric(c.MirroringImageHealth,
-				prometheus.GaugeValue, 2,
-				cephBlockPool.Name,
-				cephBlockPool.Namespace, defaultRadosNamespace)
-		case "ERROR":
-			ch <- prometheus.MustNewConstMetric(c.MirroringImageHealth,
-				prometheus.GaugeValue, 3,
-				cephBlockPool.Name,
-				cephBlockPool.Namespace, defaultRadosNamespace)
-		default:
-			klog.Errorf("Invalid image health, %q, for pool %s. Must be OK, UNKNOWN, WARNING or ERROR.", imageHealth, cephBlockPool.Name)
+		health := mirroringStatus.Summary.ImageHealth
+		val := imageHealthValue(health)
+		if val < 0 {
+			klog.Errorf("Invalid image health %q for pool %s. Must be OK, UNKNOWN, WARNING or ERROR.", health, cephBlockPool.Name)
+			continue
 		}
+		ch <- prometheus.MustNewConstMetric(c.MirroringImageHealth,
+			prometheus.GaugeValue, val,
+			cephBlockPool.Name, cephBlockPool.Namespace, defaultRadosNamespace, "")
 	}
 }
 
 func (c *CephBlockPoolCollector) collectMirroringStatus(cephBlockPools []*cephv1.CephBlockPool, ch chan<- prometheus.Metric) {
 	for _, cephBlockPool := range cephBlockPools {
-		switch cephBlockPool.Spec.Mirroring.Enabled {
-		case true:
-			ch <- prometheus.MustNewConstMetric(c.MirroringStatus,
-				prometheus.GaugeValue, 1,
-				cephBlockPool.Name,
-				cephBlockPool.Namespace, defaultRadosNamespace)
-		case false:
-			ch <- prometheus.MustNewConstMetric(c.MirroringStatus,
-				prometheus.GaugeValue, 0,
-				cephBlockPool.Name,
-				cephBlockPool.Namespace, defaultRadosNamespace)
-		default:
-			klog.Errorf("Invalid spec for pool %s. CephBlockPool.Spec.Mirroring.Enabled must be true or false", cephBlockPool.Name)
-		}
+		ch <- prometheus.MustNewConstMetric(c.MirroringStatus,
+			prometheus.GaugeValue, boolToFloat64(cephBlockPool.Spec.Mirroring.Enabled),
+			cephBlockPool.Name, cephBlockPool.Namespace, defaultRadosNamespace, "")
 	}
 }
 
-func (c *CephBlockPoolCollector) collectMirroringImageHealthRadosNamespace(radosNamespace []*cephv1.CephBlockPoolRadosNamespace, ch chan<- prometheus.Metric) {
-	for _, radosNamespace := range radosNamespace {
-		var imageHealth string
-
-		if radosNamespace.Spec.Mirroring == nil {
+func (c *CephBlockPoolCollector) collectMirroringImageHealthRadosNamespace(radosNamespaces []*cephv1.CephBlockPoolRadosNamespace, ch chan<- prometheus.Metric) {
+	for _, rns := range radosNamespaces {
+		if rns.Spec.Mirroring == nil {
 			continue
 		}
-		mirroringStatus := radosNamespace.Status.MirroringStatus
+		mirroringStatus := rns.Status.MirroringStatus
 		if mirroringStatus == nil || mirroringStatus.Summary == nil || len(strings.TrimSpace(mirroringStatus.Summary.ImageHealth)) == 0 {
-			klog.Errorf("Mirroring is enabled on CephBlockPoolRadosNamespace %q but image health status is not available.", radosNamespace.Name)
+			klog.Errorf("Mirroring is enabled on CephBlockPoolRadosNamespace %q but image health status is not available.", rns.Name)
 			continue
 		}
 
-		switch mirroringStatus.Summary.ImageHealth {
-		case "OK":
-			ch <- prometheus.MustNewConstMetric(c.MirroringImageHealth,
-				prometheus.GaugeValue, 0,
-				radosNamespace.Spec.BlockPoolName,
-				radosNamespace.Namespace, radosNamespace.Name)
-		case "UNKNOWN":
-			ch <- prometheus.MustNewConstMetric(c.MirroringImageHealth,
-				prometheus.GaugeValue, 1,
-				radosNamespace.Spec.BlockPoolName,
-				radosNamespace.Namespace, radosNamespace.Name)
-		case "WARNING":
-			ch <- prometheus.MustNewConstMetric(c.MirroringImageHealth,
-				prometheus.GaugeValue, 2,
-				radosNamespace.Spec.BlockPoolName,
-				radosNamespace.Namespace, radosNamespace.Name)
-		case "ERROR":
-			ch <- prometheus.MustNewConstMetric(c.MirroringImageHealth,
-				prometheus.GaugeValue, 3,
-				radosNamespace.Spec.BlockPoolName,
-				radosNamespace.Namespace, radosNamespace.Name)
-		default:
-			klog.Errorf("Invalid image health, %q, for rados namespace %s in pool %s. Must be OK, UNKNOWN, WARNING or ERROR.", imageHealth, radosNamespace.Name, radosNamespace.Spec.BlockPoolName)
+		health := mirroringStatus.Summary.ImageHealth
+		val := imageHealthValue(health)
+		if val < 0 {
+			klog.Errorf("Invalid image health %q for rados namespace %s in pool %s. Must be OK, UNKNOWN, WARNING or ERROR.", health, rns.Name, rns.Spec.BlockPoolName)
+			continue
 		}
+		consumer := consumerOwnerName(rns.OwnerReferences)
+		ch <- prometheus.MustNewConstMetric(c.MirroringImageHealth,
+			prometheus.GaugeValue, val,
+			rns.Spec.BlockPoolName, rns.Namespace, rns.Name, consumer)
 	}
 }
 
-func (c *CephBlockPoolCollector) collectMirroringStatusRadosNamespace(radosNamespace []*cephv1.CephBlockPoolRadosNamespace, ch chan<- prometheus.Metric) {
-	for _, cephBlockPool := range radosNamespace {
-		if cephBlockPool.Spec.Mirroring != nil {
-			ch <- prometheus.MustNewConstMetric(c.MirroringStatus,
-				prometheus.GaugeValue, 1,
-				cephBlockPool.Spec.BlockPoolName,
-				cephBlockPool.Namespace, cephBlockPool.Name)
-		} else {
-			ch <- prometheus.MustNewConstMetric(c.MirroringStatus,
-				prometheus.GaugeValue, 0,
-				cephBlockPool.Spec.BlockPoolName,
-				cephBlockPool.Namespace, cephBlockPool.Name)
-
-		}
+func (c *CephBlockPoolCollector) collectMirroringStatusRadosNamespace(radosNamespaces []*cephv1.CephBlockPoolRadosNamespace, ch chan<- prometheus.Metric) {
+	for _, rns := range radosNamespaces {
+		consumer := consumerOwnerName(rns.OwnerReferences)
+		ch <- prometheus.MustNewConstMetric(c.MirroringStatus,
+			prometheus.GaugeValue, boolToFloat64(rns.Spec.Mirroring != nil),
+			rns.Spec.BlockPoolName, rns.Namespace, rns.Name, consumer)
 	}
 }

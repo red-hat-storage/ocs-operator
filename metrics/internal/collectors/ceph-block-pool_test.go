@@ -43,6 +43,12 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mockCephBlockPoolRadosNamespace",
 			Namespace: "openshift-storage",
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Kind: "StorageConsumer",
+					Name: "consumer-a",
+				},
+			},
 		},
 		Spec: cephv1.CephBlockPoolRadosNamespaceSpec{
 			BlockPoolName: "mockCephBlockPool-1",
@@ -56,6 +62,12 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mockCephBlockPoolRadosNamespace",
 			Namespace: "openshift-storage",
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Kind: "StorageConsumer",
+					Name: "consumer-a",
+				},
+			},
 		},
 		Spec: cephv1.CephBlockPoolRadosNamespaceSpec{
 			BlockPoolName: "mockCephBlockPool-1",
@@ -256,6 +268,8 @@ func TestCollectPoolMirroringImageHealth(t *testing.T) {
 					assert.Contains(t, cephBlockPoolCollector.AllowedNamespaces, *label.Value)
 				} else if *label.Name == "rados_namespace" {
 					assert.Contains(t, defaultRadosNamespace, *label.Value)
+				} else if *label.Name == "consumer_name" {
+					assert.Equal(t, "", *label.Value)
 				}
 			}
 		}
@@ -331,6 +345,8 @@ func TestCollectPoolMirroringStatus(t *testing.T) {
 					assert.Contains(t, cephBlockPoolCollector.AllowedNamespaces, *label.Value)
 				} else if *label.Name == "rados_namespace" {
 					assert.Contains(t, defaultRadosNamespace, *label.Value)
+				} else if *label.Name == "consumer_name" {
+					assert.Equal(t, "", *label.Value)
 				}
 			}
 		}
@@ -442,6 +458,8 @@ func TestCollectRadosNamespaceMirroringImageHealth(t *testing.T) {
 					assert.Contains(t, cephBlockPoolCollector.AllowedNamespaces, *label.Value)
 				} else if *label.Name == "name" {
 					assert.Equal(t, *label.Value, objOk.Spec.BlockPoolName)
+				} else if *label.Name == "consumer_name" {
+					assert.Equal(t, "consumer-a", *label.Value)
 				}
 			}
 		}
@@ -520,8 +538,8 @@ func TestCollectRadosNamespaceMirroringStatus(t *testing.T) {
 					}
 				} else if *label.Name == "namespace" {
 					assert.Contains(t, cephBlockPoolCollector.AllowedNamespaces, *label.Value)
-				} else if *label.Name == "rados_namespace" {
-					assert.Contains(t, objImageMode.Spec.BlockPoolName, *label.Value)
+				} else if *label.Name == "consumer_name" {
+					assert.Equal(t, "consumer-a", *label.Value)
 				}
 			}
 		}
