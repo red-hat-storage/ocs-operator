@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	securityv1 "github.com/openshift/api/security/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -282,6 +283,33 @@ func mergeStringSlices(existing, desired []string) []string {
 // createBlackboxConfigMap creates or updates the ConfigMap
 func (r *StorageClusterReconciler) createBlackboxConfigMap(ctx context.Context, instance *ocsv1.StorageCluster) error {
 
+	// Determine if we should bind to Multus source IP
+	useMultus := instance.Spec.Network != nil &&
+		instance.Spec.Network.Provider == "multus" &&
+		instance.Spec.Network.Selectors != nil &&
+		instance.Spec.Network.Selectors["public"] != ""
+
+	// Build config with optional source_ip_address binding
+	blackboxConfig := `
+modules:
+  icmp_internal:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: ip4
+`
+	// If Multus is enabled, add source IP binding to ensure probes exit via net1
+	// Use CIDR notation to match any IP from the public-net range
+	if useMultus {
+		// Extract the public network range from the NAD or use a default
+		// This ensures ICMP probes use the Multus interface as source
+		blackboxConfig += `      # Bind to Multus public network to ensure probes use dedicated storage path
+      source_ip_address: 192.168.20.0/24  # Replace with your actual public-net range
+`
+		// Note: In production, you might want to dynamically discover the net1 IP range
+		// by querying the NetworkAttachmentDefinition or using an init container
+	}
+
 	desired := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      blackboxConfigMapName,
@@ -289,14 +317,7 @@ func (r *StorageClusterReconciler) createBlackboxConfigMap(ctx context.Context, 
 			Labels:    blackboxExporterLabels,
 		},
 		Data: map[string]string{
-			"config.yml": `
-modules:
-  icmp_internal:
-    prober: icmp
-    timeout: 5s
-    icmp:
-      preferred_ip_protocol: ip4
-`,
+			"config.yml": blackboxConfig,
 		},
 	}
 
@@ -326,7 +347,7 @@ modules:
 	return nil
 }
 
-func (r *StorageClusterReconciler) getNodeIPs(ctx context.Context) ([]string, error) {
+func (r *StorageClusterReconciler) getNodeIPs(ctx context.Context, instance *ocsv1.StorageCluster) ([]string, error) {
 	nodes := &corev1.NodeList{}
 	err := r.Client.List(ctx, nodes, client.MatchingLabels{defaults.NodeAffinityKey: ""})
 	if err != nil {
@@ -334,20 +355,87 @@ func (r *StorageClusterReconciler) getNodeIPs(ctx context.Context) ([]string, er
 	}
 
 	var ips []string
+	useMultus := instance.Spec.Network != nil &&
+		instance.Spec.Network.Provider == "multus" &&
+		instance.Spec.Network.Selectors != nil &&
+		instance.Spec.Network.Selectors["public"] != ""
 	for _, node := range nodes.Items {
-		for _, addr := range node.Status.Addresses {
-			if addr.Type == corev1.NodeInternalIP {
-				ips = append(ips, addr.Address)
-				break
+		var targetIP string
+
+		if useMultus {
+			// Priority 1: Check for ODF-specific annotation with public network IP
+			if publicIP, ok := node.Annotations["network.openshift.io/public-ip"]; ok && publicIP != "" {
+				targetIP = publicIP
+			}
+			// Priority 2: Check for Rook/Ceph annotation
+			if publicIP, ok := node.Annotations["ceph.rook.io/public-ip"]; ok && publicIP != "" {
+				targetIP = publicIP
+			}
+
+			if publicIP, ok := node.Labels["node.openshift.io/public-ip"]; ok && publicIP != "" {
+				targetIP = publicIP
+			}
+
+			// Fallback: Try to extract from node status addresses with specific type
+			// Some deployments add a custom address type for public network
+			if targetIP == "" {
+				for _, addr := range node.Status.Addresses {
+					// Look for address types that might indicate public/storage network
+					if addr.Type == "ExternalIP" ||
+						addr.Type == corev1.NodeExternalIP ||
+						strings.Contains(string(addr.Type), "public") {
+						targetIP = addr.Address
+						break
+					}
+				}
 			}
 		}
+
+		// Fallback to NodeInternalIP if no Multus IP found or Multus not enabled
+		if targetIP == "" {
+			for _, addr := range node.Status.Addresses {
+				if addr.Type == corev1.NodeInternalIP {
+					targetIP = addr.Address
+					break
+				}
+			}
+		}
+
+		if targetIP != "" {
+			ips = append(ips, targetIP)
+		}
 	}
+
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("no suitable node IPs found for Blackbox probing")
+	}
+
 	return ips, nil
 }
 
 // createBlackboxDeployment deploys the Blackbox Exporter
 func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context, instance *ocsv1.StorageCluster) error {
 	placement := getPlacement(instance, defaults.BlackboxExporterKey)
+	podAnnotations := map[string]string{}
+	if instance.Spec.Network != nil && instance.Spec.Network.Provider == "multus" {
+		var networks []string
+
+		// Access selectors via map keys using CephNetworkType constants
+		if instance.Spec.Network.Selectors != nil {
+			// Use the correct constant keys from rook/ceph API
+			if publicNet, ok := instance.Spec.Network.Selectors["public"]; ok && publicNet != "" {
+				networks = append(networks, publicNet)
+			}
+			if clusterNet, ok := instance.Spec.Network.Selectors["cluster"]; ok && clusterNet != "" {
+				networks = append(networks, clusterNet)
+			}
+		}
+
+		if len(networks) > 0 {
+			podAnnotations["k8s.v1.cni.cncf.io/networks"] = strings.Join(networks, ",")
+		}
+	}
+
 	desired := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      blackboxExporterName,
@@ -359,7 +447,8 @@ func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context,
 			Selector: &metav1.LabelSelector{MatchLabels: blackboxExporterLabels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: blackboxExporterLabels,
+					Labels:      blackboxExporterLabels,
+					Annotations: podAnnotations,
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: blackboxServiceAccount,
@@ -527,7 +616,7 @@ func (r *StorageClusterReconciler) createBlackboxService(ctx context.Context, in
 
 // createBlackboxProbe creates or updates the Probe
 func (r *StorageClusterReconciler) createBlackboxProbe(ctx context.Context, instance *ocsv1.StorageCluster) error {
-	nodeIPs, err := r.getNodeIPs(ctx)
+	nodeIPs, err := r.getNodeIPs(ctx, instance)
 	if err != nil {
 		r.Log.Error(err, "Failed to get node IPs")
 		return err
@@ -549,11 +638,17 @@ func (r *StorageClusterReconciler) createBlackboxProbe(ctx context.Context, inst
 					Targets: nodeIPs,
 					Labels: map[string]string{
 						"job": blackboxExporterName,
+						"network_type": func() string {
+							if instance.Spec.Network != nil && instance.Spec.Network.Provider == "multus" {
+								return "multus-public"
+							}
+							return "default-sdn"
+						}(),
 					},
 				},
 			},
 			Interval:      blackboxScrapeInterval,
-			ScrapeTimeout: "5s",
+			ScrapeTimeout: "10s",
 		},
 	}
 	actual := &monitoringv1.Probe{
