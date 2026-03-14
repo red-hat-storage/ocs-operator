@@ -318,7 +318,9 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 					},
 					Tolerations: getPlacement(instance, defaults.APIServerKey).Tolerations,
 					Affinity: &corev1.Affinity{
-						NodeAffinity: getPlacement(instance, defaults.APIServerKey).NodeAffinity,
+						NodeAffinity:    getPlacement(instance, defaults.APIServerKey).NodeAffinity,
+						PodAffinity:     getPlacement(instance, defaults.APIServerKey).PodAffinity,
+						PodAntiAffinity: getPlacement(instance, defaults.APIServerKey).PodAntiAffinity,
 					},
 					PriorityClassName:  systemClusterCritical,
 					ServiceAccountName: ocsProviderServerName,
@@ -395,6 +397,14 @@ func getOnboardingJobObject(instance *ocsv1.StorageCluster) *batchv1.Job {
 								},
 							},
 						},
+					},
+					// Use the same placement as the Provider API Server
+					// As the generator job is too insignificant to have it's own placement
+					Tolerations: getPlacement(instance, defaults.APIServerKey).Tolerations,
+					Affinity: &corev1.Affinity{
+						NodeAffinity:    getPlacement(instance, defaults.APIServerKey).NodeAffinity,
+						PodAffinity:     getPlacement(instance, defaults.APIServerKey).PodAffinity,
+						PodAntiAffinity: getPlacement(instance, defaults.APIServerKey).PodAntiAffinity,
 					},
 				},
 			},
