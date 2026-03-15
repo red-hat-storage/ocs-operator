@@ -320,7 +320,23 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			}
 
 			kubeResource.GetObjectKind().SetGroupVersionKind(gvk)
-			sanitizeKubeResource(kubeResource)
+			switch gvk.Kind {
+			case "ObjectBucketClaim", "ObjectBucket":
+				sanitizeKubeResource(
+					kubeResource,
+					[]string{
+						"ObjectMeta",
+					},
+				)
+			default:
+				sanitizeKubeResource(
+					kubeResource,
+					[]string{
+						"Status",
+						"ObjectMeta",
+					},
+				)
+			}
 			kubeResourceBytes := util.JsonMustMarshal(kubeResource)
 			response.KubeObjects = append(response.KubeObjects, &pb.KubeObject{Bytes: kubeResourceBytes})
 		}
@@ -2343,14 +2359,15 @@ func (s *OCSProviderServer) getOdfVolumeGroupSnapshotClassesResourceVersion(ctx 
 	})
 }
 
-func sanitizeKubeResource(obj client.Object) {
+func sanitizeKubeResource(obj client.Object, fieldsToSanitize []string) {
 	name := obj.GetName()
 	namespace := obj.GetNamespace()
 	labels := obj.GetLabels()
 	annotations := obj.GetAnnotations()
 
-	zeroFieldByName(obj, "Status")
-	zeroFieldByName(obj, "ObjectMeta")
+	for _, v := range fieldsToSanitize {
+		zeroFieldByName(obj, v)
+	}
 
 	obj.SetName(name)
 	obj.SetNamespace(namespace)
