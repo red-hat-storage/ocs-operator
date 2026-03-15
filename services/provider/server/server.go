@@ -322,14 +322,20 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			kubeResource.GetObjectKind().SetGroupVersionKind(gvk)
 			switch gvk.Kind {
 			case "ObjectBucketClaim", "ObjectBucket":
-				// Skip sanitization for OBC/OB to preserve their full structure
-			case "Secret", "ConfigMap":
-				if !isOwnedByObjectBucketClaim(kubeResource) {
-					// Sanitize ConfigMaps and Secrets not owned by OBC
-					sanitizeKubeResource(kubeResource)
-				}
+				sanitizeKubeResource(
+					kubeResource,
+					[]string{
+						"ObjectMeta",
+					},
+				)
 			default:
-				sanitizeKubeResource(kubeResource)
+				sanitizeKubeResource(
+					kubeResource,
+					[]string{
+						"Status",
+						"ObjectMeta",
+					},
+				)
 			}
 			kubeResourceBytes := util.JsonMustMarshal(kubeResource)
 			response.KubeObjects = append(response.KubeObjects, &pb.KubeObject{Bytes: kubeResourceBytes})
@@ -2353,21 +2359,15 @@ func (s *OCSProviderServer) getOdfVolumeGroupSnapshotClassesResourceVersion(ctx 
 	})
 }
 
-// isOwnedByObjectBucketClaim returns true if the object has an owner reference to an ObjectBucketClaim.
-func isOwnedByObjectBucketClaim(obj client.Object) bool {
-	return slices.IndexFunc(obj.GetOwnerReferences(), func(ref metav1.OwnerReference) bool {
-		return ref.Kind == "ObjectBucketClaim"
-	}) >= 0
-}
-
-func sanitizeKubeResource(obj client.Object) {
+func sanitizeKubeResource(obj client.Object, fieldsToSanitize []string) {
 	name := obj.GetName()
 	namespace := obj.GetNamespace()
 	labels := obj.GetLabels()
 	annotations := obj.GetAnnotations()
 
-	zeroFieldByName(obj, "Status")
-	zeroFieldByName(obj, "ObjectMeta")
+	for _, v := range fieldsToSanitize {
+		zeroFieldByName(obj, v)
+	}
 
 	obj.SetName(name)
 	obj.SetNamespace(namespace)
