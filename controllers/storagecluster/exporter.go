@@ -460,11 +460,17 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 						},
 					},
 					{
-						Args: []string{
-							"--namespaces", instance.Namespace,
-							"--ceph-auth-namespace", r.OperatorNamespace,
-							"--alertmanager-url", alertManagerURL,
-						},
+						Args: func() []string {
+							args := []string{
+								"--namespaces", instance.Namespace,
+								"--ceph-auth-namespace", r.OperatorNamespace,
+								"--alertmanager-url", alertManagerURL,
+							}
+							if instance.Spec.ExternalStorage.Enable || r.IsNoobaaStandalone {
+								args = append(args, "--no-ceph")
+							}
+							return args
+						}(),
 						Command: []string{"/usr/local/bin/metrics-exporter"},
 						Image:   r.images.OCSMetricsExporter,
 						Name:    metricsExporterName,

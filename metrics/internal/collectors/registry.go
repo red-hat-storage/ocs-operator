@@ -81,6 +81,21 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 
 }
 
+// RegisterNonCephCollectors registers only the collectors that don't
+// depend on Ceph CRDs or tooling. Used in external mode and NooBaa standalone.
+func RegisterNonCephCollectors(registry *prometheus.Registry, opts *options.Options) {
+	operatorConditionCollector := NewOperatorConditionCollector(opts)
+	if operatorConditionCollector != nil {
+		operatorConditionCollector.Run(opts.StopCh)
+		registry.MustRegister(operatorConditionCollector)
+	}
+	storageClusterCollector := NewStorageClusterCollector(opts)
+	if storageClusterCollector != nil {
+		storageClusterCollector.Run(opts.StopCh)
+		registry.MustRegister(storageClusterCollector)
+	}
+}
+
 var pvStoreEnabled bool
 var pvStore *internalcache.PersistentVolumeStore
 

@@ -701,15 +701,12 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				ReconcileStrategy: string(ReconcileStrategyUnknown),
 			}
 		}
-		// ocs-metrics exporter and blackbox exporter
-		// should not be deployed in external mode or MCG standalone mode
+		if err := r.enableMetricsExporter(ctx, instance); err != nil {
+			r.Log.Error(err, "Failed to reconcile metrics exporter.")
+			return reconcile.Result{}, err
+		}
+		// blackbox exporter should not be deployed in external mode or MCG standalone mode
 		if !(instance.Spec.ExternalStorage.Enable || r.IsNoobaaStandalone) {
-
-			if err := r.enableMetricsExporter(ctx, instance); err != nil {
-				r.Log.Error(err, "Failed to reconcile metrics exporter.")
-				return reconcile.Result{}, err
-			}
-
 			if err := r.deployBlackboxExporter(ctx, instance); err != nil {
 				r.Log.Error(err, "Failed to reconcile blackbox exporter.")
 				return reconcile.Result{}, err
