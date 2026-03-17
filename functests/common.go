@@ -15,9 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 )
 
-//nolint:errcheck
 func debug(msg string, args ...interface{}) {
-	ginkgo.GinkgoWriter.Write([]byte(fmt.Sprintf(msg, args...)))
+	_, _ = fmt.Fprintf(ginkgo.GinkgoWriter, msg, args...)
 }
 
 // RunMustGather runs the OCS must-gather container image

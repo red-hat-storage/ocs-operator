@@ -91,7 +91,7 @@ func queryMetrics(client *http.Client, operatorNamespace string, query string, l
 		log.Error(err, "failed to read get response")
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var promResp PrometheusResponse
 	if err := json.Unmarshal([]byte(body), &promResp); err != nil {
