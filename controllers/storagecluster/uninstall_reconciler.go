@@ -45,15 +45,13 @@ const (
 
 // deleteNodeAffinityKeyFromNodes deletes the default NodeAffinityKey from the OCS nodes
 // This is not used, yet.
-//
-// nolint:unused
 func (r *StorageClusterReconciler) deleteNodeAffinityKeyFromNodes(sc *ocsv1.StorageCluster) (err error) {
 
 	// We should delete the label only when the StorageCluster is using the default NodeAffinityKey
 	if sc.Spec.LabelSelector == nil {
 		nodes, err := r.getStorageClusterEligibleNodes(sc)
 		if err != nil {
-			r.Log.Error(err, "Uninstall: unable to obtain the list of nodes eligible for the Storage Cluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name)) //nolint:gosimple
+			r.Log.Error(err, "Uninstall: unable to obtain the list of nodes eligible for the Storage Cluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
 			return nil
 		}
 		for _, node := range nodes.Items {
@@ -96,7 +94,7 @@ func (r *StorageClusterReconciler) deleteNodeTaint(sc *ocsv1.StorageCluster) (er
 
 	nodes, err := r.getStorageClusterEligibleNodes(sc)
 	if err != nil {
-		r.Log.Error(err, "Uninstall: unable to obtain the list of nodes eligible for the Storage Cluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name)) //nolint:gosimple
+		r.Log.Error(err, "Uninstall: unable to obtain the list of nodes eligible for the Storage Cluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
 		return nil
 	}
 	for _, node := range nodes.Items {
