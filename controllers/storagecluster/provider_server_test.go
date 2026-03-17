@@ -72,14 +72,14 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 		deployment = &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
-		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment))
+		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment))
 		expectedDeployment := GetProviderAPIServerDeploymentForTest(instance)
 		assert.Equal(t, deployment.Spec, expectedDeployment.Spec)
 
 		service = &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
-		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
+		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
 		expectedService := GetProviderAPIServerServiceForTest(instance)
 		assert.Equal(t, expectedService.Spec, service.Spec)
 	})
@@ -130,14 +130,14 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 		deployment = &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
-		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment))
+		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment))
 		expectedDeployment := GetProviderAPIServerDeploymentForTest(instance)
 		assert.Equal(t, deployment.Spec, expectedDeployment.Spec)
 
 		service = &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
-		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
+		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
 		expectedService := GetLoadBalancerProviderAPIServerServiceForTest(instance)
 		assert.Equal(t, expectedService.Spec, service.Spec)
 	})
@@ -183,14 +183,14 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 		deployment = &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
-		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment))
+		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment))
 		expectedDeployment := GetProviderAPIServerDeploymentForTest(instance)
 		assert.Equal(t, deployment.Spec, expectedDeployment.Spec)
 
 		service = &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 		}
-		assert.NoError(t, r.Client.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
+		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
 		expectedService := GetClusterIPProviderAPIServerServiceForTest(instance)
 		assert.Equal(t, expectedService.Spec, service.Spec)
 	})
@@ -272,8 +272,8 @@ func createSetupForOcsProviderTest(t *testing.T, providerAPIServerServiceType co
 		},
 	}
 
-	os.Setenv(providerAPIServerImage, "fake-image")
-	os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
+	_ = os.Setenv(providerAPIServerImage, "fake-image")
+	_ = os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
 
 	return r, instance
 }

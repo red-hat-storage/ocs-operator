@@ -30,12 +30,12 @@ func (r *StorageClusterReconciler) createOdfGroupSnapshotClasses(vgsc OdfGroupSn
 	}
 	vsc := vgsc.groupSnapshotClass
 	existing := &odfgsapiv1b1.VolumeGroupSnapshotClass{}
-	err := r.Client.Get(r.ctx, types.NamespacedName{Name: vsc.Name, Namespace: vsc.Namespace}, existing)
+	err := r.Get(r.ctx, types.NamespacedName{Name: vsc.Name, Namespace: vsc.Namespace}, existing)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Since the SnapshotClass is not found, we will create a new one
 			r.Log.Info("Creating GroupSnapshotClass.", "GroupSnapshotClass", klog.KRef("", vsc.Name))
-			err = r.Client.Create(r.ctx, vsc)
+			err = r.Create(r.ctx, vsc)
 			if err != nil {
 				r.Log.Error(err, "Failed to create GroupSnapshotClass.", "GroupSnapshotClass", klog.KRef("", vsc.Name))
 				return err
@@ -58,7 +58,7 @@ func (r *StorageClusterReconciler) createOdfGroupSnapshotClasses(vgsc OdfGroupSn
 		r.Log.Info("GroupSnapshotClass needs to be updated", "GroupSnapshotClass", klog.KRef("", existing.Name))
 		existing.ObjectMeta.OwnerReferences = vsc.ObjectMeta.OwnerReferences
 		vsc.ObjectMeta = existing.ObjectMeta
-		if err := r.Client.Update(r.ctx, vsc); err != nil {
+		if err := r.Update(r.ctx, vsc); err != nil {
 			r.Log.Error(err, "GroupSnapshotClass updation failed.", "GroupSnapshotClass", klog.KRef("", existing.Name))
 			return err
 		}
@@ -115,7 +115,7 @@ func (obj *ocsOdfGroupSnapshotClass) ensureDeleted(r *StorageClusterReconciler, 
 	vgsc := &odfgsapiv1b1.VolumeGroupSnapshotClass{}
 	vgsc.Name = util.GenerateNameForGroupSnapshotClass(instance, util.CephfsGroupSnapshotter)
 	vgsc.Namespace = instance.Namespace
-	err := r.Client.Delete(r.ctx, vgsc)
+	err := r.Delete(r.ctx, vgsc)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("Uninstall: OdfGroupSnapshotClass not found, nothing to do.", "OdfGroupSnapshotClass", klog.KRef("", vgsc.Name))

@@ -145,7 +145,7 @@ func VolumeGroupSnapshotClassFromExisting(
 		provisionerSecretName = consumerConfig.GetCsiNfsProvisionerCephUserName()
 		storageId = nfsStorageId
 	default:
-		return nil, UnsupportedDriver
+		return nil, ErrUnsupportedDriver
 	}
 
 	params := gsc.Parameters
@@ -174,7 +174,7 @@ func OdfVolumeGroupSnapshotClassFromExisting(
 		return nil, err
 	}
 	if gsc.Driver != CephFSDriverName {
-		return nil, UnsupportedDriver
+		return nil, ErrUnsupportedDriver
 	}
 
 	params := gsc.Parameters

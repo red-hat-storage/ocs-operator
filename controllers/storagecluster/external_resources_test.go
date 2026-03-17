@@ -148,7 +148,7 @@ func createExternalClusterReconcilerFromCustomResources(
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
 	clientObjs := []client.Object{cr, externalSecret}
 	for _, obj := range clientObjs {
-		if err = reconciler.Client.Create(context.TODO(), obj); err != nil {
+		if err = reconciler.Create(context.TODO(), obj); err != nil {
 			t.Fatalf("failed to create a needed runtime object: %v", err)
 		}
 	}
@@ -163,12 +163,12 @@ func assertExpectedExternalResources(t *testing.T, reconciler *StorageClusterRec
 		},
 	}
 	sc := &api.StorageCluster{}
-	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, sc)
+	err := reconciler.Get(context.TODO(), request.NamespacedName, sc)
 	assert.NoError(t, err)
 
 	externalSecret := &corev1.Secret{}
 	request.Name = externalClusterDetailsSecret
-	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, externalSecret)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, externalSecret)
 	assert.NoError(t, err)
 
 	var data []ExternalResource
@@ -182,7 +182,7 @@ func assertExpectedExternalResources(t *testing.T, reconciler *StorageClusterRec
 		switch expected.Kind {
 		case "CephCluster":
 			actual := &cephv1.CephCluster{}
-			err := reconciler.Client.Get(context.TODO(),
+			err := reconciler.Get(context.TODO(),
 				types.NamespacedName{Name: util.GenerateNameForCephCluster(sc)}, actual)
 			assert.NoError(t, err)
 			assert.True(t, actual.Spec.Monitoring.Enabled, "Expecting 'Monitoring' to be enabled")
@@ -193,14 +193,14 @@ func assertExpectedExternalResources(t *testing.T, reconciler *StorageClusterRec
 			}
 		case "ConfigMap":
 			actual := &corev1.ConfigMap{}
-			err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actual)
+			err := reconciler.Get(context.TODO(), request.NamespacedName, actual)
 			assert.NoError(t, err)
 			for er := range expected.Data {
 				assert.Equal(t, expected.Data[er], actual.Data[er])
 			}
 		case "Secret":
 			actual := &corev1.Secret{}
-			err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actual)
+			err := reconciler.Get(context.TODO(), request.NamespacedName, actual)
 			assert.NoError(t, err)
 			for er := range expected.Data {
 				assert.Equal(t, []byte(expected.Data[er]), actual.Data[er])
@@ -208,7 +208,7 @@ func assertExpectedExternalResources(t *testing.T, reconciler *StorageClusterRec
 		case "StorageClass":
 			actual := &storagev1.StorageClass{}
 			request.Name = fmt.Sprintf("%s-%s", sc.Name, expected.Name)
-			err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actual)
+			err := reconciler.Get(context.TODO(), request.NamespacedName, actual)
 			assert.NoError(t, err)
 			// 'endpoint's are not required, as they are moved out to CephObjectStore
 			delete(expected.Data, "endpoint")
@@ -314,12 +314,12 @@ func assertMissingExternalResource(t *testing.T, reconciler *StorageClusterRecon
 		},
 	}
 	sc := &api.StorageCluster{}
-	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, sc)
+	err := reconciler.Get(context.TODO(), request.NamespacedName, sc)
 	assert.NoError(t, err)
 
 	externalSecret := &corev1.Secret{}
 	request.Name = externalClusterDetailsSecret
-	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, externalSecret)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, externalSecret)
 	assert.NoError(t, err)
 
 	var data []ExternalResource
@@ -329,7 +329,7 @@ func assertMissingExternalResource(t *testing.T, reconciler *StorageClusterRecon
 	}
 	actual := &storagev1.StorageClass{}
 	request.Name = fmt.Sprintf("%s-%s", sc.Name, resourceName)
-	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actual)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, actual)
 	// as the resource is missing, we are expecting an 'error'
 	assert.Error(t, err)
 }
@@ -342,7 +342,7 @@ func assertCephObjectStore(t *testing.T, reconciler *StorageClusterReconciler, r
 		},
 	}
 	sc := &api.StorageCluster{}
-	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, sc)
+	err := reconciler.Get(context.TODO(), request.NamespacedName, sc)
 	assert.NoError(t, err)
 	expectedName := fmt.Sprintf("%s-cephobjectstore", sc.Name)
 	request.Name = expectedName
@@ -351,7 +351,7 @@ func assertCephObjectStore(t *testing.T, reconciler *StorageClusterReconciler, r
 			Name: expectedName,
 		},
 	}
-	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, cObjS)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, cObjS)
 	// if removed resource is 'ceph-rgw', we should not get CephObjectStore object
 	if removedResource == "ceph-rgw" {
 		assert.Error(t, err)
@@ -398,7 +398,7 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler *StorageClu
 	assertExpectedExternalResources(t, reconciler)
 
 	sc := &api.StorageCluster{}
-	err = reconciler.Client.Get(ctx, request.NamespacedName, sc)
+	err = reconciler.Get(ctx, request.NamespacedName, sc)
 	assert.NoError(t, err)
 
 	extRsrcs, err := reconciler.retrieveExternalSecretData(sc)
@@ -414,10 +414,10 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler *StorageClu
 	extSecret, err := createExternalCephClusterSecret(extRsrcs)
 	assert.NoError(t, err)
 	secret := corev1.Secret{}
-	err = reconciler.Client.Get(ctx, types.NamespacedName{Name: externalClusterDetailsSecret, Namespace: ""}, &secret)
+	err = reconciler.Get(ctx, types.NamespacedName{Name: externalClusterDetailsSecret, Namespace: ""}, &secret)
 	assert.NoError(t, err)
 	extSecret.ObjectMeta = secret.ObjectMeta
-	err = reconciler.Client.Update(ctx, extSecret)
+	err = reconciler.Update(ctx, extSecret)
 	assert.NoError(t, err)
 
 	// second reconcile on same 'reconciler', we should have expected/changed resources
@@ -428,7 +428,7 @@ func assertReconciliationOfExternalResource(t *testing.T, reconciler *StorageClu
 
 	// get the updated storagecluster object after second reconciliation
 	sc = &api.StorageCluster{}
-	err = reconciler.Client.Get(ctx, request.NamespacedName, sc)
+	err = reconciler.Get(ctx, request.NamespacedName, sc)
 	assert.NoError(t, err)
 
 	// third reconcile on same 'reconciler', without any change in the resources
@@ -605,7 +605,7 @@ func TestGetTopologyFailureDomainConfig(t *testing.T) {
 							},
 						},
 					}
-					err := reconciler.Client.Create(context.TODO(), node)
+					err := reconciler.Create(context.TODO(), node)
 					assert.NoError(t, err)
 				}
 			},
@@ -667,7 +667,7 @@ func TestGetTopologyFailureDomainConfig(t *testing.T) {
 							},
 						},
 					}
-					err := reconciler.Client.Create(context.TODO(), node)
+					err := reconciler.Create(context.TODO(), node)
 					assert.NoError(t, err)
 				}
 			},
@@ -756,7 +756,7 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 							},
 						},
 					}
-					err := reconciler.Client.Create(context.TODO(), node)
+					err := reconciler.Create(context.TODO(), node)
 					assert.NoError(t, err)
 				}
 			},
@@ -828,7 +828,7 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 							},
 						},
 					}
-					err := reconciler.Client.Create(context.TODO(), node)
+					err := reconciler.Create(context.TODO(), node)
 					assert.NoError(t, err)
 				}
 			},
@@ -868,7 +868,7 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 				tc.setupNodes(t, reconciler)
 			}
 
-			err := reconciler.Client.Create(context.TODO(), clientConfigMap)
+			err := reconciler.Create(context.TODO(), clientConfigMap)
 			assert.NoError(t, err)
 
 			// Build storage class configurations
@@ -898,7 +898,7 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 
 				// Verify the ConfigMap was updated correctly
 				updatedConfigMap := &corev1.ConfigMap{}
-				err = reconciler.Client.Get(context.TODO(),
+				err = reconciler.Get(context.TODO(),
 					types.NamespacedName{Name: ocsClientConfigMapName, Namespace: sc.Namespace},
 					updatedConfigMap)
 				assert.NoError(t, err)

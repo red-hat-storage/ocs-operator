@@ -10,7 +10,6 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8sv1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -75,20 +74,20 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 		return nil, err
 	}
 	storageClassName := "gp2-csi"
-	blockVolumeMode := k8sv1.PersistentVolumeBlock
+	blockVolumeMode := corev1.PersistentVolumeBlock
 	storageCluster := &ocsv1.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      DefaultStorageClusterName,
 			Namespace: InstallNamespace,
 		},
 		Spec: ocsv1.StorageClusterSpec{
-			MonPVCTemplate: &k8sv1.PersistentVolumeClaim{
-				Spec: k8sv1.PersistentVolumeClaimSpec{
+			MonPVCTemplate: &corev1.PersistentVolumeClaim{
+				Spec: corev1.PersistentVolumeClaimSpec{
 					StorageClassName: &storageClassName,
-					AccessModes:      []k8sv1.PersistentVolumeAccessMode{k8sv1.ReadWriteOnce},
+					AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 
-					Resources: k8sv1.VolumeResourceRequirements{
-						Requests: k8sv1.ResourceList{
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{
 							"storage": monQuantity,
 						},
 					},
@@ -111,17 +110,17 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 						},
 					},
 
-					DataPVCTemplate: k8sv1.PersistentVolumeClaim{
+					DataPVCTemplate: corev1.PersistentVolumeClaim{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "data",
 						},
-						Spec: k8sv1.PersistentVolumeClaimSpec{
+						Spec: corev1.PersistentVolumeClaimSpec{
 							StorageClassName: &storageClassName,
-							AccessModes:      []k8sv1.PersistentVolumeAccessMode{k8sv1.ReadWriteOnce},
+							AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 							VolumeMode:       &blockVolumeMode,
 
-							Resources: k8sv1.VolumeResourceRequirements{
-								Requests: k8sv1.ResourceList{
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{
 									"storage": dataQuantity,
 								},
 							},
@@ -204,22 +203,22 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 			switch condition.Type {
 			case conditionsv1.ConditionAvailable:
 				available = &_false
-				if condition.Status == k8sv1.ConditionTrue {
+				if condition.Status == corev1.ConditionTrue {
 					available = &_true
 				}
 			case conditionsv1.ConditionProgressing:
 				progressing = &_false
-				if condition.Status == k8sv1.ConditionTrue {
+				if condition.Status == corev1.ConditionTrue {
 					progressing = &_true
 				}
 			case conditionsv1.ConditionDegraded:
 				degraded = &_false
-				if condition.Status == k8sv1.ConditionTrue {
+				if condition.Status == corev1.ConditionTrue {
 					degraded = &_true
 				}
 			case conditionsv1.ConditionUpgradeable:
 				upgradeable = &_false
-				if condition.Status == k8sv1.ConditionTrue {
+				if condition.Status == corev1.ConditionTrue {
 					upgradeable = &_true
 				}
 			}
@@ -227,16 +226,16 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 
 		// we have to wait for all of these conditions to exist as well as be set
 		if available == nil {
-			lastReason = fmt.Sprintf("Waiting on 'available' condition to be set") //nolint:gosimple
+			lastReason = "Waiting on 'available' condition to be set"
 			return false, nil
 		} else if upgradeable == nil {
-			lastReason = fmt.Sprintf("Waiting on 'upgradeable' condition to be set") //nolint:gosimple
+			lastReason = "Waiting on 'upgradeable' condition to be set"
 			return false, nil
 		} else if progressing == nil {
-			lastReason = fmt.Sprintf("Waiting on 'progressing' condition to be set") //nolint:gosimple
+			lastReason = "Waiting on 'progressing' condition to be set"
 			return false, nil
 		} else if degraded == nil {
-			lastReason = fmt.Sprintf("Waiting on 'degraded' condition to be set") //nolint:gosimple
+			lastReason = "Waiting on 'degraded' condition to be set"
 			return false, nil
 		}
 
@@ -276,7 +275,7 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 		}
 
 		// expect noobaa-core pod with label selector (noobaa-core=noobaa) to be running
-		pods := &k8sv1.PodList{}
+		pods := &corev1.PodList{}
 		err = t.Client.List(context.TODO(), pods, &client.ListOptions{
 			Namespace:     InstallNamespace,
 			LabelSelector: labels.SelectorFromSet(map[string]string{"noobaa-core": "noobaa"}),
@@ -288,7 +287,7 @@ func (t *DeployManager) WaitOnStorageCluster() error {
 
 		noobaaCoreOnline := 0
 		for _, pod := range pods.Items {
-			if pod.Status.Phase == k8sv1.PodRunning {
+			if pod.Status.Phase == corev1.PodRunning {
 				noobaaCoreOnline++
 			}
 		}
@@ -320,11 +319,11 @@ func (t *DeployManager) labelWorkerNodes() error {
 		}
 		arbiterZone = t.GetArbiterZone()
 		if arbiterZone == "" {
-			return fmt.Errorf("Arbiter zone is not set")
+			return fmt.Errorf("arbiter zone is not set")
 		}
 	}
 
-	nodes := &k8sv1.NodeList{}
+	nodes := &corev1.NodeList{}
 	err := t.Client.List(context.TODO(), nodes, &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{"node-role.kubernetes.io/worker": ""}),
 	})
@@ -365,10 +364,10 @@ func (t *DeployManager) labelWorkerNodes() error {
 	}
 
 	if labeledCount < t.getMinOSDsCount() {
-		return fmt.Errorf("Only %d worker nodes found when we need %d to deploy", labeledCount, t.getMinOSDsCount())
+		return fmt.Errorf("only %d worker nodes found when we need %d to deploy", labeledCount, t.getMinOSDsCount())
 	}
 	if t.ArbiterEnabled() && arbiterNodeCount < 1 {
-		return fmt.Errorf("No arbiter nodes found, we need at least 1")
+		return fmt.Errorf("no arbiter nodes found, we need at least 1")
 	}
 
 	return nil

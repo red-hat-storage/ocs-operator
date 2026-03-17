@@ -11,7 +11,6 @@ import (
 
 	opverion "github.com/operator-framework/api/pkg/lib/version"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 
 	"github.com/blang/semver/v4"
@@ -635,7 +634,7 @@ func TestIsActiveStorageCluster(t *testing.T) {
 		},
 	}
 
-	os.Setenv("OPERATOR_NAMESPACE", "storage-test-ns")
+	_ = os.Setenv("OPERATOR_NAMESPACE", "storage-test-ns")
 
 	for _, tc := range testcases {
 
@@ -727,7 +726,7 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 	assert.Equal(t, reconcile.Result{}, result)
 
 	actual := &api.StorageCluster{}
-	err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
+	err = reconciler.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, actual.Status.Conditions)
 	assert.Len(t, actual.Status.Conditions, 6)
@@ -953,7 +952,7 @@ func TestStorageClusterInitConditions(t *testing.T) {
 	assert.Equal(t, reconcile.Result{}, result)
 
 	actual := &api.StorageCluster{}
-	err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
+	err = reconciler.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, actual.Status.Conditions)
 	assert.Len(t, actual.Status.Conditions, 6)
@@ -968,12 +967,12 @@ func TestStorageClusterFinalizer(t *testing.T) {
 	mockNodeList.DeepCopyInto(nodeList)
 	namespacedName := types.NamespacedName{
 		Name:      "noobaa",
-		Namespace: mockStorageClusterRequest.NamespacedName.Namespace,
+		Namespace: mockStorageClusterRequest.Namespace,
 	}
 	noobaaMock := &nbv1.NooBaa{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespacedName.Name,
-			Namespace: mockStorageClusterRequest.NamespacedName.Namespace,
+			Namespace: mockStorageClusterRequest.Namespace,
 			SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 		},
 	}
@@ -985,25 +984,25 @@ func TestStorageClusterFinalizer(t *testing.T) {
 
 	// Ensure finalizer exists in the beginning
 	sc := &api.StorageCluster{}
-	err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, sc)
+	err = reconciler.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, sc)
 	assert.NoError(t, err)
-	assert.Len(t, sc.ObjectMeta.GetFinalizers(), 1)
+	assert.Len(t, sc.GetFinalizers(), 1)
 
 	noobaa := &nbv1.NooBaa{}
-	err = reconciler.Client.Get(context.TODO(), namespacedName, noobaa)
+	err = reconciler.Get(context.TODO(), namespacedName, noobaa)
 	assert.NoError(t, err)
 	assert.Equal(t, noobaa.Name, noobaaMock.Name)
 
 	// Issue a delete
-	err = reconciler.Client.Delete(context.TODO(), sc)
+	err = reconciler.Delete(context.TODO(), sc)
 	assert.NoError(t, err)
 
 	sc = &api.StorageCluster{}
-	err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, sc)
+	err = reconciler.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, sc)
 	assert.NoError(t, err)
-	assert.Len(t, sc.ObjectMeta.GetFinalizers(), 1)
+	assert.Len(t, sc.GetFinalizers(), 1)
 
-	err = reconciler.Client.Delete(context.TODO(), noobaa)
+	err = reconciler.Delete(context.TODO(), noobaa)
 	assert.NoError(t, err)
 
 	assert.Eventually(t, func() bool {
@@ -1021,16 +1020,16 @@ func TestStorageClusterFinalizer(t *testing.T) {
 
 	// Finalizer is removed
 	sc = &api.StorageCluster{}
-	err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, sc)
+	err = reconciler.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, sc)
 	if err != nil {
 		assert.True(t, errors.IsNotFound(err), "error", err)
 	} else {
-		assert.False(t, sc.ObjectMeta.DeletionTimestamp.IsZero())
-		assert.Len(t, sc.ObjectMeta.GetFinalizers(), 0)
+		assert.False(t, sc.DeletionTimestamp.IsZero())
+		assert.Len(t, sc.GetFinalizers(), 0)
 	}
 
 	noobaa = &nbv1.NooBaa{}
-	err = reconciler.Client.Get(context.TODO(), namespacedName, noobaa)
+	err = reconciler.Get(context.TODO(), namespacedName, noobaa)
 	assert.True(t, errors.IsNotFound(err))
 }
 
@@ -1063,15 +1062,15 @@ func assertCondition(conditions []conditionsv1.Condition, conditionType conditio
 func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *StorageClusterReconciler {
 	sc := &api.StorageCluster{}
 	scheme := createFakeScheme(t)
-	name := mockStorageClusterRequest.NamespacedName.Name
-	namespace := mockStorageClusterRequest.NamespacedName.Namespace
-	consumer := &ocsv1a1.StorageConsumer{
+	name := mockStorageClusterRequest.Name
+	namespace := mockStorageClusterRequest.Namespace
+	consumer := &ocsv1alpha1.StorageConsumer{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      defaults.LocalStorageConsumerName,
 			Namespace: namespace,
 			UID:       "fake-uid",
 		},
-		Spec: ocsv1a1.StorageConsumerSpec{
+		Spec: ocsv1alpha1.StorageConsumerSpec{
 			Enable: true,
 		},
 	}
@@ -1116,8 +1115,8 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 	clientConfigMap.Name = ocsClientConfigMapName
 	clientConfigMap.Namespace = namespace
 
-	os.Setenv(providerAPIServerImage, "fake-image")
-	os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
+	_ = os.Setenv(providerAPIServerImage, "fake-image")
+	_ = os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
 
 	ocsProviderServiceDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName, Namespace: namespace},
@@ -1357,7 +1356,7 @@ func TestStorageClusterOnMultus(t *testing.T) {
 		}
 
 		reconciler := createFakeInitializationStorageClusterReconciler(t)
-		_ = reconciler.Client.Create(context.TODO(), c.cr)
+		_ = reconciler.Create(context.TODO(), c.cr)
 		result, err := reconciler.Reconcile(context.TODO(), request)
 		if c.testCase != "default" {
 			validMultus := validateMultusSelectors(c.cr.Spec.Network.Selectors)
@@ -1375,7 +1374,7 @@ func TestStorageClusterOnMultus(t *testing.T) {
 func assertCephClusterNetwork(t assert.TestingT, reconciler *StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
 	request.Name = "ocsinit-cephcluster"
 	cephCluster := newCephCluster(reconciler, cr, nil)
-	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, cephCluster)
+	err := reconciler.Get(context.TODO(), request.NamespacedName, cephCluster)
 	assert.NoError(t, err)
 	if cr.Spec.Network == nil {
 		assert.Equal(t, "", cephCluster.Spec.Network.Provider)
@@ -1420,7 +1419,7 @@ func NewListenServer(endpoint string) (*ListenServer, error) {
 			if err != nil {
 				break
 			}
-			conn.Close()
+			_ = conn.Close()
 		}
 	}(ls.Listener)
 
@@ -1434,6 +1433,6 @@ func startServerAt(t *testing.T, endpoint string) {
 		t.Logf("Failed to start ListenServer: %v", err)
 		return
 	}
-	t.Cleanup(func() { ls.Listener.Close() })
+	t.Cleanup(func() { _ = ls.Listener.Close() })
 
 }

@@ -267,7 +267,7 @@ func GetKMSConfigMap(configMapName string, instance *ocsv1.StorageCluster, clien
 	err := client.Get(context.TODO(),
 		types.NamespacedName{
 			Name:      configMapName,
-			Namespace: instance.ObjectMeta.Namespace,
+			Namespace: instance.Namespace,
 		},
 		&kmsConfigMap,
 	)

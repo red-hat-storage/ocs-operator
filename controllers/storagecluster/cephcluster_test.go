@@ -96,7 +96,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		expected.Status.State = c.cephClusterState
 
 		if !c.shouldCreate {
-			createErr := reconciler.Client.Create(context.TODO(), expected)
+			createErr := reconciler.Create(context.TODO(), expected)
 			assert.NilError(t, createErr)
 		}
 
@@ -104,7 +104,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		// have more more storage devices defined than the existing
 		// CephCluster.
 		if c.reconcilerPhase == ocsutil.PhaseClusterExpanding {
-			createErr := reconciler.Client.Create(context.TODO(), fakeStorageClass)
+			createErr := reconciler.Create(context.TODO(), fakeStorageClass)
 			assert.NilError(t, createErr)
 
 			sc.Spec.StorageDeviceSets = []ocsv1.StorageDeviceSet{
@@ -129,10 +129,10 @@ func TestEnsureCephCluster(t *testing.T) {
 		assert.NilError(t, err)
 
 		actual := &rookCephv1.CephCluster{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: expected.Name, Namespace: expected.Namespace}, actual)
+		err = reconciler.Get(context.TODO(), types.NamespacedName{Name: expected.Name, Namespace: expected.Namespace}, actual)
 		assert.NilError(t, err)
-		assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
-		assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
+		assert.Equal(t, expected.Name, actual.Name)
+		assert.Equal(t, expected.Namespace, actual.Namespace)
 		assert.DeepEqual(t, expected.Spec, actual.Spec)
 
 		expectedConditions := []conditionsv1.Condition{}
@@ -207,7 +207,7 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		assert.NilError(t, err)
 
 		cc := newCephCluster(reconciler, sc, nil)
-		err = reconciler.Client.Get(context.TODO(), mockCephClusterNamespacedName, cc)
+		err = reconciler.Get(context.TODO(), mockCephClusterNamespacedName, cc)
 		assert.NilError(t, err)
 		if c.platform == configv1.IBMCloudPlatformType {
 			assert.Equal(t, "15m", cc.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
@@ -783,7 +783,7 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 	ctxTodo := context.TODO()
 	kmsCM := createDummyKMSConfigMap(kmsArgs.kmsProvider, kmsArgs.kmsAddress, kmsArgs.authMethod)
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
-	if err := reconciler.Client.Create(ctxTodo, kmsCM); err != nil {
+	if err := reconciler.Create(ctxTodo, kmsCM); err != nil {
 		t.Errorf("Unable to create KMS configmap: %v", err)
 		t.FailNow()
 	}
@@ -819,7 +819,7 @@ func assertCephClusterKMSConfiguration(t *testing.T, kmsArgs struct {
 	}
 	// following part of the tests are only for valid tests
 	cephCluster := &rookCephv1.CephCluster{}
-	err = reconciler.Client.Get(ctxTodo,
+	err = reconciler.Get(ctxTodo,
 		types.NamespacedName{Name: ocsutil.GenerateNameForCephCluster(cr)},
 		cephCluster)
 	if err != nil {
@@ -1771,7 +1771,7 @@ func TestEnsureRDRMigration(t *testing.T) {
 	expected := newCephCluster(reconciler, mockStorageCluster.DeepCopy(), nil)
 
 	expected.Spec.Storage.Store.Type = string(rookCephv1.StoreTypeBlueStoreRDR)
-	err := reconciler.Client.Create(context.TODO(), expected)
+	err := reconciler.Create(context.TODO(), expected)
 	assert.NilError(t, err)
 
 	// Ensure bluestore-rdr store type is reset to bluestore
@@ -1779,7 +1779,7 @@ func TestEnsureRDRMigration(t *testing.T) {
 	_, err = obj.ensureCreated(reconciler, sc)
 	assert.NilError(t, err)
 	actual := &rookCephv1.CephCluster{}
-	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: ocsutil.GenerateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
+	err = reconciler.Get(context.TODO(), types.NamespacedName{Name: ocsutil.GenerateNameForCephClusterFromString(sc.Name), Namespace: sc.Namespace}, actual)
 	assert.NilError(t, err)
 	assert.Equal(t, string(rookCephv1.StoreTypeBlueStore), actual.Spec.Storage.Store.Type)
 	assert.Equal(t, "yes-really-update-store", actual.Spec.Storage.Store.UpdateStore)

@@ -47,7 +47,7 @@ func assertCephObjectStoreUsers(t *testing.T, reconciler *StorageClusterReconcil
 		},
 	}
 	request.Name = "ocsinit-cephobjectstoreuser"
-	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCosu)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, actualCosu)
 
 	platformType, detectError := platform.GetPlatformType()
 	assert.NoError(t, detectError)
@@ -56,7 +56,7 @@ func assertCephObjectStoreUsers(t *testing.T, reconciler *StorageClusterReconcil
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)
-		assert.Equal(t, expectedCosu[0].ObjectMeta.Name, actualCosu.ObjectMeta.Name)
+		assert.Equal(t, expectedCosu[0].Name, actualCosu.Name)
 		assert.Equal(t, expectedCosu[0].Spec, actualCosu.Spec)
 	}
 

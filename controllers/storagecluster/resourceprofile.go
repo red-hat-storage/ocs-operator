@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	resourceProfileChangeApplyingMessage = "New resource profile is being applied"
-	resourceProfileChangeFailedMessage   = "New resource profile failed to apply, please revert to the last working resource profile"
+	resourceProfileChangeApplyingMessage = "new resource profile is being applied"
+	resourceProfileChangeFailedMessage   = "new resource profile failed to apply, please revert to the last working resource profile"
 )
 
 var (
@@ -75,7 +75,7 @@ func (r *StorageClusterReconciler) ensureResourceProfileChangeApplied(sc *ocsv1.
 	// If we are here, then all the ceph daemons have the correct count of pods with the new resource profile
 	// New resource profile has been applied successfully
 	sc.Status.LastAppliedResourceProfile = currentResourceProfile
-	if err = r.Client.Status().Update(r.ctx, sc); err != nil {
+	if err = r.Status().Update(r.ctx, sc); err != nil {
 		r.Log.Error(err, "Error updating status after resource profile change")
 		return err
 	}

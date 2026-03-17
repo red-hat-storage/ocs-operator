@@ -94,7 +94,7 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 	}
 	for _, cephFilesystem := range cephFilesystems {
 		existing := cephv1.CephFilesystem{}
-		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: cephFilesystem.Namespace}, &existing)
+		err = r.Get(context.TODO(), types.NamespacedName{Name: cephFilesystem.Name, Namespace: cephFilesystem.Namespace}, &existing)
 		switch {
 		case err == nil:
 			if reconcileStrategy == ReconcileStrategyInit {
@@ -106,16 +106,16 @@ func (obj *ocsCephFilesystems) ensureCreated(r *StorageClusterReconciler, instan
 			}
 
 			r.Log.Info("Restoring original CephFilesystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
-			existing.ObjectMeta.OwnerReferences = cephFilesystem.ObjectMeta.OwnerReferences
+			existing.OwnerReferences = cephFilesystem.OwnerReferences
 			existing.Spec = cephFilesystem.Spec
-			err = r.Client.Update(context.TODO(), &existing)
+			err = r.Update(context.TODO(), &existing)
 			if err != nil {
 				r.Log.Error(err, "Unable to update CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 				return reconcile.Result{}, err
 			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
-			err = r.Client.Create(context.TODO(), cephFilesystem)
+			err = r.Create(context.TODO(), cephFilesystem)
 			if err != nil {
 				r.Log.Error(err, "Unable to create CephFileSystem.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
 				return reconcile.Result{}, err
@@ -135,7 +135,7 @@ func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *oc
 	}
 
 	for _, cephFilesystem := range cephFilesystems {
-		err := r.Client.Get(r.ctx, types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
+		err := r.Get(r.ctx, types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: CephFileSystem not found.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))
@@ -147,14 +147,14 @@ func (obj *ocsCephFilesystems) ensureDeleted(r *StorageClusterReconciler, sc *oc
 
 		if cephFilesystem.GetDeletionTimestamp().IsZero() {
 			r.Log.Info("Uninstall: Deleting cephFilesystem.", "CephFileSystem", klog.KRef(foundCephFilesystem.Namespace, foundCephFilesystem.Name))
-			err = r.Client.Delete(r.ctx, foundCephFilesystem)
+			err = r.Delete(r.ctx, foundCephFilesystem)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Failed to delete CephFileSystem.", "CephFileSystem", klog.KRef(foundCephFilesystem.Namespace, foundCephFilesystem.Name))
 				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephFileSystem %v: %v", foundCephFilesystem.Name, err)
 			}
 		}
 
-		err = r.Client.Get(r.ctx, types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
+		err = r.Get(r.ctx, types.NamespacedName{Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: CephFilesystem is deleted.", "CephFileSystem", klog.KRef(cephFilesystem.Namespace, cephFilesystem.Name))

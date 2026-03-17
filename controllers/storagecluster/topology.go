@@ -60,7 +60,7 @@ func (r *StorageClusterReconciler) getStorageClusterEligibleNodes(sc *ocsv1.Stor
 	if err != nil {
 		return nodes, err
 	}
-	err = r.Client.List(context.TODO(), nodes, MatchingLabelsSelector{Selector: selector})
+	err = r.List(context.TODO(), nodes, MatchingLabelsSelector{Selector: selector})
 
 	return nodes, err
 }
@@ -266,7 +266,7 @@ func (r *StorageClusterReconciler) ensureNodeRacks(
 			if err != nil {
 				return err
 			}
-			err = r.Client.Patch(context.TODO(), &node, patch)
+			err = r.Patch(context.TODO(), &node, patch)
 			if err != nil {
 				return err
 			}
@@ -292,7 +292,7 @@ func (r *StorageClusterReconciler) reconcileNodeTopologyMap(sc *ocsv1.StorageClu
 	r.nodeCount = len(nodes.Items)
 
 	if r.nodeCount < minNodes {
-		return fmt.Errorf("Not enough nodes found: Expected %d, found %d", minNodes, r.nodeCount)
+		return fmt.Errorf("not enough nodes found: expected %d, found %d", minNodes, r.nodeCount)
 	}
 
 	for _, node := range nodes.Items {

@@ -106,7 +106,7 @@ func (obj *ocsCephObjectStoreUsers) ensureDeleted(r *StorageClusterReconciler, s
 	}
 
 	for _, cephObjectStoreUser := range cephObjectStoreUsers {
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: sc.Namespace}, foundCephObjectStoreUser)
+		err := r.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: sc.Namespace}, foundCephObjectStoreUser)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: CephObjectStoreUser not found.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
@@ -118,14 +118,14 @@ func (obj *ocsCephObjectStoreUsers) ensureDeleted(r *StorageClusterReconciler, s
 
 		if cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
 			r.Log.Info("Uninstall: Deleting CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
-			err = r.Client.Delete(context.TODO(), foundCephObjectStoreUser)
+			err = r.Delete(context.TODO(), foundCephObjectStoreUser)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Failed to delete CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
 				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephObjectStoreUser %v: %v", foundCephObjectStoreUser.Name, err)
 			}
 		}
 
-		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: sc.Namespace}, foundCephObjectStoreUser)
+		err = r.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: sc.Namespace}, foundCephObjectStoreUser)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: CephObjectStoreUser is deleted.", "CephObjectStoreUser", klog.KRef(sc.Namespace, cephObjectStoreUser.Name))
@@ -143,7 +143,7 @@ func (obj *ocsCephObjectStoreUsers) ensureDeleted(r *StorageClusterReconciler, s
 func (r *StorageClusterReconciler) createCephObjectStoreUsers(cephObjectStoreUsers []*cephv1.CephObjectStoreUser, instance *ocsv1.StorageCluster) error {
 	for _, cephObjectStoreUser := range cephObjectStoreUsers {
 		existing := cephv1.CephObjectStoreUser{}
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: cephObjectStoreUser.Namespace}, &existing)
+		err := r.Get(context.TODO(), types.NamespacedName{Name: cephObjectStoreUser.Name, Namespace: cephObjectStoreUser.Namespace}, &existing)
 		switch {
 		case err == nil:
 			reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStoreUsers.ReconcileStrategy)
@@ -156,16 +156,16 @@ func (r *StorageClusterReconciler) createCephObjectStoreUsers(cephObjectStoreUse
 			}
 
 			r.Log.Info("Restoring original CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(cephObjectStoreUser.Namespace, cephObjectStoreUser.Name))
-			existing.ObjectMeta.OwnerReferences = cephObjectStoreUser.ObjectMeta.OwnerReferences
+			existing.OwnerReferences = cephObjectStoreUser.OwnerReferences
 			cephObjectStoreUser.ObjectMeta = existing.ObjectMeta
-			err = r.Client.Update(context.TODO(), cephObjectStoreUser)
+			err = r.Update(context.TODO(), cephObjectStoreUser)
 			if err != nil {
 				r.Log.Error(err, "Unable to update CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(cephObjectStoreUser.Namespace, cephObjectStoreUser.Name))
 				return err
 			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(cephObjectStoreUser.Namespace, cephObjectStoreUser.Name))
-			err = r.Client.Create(context.TODO(), cephObjectStoreUser)
+			err = r.Create(context.TODO(), cephObjectStoreUser)
 			if err != nil {
 				r.Log.Error(err, "Could not create CephObjectStoreUser.", "CephObjectStoreUser", klog.KRef(cephObjectStoreUser.Namespace, cephObjectStoreUser.Name))
 				return err

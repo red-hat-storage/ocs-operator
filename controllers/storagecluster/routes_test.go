@@ -44,7 +44,7 @@ func assertCephRGWRoutes(t *testing.T, reconciler *StorageClusterReconciler, cr 
 	assert.NoError(t, err)
 	actualCos := &routev1.Route{}
 	request.Name = "ocsinit-cephobjectstore"
-	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCos)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, actualCos)
 	// for any cloud platform, 'route' should not be created
 	// 'Get' should have thrown an error
 	platformType, detectErr := platform.GetPlatformType()

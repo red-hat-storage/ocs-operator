@@ -40,12 +40,12 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 
 		vsc := vscc.snapshotClass
 		existing := &snapapi.VolumeSnapshotClass{}
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: vsc.Name, Namespace: vsc.Namespace}, existing)
+		err := r.Get(context.TODO(), types.NamespacedName{Name: vsc.Name, Namespace: vsc.Namespace}, existing)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// Since the SnapshotClass is not found, we will create a new one
 				r.Log.Info("Creating SnapshotClass.", "SnapshotClass", klog.KRef(vsc.Namespace, vsc.Name))
-				err = r.Client.Create(context.TODO(), vsc)
+				err = r.Create(context.TODO(), vsc)
 				if err != nil {
 					r.Log.Error(err, "Failed to create SnapshotClass.", "SnapshotClass", klog.KRef(vsc.Namespace, vsc.Name))
 					return err
@@ -69,7 +69,7 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 			r.Log.Info("SnapshotClass needs to be updated", "SnapshotClass", klog.KRef(existing.Namespace, existing.Name))
 			existing.ObjectMeta.OwnerReferences = vsc.ObjectMeta.OwnerReferences
 			vsc.ObjectMeta = existing.ObjectMeta
-			if err := r.Client.Update(context.TODO(), vsc); err != nil {
+			if err := r.Update(context.TODO(), vsc); err != nil {
 				r.Log.Error(err, "SnapshotClass updation failed.", "SnapshotClass", klog.KRef(existing.Namespace, existing.Name))
 				return err
 			}
@@ -105,7 +105,7 @@ func (r *StorageClusterReconciler) getClusterIDAndSecretName(instance *ocsv1.Sto
 			radosNamespaceName = d.Data["radosNamespaceName"]
 			// get the clusterID from the radosNamespace status
 			radosNamespace := &cephv1.CephBlockPoolRadosNamespace{}
-			err := r.Client.Get(context.TODO(), types.NamespacedName{Name: radosNamespaceName, Namespace: instance.Namespace}, radosNamespace)
+			err := r.Get(context.TODO(), types.NamespacedName{Name: radosNamespaceName, Namespace: instance.Namespace}, radosNamespace)
 			if err != nil {
 				log.Error(err, "CephBlockPoolRadosNamespace not found", "CephBlockPoolRadosNamespace", klog.KRef(instance.Namespace, radosNamespaceName))
 				return "", "", err
@@ -165,7 +165,7 @@ func (obj *ocsSnapshotClass) ensureDeleted(r *StorageClusterReconciler, instance
 		vsc := &snapapi.VolumeSnapshotClass{}
 		vsc.Name = name
 		vsc.Namespace = instance.Namespace
-		err := r.Client.Delete(r.ctx, vsc)
+		err := r.Delete(r.ctx, vsc)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: SnapshotClass not found, nothing to do.", "SnapshotClass", klog.KRef("", vsc.Name))

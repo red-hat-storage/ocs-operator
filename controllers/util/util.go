@@ -169,14 +169,16 @@ func GetExternalClassesBlacklistSelector() labels.Selector {
 
 // GetFullTopologyLabel converts short topology failure domain names to full Kubernetes label names
 func GetFullTopologyLabel(failuredomain string) string {
-	if failuredomain == "zone" {
+	switch failuredomain {
+	case "zone":
 		return "topology.kubernetes.io/zone"
-	} else if failuredomain == "rack" {
+	case "rack":
 		return "topology.rook.io/rack"
-	} else if failuredomain == "hostname" || failuredomain == "host" {
+	case "hostname", "host":
 		return "kubernetes.io/hostname"
+	default:
+		return ""
 	}
-	return ""
 }
 
 // If implements an if/else expression

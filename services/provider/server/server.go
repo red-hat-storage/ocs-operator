@@ -50,7 +50,6 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -1137,7 +1136,7 @@ func calculateCephFsStorageID(cephfsid, subVolumeGroupName string) string {
 
 func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Logger, consumer *ocsv1alpha1.StorageConsumer) ([]client.Object, error) {
 
-	consumerConfigMap := &v1.ConfigMap{}
+	consumerConfigMap := &corev1.ConfigMap{}
 	if consumer.Status.ResourceNameMappingConfigMap.Name == "" {
 		return nil, fmt.Errorf("waiting for ResourceNameMappingConfig to be generated")
 	}
@@ -1351,7 +1350,7 @@ func (s *OCSProviderServer) getDesiredCephConnection(
 	storageCluster *ocsv1.StorageCluster,
 ) (*csiopv1.CephConnection, error) {
 
-	configmap := &v1.ConfigMap{}
+	configmap := &corev1.ConfigMap{}
 	configmap.Name = monConfigMap
 	configmap.Namespace = consumer.Namespace
 	err := s.client.Get(ctx, client.ObjectKeyFromObject(configmap), configmap)
@@ -1597,7 +1596,7 @@ func (s *OCSProviderServer) appendCephClientSecretKubeResource(
 	srcSecretName string,
 	destSecretName string,
 ) ([]client.Object, error) {
-	cephUserSecret := &v1.Secret{}
+	cephUserSecret := &corev1.Secret{}
 	cephUserSecret.Name = srcSecretName
 	cephUserSecret.Namespace = consumer.Namespace
 
@@ -2137,7 +2136,7 @@ func (s *OCSProviderServer) appendNoobaaKubeResources(
 ) ([]client.Object, error) {
 	// Noobaa Configuration
 	// Fetch noobaa remote secret and management address and append to extResources
-	noobaaOperatorSecret := &v1.Secret{}
+	noobaaOperatorSecret := &corev1.Secret{}
 	noobaaOperatorSecret.Name = fmt.Sprintf("noobaa-account-%s", consumer.Name)
 	noobaaOperatorSecret.Namespace = s.namespace
 
@@ -2185,7 +2184,7 @@ func (s *OCSProviderServer) appendNoobaaKubeResources(
 				Namespace: consumer.Status.Client.OperatorNamespace,
 			},
 			Spec: nbv1.NooBaaSpec{
-				JoinSecret: &v1.SecretReference{
+				JoinSecret: &corev1.SecretReference{
 					Name:      "noobaa-remote-join-secret",
 					Namespace: consumer.Status.Client.OperatorNamespace,
 				},
@@ -2321,9 +2320,9 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 			srcKubeObj, err = genClassKubeObjFn(srcName)
 			if kerrors.IsNotFound(err) {
 				logger.Info("Resource with name doesn't exist in the cluster", "Resource", classDisplayName, "Name", srcName)
-			} else if errors.Is(err, util.UnsupportedProvisioner) {
+			} else if errors.Is(err, util.ErrUnsupportedProvisioner) {
 				logger.Info("Encountered unsupported provisioner", "Resource", classDisplayName, "Name", srcName)
-			} else if errors.Is(err, util.UnsupportedDriver) {
+			} else if errors.Is(err, util.ErrUnsupportedDriver) {
 				logger.Info("Encountered unsupported driver", "Resource", classDisplayName, "Name", srcName)
 			} else if srcKubeObj == nil || reflect.ValueOf(srcKubeObj).IsNil() {
 				logger.Info("Resource name does not points to a builtin or an existing object, skipping", "Resource", classDisplayName, "Name", srcName)

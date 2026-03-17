@@ -98,7 +98,7 @@ func (t *DeployManager) SetNamespace(namespace string) {
 func NewDeployManager() (*DeployManager, error) {
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {
-		return nil, fmt.Errorf("No KUBECONFIG environment variable set")
+		return nil, fmt.Errorf("no KUBECONFIG environment variable set")
 	}
 
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)

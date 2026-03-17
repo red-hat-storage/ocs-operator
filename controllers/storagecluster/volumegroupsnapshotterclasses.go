@@ -33,12 +33,12 @@ func (r *StorageClusterReconciler) createGroupSnapshotClasses(vsccs []GroupSnaps
 
 		vsc := vscc.groupSnapshotClass
 		existing := &groupsnapapi.VolumeGroupSnapshotClass{}
-		err := r.Client.Get(r.ctx, types.NamespacedName{Name: vsc.Name, Namespace: vsc.Namespace}, existing)
+		err := r.Get(r.ctx, types.NamespacedName{Name: vsc.Name, Namespace: vsc.Namespace}, existing)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// Since the SnapshotClass is not found, we will create a new one
 				r.Log.Info("Creating GroupSnapshotClass.", "GroupSnapshotClass", klog.KRef("", vsc.Name))
-				err = r.Client.Create(r.ctx, vsc)
+				err = r.Create(r.ctx, vsc)
 				if err != nil {
 					r.Log.Error(err, "Failed to create GroupSnapshotClass.", "GroupSnapshotClass", klog.KRef("", vsc.Name))
 					return err
@@ -62,7 +62,7 @@ func (r *StorageClusterReconciler) createGroupSnapshotClasses(vsccs []GroupSnaps
 			r.Log.Info("GroupSnapshotClass needs to be updated", "GroupSnapshotClass", klog.KRef("", existing.Name))
 			existing.ObjectMeta.OwnerReferences = vsc.ObjectMeta.OwnerReferences
 			vsc.ObjectMeta = existing.ObjectMeta
-			if err := r.Client.Update(r.ctx, vsc); err != nil {
+			if err := r.Update(r.ctx, vsc); err != nil {
 				r.Log.Error(err, "GroupSnapshotClass updation failed.", "GroupSnapshotClass", klog.KRef("", existing.Name))
 				return err
 			}
@@ -143,7 +143,7 @@ func (obj *ocsGroupSnapshotClass) ensureDeleted(r *StorageClusterReconciler, ins
 		vgsc := &groupsnapapi.VolumeGroupSnapshotClass{}
 		vgsc.Name = name
 		vgsc.Namespace = instance.Namespace
-		err := r.Client.Delete(r.ctx, vgsc)
+		err := r.Delete(r.ctx, vgsc)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: GroupSnapshotClass not found, nothing to do.", "GroupSnapshotClass", klog.KRef("", vgsc.Name))

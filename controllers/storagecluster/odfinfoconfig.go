@@ -90,7 +90,7 @@ func (obj *odfInfoConfig) ensureDeleted(r *StorageClusterReconciler, storageClus
 	odfInfoConfigMap := &corev1.ConfigMap{}
 	odfInfoConfigMap.Name = OdfInfoConfigMapName
 	odfInfoConfigMap.Namespace = operatorNamespace
-	if err = r.Client.Get(r.ctx, client.ObjectKeyFromObject(odfInfoConfigMap), odfInfoConfigMap); err != nil {
+	if err = r.Get(r.ctx, client.ObjectKeyFromObject(odfInfoConfigMap), odfInfoConfigMap); err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
@@ -102,12 +102,12 @@ func (obj *odfInfoConfig) ensureDeleted(r *StorageClusterReconciler, storageClus
 	if len(odfInfoConfigMap.Data) > 1 {
 		odfInfoKeyName := obj.getOdfInfoKeyName(storageCluster)
 		delete(odfInfoConfigMap.Data, odfInfoKeyName)
-		if err = r.Client.Update(r.ctx, odfInfoConfigMap); err != nil && !errors.IsNotFound(err) {
+		if err = r.Update(r.ctx, odfInfoConfigMap); err != nil && !errors.IsNotFound(err) {
 			r.Log.Error(err, "Failed to update odf-info config map with deleted key.", "ConfigMap", client.ObjectKeyFromObject(odfInfoConfigMap), "Key", odfInfoKeyName)
 			return reconcile.Result{}, fmt.Errorf("failed to delete key %v in odf-info %v: %v", odfInfoKeyName, odfInfoConfigMap.Name, err)
 		}
 	} else {
-		if err = r.Client.Delete(r.ctx, odfInfoConfigMap); err != nil && !errors.IsNotFound(err) {
+		if err = r.Delete(r.ctx, odfInfoConfigMap); err != nil && !errors.IsNotFound(err) {
 			r.Log.Error(err, "Failed to delete odf-info config map.", "ConfigMap", client.ObjectKeyFromObject(odfInfoConfigMap))
 			return reconcile.Result{}, fmt.Errorf("failed to delete odf-info %v: %v", odfInfoConfigMap.Name, err)
 		}
@@ -171,7 +171,7 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 
 func getConnectedClients(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) ([]ocsv1a1.ConnectedClient, error) {
 	storageConsumers := &ocsv1a1.StorageConsumerList{}
-	err := r.Client.List(r.ctx, storageConsumers, client.InNamespace(storageCluster.Namespace))
+	err := r.List(r.ctx, storageConsumers, client.InNamespace(storageCluster.Namespace))
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func getConnectedClients(r *StorageClusterReconciler, storageCluster *ocsv1.Stor
 
 func getOcsVersion(r *StorageClusterReconciler) (string, error) {
 	var csvs operatorsv1alpha1.ClusterServiceVersionList
-	err := r.Client.List(r.ctx, &csvs, client.InNamespace(r.OperatorNamespace))
+	err := r.List(r.ctx, &csvs, client.InNamespace(r.OperatorNamespace))
 	if err != nil {
 		return "", err
 	}
@@ -219,7 +219,7 @@ func getCephFsid(r *StorageClusterReconciler, storageCluster *ocsv1.StorageClust
 		},
 	}
 
-	if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(rookCephMonSecret), rookCephMonSecret); err != nil {
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(rookCephMonSecret), rookCephMonSecret); err != nil {
 		return "", err
 	}
 	var val []byte
@@ -233,7 +233,7 @@ func getCephFsid(r *StorageClusterReconciler, storageCluster *ocsv1.StorageClust
 
 func getInfoCephBlockPools(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) ([]ocsv1a1.InfoCephBlockPool, error) {
 	cephBlockPoolsList := &rookCephv1.CephBlockPoolList{}
-	if err := r.Client.List(r.ctx, cephBlockPoolsList, client.InNamespace(storageCluster.Namespace)); err != nil {
+	if err := r.List(r.ctx, cephBlockPoolsList, client.InNamespace(storageCluster.Namespace)); err != nil {
 		return nil, err
 	}
 	infoCephBlockPools := []ocsv1a1.InfoCephBlockPool{}
