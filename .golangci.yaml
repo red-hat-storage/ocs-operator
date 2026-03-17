@@ -1,13 +1,6 @@
-# This file contains all available configuration options
-# with their default values.
-# options for analysis running
+# golangci-lint v2 configuration
+# https://golangci-lint.run/docs/configuration/
+version: "2"
+
 run:
-
-  # timeout for analysis, e.g. 30s, 5m, default is 1m
-  timeout: 2m
-
-issues:
-  exclude:
-      #https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.1/pkg/handler#TypedMapFunc
-    - "parameter 'context' seems to be unused"
-    - "parameter 'obj' seems to be unused"
+  timeout: 5m
