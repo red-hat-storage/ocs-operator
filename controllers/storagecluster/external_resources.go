@@ -94,7 +94,7 @@ func findNamedResourceFromArray(extArr []ExternalResource, name string) (Externa
 			return extR, nil
 		}
 	}
-	return ExternalResource{}, fmt.Errorf("Unable to retrieve %q external resource", name)
+	return ExternalResource{}, fmt.Errorf("unable to retrieve %q external resource", name)
 }
 
 // retrieveSecret function retrieves the secret object with the specified name
@@ -149,7 +149,7 @@ func newExternalGatewaySpec(rgwEndpoint string, reqLogger logr.Logger, tlsEnable
 		return nil, err
 	}
 	if hostIP == "" {
-		err := fmt.Errorf("An empty rgw host 'IP' address found")
+		err := fmt.Errorf("an empty rgw host 'IP' address found")
 		reqLogger.Error(err, "Host IP should not be empty in rgw endpoint")
 		return nil, err
 	}
@@ -259,7 +259,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 
 	data, ok := externalOCSResources[instance.UID]
 	if !ok {
-		return fmt.Errorf("Unable to retrieve external resource from externalOCSResources")
+		return fmt.Errorf("unable to retrieve external resource from externalOCSResources")
 	}
 
 	var extCephObjectStores []*cephv1.CephObjectStore
@@ -592,7 +592,7 @@ func verifyMonitoringEndpoints(monitoringIP, monitoringPort string,
 	log logr.Logger) (err error) {
 	if monitoringIP == "" {
 		err = fmt.Errorf(
-			"Monitoring Endpoint not present in the external cluster secret %s",
+			"monitoring endpoint not present in the external cluster secret %s",
 			externalClusterDetailsSecret)
 		log.Error(err, "Failed to get Monitoring IP.")
 		return
