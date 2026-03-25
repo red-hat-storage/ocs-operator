@@ -88,7 +88,7 @@ type StorageClusterSpec struct {
 	OverprovisionControl []OverprovisionControlSpec `json:"overprovisionControl,omitempty"`
 
 	// ProviderAPIServerServiceType Indicates the ServiceType for OCS Provider API Server Service.
-	// The default ServiceType is derived from hostNetwork field.
+	// The default ServiceType is derived from network.hostNetwork field.
 	// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer
 	ProviderAPIServerServiceType corev1.ServiceType `json:"providerAPIServerServiceType,omitempty"`
 

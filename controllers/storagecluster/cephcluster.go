@@ -635,8 +635,6 @@ func getNetworkSpec(sc ocsv1.StorageCluster) rookCephv1.NetworkSpec {
 	if sc.Spec.Network != nil {
 		networkSpec = *sc.Spec.Network
 	}
-	// respect both the old way and the new way for enabling HostNetwork
-	networkSpec.HostNetwork = networkSpec.HostNetwork || sc.Spec.HostNetwork
 
 	if networkSpec.Connections == nil {
 		networkSpec.Connections = &rookCephv1.ConnectionsSpec{}
