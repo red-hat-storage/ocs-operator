@@ -18,8 +18,10 @@ package storagecluster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 
 	securityv1 "github.com/openshift/api/security/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -53,6 +55,12 @@ var blackboxExporterLabels = map[string]string{
 	componentLabel: "blackbox-exporter",
 	nameLabel:      blackboxExporterName,
 	versionLabel:   version.Version,
+}
+
+type MultusNetStatus struct {
+	Name      string   `json:"name"`
+	Interface string   `json:"interface"`
+	IPs       []string `json:"ips"`
 }
 
 // deployBlackboxExporter ensures the Blackbox Exporter is deployed by default
@@ -326,25 +334,6 @@ modules:
 	return nil
 }
 
-func (r *StorageClusterReconciler) getNodeIPs(ctx context.Context) ([]string, error) {
-	nodes := &corev1.NodeList{}
-	err := r.Client.List(ctx, nodes, client.MatchingLabels{defaults.NodeAffinityKey: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	var ips []string
-	for _, node := range nodes.Items {
-		for _, addr := range node.Status.Addresses {
-			if addr.Type == corev1.NodeInternalIP {
-				ips = append(ips, addr.Address)
-				break
-			}
-		}
-	}
-	return ips, nil
-}
-
 // createBlackboxDeployment deploys the Blackbox Exporter
 func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context, instance *ocsv1.StorageCluster) error {
 	placement := getPlacement(instance, defaults.BlackboxExporterKey)
@@ -525,12 +514,122 @@ func (r *StorageClusterReconciler) createBlackboxService(ctx context.Context, in
 	return nil
 }
 
-// createBlackboxProbe creates or updates the Probe
+// getCephDaemonPodIPs returns PodIPs for running Ceph daemon pods of specified type
+// Works for both Multus and non-Multus clusters
+func (r *StorageClusterReconciler) getCephDaemonPodIPs(
+	ctx context.Context,
+	namespace string,
+	daemonType string,
+) ([]string, error) {
+	pods := &corev1.PodList{}
+	labelSelector := client.MatchingLabels{
+		"ceph_daemon_type": daemonType,
+	}
+
+	if err := r.List(ctx, pods, client.InNamespace(namespace), labelSelector); err != nil {
+		return nil, fmt.Errorf("failed to list %s pods: %w", daemonType, err)
+	}
+
+	var allIPs []string
+
+	for _, pod := range pods.Items {
+		if pod.Status.Phase != corev1.PodRunning {
+			r.Log.Info("Skipping non-running pod", "pod", pod.Name, "phase", pod.Status.Phase)
+			continue
+		}
+
+		networkStatusJSON, exists := pod.Annotations["k8s.v1.cni.cncf.io/network-status"]
+		if !exists || networkStatusJSON == "" {
+			r.Log.Info("Pod missing network-status annotation, falling back to PodIP",
+				"pod", pod.Name)
+			// Fallback: use PodIP if annotation is missing
+			if pod.Status.PodIP != "" {
+				allIPs = append(allIPs, pod.Status.PodIP)
+			}
+			continue
+		}
+
+		var networks []MultusNetStatus
+		if err := json.Unmarshal([]byte(networkStatusJSON), &networks); err != nil {
+			r.Log.Info("Failed to parse network-status annotation", "pod", pod.Name)
+			// Fallback: use PodIP if parsing fails
+			if pod.Status.PodIP != "" {
+				allIPs = append(allIPs, pod.Status.PodIP)
+			}
+			continue
+		}
+
+		for _, net := range networks {
+			if len(net.IPs) > 0 {
+				allIPs = append(allIPs, net.IPs...)
+				r.Log.Info("Extracted IPs from network-status",
+					"pod", pod.Name,
+					"network", net.Name,
+					"interface", net.Interface,
+					"ips", net.IPs)
+			}
+		}
+	}
+
+	r.Log.Info("Collected Ceph daemon pod IPs", "type", daemonType, "count", len(allIPs))
+	return allIPs, nil
+}
+
+// buildIPRegex creates a Prometheus-compatible regex matching any IP in the list
+// Input: ["10.0.0.1", "10.0.0.2"] → Output: "^(10\\.0\\.0\\.1|10\\.0\\.0\\.2)$"
+func buildIPRegex(ips []string) string {
+	if len(ips) == 0 {
+		return "$^" // Match nothing (invalid regex that never matches)
+	}
+	var escaped []string
+	for _, ip := range ips {
+		// Escape dots for regex + wrap in quotes for Prometheus regex syntax
+		escaped = append(escaped, strings.ReplaceAll(ip, ".", "\\."))
+	}
+	// Prometheus regex uses alternation with quoted strings
+	return "^(" + strings.Join(escaped, "|") + ")$"
+}
+
+// createBlackboxProbe creates or updates the Probe with relabeling for daemon_type labels
 func (r *StorageClusterReconciler) createBlackboxProbe(ctx context.Context, instance *ocsv1.StorageCluster) error {
-	nodeIPs, err := r.getNodeIPs(ctx)
+	osdIPs, err := r.getCephDaemonPodIPs(ctx, instance.Namespace, "osd")
 	if err != nil {
-		r.Log.Error(err, "Failed to get node IPs")
+		r.Log.Error(err, "Failed to get OSD pod IPs")
 		return err
+	}
+
+	monIPs, err := r.getCephDaemonPodIPs(ctx, instance.Namespace, "mon")
+	if err != nil {
+		r.Log.Error(err, "Failed to get MON pod IPs")
+		return err
+	}
+
+	allTargets := append(osdIPs, monIPs...)
+	if len(allTargets) == 0 {
+		r.Log.Info("No OSD or MON pod IPs found, skipping Probe creation")
+		return nil
+	}
+
+	var metricRelabelConfigs []monitoringv1.RelabelConfig
+
+	if len(osdIPs) > 0 {
+		metricRelabelConfigs = append(metricRelabelConfigs, monitoringv1.RelabelConfig{
+			SourceLabels: []monitoringv1.LabelName{"instance"},
+			Regex:        buildIPRegex(osdIPs),
+			TargetLabel:  "daemon_type",
+			Replacement:  ptr.To("osd"),
+			Action:       "replace",
+		})
+	}
+
+	if len(monIPs) > 0 {
+		metricRelabelConfigs = append(metricRelabelConfigs, monitoringv1.RelabelConfig{
+			SourceLabels: []monitoringv1.LabelName{"instance"},
+			Regex:        buildIPRegex(monIPs),
+			TargetLabel:  "daemon_type",
+			Replacement:  ptr.To("mon"),
+			Action:       "replace",
+		})
 	}
 
 	desired := &monitoringv1.Probe{
@@ -546,16 +645,18 @@ func (r *StorageClusterReconciler) createBlackboxProbe(ctx context.Context, inst
 			Module: "icmp_internal",
 			Targets: monitoringv1.ProbeTargets{
 				StaticConfig: &monitoringv1.ProbeTargetStaticConfig{
-					Targets: nodeIPs,
+					Targets: allTargets,
 					Labels: map[string]string{
 						"job": blackboxExporterName,
 					},
 				},
 			},
-			Interval:      blackboxScrapeInterval,
-			ScrapeTimeout: "5s",
+			Interval:             blackboxScrapeInterval,
+			ScrapeTimeout:        "10s",
+			MetricRelabelConfigs: metricRelabelConfigs,
 		},
 	}
+
 	actual := &monitoringv1.Probe{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      desired.Name,
@@ -578,6 +679,11 @@ func (r *StorageClusterReconciler) createBlackboxProbe(ctx context.Context, inst
 		r.Log.Error(err, "Failed to create/update Probe for Blackbox Exporter")
 		return err
 	}
+
+	r.Log.Info("Blackbox Probe created/updated successfully",
+		"targets", len(allTargets),
+		"osd", len(osdIPs),
+		"mon", len(monIPs))
 
 	return nil
 }
