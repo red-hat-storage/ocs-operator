@@ -12,7 +12,6 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
-	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -311,29 +310,31 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 	volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)] = true
 	volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = true
 
-	crd := &metav1.PartialObjectMetadata{}
-	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
-	crd.Name = VolumeGroupSnapshotClassCrdName
-	if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
-		return nil, err
-	}
-	if crd.UID != "" {
-		// for day2 volumegroupsnapshotclasses
-		volumeGroupSnapshotClassesInCluster := &groupsnapapi.VolumeGroupSnapshotClassList{}
-		if err := kubeClient.List(ctx, volumeGroupSnapshotClassesInCluster, &client.MatchingLabelsSelector{
-			// not select groupsnapshotclasses with external labels
-			Selector: util.GetExternalClassesBlacklistSelector(),
-		}); err != nil {
-			return nil, err
-		}
-		for idx := range volumeGroupSnapshotClassesInCluster.Items {
-			// TODO: skip volumegroupsnapshotclasses that are from external mode if both internal & external mode is enabled
-			vgsc := &volumeGroupSnapshotClassesInCluster.Items[idx]
-			if slices.Contains(util.SupportedCsiDrivers, vgsc.Driver) {
-				volumeGroupSnapshotClassNames[vgsc.Name] = true
-			}
-		}
-	}
+	// TODO: enable vgsc after GA of API
+	// crd := &metav1.PartialObjectMetadata{}
+	// crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
+	// crd.Name = VolumeGroupSnapshotClassCrdName
+	// if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(crd), crd); client.IgnoreNotFound(err) != nil {
+	// 	return nil, err
+	// }
+	// if crd.UID != "" {
+	// 	// for day2 volumegroupsnapshotclasses
+	// 	volumeGroupSnapshotClassesInCluster := &groupsnapapi.VolumeGroupSnapshotClassList{}
+	// 	if err := kubeClient.List(ctx, volumeGroupSnapshotClassesInCluster, &client.MatchingLabelsSelector{
+	// 		// not select groupsnapshotclasses with external labels
+	// 		Selector: util.GetExternalClassesBlacklistSelector(),
+	// 	}); err != nil {
+	// 		return nil, err
+	// 	}
+	// 	for idx := range volumeGroupSnapshotClassesInCluster.Items {
+	// 		// TODO: skip volumegroupsnapshotclasses that are from external mode if both internal & external mode is enabled
+	// 		vgsc := &volumeGroupSnapshotClassesInCluster.Items[idx]
+	// 		if slices.Contains(util.SupportedCsiDrivers, vgsc.Driver) {
+	// 			volumeGroupSnapshotClassNames[vgsc.Name] = true
+	// 		}
+	// 	}
+	// }
+	//TODO : end
 
 	vgscSpec := make([]ocsv1a1.VolumeGroupSnapshotClassSpec, 0, len(volumeGroupSnapshotClassNames))
 	for vgscName := range maps.Keys(volumeGroupSnapshotClassNames) {

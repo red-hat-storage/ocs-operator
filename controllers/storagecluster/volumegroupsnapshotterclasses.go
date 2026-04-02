@@ -15,13 +15,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+//nolint:unused
 type ocsGroupSnapshotClass struct{}
 
 type GroupSnapshotClassConfiguration struct {
-	groupSnapshotClass *groupsnapapi.VolumeGroupSnapshotClass
-	reconcileStrategy  ReconcileStrategy
+	groupSnapshotClass *groupsnapapi.VolumeGroupSnapshotClass //nolint:unused
+	reconcileStrategy  ReconcileStrategy                     //nolint:unused
 }
 
+//nolint:unused
 func (r *StorageClusterReconciler) createGroupSnapshotClasses(vsccs []GroupSnapshotClassConfiguration) error {
 
 	for _, vscc := range vsccs {
@@ -69,6 +71,7 @@ func (r *StorageClusterReconciler) createGroupSnapshotClasses(vsccs []GroupSnaps
 	return nil
 }
 
+//nolint:unused
 func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	if val, _ := r.crdsBeingWatched.Load(VolumeGroupSnapshotClassCrdName); !val.(bool) {
 		r.Log.Info("VolumeGroupSnapshotClass CRD is not available")
@@ -125,6 +128,7 @@ func (obj *ocsGroupSnapshotClass) ensureCreated(r *StorageClusterReconciler, ins
 	return reconcile.Result{}, nil
 }
 
+//nolint:unused
 func (obj *ocsGroupSnapshotClass) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	if val, _ := r.crdsBeingWatched.Load(VolumeGroupSnapshotClassCrdName); !val.(bool) {
 		r.Log.Info("VolumeGroupSnapshotClass CRD is not available")
