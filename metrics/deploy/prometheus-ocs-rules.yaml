@@ -527,21 +527,10 @@ spec:
     - alert: ODFNodeLatencyHighOnOSDNodes
       expr: |
         max_over_time(
-          (
-            probe_icmp_duration_seconds{phase="rtt", job="odf-blackbox-exporter"}
-            and on(instance)
-            (
-              count by (hostname) (ceph_osd_metadata)
-              * on(hostname) group_left(instance)
-              label_replace(
-                label_replace(
-                  max by (node, internal_ip) (kube_node_info),
-                  "hostname", "$1", "node", "(.+)"
-                ),
-                "instance", "$1", "internal_ip", "(.+)"
-              )
-            )
-          )[24h:]
+            probe_icmp_duration_seconds{phase="rtt",
+            job="odf-blackbox-exporter",
+            daemon_type="osd"
+            }[24h:]
         ) > 0.010
       for: 10m
       labels:
@@ -555,21 +544,10 @@ spec:
     - alert: ODFNodeLatencyHighOnNonOSDNodes
       expr: |
         max_over_time(
-          (
-            probe_icmp_duration_seconds{phase="rtt", job="odf-blackbox-exporter"}
-            unless on(instance)
-            (
-              count by (hostname) (ceph_osd_metadata)
-              * on(hostname) group_left(instance)
-              label_replace(
-                label_replace(
-                  max by (node, internal_ip) (kube_node_info),
-                  "hostname", "$1", "node", "(.+)"
-                ),
-                "instance", "$1", "internal_ip", "(.+)"
-              )
-            )
-          )[24h:]
+            probe_icmp_duration_seconds{phase="rtt",
+            job="odf-blackbox-exporter",
+            daemon_type="mon"
+            }[24h:]
         ) > 0.100
       for: 10m
       labels:
