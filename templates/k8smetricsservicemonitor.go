@@ -8,18 +8,18 @@ import (
 
 var params = map[string][]string{
 	"match[]": {
-		"{__name__='kube_node_status_condition'}",
-		"{__name__='kube_persistentvolume_info'}",
-		"{__name__='kube_storageclass_info'}",
-		"{__name__='kube_persistentvolumeclaim_info'}",
-		"{__name__='kube_deployment_spec_replicas'}",
-		"{__name__='kube_pod_status_phase'}",
-		"{__name__='kubelet_volume_stats_capacity_bytes'}",
-		"{__name__='kubelet_volume_stats_used_bytes'}",
-		"{__name__='node_disk_read_time_seconds_total'}",
-		"{__name__='node_disk_write_time_seconds_total'}",
-		"{__name__='node_disk_reads_completed_total'}",
-		"{__name__='node_disk_writes_completed_total'}",
+		"{__name__=\"kube_node_status_condition\"}",
+		"{__name__=\"kube_persistentvolume_info\"}",
+		"{__name__=\"kube_storageclass_info\"}",
+		"{__name__=\"kube_persistentvolumeclaim_info\"}",
+		"{__name__=\"kube_deployment_spec_replicas\"}",
+		"{__name__=\"kube_pod_status_phase\"}",
+		"{__name__=\"kubelet_volume_stats_capacity_bytes\"}",
+		"{__name__=\"kubelet_volume_stats_used_bytes\"}",
+		"{__name__=\"node_disk_read_time_seconds_total\"}",
+		"{__name__=\"node_disk_write_time_seconds_total\"}",
+		"{__name__=\"node_disk_reads_completed_total\"}",
+		"{__name__=\"node_disk_writes_completed_total\"}",
 	},
 }
 
