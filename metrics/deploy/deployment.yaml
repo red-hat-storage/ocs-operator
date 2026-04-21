@@ -43,7 +43,7 @@ spec:
         image: quay.io/brancz/kube-rbac-proxy:v0.17.1
         args:
           - '--secure-listen-address=0.0.0.0:8443'
-          - '--upstream=http://127.0.0.1:18080/'
+          - '--upstream=http://127.0.0.1:18082/'
           - --tls-cert-file=/etc/tls/private/tls.crt
           - --tls-private-key-file=/etc/tls/private/tls.key
           - --tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
@@ -98,13 +98,13 @@ spec:
         readinessProbe:
           httpGet:
             path: /metrics
-            port: 18080
+            port: 18082
             scheme: HTTP
           initialDelaySeconds: 15
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 18080
+            port: 18082
             scheme: HTTP
           initialDelaySeconds: 15
         image: quay.io/ocs-dev/ocs-operator
@@ -117,7 +117,7 @@ spec:
           - '--ceph-auth-namespace'
           - openshift-storage
           - '--port'
-          - "18080"
+          - "18082"
           - '--exporter-port'
           - "18081"
         securityContext:
