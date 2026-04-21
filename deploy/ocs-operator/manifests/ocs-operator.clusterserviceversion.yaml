@@ -197,7 +197,6 @@ spec:
           - persistentvolumes
           - pods
           - secrets
-          - serviceaccounts
           - services
           verbs:
           - create
