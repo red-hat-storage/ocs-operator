@@ -6,8 +6,8 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
-	storageclusterctrl "github.com/red-hat-storage/ocs-operator/v4/internal/controller/storagecluster"
-	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
+	storageclusterctrl "github.com/red-hat-storage/ocs-operator/v4/controllers/storagecluster"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"

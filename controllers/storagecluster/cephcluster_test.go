@@ -915,7 +915,7 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 			assert.DeepEqual(t, deviceSet.DataPVCTemplate.Spec, scds.VolumeClaimTemplates[0].Spec)
 			assert.Equal(t, true, scds.Portable)
 			assert.Equal(t, c.sc.Spec.Encryption.ClusterWide, scds.Encrypted)
-			assert.DeepEqual(t, GetPlacement(c.sc, "osd"), scds.Placement)
+			assert.DeepEqual(t, osdPlacement, scds.Placement)
 			topologyKey := scds.PreparePlacement.TopologySpreadConstraints[0].TopologyKey
 			assert.Equal(t, c.topologyKey, topologyKey)
 		}
