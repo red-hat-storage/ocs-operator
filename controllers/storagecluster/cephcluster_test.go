@@ -662,8 +662,8 @@ func TestStorageClassDeviceSetCreation(t *testing.T) {
 				assert.DeepEqual(t, deviceSet.DataPVCTemplate.Spec, scds.VolumeClaimTemplates[0].Spec)
 				assert.Equal(t, true, scds.Portable)
 				assert.Equal(t, sc.Spec.Encryption.ClusterWide, scds.Encrypted)
-				defaultExpectedOSDPlacement := getPlacement(sc, "osd")
-				defaultExpectedPreparePlacement := getPlacement(sc, "prepareosd")
+				defaultExpectedOSDPlacement := GetPlacement(sc, "osd")
+				defaultExpectedPreparePlacement := GetPlacement(sc, "prepareosd")
 
 				// create a device class match expression
 				deviceClassMatchExpression := metav1.LabelSelectorRequirement{
@@ -899,7 +899,7 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 		deviceSet := c.sc.Spec.StorageDeviceSets[0]
 
 		for i, scds := range actual {
-			defaultOsdPlacement := getPlacement(c.sc, "osd")
+			defaultOsdPlacement := GetPlacement(c.sc, "osd")
 			// create a device class match expression
 			deviceClassMatchExpression := metav1.LabelSelectorRequirement{
 				Key:      deviceClassPlacementKey,
