@@ -70,7 +70,7 @@ func assertCephObjectStores(t *testing.T, reconciler StorageClusterReconciler, c
 			t, func() bool { return expectedCos[0].Spec.Gateway.Instances == 1 },
 			"there should be one 'Spec.Gateway.Instances' by default")
 		assert.Equal(
-			t, expectedCos[0].Spec.Gateway.Placement, getPlacement(cr, "rgw"))
+			t, expectedCos[0].Spec.Gateway.Placement, GetPlacement(cr, "rgw"))
 	}
 
 	assert.Equal(t, len(expectedCos[0].OwnerReferences), 1)
