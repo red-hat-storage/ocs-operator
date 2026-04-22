@@ -28,6 +28,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 
 	"github.com/go-logr/logr"
+	storageclusterctrl "github.com/red-hat-storage/ocs-operator/v4/internal/controller/storagecluster"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
@@ -306,6 +307,12 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 		return true
 	}
 
+	storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, clientMappingConfig.Namespace)
+	if err != nil {
+		r.log.Error(err, "failed to get StorageCluster")
+		return true
+	}
+
 	maintenanceModeRequested := len(storageConsumers.Items) >= 1
 
 	if shouldMirror && !maintenanceModeRequested {
@@ -314,6 +321,7 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 				return err
 			}
 			rbdMirror.Spec.Count = 1
+			rbdMirror.Spec.Placement = storageclusterctrl.GetPlacement(storageCluster, "rbd-mirror")
 			return nil
 		})
 		if err != nil {
