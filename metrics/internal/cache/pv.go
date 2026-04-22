@@ -161,10 +161,124 @@ func appendIfNotExists(slice []string, value string) []string {
 	return append(slice, value)
 }
 
+func (p *PersistentVolumeStore) ensureMonitorConfig() (cephMonitorConfig, error) {
+	p.Mutex.RLock()
+	needsInit := (p.monitorConfig == cephMonitorConfig{})
+	p.Mutex.RUnlock()
+
+	if needsInit {
+		var err error
+		func() {
+			p.Mutex.Lock()
+			defer p.Mutex.Unlock()
+			// re-check under write lock to avoid redundant initCephFn calls
+			if p.monitorConfig == (cephMonitorConfig{}) {
+				config, initErr := p.initCephFn(p.kubeClient, p.cephClusterNamespace, p.cephAuthNamespace)
+				if initErr != nil {
+					err = initErr
+					return
+				}
+				p.monitorConfig = config
+			}
+		}()
+
+		if err != nil {
+			return cephMonitorConfig{}, fmt.Errorf("failed to initialize ceph: %v", err)
+		}
+	}
+
+	p.Mutex.RLock()
+	config := p.monitorConfig
+	p.Mutex.RUnlock()
+	return config, nil
+}
+
+type pvProcessResult struct {
+	uid      types.UID
+	attrs    PersistentVolumeAttributes
+	clients  Clients
+	nodeName string
+	children int
+	// Set when rbd status, node lookup, and children count all succeeded.
+	rbdOK     bool
+	imageName string
+}
+
+// processPV runs per-PV filtering and slow Ceph CLI operations without
+// holding any lock. Returns nil for non-RBD PVs or PVs without a ClaimRef.
+func (p *PersistentVolumeStore) processPV(pv *corev1.PersistentVolume, monConfig *cephMonitorConfig) *pvProcessResult {
+	provisioner := pv.Annotations["pv.kubernetes.io/provisioned-by"]
+	if !strings.Contains(provisioner, ".rbd.csi.ceph.com") {
+		return nil
+	}
+	if pv.Spec.ClaimRef == nil {
+		return nil
+	}
+
+	radosnamespace := util.ImplicitRbdRadosNamespaceName
+	if pv.Spec.CSI.VolumeAttributes["radosNamespace"] != "" {
+		radosnamespace = pv.Spec.CSI.VolumeAttributes["radosNamespace"]
+	}
+	pool := pv.Spec.CSI.VolumeAttributes["pool"]
+	namespace := pv.Spec.CSI.VolumeAttributes["radosNamespace"]
+	imageName := pv.Spec.CSI.VolumeAttributes["imageName"]
+
+	result := &pvProcessResult{
+		uid: pv.GetUID(),
+		attrs: PersistentVolumeAttributes{
+			PersistentVolumeName:           pv.Name,
+			PersistentVolumeClaimName:      pv.Spec.ClaimRef.Name,
+			PersistentVolumeClaimNamespace: pv.Spec.ClaimRef.Namespace,
+			ImageName:                      imageName,
+			Pool:                           pool,
+			RadosNameSpace:                 radosnamespace,
+		},
+		imageName: imageName,
+	}
+
+	clients, err := p.runCephRBDStatusFn(monConfig, pool, namespace, imageName)
+	if err != nil {
+		klog.Errorf("failed to get image status for PV %s: %v", pv.Name, err)
+		return result
+	}
+
+	nodeName, err := p.getNodeNameForPVFn(pv, p.kubeClient)
+	if err != nil {
+		klog.Errorf("failed to get node name for PV %s: %v", pv.Name, err)
+		return result
+	}
+
+	childrenCount, err := p.runCephRBDChildrenCountFn(monConfig, pool, namespace, imageName)
+	if err != nil {
+		klog.Errorf("failed to get children count for image %s/%s: %v", namespace, imageName, err)
+		return result
+	}
+
+	result.clients = clients
+	result.nodeName = nodeName
+	result.children = childrenCount
+	result.rbdOK = true
+	return result
+}
+
+func applyPVResult(r *pvProcessResult, store map[types.UID]PersistentVolumeAttributes, clientMap map[string][]string, childrenMap map[string]int) {
+	store[r.uid] = r.attrs
+	if !r.rbdOK {
+		return
+	}
+	childrenMap[r.imageName] = r.children
+	if r.nodeName != "" {
+		for _, client := range r.clients.Watchers {
+			clientMap[client.Address] = appendIfNotExists(clientMap[client.Address], r.nodeName)
+		}
+	}
+}
+
 // Add inserts to the PersistentVolumeStore.
+// Slow Ceph CLI operations run without holding the lock so that
+// Collect() calls serving /metrics are never blocked.
 func (p *PersistentVolumeStore) Add(obj interface{}) error {
 	var pv *corev1.PersistentVolume
-	// obj can be of PV type or a pointer to it
 	switch pvFromObj := obj.(type) {
 	case *corev1.PersistentVolume:
 		pv = pvFromObj
@@ -174,77 +288,27 @@ func (p *PersistentVolumeStore) Add(obj interface{}) error {
 		return fmt.Errorf("unexpected object of type %T", obj)
 	}
 
-	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
-
-	klog.Infof("PV store addition started at %v for PV %v", time.Now(), pv.Name)
-	if err := p.add(pv); err != nil {
-		return err
-	}
-	klog.Infof("PV store addition completed at %v for PV %v", time.Now(), pv.Name)
-
-	return nil
-}
-
-// add is not thread-safe. So, it must to be called from a thread safe function only.
-func (p *PersistentVolumeStore) add(pv *corev1.PersistentVolume) error {
 	provisioner := pv.Annotations["pv.kubernetes.io/provisioned-by"]
 	if !strings.Contains(provisioner, ".rbd.csi.ceph.com") {
-		klog.Infof("Skipping non Ceph CSI RBD volume %s", pv.Name)
 		return nil
 	}
-
 	if pv.Spec.ClaimRef == nil {
-		klog.Infof("ClaimRef empty for pv %s", pv.Name)
 		return nil
 	}
 
-	if (p.monitorConfig == cephMonitorConfig{}) {
-		var err error
-		p.monitorConfig, err = p.initCephFn(p.kubeClient, p.cephClusterNamespace, p.cephAuthNamespace)
-		if err != nil {
-			return fmt.Errorf("failed to initialize ceph: %v", err)
-		}
-	}
-
-	radosnamespace := util.ImplicitRbdRadosNamespaceName
-	if pv.Spec.CSI.VolumeAttributes["radosNamespace"] != "" {
-		radosnamespace = pv.Spec.CSI.VolumeAttributes["radosNamespace"]
-	}
-
-	p.Store[pv.GetUID()] = PersistentVolumeAttributes{
-		PersistentVolumeName:           pv.Name,
-		PersistentVolumeClaimName:      pv.Spec.ClaimRef.Name,
-		PersistentVolumeClaimNamespace: pv.Spec.ClaimRef.Namespace,
-		ImageName:                      pv.Spec.CSI.VolumeAttributes["imageName"],
-		Pool:                           pv.Spec.CSI.VolumeAttributes["pool"],
-		RadosNameSpace:                 radosnamespace,
-	}
-
-	clients, err := p.runCephRBDStatusFn(&p.monitorConfig, pv.Spec.CSI.VolumeAttributes["pool"], pv.Spec.CSI.VolumeAttributes["radosNamespace"], pv.Spec.CSI.VolumeAttributes["imageName"])
+	monConfig, err := p.ensureMonitorConfig()
 	if err != nil {
-		return fmt.Errorf("failed to get image status %v", err)
+		return err
 	}
 
-	nodeName, err := p.getNodeNameForPVFn(pv, p.kubeClient)
-	if err != nil {
-		return fmt.Errorf("failed to get node name for pod: %v", err)
-	}
-
-	childrenCount, err := p.runCephRBDChildrenCountFn(&p.monitorConfig, pv.Spec.CSI.VolumeAttributes["pool"], pv.Spec.CSI.VolumeAttributes["radosNamespace"], pv.Spec.CSI.VolumeAttributes["imageName"])
-	if err != nil {
-		return fmt.Errorf("failed to get children count for image %s/%s: %v", pv.Spec.CSI.VolumeAttributes["radosNamespace"], pv.Spec.CSI.VolumeAttributes["imageName"], err)
-	}
-	p.RBDChildrenMap[pv.Spec.CSI.VolumeAttributes["imageName"]] = childrenCount
-
-	if nodeName == "" {
+	result := p.processPV(pv, &monConfig)
+	if result == nil {
 		return nil
 	}
 
-	for _, client := range clients.Watchers {
-		p.RBDClientMap[client.Address] = appendIfNotExists(p.RBDClientMap[client.Address], nodeName)
-	}
-
+	p.Mutex.Lock()
+	applyPVResult(result, p.Store, p.RBDClientMap, p.RBDChildrenMap)
+	p.Mutex.Unlock()
 	return nil
 }
 
@@ -311,18 +375,40 @@ func (p *PersistentVolumeStore) GetByKey(_ string) (item interface{}, exists boo
 }
 
 // Replace will delete the contents of the store, using instead the
-// given list.
+// given list. Slow Ceph CLI operations run without holding the lock;
+// the new state is swapped in atomically at the end.
 func (p *PersistentVolumeStore) Replace(list []interface{}, _ string) error {
-	p.Mutex.Lock()
-	p.Store = map[types.UID]PersistentVolumeAttributes{}
-	p.Mutex.Unlock()
+	monConfig, err := p.ensureMonitorConfig()
+	if err != nil {
+		return err
+	}
+
+	newStore := map[types.UID]PersistentVolumeAttributes{}
+	newClientMap := map[string][]string{}
+	newChildrenMap := make(map[string]int)
 
 	for _, o := range list {
-		err := p.Add(o)
-		if err != nil {
-			return err
+		var pv *corev1.PersistentVolume
+		switch pvFromObj := o.(type) {
+		case *corev1.PersistentVolume:
+			pv = pvFromObj
+		case corev1.PersistentVolume:
+			pv = &pvFromObj
+		default:
+			klog.Errorf("unexpected object of type %T in Replace", o)
+			continue
+		}
+
+		if result := p.processPV(pv, &monConfig); result != nil {
+			applyPVResult(result, newStore, newClientMap, newChildrenMap)
 		}
 	}
+
+	p.Mutex.Lock()
+	p.Store = newStore
+	p.RBDClientMap = newClientMap
+	p.RBDChildrenMap = newChildrenMap
+	p.Mutex.Unlock()
 
 	return nil
 }
@@ -336,30 +422,34 @@ func (p *PersistentVolumeStore) Resync() error {
 		return fmt.Errorf("failed to list persistent volumes: %v", err)
 	}
 
+	monConfig, err := p.ensureMonitorConfig()
+	if err != nil {
+		return err
+	}
+
+	newStore := map[types.UID]PersistentVolumeAttributes{}
+	newClientMap := map[string][]string{}
+	newChildrenMap := make(map[string]int)
+
+	for idx := range pvList.Items {
+		if result := p.processPV(&pvList.Items[idx], &monConfig); result != nil {
+			applyPVResult(result, newStore, newClientMap, newChildrenMap)
+		}
+	}
+
 	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
+	p.Store = newStore
+	p.RBDClientMap = newClientMap
+	p.RBDChildrenMap = newChildrenMap
+	p.Mutex.Unlock()
 
-	for _, pv := range pvList.Items {
-		err := p.add(&pv)
-		if err != nil {
-			return fmt.Errorf("failed to process PV: %s err: %v", pv.Name, err)
-		}
-	}
-
-	if (p.monitorConfig == cephMonitorConfig{}) {
-		var err error
-		p.monitorConfig, err = p.initCephFn(p.kubeClient, p.cephClusterNamespace, p.cephAuthNamespace)
-		if err != nil {
-			return fmt.Errorf("failed to initialize ceph: %v", err)
-		}
-	}
-
-	klog.Infof("Caching CephFS subvolume count ")
-	subvolCount, err := p.runCephfsSubvolumeCountFn(&p.monitorConfig)
+	subvolCount, err := p.runCephfsSubvolumeCountFn(&monConfig)
 	if err != nil {
 		klog.Errorf("failed to get CephFS subvolume count: %v", err)
 	} else {
+		p.Mutex.Lock()
 		p.CephFSSubvolumeCount = subvolCount
+		p.Mutex.Unlock()
 	}
 
 	klog.Infof("PV store Resync ended at %v", time.Now())
