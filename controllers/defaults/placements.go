@@ -64,7 +64,7 @@ var (
 			},
 			NodeAffinity: DefaultNodeAffinity,
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				// leave the label value empty as it will be updated with the objectStore name later in getPlacement()
+				// leave the label value empty as it will be updated with the objectStore name later in GetPlacement()
 				getTopologySpreadConstraint(1, "rook_object_store", []string{}, corev1.DoNotSchedule),
 			},
 		},
@@ -75,7 +75,7 @@ var (
 			},
 			NodeAffinity: DefaultNodeAffinity,
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				// leave the label value empty as it will be updated with the filesystem name later in getPlacement()
+				// leave the label value empty as it will be updated with the filesystem name later in GetPlacement()
 				getTopologySpreadConstraint(1, "rook_file_system", []string{}, corev1.DoNotSchedule),
 			},
 		},
@@ -86,7 +86,7 @@ var (
 			},
 			NodeAffinity: DefaultNodeAffinity,
 			TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
-				// leave the label value empty as it will be updated with the nfs name later in getPlacement()
+				// leave the label value empty as it will be updated with the nfs name later in GetPlacement()
 				getTopologySpreadConstraint(1, "ceph_nfs", []string{}, corev1.DoNotSchedule),
 			},
 		},
@@ -145,7 +145,7 @@ var (
 func getTopologySpreadConstraint(maxSkew int32, labelKey string, labelValues []string, whenUnsatisfiable corev1.UnsatisfiableConstraintAction) corev1.TopologySpreadConstraint {
 	topologySpreadConstraint := corev1.TopologySpreadConstraint{
 		MaxSkew:           maxSkew,
-		TopologyKey:       corev1.LabelHostname, // TopologyKey gets updated with the failure domain in newStorageClassDeviceSets()/getPlacement()
+		TopologyKey:       corev1.LabelHostname, // TopologyKey gets updated with the failure domain in newStorageClassDeviceSets()/GetPlacement()
 		WhenUnsatisfiable: whenUnsatisfiable,
 		LabelSelector: &metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{

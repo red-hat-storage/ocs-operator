@@ -205,7 +205,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 						},
 					},
 					Instances: int32(getCephObjectStoreGatewayInstances(initData)),
-					Placement: getPlacement(initData, "rgw"),
+					Placement: GetPlacement(initData, "rgw"),
 					Resources: getDaemonResources("rgw", initData),
 					// set PriorityClassName for the rgw pods
 					PriorityClassName: systemClusterCritical,
