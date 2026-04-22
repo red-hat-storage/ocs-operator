@@ -61,7 +61,7 @@ func (r *StorageClusterReconciler) newCephRbdMirrorInstances(initData *ocsv1.Sto
 					return initData.Spec.ManagedResources.CephRBDMirror.DaemonCount
 				}(),
 				Resources: getDaemonResources("rbd-mirror", initData),
-				Placement: getPlacement(initData, "rbd-mirror"),
+				Placement: GetPlacement(initData, "rbd-mirror"),
 			},
 		},
 	}

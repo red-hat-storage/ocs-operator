@@ -371,7 +371,7 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		assert.Equalf(t, noobaa.Name, "noobaa", "[%s] noobaa name not set correctly", c.label)
 		assert.Equal(t, *noobaa.Spec.DBSpec.DBStorageClass, c.dbStorageClassName)
 		assert.Equal(t, *noobaa.Spec.PVPoolDefaultStorageClass, c.dbStorageClassName)
-		noobaaplacement := getPlacement(&c.sc, "noobaa-core")
+		noobaaplacement := GetPlacement(&c.sc, "noobaa-core")
 		topologyMap := c.sc.Status.NodeTopologies
 		if topologyMap != nil {
 			topologyKey := getFailureDomain(&c.sc)
