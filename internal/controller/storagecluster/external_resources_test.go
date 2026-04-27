@@ -899,7 +899,7 @@ func TestEnableCsiDriversWithTopologyConfig(t *testing.T) {
 				}
 			}
 
-			err = reconciler.configureCsiDrivers(availableSCCs, sc)
+			err = reconciler.configureCsiClient(availableSCCs, sc)
 
 			if tc.expectError {
 				assert.Error(t, err)
