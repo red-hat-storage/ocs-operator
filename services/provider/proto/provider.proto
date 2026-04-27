@@ -143,6 +143,8 @@ message GetDesiredClientStateResponse{
     optional RbdDriverRequirements rbdDriverRequirements = 7;
     optional CephFsDriverRequirements CephFsDriverRequirements = 8;
     optional NfsDriverRequirements NfsDriverRequirements = 9;
+    // known client operator version based on last heartbeat
+    string lastKnownClientOperatorVersion = 10;
 }
 
 

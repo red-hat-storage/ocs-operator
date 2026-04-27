@@ -489,7 +489,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			s3EndpointsListResourceVersion,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
-
+		response.LastKnownClientOperatorVersion = cmp.Or(consumer.Status.Client, &ocsv1alpha1.ClientStatus{}).OperatorVersion
 		logger.Info("successfully returned the config details to the client")
 		return response, nil
 	}
