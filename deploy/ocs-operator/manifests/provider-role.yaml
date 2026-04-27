@@ -61,6 +61,14 @@ rules:
       - operators.coreos.com
     resources:
       - subscriptions
+      - clusterserviceversions
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - packages.operators.coreos.com
+    resources:
+      - packagemanifests
     verbs:
       - get
       - list
