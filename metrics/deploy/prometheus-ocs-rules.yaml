@@ -754,19 +754,19 @@ spec:
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFDiskUtilizationHigh.md
 
     - alert: ODFCorePodRestarted
+      annotations:
+        description: Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} restarted {{ $value | humanize }} time(s) in the last 24h. Investigate stability.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFCorePodRestarted.md
+        summary: ODF core pod restarted in last 24h
       expr: |
+        sum by (pod, namespace) (
           changes(
             kube_pod_container_status_restarts_total{
               pod=~"rook-ceph-osd-.*|rook-ceph-mon-.*|rook-ceph-mgr-.*|odf-operator-.*|ocs-metrics-exporter-.*"
             }[24h]
-          ) > 0
-          and on(namespace)
-          ceph_health_status
-      for: 1m
+          )
+        ) > 0
+      for: 5m
       labels:
         severity: warning
         component: odf
-      annotations:
-        summary: "ODF core pod restarted in last 24h"
-        description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} restarted {{ $value }} time(s) in the last 24h. Investigate stability."
-        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFCorePodRestarted.md
