@@ -325,6 +325,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			util.MapExternalCephClusterNegativeConditions(&r.conditions, found)
 		} else {
 			util.MapCephClusterNegativeConditions(&r.conditions, found)
+			util.RemoveCephClusterNegativeConditions(&sc.Status.Conditions, found)
 		}
 	}
 
