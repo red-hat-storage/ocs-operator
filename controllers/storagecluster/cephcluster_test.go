@@ -1769,7 +1769,7 @@ func TestDetermineDefaultCephDeviceClass(t *testing.T) {
 }
 
 func TestIsEncrptionSettingUpdated(t *testing.T) {
-	newStorageClassDeviceSet := []rookCephv1.StorageClassDeviceSet{
+	unencryptedDeviceSets := []rookCephv1.StorageClassDeviceSet{
 		{
 			Name:      "set1",
 			Encrypted: false,
@@ -1780,13 +1780,69 @@ func TestIsEncrptionSettingUpdated(t *testing.T) {
 		},
 	}
 
-	// encryption setting has changed
-	actualResult := isEncrptionSettingUpdated(true, newStorageClassDeviceSet)
-	assert.Equal(t, true, actualResult)
+	encryptedDeviceSets := []rookCephv1.StorageClassDeviceSet{
+		{
+			Name:      "set1",
+			Encrypted: true,
+		},
+		{
+			Name:      "set2",
+			Encrypted: true,
+		},
+	}
 
-	// encryption setting has not changed
-	actualResult = isEncrptionSettingUpdated(false, newStorageClassDeviceSet)
-	assert.Equal(t, false, actualResult)
+	cases := []struct {
+		desc              string
+		clusterWide       bool
+		legacyEnable      bool
+		existingDeviceSet []rookCephv1.StorageClassDeviceSet
+		expected          bool
+	}{
+		{
+			desc:              "clusterWide enabled, devices unencrypted - should detect change",
+			clusterWide:       true,
+			existingDeviceSet: unencryptedDeviceSets,
+			expected:          true,
+		},
+		{
+			desc:              "neither enabled, devices unencrypted - no change",
+			existingDeviceSet: unencryptedDeviceSets,
+			expected:          false,
+		},
+		{
+			desc:              "legacy enable set, devices unencrypted - should detect change",
+			legacyEnable:      true,
+			existingDeviceSet: unencryptedDeviceSets,
+			expected:          true,
+		},
+		{
+			desc:              "both clusterWide and legacy enable set, devices unencrypted - should detect change",
+			clusterWide:       true,
+			legacyEnable:      true,
+			existingDeviceSet: unencryptedDeviceSets,
+			expected:          true,
+		},
+		{
+			desc:              "legacy enable set, devices already encrypted - no change",
+			legacyEnable:      true,
+			existingDeviceSet: encryptedDeviceSets,
+			expected:          false,
+		},
+		{
+			desc:              "clusterWide enabled, devices already encrypted - no change",
+			clusterWide:       true,
+			existingDeviceSet: encryptedDeviceSets,
+			expected:          false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			encryptionEnabled := c.clusterWide || c.legacyEnable
+			actual := isEncrptionSettingUpdated(encryptionEnabled, c.existingDeviceSet)
+			assert.Equal(t, c.expected, actual)
+		})
+	}
 }
 
 func TestGetCephClusterCephConfig(t *testing.T) {
