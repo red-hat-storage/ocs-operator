@@ -27,7 +27,6 @@ import (
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
-	"github.com/red-hat-storage/ocs-operator/v4/version"
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -52,9 +51,7 @@ const (
 )
 
 var blackboxExporterLabels = map[string]string{
-	componentLabel: "blackbox-exporter",
-	nameLabel:      blackboxExporterName,
-	versionLabel:   version.Version,
+	"app": blackboxExporterName,
 }
 
 type MultusNetStatus struct {
@@ -423,7 +420,29 @@ func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context,
 		},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, actual, func() error {
+	err := r.Get(ctx, types.NamespacedName{Name: actual.Name, Namespace: actual.Namespace}, actual)
+	if err == nil {
+		// Deployment exists - check if selector matches
+		if actual.Spec.Selector != nil && !equality.Semantic.DeepEqual(actual.Spec.Selector.MatchLabels, blackboxExporterLabels) {
+			r.Log.Info("Blackbox Deployment selector mismatch detected, deleting for safe recreation",
+				"existingSelector", actual.Spec.Selector.MatchLabels,
+				"desiredSelector", blackboxExporterLabels)
+
+			// Delete just the Deployment (not all blackbox resources)
+			if deleteErr := r.Delete(ctx, actual); deleteErr != nil && !apierrors.IsNotFound(deleteErr) {
+				r.Log.Error(deleteErr, "Failed to delete Blackbox Deployment with mismatched selector")
+				return deleteErr
+			}
+			r.Log.Info("Deleted Blackbox Deployment, will recreate with correct selector")
+			// Fall through to CreateOrUpdate which will create it fresh
+		}
+	} else if !apierrors.IsNotFound(err) {
+		// Real error (not just "not found")
+		r.Log.Error(err, "Failed to get Blackbox Deployment")
+		return err
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, actual, func() error {
 		if actual.CreationTimestamp.IsZero() {
 			actual.Spec.Selector = &metav1.LabelSelector{MatchLabels: blackboxExporterLabels}
 			if err := controllerutil.SetControllerReference(instance, actual, r.Scheme); err != nil {
@@ -432,7 +451,9 @@ func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context,
 		}
 		actual.Spec.Template = desired.Spec.Template
 		return nil
+
 	})
+
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		r.Log.Error(err, "Failed to create/update Deployment for Blackbox Exporter")
 		return err
