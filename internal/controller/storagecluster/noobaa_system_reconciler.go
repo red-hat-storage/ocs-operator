@@ -1,7 +1,6 @@
 package storagecluster
 
 import (
-	"cmp"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -288,20 +287,22 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 			return err
 		}
 
+		if nb.Spec.Security.APIServerSecurity == nil {
+			nb.Spec.Security.APIServerSecurity = &nbv1.TLSSecuritySpec{}
+		}
 		gotls := ocstlsv1.GetGoTLSConfig(cfg)
-		apiSecurity := cmp.Or(nb.Spec.Security.APIServerSecurity, &nbv1.TLSSecuritySpec{})
 		switch gotls.MinVersion {
 		case tls.VersionTLS12:
-			apiSecurity.TLSMinVersion = ptr.To(nbv1.VersionTLS12)
+			nb.Spec.Security.APIServerSecurity.TLSMinVersion = ptr.To(nbv1.VersionTLS12)
 		case tls.VersionTLS13:
-			apiSecurity.TLSMinVersion = ptr.To(nbv1.VersionTLS13)
+			nb.Spec.Security.APIServerSecurity.TLSMinVersion = ptr.To(nbv1.VersionTLS13)
 		}
 
 		tlsCiphers := make([]string, 0, len(gotls.CipherSuites))
 		for _, cipher := range gotls.CipherSuites {
 			tlsCiphers = append(tlsCiphers, tls.CipherSuiteName(cipher))
 		}
-		apiSecurity.TLSCiphers = tlsCiphers
+		nb.Spec.Security.APIServerSecurity.TLSCiphers = tlsCiphers
 
 		tlsGroups := make([]nbv1.TLSGroup, 0, len(gotls.CurvePreferences))
 		var tlsGroup nbv1.TLSGroup
@@ -327,8 +328,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 			}
 			tlsGroup = ""
 		}
-		apiSecurity.TLSGroups = tlsGroups
-		nb.Spec.Security.APIServerSecurity = apiSecurity
+		nb.Spec.Security.APIServerSecurity.TLSGroups = tlsGroups
 	} else {
 		nb.Spec.Security.APIServerSecurity = nil
 	}

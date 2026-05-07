@@ -9,6 +9,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
+	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -25,7 +26,9 @@ const (
 	stsKeyLen                    = 16 // 16 alphanumeric characters for STS key
 )
 
-type ocsCephObjectStores struct{}
+type ocsCephObjectStores struct {
+	tlsProfile *ocstlsv1.TLSProfile
+}
 
 // ensureCreated ensures that CephObjectStore resources exist in the desired
 // state.
@@ -65,13 +68,13 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 				return reconcile.Result{}, err
 			}
 		}
-		cephObjectStores, err = r.newCephObjectStoreInstances(instance, kmsConfigMap)
+		cephObjectStores, err = r.newCephObjectStoreInstances(instance, kmsConfigMap, obj.tlsProfile)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 	} else {
 		var err error
-		cephObjectStores, err = r.newCephObjectStoreInstances(instance, nil)
+		cephObjectStores, err = r.newCephObjectStoreInstances(instance, nil, obj.tlsProfile)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -89,7 +92,7 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 // ensureDeleted deletes the CephObjectStores owned by the StorageCluster
 func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	foundCephObjectStore := &cephv1.CephObjectStore{}
-	cephObjectStores, err := r.newCephObjectStoreInstances(sc, nil)
+	cephObjectStores, err := r.newCephObjectStoreInstances(sc, nil, obj.tlsProfile)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -179,7 +182,7 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 
 // newCephObjectStoreInstances returns the cephObjectStore instances that should be created
 // on first run.
-func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.StorageCluster, kmsConfigMap *corev1.ConfigMap) ([]*cephv1.CephObjectStore, error) {
+func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.StorageCluster, kmsConfigMap *corev1.ConfigMap, tlsProfile *ocstlsv1.TLSProfile) ([]*cephv1.CephObjectStore, error) {
 	ret := []*cephv1.CephObjectStore{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -307,6 +310,35 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			}
 		}
 
+		if obj.Spec.Security == nil {
+			obj.Spec.Security = &cephv1.ObjectStoreSecuritySpec{}
+		}
+		if cfg, found := ocstlsv1.GetConfigForServer(tlsProfile, "rook.io", ""); found {
+			if err := ocstlsv1.ValidateTLSConfig(cfg); err != nil {
+				return nil, err
+			}
+
+			osstls := ocstlsv1.OpenSSLConfigFrom(ocstlsv1.GetGoTLSConfig(cfg))
+			switch osstls.Protocol {
+			case "TLSv1.3":
+				if obj.Spec.Security.SslOptions == nil {
+					obj.Spec.Security.SslOptions = &cephv1.SslOptionsSpec{}
+				}
+				// rook by default disables older versions except 1.2 and we explicitly disable it
+				// making 1.3 as the default
+				obj.Spec.Security.SslOptions.SSLv2 = ptr.To(false)
+			}
+			obj.Spec.Security.Ciphers = osstls.Ciphers
+			obj.Spec.Security.TlsGroups = osstls.Groups
+		} else {
+			// From https://docs.openssl.org/master/man3/SSL_CTX_set1_curves/#description
+			// The DEFAULT list selects X25519MLKEM768 as one of the predicted keyshares.
+			// Unlike Golang or Nginx servers OpenSSL needs explicit setting to enable hybrid key exchange
+			// and DEFAULT here would include one along with other classic groups without any further setting.
+			obj.Spec.Security.Ciphers = nil
+			obj.Spec.Security.TlsGroups = []string{"DEFAULT"}
+			obj.Spec.Security.SslOptions = nil
+		}
 	}
 	return ret, nil
 }
