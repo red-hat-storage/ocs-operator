@@ -352,7 +352,7 @@ func NooBaaTLSTest() {
 					Spec: ocstlsv1.TLSProfileSpec{
 						Rules: []ocstlsv1.TLSProfileRules{
 							{
-								// Rule for other.service — should NOT be applied to NooBaa
+								// Rule for other.service - should NOT be applied to NooBaa
 								Selectors: []ocstlsv1.Selector{"other.service"},
 								Config: ocstlsv1.TLSConfig{
 									Version: ocstlsv1.VersionTLS1_2,
@@ -361,7 +361,7 @@ func NooBaaTLSTest() {
 								},
 							},
 							{
-								// Rule for noobaa.io — should be applied to NooBaa
+								// Rule for noobaa.io - should be applied to NooBaa
 								Selectors: []ocstlsv1.Selector{"noobaa.io"},
 								Config: ocstlsv1.TLSConfig{
 									Version: ocstlsv1.VersionTLS1_3,

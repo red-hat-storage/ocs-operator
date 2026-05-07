@@ -9,12 +9,14 @@ import (
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
+	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -50,7 +52,7 @@ func TestCephObjectStores(t *testing.T) {
 }
 
 func assertCephObjectStores(t *testing.T, reconciler *StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
-	expectedCos, err := reconciler.newCephObjectStoreInstances(cr, nil)
+	expectedCos, err := reconciler.newCephObjectStoreInstances(cr, nil, nil)
 	assert.NoError(t, err)
 
 	actualCos := &cephv1.CephObjectStore{
@@ -80,7 +82,7 @@ func assertCephObjectStores(t *testing.T, reconciler *StorageClusterReconciler, 
 	assert.Equal(t, len(expectedCos[0].OwnerReferences), 1)
 
 	cr.Spec.ManagedResources.CephObjectStores.GatewayInstances = 2
-	expectedCos, _ = reconciler.newCephObjectStoreInstances(cr, nil)
+	expectedCos, _ = reconciler.newCephObjectStoreInstances(cr, nil, nil)
 	assert.Equal(t, expectedCos[0].Spec.Gateway.Instances, int32(2))
 }
 
@@ -101,7 +103,7 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_RGW_AUTH_METHOD": "agent",
 			},
 		}
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, cephObjectStores[0].Spec.Security)
 		s3 := cephObjectStores[0].Spec.Security.ServerSideEncryptionS3
@@ -122,7 +124,7 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_RGW_AUTH_METHOD": "agent",
 			},
 		}
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
 		assert.NoError(t, err)
 		assert.Nil(t, cephObjectStores[0].Spec.Security)
 	})
@@ -135,7 +137,7 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_RGW_AUTH_METHOD": "token",
 			},
 		}
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, cephObjectStores[0].Spec.Security)
 		// SSE-KMS should be configured
@@ -153,9 +155,12 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_ADDR":   "https://vault.example.com:8200",
 			},
 		}
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
 		assert.NoError(t, err)
-		assert.Nil(t, cephObjectStores[0].Spec.Security)
+		// Security is always set (for DEFAULT TLS groups), but KMS fields must be empty
+		assert.NotNil(t, cephObjectStores[0].Spec.Security)
+		assert.Empty(t, cephObjectStores[0].Spec.Security.KeyManagementService.ConnectionDetails)
+		assert.Empty(t, cephObjectStores[0].Spec.Security.ServerSideEncryptionS3.ConnectionDetails)
 	})
 
 	t.Run("Error when VAULT_RGW_AUTH_METHOD is invalid", func(t *testing.T) {
@@ -166,15 +171,18 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_RGW_AUTH_METHOD": "kubernetes",
 			},
 		}
-		_, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap)
+		_, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "kubernetes")
 	})
 
 	t.Run("No RGW encryption when KMS ConfigMap is nil", func(t *testing.T) {
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, nil)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, nil, nil)
 		assert.NoError(t, err)
-		assert.Nil(t, cephObjectStores[0].Spec.Security)
+		// Security is always set (for DEFAULT TLS groups), but KMS fields must be empty
+		assert.NotNil(t, cephObjectStores[0].Spec.Security)
+		assert.Empty(t, cephObjectStores[0].Spec.Security.KeyManagementService.ConnectionDetails)
+		assert.Empty(t, cephObjectStores[0].Spec.Security.ServerSideEncryptionS3.ConnectionDetails)
 	})
 
 }
@@ -406,7 +414,7 @@ func TestNewCephObjectStoreInstancesWithSTS(t *testing.T) {
 	reconciler := createFakeStorageClusterReconciler(t, objects...)
 
 	// Create CephObjectStore instances
-	cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil)
+	cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil, nil)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, cephObjectStores)
 
@@ -430,4 +438,106 @@ func TestNewCephObjectStoreInstancesWithSTS(t *testing.T) {
 	}, secret)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, secret.Data["rgw_sts_key"])
+}
+
+func makeTLSProfile(selector ocstlsv1.Selector, version ocstlsv1.TLSProtocolVersion, ciphers []ocstlsv1.TLSCipherSuite, groups []ocstlsv1.TLSGroupName) *ocstlsv1.TLSProfile {
+	return &ocstlsv1.TLSProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      defaults.TLSProfileName,
+			Namespace: "test-ns",
+		},
+		Spec: ocstlsv1.TLSProfileSpec{
+			Rules: []ocstlsv1.TLSProfileRules{
+				{
+					Selectors: []ocstlsv1.Selector{selector},
+					Config: ocstlsv1.TLSConfig{
+						Version: version,
+						Ciphers: ciphers,
+						Groups:  groups,
+					},
+				},
+			},
+		},
+	}
+}
+
+func TestRGWTLSConfig(t *testing.T) {
+	platform.SetFakePlatformInstanceForTesting(true, configv1.BareMetalPlatformType)
+	defer platform.UnsetFakePlatformInstanceForTesting()
+
+	reconciler := createFakeStorageClusterReconciler(t)
+	cr := &api.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "ocsinit", Namespace: "test-ns"},
+	}
+
+	t.Run("TLS 1.2 profile with rook.io selector sets ciphers and groups", func(t *testing.T) {
+		profile := makeTLSProfile(
+			"rook.io",
+			ocstlsv1.VersionTLS1_2,
+			[]ocstlsv1.TLSCipherSuite{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
+			[]ocstlsv1.TLSGroupName{"secp256r1", "secp384r1"},
+		)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile)
+		assert.NoError(t, err)
+		assert.NotNil(t, stores[0].Spec.Security)
+		assert.Contains(t, stores[0].Spec.Security.Ciphers, "ECDHE-RSA-AES128-GCM-SHA256")
+		assert.Contains(t, stores[0].Spec.Security.Ciphers, "ECDHE-RSA-AES256-GCM-SHA384")
+		assert.Contains(t, stores[0].Spec.Security.TlsGroups, "prime256v1")
+		assert.Contains(t, stores[0].Spec.Security.TlsGroups, "secp384r1")
+		// TLS 1.2 must not set SSLv2 option
+		assert.Nil(t, stores[0].Spec.Security.SslOptions)
+	})
+
+	t.Run("TLS 1.3 profile with rook.io selector disables SSLv2", func(t *testing.T) {
+		profile := makeTLSProfile(
+			"rook.io",
+			ocstlsv1.VersionTLS1_3,
+			[]ocstlsv1.TLSCipherSuite{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384"},
+			[]ocstlsv1.TLSGroupName{"X25519"},
+		)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile)
+		assert.NoError(t, err)
+		assert.NotNil(t, stores[0].Spec.Security)
+		assert.Contains(t, stores[0].Spec.Security.TlsGroups, "x25519")
+		assert.NotNil(t, stores[0].Spec.Security.SslOptions)
+		assert.Equal(t, ptr.To(false), stores[0].Spec.Security.SslOptions.SSLv2)
+	})
+
+	t.Run("Profile with non-matching selector falls back to DEFAULT groups", func(t *testing.T) {
+		profile := makeTLSProfile(
+			"noobaa.io",
+			ocstlsv1.VersionTLS1_2,
+			[]ocstlsv1.TLSCipherSuite{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"},
+			[]ocstlsv1.TLSGroupName{"secp256r1"},
+		)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile)
+		assert.NoError(t, err)
+		assert.NotNil(t, stores[0].Spec.Security)
+		assert.Equal(t, []string{"DEFAULT"}, stores[0].Spec.Security.TlsGroups)
+		assert.Nil(t, stores[0].Spec.Security.SslOptions)
+	})
+
+	t.Run("Nil TLS profile sets DEFAULT groups and clears ciphers", func(t *testing.T) {
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, stores[0].Spec.Security)
+		assert.Nil(t, stores[0].Spec.Security.Ciphers)
+		assert.Equal(t, []string{"DEFAULT"}, stores[0].Spec.Security.TlsGroups)
+		assert.Nil(t, stores[0].Spec.Security.SslOptions)
+	})
+
+	t.Run("Wildcard selector configures RGW", func(t *testing.T) {
+		// "*" has lowest specificity but still matches rook.io
+		profile := makeTLSProfile(
+			"*",
+			ocstlsv1.VersionTLS1_2,
+			[]ocstlsv1.TLSCipherSuite{"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
+			[]ocstlsv1.TLSGroupName{"secp384r1"},
+		)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile)
+		assert.NoError(t, err)
+		assert.NotNil(t, stores[0].Spec.Security)
+		assert.Contains(t, stores[0].Spec.Security.Ciphers, "ECDHE-RSA-AES256-GCM-SHA384")
+		assert.Contains(t, stores[0].Spec.Security.TlsGroups, "secp384r1")
+	})
 }
