@@ -54,9 +54,6 @@ const (
 	poolTypeMetadata = "metadata"
 )
 
-const (
-	desiredCephxKeyGenEnvVarName = "DESIRED_CEPHX_KEY_GEN"
-)
 
 type knownDiskType struct {
 	speed            diskSpeed
@@ -358,6 +355,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		}
 	}
 
+	// Preserve rbdMirrorPeer keyGeneration and keyRotationPolicy set by RotateMirroringKey RPC.
+	// The RPC is the authoritative writer for these fields; StorageCluster controller only owns keyType.
+	cephCluster.Spec.Security.CephX.RBDMirrorPeer.KeyGeneration = found.Spec.Security.CephX.RBDMirrorPeer.KeyGeneration
+	cephCluster.Spec.Security.CephX.RBDMirrorPeer.KeyRotationPolicy = found.Spec.Security.CephX.RBDMirrorPeer.KeyRotationPolicy
+
 	// Update the CephCluster if it is not in the desired state
 	if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
 		r.Log.Info("Updating spec for CephCluster.", "CephCluster", klog.KRef(found.Namespace, found.Name))
@@ -463,10 +465,10 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 		MaxLogSize:  &maxLogSize,
 	}
 
-	desiredCephxKeyGenAsString := util.MustGetEnv(desiredCephxKeyGenEnvVarName)
+	desiredCephxKeyGenAsString := util.MustGetEnv(util.DesiredCephxKeyGenEnvVarName)
 	desiredCephxKeyGen, err := strconv.Atoi(desiredCephxKeyGenAsString)
 	if err != nil {
-		err = fmt.Errorf("could not convert the value %q of env var %q", desiredCephxKeyGenAsString, desiredCephxKeyGenEnvVarName)
+		err = fmt.Errorf("could not convert the value %q of env var %q", desiredCephxKeyGenAsString, util.DesiredCephxKeyGenEnvVarName)
 		r.Log.Error(err, "failed to convert")
 		return nil, err
 	}
