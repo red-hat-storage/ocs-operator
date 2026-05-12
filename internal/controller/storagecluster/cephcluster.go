@@ -54,9 +54,6 @@ const (
 	poolTypeMetadata = "metadata"
 )
 
-const (
-	desiredCephxKeyGenEnvVarName = "DESIRED_CEPHX_KEY_GEN"
-)
 
 type knownDiskType struct {
 	speed            diskSpeed
@@ -463,10 +460,10 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 		MaxLogSize:  &maxLogSize,
 	}
 
-	desiredCephxKeyGenAsString := util.MustGetEnv(desiredCephxKeyGenEnvVarName)
+	desiredCephxKeyGenAsString := util.MustGetEnv(util.DesiredCephxKeyGenEnvVarName)
 	desiredCephxKeyGen, err := strconv.Atoi(desiredCephxKeyGenAsString)
 	if err != nil {
-		err = fmt.Errorf("could not convert the value %q of env var %q", desiredCephxKeyGenAsString, desiredCephxKeyGenEnvVarName)
+		err = fmt.Errorf("could not convert the value %q of env var %q", desiredCephxKeyGenAsString, util.DesiredCephxKeyGenEnvVarName)
 		r.Log.Error(err, "failed to convert")
 		return nil, err
 	}
