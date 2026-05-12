@@ -1032,10 +1032,10 @@ func (r *StorageClusterReconciler) createMetricsExporterCephClient(instance *ocs
 	cephClient.Name = util.OcsMetricsExporterCephClientName
 	cephClient.Namespace = instance.Namespace
 
-	desiredCephxKeyGenAsString := util.MustGetEnv(desiredCephxKeyGenEnvVarName)
+	desiredCephxKeyGenAsString := util.MustGetEnv(util.DesiredCephxKeyGenEnvVarName)
 	desiredCephxKeyGen, err := strconv.Atoi(desiredCephxKeyGenAsString)
 	if err != nil {
-		err = fmt.Errorf("could not convert the value %q of env var %q", desiredCephxKeyGenAsString, desiredCephxKeyGenEnvVarName)
+		err = fmt.Errorf("could not convert the value %q of env var %q", desiredCephxKeyGenAsString, util.DesiredCephxKeyGenEnvVarName)
 		return err
 	}
 
