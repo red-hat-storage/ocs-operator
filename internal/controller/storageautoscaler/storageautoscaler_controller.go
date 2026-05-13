@@ -157,15 +157,15 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 	r.Log.Info("scaling is required", "device class", storageAutoScaler.Spec.DeviceClass)
 
 	// calculate the expectedStorageCapacity
-	startOsdSize, expectedOsdSize, startOsdCount, expectedOsdCount, startStorageCapacity, expectedStorageCapacity := calculateExpectedOsdSizeAndCount(storageCluster, storageAutoScaler)
+	startOsdSize, expectedOsdSize, startOsdCount, expectedOsdCount, startStorageCapacity, expectedStorageCapacity, devicesToAdd, limitReached := calculateExpectedOsdSizeAndCount(storageCluster, storageAutoScaler)
 
-	if expectedStorageCapacity.Cmp(storageAutoScaler.Spec.StorageCapacityLimit) > 0 {
-		r.Log.Info("storage capacity limit reached")
+	if limitReached {
+		r.Log.Info("storage capacity limit reached, cannot scale further")
 		// update the status
 		bool := true
 		storageAutoScaler.Status.StorageCapacityLimitReached = &bool
 		storageAutoScaler.Status.Error = &ocsv1.TimestampedError{
-			Message:   fmt.Sprintf("storage capacity limit reached for storageAutoScaler %q device class %q least expected storage capacity is %q", storageAutoScaler.Name, storageAutoScaler.Spec.DeviceClass, expectedStorageCapacity.String()),
+			Message:   fmt.Sprintf("storage capacity limit reached for storageAutoScaler %q device class %q current storage capacity is %q", storageAutoScaler.Name, storageAutoScaler.Spec.DeviceClass, startStorageCapacity.String()),
 			Timestamp: metav1.Now(),
 		}
 		err := r.updateStatus(ctx, storageAutoScaler)
@@ -200,7 +200,8 @@ func (r *StorageAutoscalerReconciler) Reconcile(ctx context.Context, request rec
 		if deviceClassMatchesDeviceSet(deviceClass, deviceSet) {
 			storageCluster.Spec.StorageDeviceSets[i].DataPVCTemplate.Spec.Resources.Requests["storage"] = expectedOsdSize
 			if startOsdCount != expectedOsdCount {
-				storageCluster.Spec.StorageDeviceSets[i].Count = storageCluster.Spec.StorageDeviceSets[i].Count + 1
+				// use the calculated devicesToAdd from calculateExpectedOsdSizeAndCount
+				storageCluster.Spec.StorageDeviceSets[i].Count = storageCluster.Spec.StorageDeviceSets[i].Count + devicesToAdd
 			}
 			r.Log.Info("scaling storage cluster", "device set", storageCluster.Spec.StorageDeviceSets[i])
 		}
@@ -525,9 +526,10 @@ func (r *StorageAutoscalerReconciler) checkIfCephClusterIsNotHealthy(ctx context
 	return false, nil
 }
 
-func calculateExpectedOsdSizeAndCount(storageCluster *ocsv1.StorageCluster, storageAutoScaler *ocsv1.StorageAutoScaler) (resource.Quantity, resource.Quantity, int, int, resource.Quantity, resource.Quantity) {
+func calculateExpectedOsdSizeAndCount(storageCluster *ocsv1.StorageCluster, storageAutoScaler *ocsv1.StorageAutoScaler) (resource.Quantity, resource.Quantity, int, int, resource.Quantity, resource.Quantity, int, bool) {
 	var startOsdSize, expectedOsdSize resource.Quantity
-	var startOsdCount, expectedOsdCount, deviceSetCount, replicaCount int
+	var startOsdCount, expectedOsdCount, deviceSetCount, replicaCount, devicesToAdd int
+	var limitReached bool
 
 	// assuming heterogeneous distribution of osd across device sets
 	// so osd size and count is same for all device sets
@@ -550,14 +552,56 @@ func calculateExpectedOsdSizeAndCount(storageCluster *ocsv1.StorageCluster, stor
 		// vertical scaling
 		// double the osd size
 		expectedOsdSize = *resource.NewQuantity(startOsdSize.Value()*2, startOsdSize.Format)
+
+		// check if vertical scaling would exceed the limit
+		expectedCapacity := *resource.NewQuantity(int64(deviceSetCount*startOsdCount)*expectedOsdSize.Value(), expectedOsdSize.Format)
+		if expectedCapacity.Cmp(storageAutoScaler.Spec.StorageCapacityLimit) > 0 {
+			// cannot scale even vertically
+			limitReached = true
+			expectedOsdSize = startOsdSize
+		}
 	} else {
 		// horizontal scaling
-		expectedOsdCount = ((startOsdCount / replicaCount) + 1) * replicaCount
+		// increase by 10% of the cluster capacity (minimum 1 device set)
+		// calculate 10% of total capacity
+		currentCapacity := int64(startOsdCount) * startOsdSize.Value()
+		targetIncrease := currentCapacity / 10
+
+		// calculate how many OSDs needed to achieve this capacity increase
+		osdsNeeded := int(targetIncrease / startOsdSize.Value())
+
+		// convert to device sets (accounting for replicas)
+		devicesToAdd = osdsNeeded / replicaCount
+		if devicesToAdd < 1 {
+			devicesToAdd = 1
+		}
+
+		// check if adding devicesToAdd would exceed the limit
+		potentialOsdCount := ((startOsdCount / replicaCount) + devicesToAdd) * replicaCount
+		potentialCapacity := *resource.NewQuantity(int64(deviceSetCount*potentialOsdCount)*startOsdSize.Value(), startOsdSize.Format)
+
+		if potentialCapacity.Cmp(storageAutoScaler.Spec.StorageCapacityLimit) > 0 {
+			// calculate the maximum device sets we can add without exceeding the limit
+			remainingCapacity := storageAutoScaler.Spec.StorageCapacityLimit.Value() - startStorageCapacity.Value()
+			capacityPerDeviceSet := int64(replicaCount * deviceSetCount) * startOsdSize.Value()
+
+			maxDeviceSetsToAdd := int(remainingCapacity / capacityPerDeviceSet)
+
+			if maxDeviceSetsToAdd < 1 {
+				// cannot add even one device set, limit reached
+				limitReached = true
+			} else {
+				// add the maximum we can without exceeding the limit
+				devicesToAdd = maxDeviceSetsToAdd
+			}
+		}
+
+		expectedOsdCount = ((startOsdCount / replicaCount) + devicesToAdd) * replicaCount
 	}
 
 	expectedStorageCapacity := *resource.NewQuantity(int64(deviceSetCount*expectedOsdCount)*expectedOsdSize.Value(), startOsdSize.Format)
 
-	return startOsdSize, expectedOsdSize, startOsdCount, expectedOsdCount, startStorageCapacity, expectedStorageCapacity
+	return startOsdSize, expectedOsdSize, startOsdCount, expectedOsdCount, startStorageCapacity, expectedStorageCapacity, devicesToAdd, limitReached
 }
 
 func deviceClassMatchesDeviceSet(deviceClass string, deviceSet ocsv1.StorageDeviceSet) bool {
