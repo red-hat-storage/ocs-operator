@@ -256,6 +256,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	// So spec.Network.DualStack never set to true in the CephCluster resource
 	r.Log.Info("Setting IPFamily", "IPFamily", ipFamily, "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
 	cephCluster.Spec.Network.IPFamily = ipFamily
+	cephCluster.Spec.Network.DualStack = false
 
 	// Check if this CephCluster already exists
 	found := &rookCephv1.CephCluster{}
