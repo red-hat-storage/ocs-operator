@@ -398,6 +398,52 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 	}
 }
 
+func TestSetNooBaaDesiredStatePreservesDBConf(t *testing.T) {
+	sc := v1.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test_name",
+			Namespace: "openshift-storage",
+		},
+	}
+	wantDBConf := map[string]string{
+		"max_connections": "199",
+		"shared_buffers":  "128MB",
+	}
+
+	scheme := createFakeScheme(t)
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+	reconciler := StorageClusterReconciler{
+		ctx:               context.TODO(),
+		Client:            client,
+		Scheme:            scheme,
+		OperatorNamespace: "openshift-storage",
+		OperatorCondition: newStubOperatorCondition(),
+		Log:               logf.Log.WithName("controller_storagecluster_test"),
+	}
+	_ = reconciler.initializeImageVars()
+
+	noobaa := nbv1.NooBaa{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "NooBaa",
+			APIVersion: "noobaa.io/v1alpha1'",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "noobaa",
+			Namespace: sc.Namespace,
+		},
+		Spec: nbv1.NooBaaSpec{
+			DBSpec: &nbv1.NooBaaDBSpec{
+				DBConf: wantDBConf,
+			},
+		},
+	}
+
+	err := reconciler.setNooBaaDesiredState(&noobaa, &sc, &ocstlsv1.TLSProfile{})
+	assert.NoError(t, err)
+	assert.NotNil(t, noobaa.Spec.DBSpec)
+	assert.Equal(t, wantDBConf, noobaa.Spec.DBSpec.DBConf)
+}
+
 func TestNoobaaSystemInExternalClusterMode(t *testing.T) {
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
