@@ -104,4 +104,22 @@ var _ = Describe("RBDMirror Cache", func() {
 		})
 	})
 
+	Describe("InvalidateCredentials", func() {
+		It("should clear the rbdCommandInput map", func() {
+			rbdMirrorStore := NewRBDMirrorStore(opts)
+			// Set up some credentials
+			rbdMirrorStore.rbdCommandInput["test-namespace"] = &cephMonitorConfig{
+				monitor: "test-monitor",
+				id:      "test-id",
+				key:     "test-key",
+			}
+			Expect(rbdMirrorStore.rbdCommandInput).ToNot(BeEmpty())
+
+			// Invalidate credentials
+			rbdMirrorStore.InvalidateCredentials()
+
+			// Verify credentials were cleared
+			Expect(rbdMirrorStore.rbdCommandInput).To(BeEmpty())
+		})
+	})
 })

@@ -125,4 +125,23 @@ var _ = Describe("PersistentVolume Cache", func() {
 			Expect(err).ToNot(BeNil())
 		})
 	})
+
+	Describe("InvalidateCredentials", func() {
+		It("should clear the monitorConfig", func() {
+			pvStore := NewPersistentVolumeStore(opts)
+			// Set up some credentials
+			pvStore.monitorConfig = cephMonitorConfig{
+				monitor: "test-monitor",
+				id:      "test-id",
+				key:     "test-key",
+			}
+			Expect(pvStore.monitorConfig).ToNot(Equal(cephMonitorConfig{}))
+
+			// Invalidate credentials
+			pvStore.InvalidateCredentials()
+
+			// Verify credentials were cleared
+			Expect(pvStore.monitorConfig).To(Equal(cephMonitorConfig{}))
+		})
+	})
 })

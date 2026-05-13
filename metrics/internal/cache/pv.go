@@ -346,6 +346,15 @@ func (p *PersistentVolumeStore) Resync() error {
 	return nil
 }
 
+// InvalidateCredentials clears the cached Ceph credentials, forcing re-fetch on next use.
+// This is called when the ocs-metrics-exporter-ceph-auth secret is rotated.
+func (p *PersistentVolumeStore) InvalidateCredentials() {
+	p.Mutex.Lock()
+	defer p.Mutex.Unlock()
+	p.monitorConfig = cephMonitorConfig{}
+	klog.Info("PersistentVolumeStore credentials invalidated, will re-fetch on next use")
+}
+
 func CreatePersistentVolumeListWatch(kubeClient clientset.Interface, fieldSelector string) cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
