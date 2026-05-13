@@ -6,6 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	internalcache "github.com/red-hat-storage/ocs-operator/metrics/v4/internal/cache"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
@@ -134,4 +135,33 @@ func RegisterCephRBDChildrenCollector(registry *prometheus.Registry, opts *optio
 	childrenCollector := NewCephRBDChildrenCollector(pvStore, opts)
 	go childrenCollector.Run(opts.StopCh)
 	registry.MustRegister(childrenCollector)
+}
+
+var secretWatcher *internalcache.SecretWatcher
+var secretWatcherEnabled bool
+
+// EnableSecretWatcher starts watching the ocs-metrics-exporter-ceph-auth secret
+// for credential rotation. When the secret changes, all caches using Ceph credentials
+// will be invalidated, forcing them to re-fetch credentials on next use.
+func EnableSecretWatcher(opts *options.Options) {
+	if secretWatcherEnabled {
+		return
+	}
+	secretWatcher = internalcache.NewSecretWatcher(opts)
+	client := clientset.NewForConfigOrDie(opts.Kubeconfig)
+	lw := internalcache.CreateSecretListWatch(client, opts.AllowedNamespaces[0], util.OcsMetricsExporterCephClientName)
+	reflector := cache.NewReflector(lw, &corev1.Secret{}, secretWatcher, 5*time.Minute)
+	go reflector.Run(opts.StopCh)
+
+	// Register callbacks for each cache that uses credentials
+	if pvStoreEnabled && pvStore != nil {
+		secretWatcher.RegisterOnChange(pvStore.InvalidateCredentials)
+	}
+	if rbdMirrorStoreEnabled && rbdMirrorStore != nil {
+		secretWatcher.RegisterOnChange(rbdMirrorStore.InvalidateCredentials)
+	}
+	if cephBlocklistStore != nil {
+		secretWatcher.RegisterOnChange(cephBlocklistStore.InvalidateCredentials)
+	}
+	secretWatcherEnabled = true
 }

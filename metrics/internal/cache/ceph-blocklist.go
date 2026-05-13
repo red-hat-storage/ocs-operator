@@ -155,6 +155,15 @@ func (c *CephBlocklistStore) IsBlocked(ip string, port, nonce int) bool {
 	return false
 }
 
+// InvalidateCredentials clears the cached Ceph credentials, forcing re-fetch on next use.
+// This is called when the ocs-metrics-exporter-ceph-auth secret is rotated.
+func (c *CephBlocklistStore) InvalidateCredentials() {
+	c.Mutex.Lock()
+	defer c.Mutex.Unlock()
+	c.monitorConfig = cephMonitorConfig{}
+	klog.Info("CephBlocklistStore credentials invalidated, will re-fetch on next use")
+}
+
 func runCephOSDBlocklist(config *cephMonitorConfig) ([]CephBlocklistLs, error) {
 	var blocklistSlice []CephBlocklistLs
 	if config.monitor == "" && config.id == "" && config.key == "" {

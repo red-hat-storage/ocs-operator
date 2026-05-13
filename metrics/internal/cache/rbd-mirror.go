@@ -138,6 +138,15 @@ func (s *RBDMirrorStore) WithRBDCommandInput(namespace string) error {
 	return nil
 }
 
+// InvalidateCredentials clears the cached Ceph credentials, forcing re-fetch on next use.
+// This is called when the ocs-metrics-exporter-ceph-auth secret is rotated.
+func (s *RBDMirrorStore) InvalidateCredentials() {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+	s.rbdCommandInput = map[string]*cephMonitorConfig{}
+	klog.Info("RBDMirrorStore credentials invalidated, will re-fetch on next use")
+}
+
 func initCeph(kubeclient clientset.Interface, cephClusterNamespace, cephAuthNamespace string) (cephMonitorConfig, error) {
 	var err error
 	var namespace string

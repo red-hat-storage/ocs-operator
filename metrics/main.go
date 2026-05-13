@@ -95,6 +95,10 @@ func main() {
 	// server rbd mirror metrics
 	handler.RegisterRBDMirrorMuxHandlers(customResourceMux, rbdRegistry, promHandlerOpts(rbdRegistry))
 
+	// Enable secret watcher for automatic credential reload on key rotation.
+	// This must be called after all collectors that use Ceph credentials are registered.
+	collectors.EnableSecretWatcher(opts)
+
 	var rg run.Group
 	rg.Add(listenAndServe(exporterMux, opts.ExporterHost, opts.ExporterPort))
 	rg.Add(listenAndServe(customResourceMux, opts.Host, opts.Port))
