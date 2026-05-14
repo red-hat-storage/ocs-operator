@@ -302,7 +302,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			obj.Spec.Gateway.ReadAffinity = &cephv1.RgwReadAffinity{Type: "localize"}
 		}
 
-		// Enable STS for RGW via rgwConfig and rgwSecretConfig
+		// Enable STS for RGW via rgwCommandFlags and rgwSecretConfig
 		if initData.Spec.ManagedResources.CephObjectStores.EnableSTS {
 			if err := r.setSTSOptions(obj, initData); err != nil {
 				r.Log.Error(err, "Failed to set STS options for CephObjectStore.", "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
@@ -410,14 +410,14 @@ func generateRandomSTSKey() (string, error) {
 	return string(key), nil
 }
 
-// STS Options via rgwConfig and rgwSecretConfig
+// STS Options via rgwCommandFlags and rgwSecretConfig
 // Create k8s secret containing sts key
 func (r *StorageClusterReconciler) setSTSOptions(obj *cephv1.CephObjectStore, sc *ocsv1.StorageCluster) error {
-	// Set rgw_s3_auth_use_sts to true in rgwConfig
-	if obj.Spec.Gateway.RgwConfig == nil {
-		obj.Spec.Gateway.RgwConfig = make(map[string]string)
+	// Set rgw_s3_auth_use_sts to true in rgwCommandFlags
+	if obj.Spec.Gateway.RgwCommandFlags == nil {
+		obj.Spec.Gateway.RgwCommandFlags = make(map[string]string)
 	}
-	obj.Spec.Gateway.RgwConfig["rgw_s3_auth_use_sts"] = "true"
+	obj.Spec.Gateway.RgwCommandFlags["rgw_s3_auth_use_sts"] = "true"
 
 	// Create secret for STS key
 	secretName := fmt.Sprintf("sts-key-%s", obj.Name)
