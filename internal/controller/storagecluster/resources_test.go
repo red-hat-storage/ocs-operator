@@ -327,8 +327,8 @@ func TestGetDaemonResources(t *testing.T) {
 			specifiedResources: map[string]corev1.ResourceRequirements{},
 			expectedResourceRequirements: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("50m"),
-					corev1.ResourceMemory: resource.MustParse("50Mi"),
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("100Mi"),
 				},
 				Limits: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -349,7 +349,7 @@ func TestGetDaemonResources(t *testing.T) {
 			},
 			expectedResourceRequirements: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceMemory: resource.MustParse("50Mi"), // from daemon resources
+					corev1.ResourceMemory: resource.MustParse("250Mi"), // from daemon resources
 				},
 				Limits: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("200m"),
