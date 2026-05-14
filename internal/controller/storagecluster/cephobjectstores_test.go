@@ -285,10 +285,10 @@ func TestSetSTSOptions(t *testing.T) {
 				err := reconciler.setSTSOptions(cos, sc)
 				assert.NoError(t, err)
 
-				// Verify rgwConfig is set
+				// Verify rgwCommandFlags is set
 				if tc.expectRgwConfig {
-					assert.NotNil(t, cos.Spec.Gateway.RgwConfig)
-					assert.Equal(t, "true", cos.Spec.Gateway.RgwConfig["rgw_s3_auth_use_sts"])
+					assert.NotNil(t, cos.Spec.Gateway.RgwCommandFlags)
+					assert.Equal(t, "true", cos.Spec.Gateway.RgwCommandFlags["rgw_s3_auth_use_sts"])
 				}
 
 				// Verify secret was created
@@ -420,8 +420,8 @@ func TestNewCephObjectStoreInstancesWithSTS(t *testing.T) {
 
 	// Verify STS configuration is applied
 	cos := cephObjectStores[0]
-	assert.NotNil(t, cos.Spec.Gateway.RgwConfig)
-	assert.Equal(t, "true", cos.Spec.Gateway.RgwConfig["rgw_s3_auth_use_sts"])
+	assert.NotNil(t, cos.Spec.Gateway.RgwCommandFlags)
+	assert.Equal(t, "true", cos.Spec.Gateway.RgwCommandFlags["rgw_s3_auth_use_sts"])
 
 	assert.NotNil(t, cos.Spec.Gateway.RgwConfigFromSecret)
 	secretSelector, exists := cos.Spec.Gateway.RgwConfigFromSecret["rgw_sts_key"]

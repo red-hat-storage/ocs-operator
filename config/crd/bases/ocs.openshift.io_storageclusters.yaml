@@ -3024,6 +3024,7 @@ spec:
                       disableRoute:
                         type: boolean
                       enableSTS:
+                        default: true
                         description: Enables STS authentication for RGW
                         type: boolean
                       gatewayInstances:
