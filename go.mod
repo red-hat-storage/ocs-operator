@@ -165,6 +165,8 @@ replace github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-o
 
 replace k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.35.4
 
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260420212002-dacfad20a2e5
+
 exclude (
 	// This tag doesn't exist, but is imported by github.com/portworx/sched-ops.
 	github.com/kubernetes-incubator/external-storage v0.20.4-openstorage-rc2

@@ -326,18 +326,29 @@ type ClusterSecuritySpec struct {
 }
 
 type ClusterCephxConfig struct {
+	// AllowedCiphers sets the Ceph config `auth_allowed_ciphers` to the list given.
+	// If the list is empty, Rook will enable support for all ciphers.
+	// +optional
+	// +listType=set
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=2
+	AllowedCiphers []CephxKeyType `json:"allowedCiphers,omitempty"`
+
 	// Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
 	// Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
+	// +optional
 	Daemon CephxConfig `json:"daemon,omitempty"`
 
 	// RBDMirrorPeer configures CephX key settings of the `rbd-mirror-peer` user that is used for creating
 	// bootstrap peer token used connect peer clusters. Rotating the `rbd-mirror-peer` user key will update
 	// the mirror peer token.
 	// Rotation will affect any existing peers connected to this cluster, so take care when exercising this option.
+	// +optional
 	RBDMirrorPeer CephxConfig `json:"rbdMirrorPeer,omitempty"`
 
 	// CSI configures CephX key rotation settings for the Ceph-CSI daemons in the current Kubernetes cluster.
 	// CSI key rotation can affect existing PV connections, so take care when exercising this option.
+	// +optional
 	CSI CephXConfigWithPriorCount `json:"csi,omitempty"`
 }
 
@@ -375,13 +386,34 @@ type CephxConfig struct {
 	// +kubebuilder:validation:Maximum=4294967295
 	// +kubebuilder:validation:XValidation:message="keyGeneration cannot be decreased",rule="self >= oldSelf"
 	KeyGeneration uint32 `json:"keyGeneration,omitempty"`
+
+	// KeyType specifies the desired CephX key cipher type.
+	// If unspecified, Ceph's default will be used.
+	// If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+	// initiate key rotation.
+	// If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+	// initiate key rotation.
+	// +optional
+	KeyType CephxKeyType `json:"keyType,omitempty"`
 }
 
+// A CephX key rotation policy controls if and when CephX keys are rotated after initial creation.
+// Supported values: Disabled, KeyGeneration. Default: Disabled.
 type CephxKeyRotationPolicy string
+
+// A CephX key type represents a cipher type for CephX keys.
+// Supported values: aes, aes256k.
+// +kubebuilder:validation:MaxLength=7
+// +kubebuilder:validation:Enum=aes;aes256k
+type CephxKeyType string
 
 const (
 	DisabledCephxKeyRotationPolicy      CephxKeyRotationPolicy = "Disabled"
 	KeyGenerationCephxKeyRotationPolicy CephxKeyRotationPolicy = "KeyGeneration"
+
+	CephxKeyTypeUndefined CephxKeyType = ""
+	CephxKeyTypeAes       CephxKeyType = "aes"
+	CephxKeyTypeAes256k   CephxKeyType = "aes256k"
 )
 
 // ObjectStoreSecuritySpec is spec to define security features like encryption
@@ -394,64 +426,6 @@ type ObjectStoreSecuritySpec struct {
 	// +optional
 	// +nullable
 	ServerSideEncryptionS3 KeyManagementServiceSpec `json:"s3,omitempty"`
-
-	// SslOptions sets the SSL context options for the Ceph RGW beast frontend.
-	// See https://docs.ceph.com/en/latest/radosgw/frontends/#options
-	// +optional
-	SslOptions *SslOptionsSpec `json:"sslOptions,omitzero"` //nolint:kubeapilinter // MinProperties cannot be applied to a struct pointer field
-
-	// Ciphers specifies the cipher suites used during the TLS handshake.
-	// Multiple suites are supported with ':' colon-separated.
-	// Each value must be a valid OpenSSL cipher suite name.
-	// See https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-suite-names
-	// +kubebuilder:validation:MinItems=0
-	// +kubebuilder:validation:MaxItems=1000
-	// +optional
-	Ciphers []string `json:"ciphers,omitempty"` //nolint:kubeapilinter // List doesn't have min/max length
-
-	// TlsGroups specifies one or more TLS Group strings separated by colons.
-	// Multiple suites are supported with ':' colon-separated.
-	// The pseudo group name DEFAULT can be used to select the OpenSSL built-in default list of groups.
-	// Other valid group names will depend on OpenSSL version
-	// See https://docs.openssl.org/master/man3/SSL_CTX_set1_curves/#description
-	// +optional
-	TlsGroups []string `json:"tlsGroups,omitempty"` //nolint:kubeapilinter // List doesn't have min/max length
-}
-
-// SslOptionsSpec specifies the SSL context options for the Ceph RGW beast frontend.
-// See https://docs.ceph.com/en/latest/radosgw/frontends/#options
-type SslOptionsSpec struct {
-	// defaultWorkarounds implements various bug workaround when true, or disables it when false. Default disabled.
-	// +optional
-	DefaultWorkarounds *bool `json:"defaultWorkarounds,omitempty"`
-
-	// noCompression disables compression when true, or disables it when false. Default disabled.
-	// +optional
-	NoCompression *bool `json:"noCompression,omitempty"`
-
-	// sslv2 enables SSL v2 when true, or disables it when false. Default disabled.
-	// +optional
-	SSLv2 *bool `json:"sslv2,omitempty"`
-
-	// sslv3 enables SSL v3 when true, or disables it when false. Default disabled.
-	// +optional
-	SSLv3 *bool `json:"sslv3,omitempty"`
-
-	// tlsv1_0 enables TLS v1.0 when true, or disables it when false. Default disabled.
-	// +optional
-	TLSv1_0 *bool `json:"tlsv1_0,omitempty"`
-
-	// tlsv1_1 enables TLS v1.1 when true, or disables it when false. Default disabled.
-	// +optional
-	TLSv1_1 *bool `json:"tlsv1_1,omitempty"`
-
-	// tlsv1_2 enables TLS v1.2 when true, or disables it when false. Default enabled.
-	// +optional
-	TLSv1_2 *bool `json:"tlsv1_2,omitempty"`
-
-	// SingleDiffieHellmanUse always creates a new key when using tmp_dh parameters when true, or disables it when false. Default disabled.
-	// +optional
-	SingleDiffieHellmanUse *bool `json:"singleDiffieHellmanUse,omitempty"`
 }
 
 // KeyManagementServiceSpec represent various details of the KMS server
@@ -791,6 +765,11 @@ type CephxStatus struct {
 	// The special value "Uninitialized" indicates that keys are being created for the first time.
 	// An empty string indicates that the version is unknown, as expected in brownfield deployments.
 	KeyCephVersion string `json:"keyCephVersion,omitempty"`
+
+	// KeyType identifies the CephX key type for the current generation's keys, if known.
+	// If unknown, the value will be empty.
+	// +optional
+	KeyType CephxKeyType `json:"keyType,omitempty"`
 }
 
 type CephxStatusWithKeyCount struct {
@@ -3384,7 +3363,7 @@ type DisruptionManagementSpec struct {
 	PGHealthCheckTimeout time.Duration `json:"pgHealthCheckTimeout,omitempty"`
 
 	// PgHealthyRegex is the regular expression that is used to determine which PG states should be considered healthy.
-	// The default is `^active(\+(clean|deep|scrubbing|snaptrim|snaptrim_wait))+$`
+	// The default is `^(active\+clean|active\+clean\+scrubbing|active\+clean\+scrubbing\+deep)$`
 	// +optional
 	PGHealthyRegex string `json:"pgHealthyRegex,omitempty"`
 
@@ -3943,13 +3922,6 @@ type CephFilesystemSubVolumeGroupSpec struct {
 	// +kubebuilder:validation:MaxLength=36
 	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_-]+$`
 	ClusterID string `json:"clusterID,omitempty"`
-	// The RADOS namespace ceph-csi uses for additional metadata it stores in the metadata pool of the CephFS.
-	// If not specified the default of the ceph-csi driver is used.
-	// +optional
-	// +kubebuilder:validation:XValidation:message="CSIMetadataRadosNamespace is immutable",rule="self == oldSelf"
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=1024
-	CSIMetadataRadosNamespace string `json:"csiMetadataRadosNamespace,omitempty"`
 }
 
 // CephFilesystemSubVolumeGroupSpecPinning represents the pinning configuration of SubVolumeGroup

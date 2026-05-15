@@ -806,6 +806,8 @@ github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20260416061305-2878a3b
 github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20260416061305-2878a3b403e6/go.mod h1:a/v1+t6Fof8ffU6NMV11V4rL2dCwiUbix869gTlbJXk=
 github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd65 h1:Ie0cAiC3lrzy6S5vZ7tKCs3SjAAIs3wFbNJkGrx6tXg=
 github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd65/go.mod h1:jBStZ67yVkhiTlaIB/cqm7DI0BvVp6ynTFUs7BzlAVc=
+github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260420212002-dacfad20a2e5 h1:pHyCuzz7eynXC00JTN3ufJEqeBf6izzhJaJ2splZVas=
+github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260420212002-dacfad20a2e5/go.mod h1:BFDN89wbkYuQYc0bQNX+b6INkL3zyu7wVbcwb47/tRw=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-charset v0.0.0-20180617210344-2471d30d28b4/go.mod h1:qgYeAmZ5ZIpBWTGllZSQnw97Dj+woV0toclVaRGI8pc=
@@ -814,8 +816,6 @@ github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTE
 github.com/rogpeppe/go-internal v1.8.1/go.mod h1:JeRgkft04UBgHMgCIwADu4Pn6Mtm5d4nPKWu0nJ5d+o=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
-github.com/rook/rook/pkg/apis v0.0.0-20260506153230-01ef98c1e3a5 h1:54VlIgqfxlu5W3gRY94SZkN/mFAbwb1L7AWQoqJAyKM=
-github.com/rook/rook/pkg/apis v0.0.0-20260506153230-01ef98c1e3a5/go.mod h1:JddpJA9c/XW14YFeOpM5l/wszuUHEGyaHZtDgW/nb3M=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=
