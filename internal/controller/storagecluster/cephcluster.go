@@ -1034,6 +1034,7 @@ func newCephDaemonResources(sc *ocsv1.StorageCluster) map[string]corev1.Resource
 		rookCephv1.ResourcesKeyCmdReporter,
 		rookCephv1.ResourcesKeyCleanup,
 		rookCephv1.ResourcesKeyCephExporter,
+		rookCephv1.ResourcesKeyFloatingMonShutDownApp,
 	}
 	for _, key := range resourceKeys {
 		resource := getDaemonResources(key, sc)
