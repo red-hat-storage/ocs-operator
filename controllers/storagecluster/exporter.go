@@ -28,7 +28,7 @@ const (
 	metricsExporterName     = "ocs-metrics-exporter"
 	prometheusRoleName      = "ocs-metrics-svc"
 	metricsExporterRoleName = metricsExporterName
-	metricsMainPort         = 18080
+	metricsMainPort         = 18082
 	metricsSelfPort         = 18081
 	portMetricsMain         = "https-main"
 	portMetricsSelf         = "https-self"
