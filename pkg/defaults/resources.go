@@ -349,6 +349,12 @@ var (
 				corev1.ResourceMemory: resource.MustParse("50Mi"),
 			},
 		},
+		"floating-mon-shutdown": {
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("10m"),
+				corev1.ResourceMemory: resource.MustParse("50Mi"),
+			},
+		},
 		"logcollector": {
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("10m"),
