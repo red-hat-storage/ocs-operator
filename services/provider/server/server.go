@@ -809,28 +809,36 @@ func (s *OCSProviderServer) isSubscriptionChannelValid(ctx context.Context, subs
 		klog.Infof("channels not found in PackageManifest %q", packageManifest.GetName())
 		return false, nil
 	}
-	var expectedCSVName string
 	for _, ch := range channels {
 		chMap, ok := ch.(map[string]any)
 		if !ok {
 			continue
 		}
-		if chMap["name"].(string) == channelName {
-			expectedCSVName, ok = chMap["currentCSV"].(string)
-			if !ok {
-				klog.Infof("currentCSV not found or invalid in channel %s", channelName)
-				return false, nil
-			}
-			break
+		if chn, ok := chMap["name"].(string); !ok || chn != channelName {
+			continue
 		}
-	}
-	if installedCSVName != expectedCSVName {
-		klog.Infof("installed CSV %q does not match expected %q", installedCSVName, expectedCSVName)
+		entries, ok := chMap["entries"].([]any)
+		if !ok {
+			klog.Infof("channel %q in PackageManifest %q has no entries", channelName, packageManifest.GetName())
+			return false, nil
+		}
+		for _, entry := range entries {
+			entryMap, ok := entry.(map[string]any)
+			if !ok {
+				continue
+			}
+			if entryCSVName, ok := entryMap["name"].(string); ok && entryCSVName == installedCSVName {
+				klog.Infof("subscription for %q with channel %q is valid with installed CSV %q",
+					subscription.Spec.Package, channelName, installedCSVName)
+				return true, nil
+			}
+		}
+		klog.Infof("installed CSV %q is not in channel %q entries in PackageManifest %q",
+			installedCSVName, channelName, packageManifest.GetName())
 		return false, nil
 	}
-
-	klog.Infof("subscription for %q with channel %q is valid with installed CSV %q", subscription.Spec.Package, channelName, installedCSVName)
-	return true, nil
+	klog.Infof("channel %q not found in PackageManifest %q", channelName, packageManifest.GetName())
+	return false, nil
 }
 
 func isEncryptionInTransitEnabled(networkSpec *rookCephv1.NetworkSpec) bool {
