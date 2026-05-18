@@ -2325,7 +2325,7 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 				logger.Info("Encountered unsupported provisioner", "Resource", classDisplayName, "Name", srcName)
 			} else if errors.Is(err, util.UnsupportedDriver) {
 				logger.Info("Encountered unsupported driver", "Resource", classDisplayName, "Name", srcName)
-			} else if reflect.ValueOf(srcKubeObj).IsNil() {
+			} else if srcKubeObj == nil || reflect.ValueOf(srcKubeObj).IsNil() {
 				logger.Info("Resource name does not points to a builtin or an existing object, skipping", "Resource", classDisplayName, "Name", srcName)
 			} else if srcKubeObj.GetLabels()[util.ExternalClassLabelKey] == "true" {
 				logger.Info("Resource is an external object, skipping", "Resource", classDisplayName, "Name", srcName)
