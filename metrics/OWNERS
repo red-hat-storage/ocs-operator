@@ -4,3 +4,4 @@ reviewers:
   - weirdwiz
   - aruniiird
   - yati1998
+component: ocs-metrics-exporter
