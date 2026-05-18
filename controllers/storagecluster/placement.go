@@ -14,8 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// getPlacement returns placement configuration for ceph components with appropriate topology
-func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placement {
+// GetPlacement returns placement configuration for ceph components with appropriate topology
+func GetPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placement {
 	var placement rookCephv1.Placement
 	defaultPlacement := defaults.DaemonPlacements[component]
 	specifiedPlacement, specified := sc.Spec.Placement[rookCephv1.KeyType(component)]
