@@ -396,6 +396,9 @@ func getOnboardingJobObject(instance *ocsv1.StorageCluster) *batchv1.Job {
 							},
 						},
 					},
+					// Use the same tolerations as the Provider API Server
+					// As the generator job is too insignificant to have it's own placement
+					Tolerations: getPlacement(instance, defaults.APIServerKey).Tolerations,
 				},
 			},
 		},
