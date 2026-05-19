@@ -722,6 +722,17 @@ func TestTNFDaemonResources(t *testing.T) {
 				Limits: corev1.ResourceList{},
 			},
 		},
+		{
+			name:       "floating-mon-shutdown resources for tnf",
+			daemonName: "floating-mon-shutdown",
+			expectedResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("10m"),
+					corev1.ResourceMemory: resource.MustParse("50Mi"),
+				},
+				Limits: corev1.ResourceList{},
+			},
+		},
 	}
 
 	err := os.Setenv(util.IsTNFClusterEnvVar, "true")

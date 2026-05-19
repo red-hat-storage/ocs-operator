@@ -1280,6 +1280,22 @@ func TestNewCephDaemonResources(t *testing.T) {
 	}
 }
 
+func TestNewCephDaemonResourcesTNF(t *testing.T) {
+	t.Setenv(ocsutil.IsTNFClusterEnvVar, "true")
+
+	sc := &ocsv1.StorageCluster{
+		Spec: ocsv1.StorageClusterSpec{
+			Resources: map[string]corev1.ResourceRequirements{},
+		},
+	}
+
+	got := newCephDaemonResources(sc)
+
+	assert.DeepEqual(t, defaults.TNFResources["floating-mon-shutdown"], got["floating-mon-shutdown"])
+	assert.DeepEqual(t, defaults.TNFResources["exporter"], got["exporter"])
+	assert.DeepEqual(t, defaults.TNFResources["crashcollector"], got["crashcollector"])
+}
+
 func TestParsePrometheusRules(t *testing.T) {
 	prometheusRules, err := parsePrometheusRule(localPrometheusRules)
 	assert.NilError(t, err)
