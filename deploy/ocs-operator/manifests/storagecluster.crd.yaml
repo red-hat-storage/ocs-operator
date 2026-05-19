@@ -778,21 +778,6 @@ spec:
                                   as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                                 minimum: 0
                                 type: integer
-                              stripeUnit:
-                                anyOf:
-                                - type: integer
-                                - type: string
-                                description: |-
-                                  Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
-                                  Value must be a multiple of 4096 (4Ki).
-                                enum:
-                                - 4Ki
-                                - 16Ki
-                                - 64Ki
-                                - 256Ki
-                                - 1Mi
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
                             required:
                             - codingChunks
                             - dataChunks
@@ -1576,21 +1561,6 @@ spec:
                                     as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                                   minimum: 0
                                   type: integer
-                                stripeUnit:
-                                  anyOf:
-                                  - type: integer
-                                  - type: string
-                                  description: |-
-                                    Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
-                                    Value must be a multiple of 4096 (4Ki).
-                                  enum:
-                                  - 4Ki
-                                  - 16Ki
-                                  - 64Ki
-                                  - 256Ki
-                                  - 1Mi
-                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                  x-kubernetes-int-or-string: true
                               required:
                               - codingChunks
                               - dataChunks
@@ -1819,21 +1789,6 @@ spec:
                                   as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                                 minimum: 0
                                 type: integer
-                              stripeUnit:
-                                anyOf:
-                                - type: integer
-                                - type: string
-                                description: |-
-                                  Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
-                                  Value must be a multiple of 4096 (4Ki).
-                                enum:
-                                - 4Ki
-                                - 16Ki
-                                - 64Ki
-                                - 256Ki
-                                - 1Mi
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
                             required:
                             - codingChunks
                             - dataChunks
@@ -2067,21 +2022,6 @@ spec:
                                   as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                                 minimum: 0
                                 type: integer
-                              stripeUnit:
-                                anyOf:
-                                - type: integer
-                                - type: string
-                                description: |-
-                                  Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
-                                  Value must be a multiple of 4096 (4Ki).
-                                enum:
-                                - 4Ki
-                                - 16Ki
-                                - 64Ki
-                                - 256Ki
-                                - 1Mi
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
                             required:
                             - codingChunks
                             - dataChunks
@@ -2844,21 +2784,6 @@ spec:
                                   as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                                 minimum: 0
                                 type: integer
-                              stripeUnit:
-                                anyOf:
-                                - type: integer
-                                - type: string
-                                description: |-
-                                  Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
-                                  Value must be a multiple of 4096 (4Ki).
-                                enum:
-                                - 4Ki
-                                - 16Ki
-                                - 64Ki
-                                - 256Ki
-                                - 1Mi
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
                             required:
                             - codingChunks
                             - dataChunks
@@ -3100,21 +3025,6 @@ spec:
                                   as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                                 minimum: 0
                                 type: integer
-                              stripeUnit:
-                                anyOf:
-                                - type: integer
-                                - type: string
-                                description: |-
-                                  Erasure code stripe size in bytes. Ceph default is 4096 bytes (4 KiB).
-                                  Value must be a multiple of 4096 (4Ki).
-                                enum:
-                                - 4Ki
-                                - 16Ki
-                                - 64Ki
-                                - 256Ki
-                                - 1Mi
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
                             required:
                             - codingChunks
                             - dataChunks
