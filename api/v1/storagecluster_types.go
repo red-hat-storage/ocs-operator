@@ -302,6 +302,7 @@ type ManageCephObjectStores struct {
 	GatewayPort       int   `json:"gatewayPort,omitempty"`
 	GatewaySecurePort int   `json:"gatewaySecurePort,omitempty"`
 	// Enables STS authentication for RGW
+	// +kubebuilder:default=true
 	EnableSTS bool `json:"enableSTS,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph obc's
 	// +kubebuilder:validation:MaxLength=253
