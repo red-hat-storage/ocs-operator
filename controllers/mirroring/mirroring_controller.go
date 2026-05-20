@@ -248,11 +248,24 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 		return ctrl.Result{}, err
 	}
 
-	remoteClientInfoById := map[string]*pb.ClientInfo{}
-	remoteBlockPoolInfoByName := map[string]*pb.BlockPoolInfo{}
+	shouldMirror := clientMappingConfig.DeletionTimestamp.IsZero() && len(clientMappingConfig.Data) > 0
+	ocsClient := &providerClient.OCSProviderClient{}
+	var err error
 	errorOccurred := false
 
-	shouldMirror := clientMappingConfig.DeletionTimestamp.IsZero() && len(clientMappingConfig.Data) > 0
+	/*
+		reconcileRBDMirror
+		If shouldMirror
+			If the remote cluster is reachable
+			- get blockPool and clientInfo
+			- reconcile blockpools, radosnamespaces and storageconsumer (to enable mirroring)
+		Else
+		- reconcile blockpools, radosnamespaces and storageconsumer (to disable mirroring)
+	*/
+
+	if errored := r.reconcileRbdMirror(clientMappingConfig, shouldMirror); errored {
+		errorOccurred = true
+	}
 
 	if shouldMirror {
 		if controllerutil.AddFinalizer(clientMappingConfig, mirroringFinalizer) {
@@ -274,40 +287,50 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 			return ctrl.Result{}, fmt.Errorf("waiting for StorageClusterPeer %s to be in Peered state", storageClusterPeer.Name)
 		}
 
-		ocsClient, err := providerClient.NewProviderClient(r.ctx, storageClusterPeer.Spec.ApiEndpoint, util.OcsClientTimeout)
+		ocsClient, err = providerClient.NewProviderClient(r.ctx, storageClusterPeer.Spec.ApiEndpoint, util.OcsClientTimeout)
 		if err != nil {
 			r.log.Error(err, "failed to create a new provider client")
-			return ctrl.Result{}, fmt.Errorf("failed to reconcile StorageClientMapping")
-		}
-
-		defer ocsClient.Close()
-
-		if errored := r.getBlockPoolsInfo(ocsClient, storageClusterPeer, cephBlockPoolsList, remoteBlockPoolInfoByName); errored {
 			errorOccurred = true
 		}
 
-		if errored := r.getStorageClientsInfo(ocsClient, storageClusterPeer, remoteClientIds, remoteClientInfoById); errored {
+		if ocsClient != nil {
+			defer ocsClient.Close()
+			remoteClientInfoById := map[string]*pb.ClientInfo{}
+			remoteBlockPoolInfoByName := map[string]*pb.BlockPoolInfo{}
+
+			if errored := r.getBlockPoolsInfo(ocsClient, storageClusterPeer, cephBlockPoolsList, remoteBlockPoolInfoByName); errored {
+				errorOccurred = true
+			}
+
+			if errored := r.getStorageClientsInfo(ocsClient, storageClusterPeer, remoteClientIds, remoteClientInfoById); errored {
+				errorOccurred = true
+			}
+
+			if errored := r.reconcileBlockPoolMirroring(clientMappingConfig, cephBlockPoolsList, remoteBlockPoolInfoByName); errored {
+				errorOccurred = true
+			}
+
+			if errored := r.reconcileRadosNamespaceMirroring(clientMappingConfig, storageConsumerByName, remoteClientInfoById); errored {
+				errorOccurred = true
+			}
+
+			if errored := r.reconcileStorageConsumer(storageConsumerList, clientMappingConfig, remoteClientInfoById); errored {
+				errorOccurred = true
+			}
+		}
+	} else {
+		if errored := r.reconcileBlockPoolMirroring(clientMappingConfig, cephBlockPoolsList, nil); errored {
 			errorOccurred = true
 		}
-	}
 
-	if errored := r.reconcileRbdMirror(clientMappingConfig, shouldMirror); errored {
-		errorOccurred = true
-	}
+		if errored := r.reconcileRadosNamespaceMirroring(clientMappingConfig, storageConsumerByName, nil); errored {
+			errorOccurred = true
+		}
 
-	if errored := r.reconcileBlockPoolMirroring(clientMappingConfig, cephBlockPoolsList, remoteBlockPoolInfoByName); errored {
-		errorOccurred = true
-	}
+		if errored := r.reconcileStorageConsumer(storageConsumerList, clientMappingConfig, nil); errored {
+			errorOccurred = true
+		}
 
-	if errored := r.reconcileRadosNamespaceMirroring(clientMappingConfig, storageConsumerByName, remoteClientInfoById); errored {
-		errorOccurred = true
-	}
-
-	if errored := r.reconcileStorageConsumer(storageConsumerList, clientMappingConfig, remoteClientInfoById); errored {
-		errorOccurred = true
-	}
-
-	if !shouldMirror {
 		if controllerutil.RemoveFinalizer(storageClusterPeer, mirroringFinalizer) {
 			r.log.Info("removing finalizer from StorageClusterPeer.")
 			if err := r.update(storageClusterPeer); err != nil {
