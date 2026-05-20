@@ -39,17 +39,20 @@ func TestCalculateExpectedOsdSizeAndCount(t *testing.T) {
 
 		storageautoscaler := &ocsv1.StorageAutoScaler{
 			Spec: ocsv1.StorageAutoScalerSpec{
-				DeviceClass: "ssd",
-				MaxOsdSize:  resource.MustParse("1Ti"),
+				DeviceClass:            "ssd",
+				MaxOsdSize:             resource.MustParse("1Ti"),
+				StorageCapacityLimit:   resource.MustParse("100Ti"),
 			},
 		}
 
-		startOsdSize, expectedOsdSize, startOsdCount, expectedOsdCount, startStorageCapacity, expectedStorageCapacity := calculateExpectedOsdSizeAndCount(storagecluster, storageautoscaler)
+		startOsdSize, expectedOsdSize, startOsdCount, expectedOsdCount, startStorageCapacity, expectedStorageCapacity, devicesToAdd, limitReached := calculateExpectedOsdSizeAndCount(storagecluster, storageautoscaler)
 
 		assert.Equal(t, resource.MustParse("1Ti"), startOsdSize)
 		assert.Equal(t, resource.MustParse("1Ti"), expectedOsdSize)
 		assert.Equal(t, 9, startOsdCount)
 		assert.Equal(t, 12, expectedOsdCount)
+		assert.Equal(t, 1, devicesToAdd)
+		assert.False(t, limitReached)
 		testExpectedStorageCapacity := resource.MustParse("12Ti")
 		assert.True(t, testExpectedStorageCapacity.Cmp(expectedStorageCapacity) == 0, "Quantities are equal")
 		testStartStorageCapacity := resource.MustParse("9Ti")
@@ -80,12 +83,13 @@ func TestCalculateExpectedOsdSizeAndCount(t *testing.T) {
 
 		storageautoscaler := &ocsv1.StorageAutoScaler{
 			Spec: ocsv1.StorageAutoScalerSpec{
-				DeviceClass: "ssd",
-				MaxOsdSize:  resource.MustParse("4Ti"),
+				DeviceClass:            "ssd",
+				MaxOsdSize:             resource.MustParse("4Ti"),
+				StorageCapacityLimit:   resource.MustParse("100Ti"),
 			},
 		}
 
-		startOsdSize, expectedOsdSize, startOsdCount, expectedOsdCount, startStorageCapacity, expectedStorageCapacity := calculateExpectedOsdSizeAndCount(storagecluster, storageautoscaler)
+		startOsdSize, expectedOsdSize, startOsdCount, expectedOsdCount, startStorageCapacity, expectedStorageCapacity, devicesToAdd, limitReached := calculateExpectedOsdSizeAndCount(storagecluster, storageautoscaler)
 
 		testStartOsdSize := resource.MustParse("1Ti")
 		assert.True(t, testStartOsdSize.Cmp(startOsdSize) == 0, "Quantities are equal")
@@ -93,6 +97,8 @@ func TestCalculateExpectedOsdSizeAndCount(t *testing.T) {
 		assert.True(t, testExpectedOsdSize.Cmp(expectedOsdSize) == 0, "Quantities are equal")
 		assert.Equal(t, 9, startOsdCount)
 		assert.Equal(t, 9, expectedOsdCount)
+		assert.Equal(t, 0, devicesToAdd)
+		assert.False(t, limitReached)
 		testExpectedStorageCapacity := resource.MustParse("18Ti")
 		assert.True(t, testExpectedStorageCapacity.Cmp(expectedStorageCapacity) == 0, "Quantities are equal")
 		testStartStorageCapacity := resource.MustParse("9Ti")
