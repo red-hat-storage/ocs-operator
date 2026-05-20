@@ -53,6 +53,7 @@ $CSV_MERGER \
 	--blackbox-exporter-image="$BLACKBOX_EXPORTER_IMAGE" \
 	--kube-rbac-proxy-image="$KUBE_RBAC_PROXY_IMAGE" \
 	--ocs-must-gather-image="$OCS_MUST_GATHER_IMAGE" \
+        --desired-cephx-key-gen="$DESIRED_CEPHX_KEY_GEN" \
 	--crds-directory="$OUTDIR_CRDS" \
 	--manifests-directory=$BUNDLEMANIFESTS_DIR \
 	--olm-bundle-directory="$OCS_FINAL_DIR" \
