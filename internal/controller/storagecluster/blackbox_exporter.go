@@ -27,7 +27,6 @@ import (
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
-	"github.com/red-hat-storage/ocs-operator/v4/version"
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -52,9 +51,7 @@ const (
 )
 
 var blackboxExporterLabels = map[string]string{
-	componentLabel: "blackbox-exporter",
-	nameLabel:      blackboxExporterName,
-	versionLabel:   version.Version,
+	"app": blackboxExporterName,
 }
 
 type MultusNetStatus struct {
