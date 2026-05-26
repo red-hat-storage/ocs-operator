@@ -36,8 +36,8 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 	var isFound bool
 	namespace := sc.Namespace
 
-	tolerations := getPlacement(sc, "toolbox").Tolerations
-	nodeAffinity := getPlacement(sc, "toolbox").NodeAffinity
+	tolerations := GetPlacement(sc, "toolbox").Tolerations
+	nodeAffinity := GetPlacement(sc, "toolbox").NodeAffinity
 
 	toolsDeployment := newToolsDeployment(namespace, tolerations, nodeAffinity)
 	foundToolsDeployment := &appsv1.Deployment{}

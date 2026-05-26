@@ -336,7 +336,7 @@ modules:
 
 // createBlackboxDeployment deploys the Blackbox Exporter
 func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context, instance *ocsv1.StorageCluster) error {
-	placement := getPlacement(instance, defaults.BlackboxExporterKey)
+	placement := GetPlacement(instance, defaults.BlackboxExporterKey)
 	desired := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      blackboxExporterName,

@@ -487,12 +487,12 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 			},
 			Placement: func() rookCephv1.PlacementSpec {
 				placement := rookCephv1.PlacementSpec{
-					"all": getPlacement(sc, "all"),
-					"mon": getPlacement(sc, "mon"),
-					"mgr": getPlacement(sc, "mgr"),
+					"all": GetPlacement(sc, "all"),
+					"mon": GetPlacement(sc, "mon"),
+					"mgr": GetPlacement(sc, "mgr"),
 				}
 				if arbiterEnabled(sc) {
-					placement["arbiter"] = getPlacement(sc, "arbiter")
+					placement["arbiter"] = GetPlacement(sc, "arbiter")
 				}
 				return placement
 			}(),
@@ -828,8 +828,8 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 			}
 
 			// Default placements for osd and prepareosd
-			defaultPlacement := getPlacement(sc, "osd")
-			defaultPreparePlacement := getPlacement(sc, "prepareosd")
+			defaultPlacement := GetPlacement(sc, "osd")
+			defaultPreparePlacement := GetPlacement(sc, "prepareosd")
 
 			// create a device class match expression
 			deviceClassMatchExpression := metav1.LabelSelectorRequirement{
