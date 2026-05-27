@@ -33,7 +33,7 @@ func (r *StorageClusterReconciler) newCephNFSInstances(initData *ocsv1.StorageCl
 			Spec: cephv1.NFSGaneshaSpec{
 				Server: cephv1.GaneshaServerSpec{
 					Active:    1,
-					Placement: getPlacement(initData, "nfs"),
+					Placement: GetPlacement(initData, "nfs"),
 					Resources: getDaemonResources("nfs", initData),
 					// set high PriorityClassName for the NFS pods, since this will block io for
 					// pods using NFS volumes.

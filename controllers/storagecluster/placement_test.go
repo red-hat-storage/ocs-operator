@@ -707,7 +707,7 @@ func TestGetPlacement(t *testing.T) {
 			if tt.name == "component with empty label selector" {
 				sc.Spec.LabelSelector = &metav1.LabelSelector{}
 			}
-			result := getPlacement(sc, tt.component)
+			result := GetPlacement(sc, tt.component)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
