@@ -576,7 +576,7 @@ github.com/rook/rook/pkg/client/clientset/versioned
 github.com/rook/rook/pkg/client/clientset/versioned/scheme
 github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1
 github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1
-# github.com/rook/rook/pkg/apis v0.0.0-20260525121452-2166046a67b3
+# github.com/rook/rook/pkg/apis v0.0.0-20260526152021-b70a0c925724
 ## explicit; go 1.25.0
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
