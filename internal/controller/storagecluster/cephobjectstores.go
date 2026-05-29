@@ -327,8 +327,10 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 				// beast frontend enables TLS 1.2 by default; explicitly disable it
 				// so that TLS 1.3 becomes the minimum version
 				obj.Spec.Security.SslOptions.TLSv1_2 = ptr.To(false)
+				obj.Spec.Security.CipherSuites = osstls.Ciphers
+			case "TLSv1.2":
+				obj.Spec.Security.Ciphers = osstls.Ciphers
 			}
-			obj.Spec.Security.Ciphers = osstls.Ciphers
 			obj.Spec.Security.TlsGroups = osstls.Groups
 		} else {
 			// From https://docs.openssl.org/master/man3/SSL_CTX_set1_curves/#description
