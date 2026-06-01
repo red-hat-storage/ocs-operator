@@ -477,10 +477,9 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
 	r := &StorageClusterReconciler{
-		Client:            client,
-		Scheme:            scheme,
-		OperatorCondition: newStubOperatorCondition(),
-		Log:               logf.Log.WithName("controller_storagecluster_test"),
+		Client: client,
+		Scheme: scheme,
+		Log:    logf.Log.WithName("controller_storagecluster_test"),
 	}
 	r.crdsBeingWatched.Store(VolumeGroupSnapshotClassCrdName, true)
 	r.crdsBeingWatched.Store(OdfVolumeGroupSnapshotClassCrdName, true)

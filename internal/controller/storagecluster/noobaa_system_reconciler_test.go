@@ -350,7 +350,6 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 			Client:            client,
 			Scheme:            scheme,
 			OperatorNamespace: "openshift-storage",
-			OperatorCondition: newStubOperatorCondition(),
 			Log:               logf.Log.WithName("controller_storagecluster_test"),
 		}
 		_ = reconciler.initializeImageVars()
@@ -417,7 +416,6 @@ func TestSetNooBaaDesiredStatePreservesDBConf(t *testing.T) {
 		Client:            client,
 		Scheme:            scheme,
 		OperatorNamespace: "openshift-storage",
-		OperatorCondition: newStubOperatorCondition(),
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
 	}
 	_ = reconciler.initializeImageVars()

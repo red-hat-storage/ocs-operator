@@ -1184,7 +1184,6 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 		recorder:          reporter,
 		Client:            client,
 		Scheme:            scheme,
-		OperatorCondition: newStubOperatorCondition(),
 		Log:               logf.Log.WithName("controller_storagecluster_test"),
 		clusters:          clusters,
 		OperatorNamespace: operatorNamespace,
