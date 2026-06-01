@@ -1571,7 +1571,7 @@ func getCephClusterCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageClus
 			"rbd_default_pool":                   util.GenerateNameForCephBlockPool(sc.Name),
 		},
 		"osd": {
-			"osd_memory_target_cgroup_limit_ratio": "0.8",
+			"osd_memory_target_cgroup_limit_ratio": getOsdMemoryTargetCgroupLimitRatio(sc.Spec.ResourceProfile),
 		},
 	}
 
@@ -1656,6 +1656,13 @@ func getCephClusterCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageClus
 		}
 	}
 	return cephConfig
+}
+
+func getOsdMemoryTargetCgroupLimitRatio(resourceProfile string) string {
+	if resourceProfile == "performance" {
+		return "0.6"
+	}
+	return "0.8"
 }
 
 // getNearFullRatio returns the specified NearFullRatio or the default value
