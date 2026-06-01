@@ -2242,7 +2242,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 			},
 		},
 		{
-			description: "case 5: ResourceProfile 'performance' should set mon_target_pg_per_osd to 400",
+			description: "case 5: ResourceProfile 'performance' should set mon_target_pg_per_osd to 400 and osd_memory_target_cgroup_limit_ratio to 0.6",
 			storageCluster: &ocsv1.StorageCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: scName,
@@ -2263,7 +2263,7 @@ func TestGetCephClusterCephConfig(t *testing.T) {
 					"rbd_default_pool":                   ocsutil.GenerateNameForCephBlockPool(scName),
 				},
 				"osd": {
-					"osd_memory_target_cgroup_limit_ratio": "0.8",
+					"osd_memory_target_cgroup_limit_ratio": "0.6",
 				},
 			},
 		},
