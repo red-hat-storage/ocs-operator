@@ -20,7 +20,6 @@ import (
 	templatev1 "github.com/openshift/api/template/v1"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	"github.com/operator-framework/operator-lib/conditions"
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -111,7 +110,6 @@ type StorageClusterReconciler struct {
 	nodeCount                 int
 	images                    ImageMap
 	recorder                  *util.EventReporter
-	OperatorCondition         conditions.Condition
 	IsNoobaaStandalone        bool
 	IsMultipleStorageClusters bool
 	isTnfCluster              bool
