@@ -2,7 +2,6 @@ package storagecluster
 
 import (
 	"context"
-	error1 "errors"
 	"fmt"
 	"os"
 	"strings"
@@ -19,7 +18,6 @@ import (
 	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	configv1 "github.com/openshift/api/config/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	"github.com/operator-framework/operator-lib/conditions"
 	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -114,7 +112,6 @@ var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;create;update
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;create;delete;list;watch;update
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update
-// +kubebuilder:rbac:groups=operators.coreos.com,resources=operatorconditions,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=get;list;create;update;watch;delete
 // +kubebuilder:rbac:groups=operators.coreos.com,resources=clusterserviceversions,verbs=get;list;watch;update
@@ -455,12 +452,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 		}
 		r.Log.Info("StorageCluster is terminated, skipping reconciliation.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 
-		// mark operator upgradeable if and only if all other storageclusters are ready or current cluster is the last cluster
-		if r.clusters.AreOtherStorageClustersReady(instance) {
-			returnErr := r.SetOperatorConditions("Skipping StorageCluster reconciliation", "Terminated", metav1.ConditionTrue, nil)
-			return reconcile.Result{}, returnErr
-		}
-
 		return reconcile.Result{}, nil
 	}
 
@@ -576,20 +567,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			instance.Status.Phase != ocsv1.PhaseConnecting {
 			instance.Status.Phase = ocsv1.PhaseProgressing
 		}
-		// Make operator not upgradable if the StorageCluster is not ready
-		// Do this before returning the reconcile error or result
-		if instance.Status.Phase != ocsv1.PhaseReady {
-			reason := "StorageClusterNotReady"
-			message := "StorageCluster is not ready"
 
-			// Try to extract message from Upgradeable condition if it exists
-			upgradeableCondition := conditionsv1.FindStatusCondition(instance.Status.Conditions, conditionsv1.ConditionUpgradeable)
-			if upgradeableCondition != nil {
-				message = upgradeableCondition.Message
-			}
-
-			_ = r.SetOperatorConditions(message, reason, metav1.ConditionFalse, nil)
-		}
 		if returnErr != nil {
 			reason := ocsv1.ReconcileFailed
 			message := fmt.Sprintf("Error while reconciling: %v", returnErr)
@@ -644,40 +622,10 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			util.RemoveExternalCephClusterNegativeConditions(&instance.Status.Conditions)
 		}
 
-		// If no operator whose conditions we are watching reports an error, then it is safe
-		// to set upgradeable to true.
-		if instance.Status.Phase != ocsv1.PhaseClusterExpanding {
-			instance.Status.Phase = ocsv1.PhaseReady
+		// TODO: block operator upgrade via olm v1 if clients are on unsupported version
+		// currently olm v1 does not have something similar to operator conditions
+		// implement this once such functionality is available
 
-			var returnErr error
-			var notUpgradeableReasons, notUpgradeableMessages []string
-			// mark operator upgradeable if and only if all storageclusters are ready
-			if !r.clusters.AreOtherStorageClustersReady(instance) {
-				notUpgradeableReasons = append(notUpgradeableReasons, "NotReady")
-				notUpgradeableMessages = append(notUpgradeableMessages, "StorageCluster is not ready")
-			}
-
-			if count, err := getUnsupportedClientsCount(r, instance.Namespace); err != nil {
-				notUpgradeableReasons = append(notUpgradeableReasons, "ODFClients")
-				notUpgradeableMessages = append(notUpgradeableMessages, "Unable to determine status of connected ODF Clients")
-			} else if count != 0 {
-				notUpgradeableReasons = append(notUpgradeableReasons, "ODFClients")
-				notUpgradeableMessages = append(notUpgradeableMessages, fmt.Sprintf("%d connected ODF Client Operators are not up to date", count))
-			}
-
-			if len(notUpgradeableMessages) > 0 {
-				// we are not upgradeable
-				returnErr = r.SetOperatorConditions(
-					strings.Join(notUpgradeableMessages, ";"), strings.Join(notUpgradeableReasons, ";"),
-					metav1.ConditionFalse, nil)
-			} else {
-				// we are upgradeable
-				returnErr = r.SetOperatorConditions(message, reason, metav1.ConditionTrue, nil)
-			}
-			if returnErr != nil {
-				return reconcile.Result{}, returnErr
-			}
-		}
 	} else {
 		// If any component operator reports negatively we want to write that to
 		// the instance while preserving it's lastTransitionTime.
@@ -700,13 +648,6 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			Message: message,
 		})
 
-		// If for any reason we marked ourselves !upgradeable...then unset readiness
-		if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
-			returnErr := r.SetOperatorConditions(conditionsv1.FindStatusCondition(instance.Status.Conditions, conditionsv1.ConditionUpgradeable).Message, conditionsv1.FindStatusCondition(instance.Status.Conditions, conditionsv1.ConditionUpgradeable).Reason, metav1.ConditionFalse, nil)
-			if returnErr != nil {
-				return reconcile.Result{}, returnErr
-			}
-		}
 		if instance.Status.Phase != ocsv1.PhaseClusterExpanding {
 			if conditionsv1.IsStatusConditionTrue(instance.Status.Conditions, conditionsv1.ConditionProgressing) ||
 				conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionAvailable) {
@@ -790,20 +731,6 @@ func versionCheck(sc *ocsv1.StorageCluster, reqLogger logr.Logger) error {
 		sc.Status.Version = version.Version
 	}
 	return nil
-}
-
-func (r *StorageClusterReconciler) SetOperatorConditions(message string, reason string, isUpgradeable metav1.ConditionStatus, prevError error) error {
-	prevError = client.IgnoreNotFound(prevError)
-	operatorConditionErr := r.OperatorCondition.Set(context.TODO(), isUpgradeable, conditions.Option(conditions.WithMessage(message)), conditions.Option(conditions.WithReason(reason)))
-	if operatorConditionErr != nil {
-		r.Log.Error(operatorConditionErr, "Unable to update OperatorCondition")
-	}
-	if prevError != nil && operatorConditionErr != nil {
-		return error1.New(prevError.Error() + operatorConditionErr.Error())
-	} else if prevError != nil {
-		return prevError
-	}
-	return operatorConditionErr
 }
 
 // validateStorageDeviceSets checks the StorageDeviceSets of the given
@@ -1052,6 +979,7 @@ func validateCustomStorageClassNames(sc *ocsv1.StorageCluster) error {
 	return nil
 }
 
+// nolint:unused
 func getUnsupportedClientsCount(r *StorageClusterReconciler, namespace string) (int, error) {
 	scList := &ocsv1alpha1.StorageConsumerList{}
 	err := r.List(r.ctx, scList, client.InNamespace(namespace))

@@ -40,7 +40,6 @@ import (
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	apiv2 "github.com/operator-framework/api/pkg/operators/v2"
-	"github.com/operator-framework/operator-lib/conditions"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
@@ -56,14 +55,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/client-go/util/retry"
 	clusterv1alpha1 "open-cluster-management.io/api/cluster/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	apiclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -186,22 +182,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	condition, err := storagecluster.NewUpgradeable(mgr.GetClient())
-	if err != nil {
-		setupLog.Error(err, "Unable to get OperatorCondition")
-		os.Exit(1)
-	}
-	// apiclient.New() returns a client without cache.
-	// cache is not initialized before mgr.Start()
-	// we need this because we need to interact with OperatorCondition
-	apiClient, err := apiclient.New(mgr.GetConfig(), apiclient.Options{
-		Scheme: mgr.GetScheme(),
-	})
-	if err != nil {
-		setupLog.Error(err, "Unable to get Client")
-		os.Exit(1)
-	}
-
 	if err = (&ocsinitialization.OCSInitializationReconciler{
 		Client:            mgr.GetClient(),
 		Log:               ctrl.Log.WithName("controllers").WithName("OCSInitialization"),
@@ -218,7 +198,6 @@ func main() {
 		Log:               ctrl.Log.WithName("controllers").WithName("StorageCluster"),
 		Scheme:            mgr.GetScheme(),
 		OperatorNamespace: operatorNamespace,
-		OperatorCondition: condition,
 		SecurityClient:    secv1client.NewForConfigOrDie(mgr.GetConfig()),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "StorageCluster")
@@ -322,27 +301,6 @@ func main() {
 	// Add readiness probe
 	if err := mgr.AddReadyzCheck("readyz", storagecluster.ReadinessChecker); err != nil {
 		setupLog.Error(err, "unable add a readiness check")
-		os.Exit(1)
-	}
-
-	// Set OperatorCondition Upgradeable to True
-	// We have to at least default the condition to True or
-	// OLM will use the Readiness condition via our readiness probe instead:
-	// https://olm.operatorframework.io/docs/advanced-tasks/communicating-operator-conditions-to-olm/#setting-defaults
-	condition, err = storagecluster.NewUpgradeable(apiClient)
-	if err != nil {
-		setupLog.Error(err, "Unable to get OperatorCondition")
-		os.Exit(1)
-	}
-
-	// retry for sometime till OperatorCondition CR is available
-	err = wait.ExponentialBackoff(retry.DefaultRetry, func() (bool, error) {
-		err = condition.Set(context.TODO(), metav1.ConditionTrue, conditions.WithMessage("Operator is ready"), conditions.WithReason("Ready"))
-		return err == nil, err
-	})
-
-	if err != nil {
-		setupLog.Error(err, "Unable to update OperatorCondition")
 		os.Exit(1)
 	}
 

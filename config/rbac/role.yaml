@@ -308,18 +308,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - operators.coreos.com
-  resources:
-  - operatorconditions
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - quota.openshift.io
   resources:
   - clusterresourcequotas
