@@ -149,10 +149,12 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	// DBSpec is used for deploying a posgres client, while the DB fields were used for the single DB instance.
 	// The fields in NooBaaSpec should be left unmodified, to keep the old DB up until data is imported into the new DB cluster.
 	dbMinVolumeSize := dBVolumeResources.Requests.Storage().String()
-	nb.Spec.DBSpec = &nbv1.NooBaaDBSpec{
-		DBImage:         &r.images.NooBaaDB,
-		DBMinVolumeSize: dbMinVolumeSize,
+
+	if nb.Spec.DBSpec == nil {
+		nb.Spec.DBSpec = &nbv1.NooBaaDBSpec{}
 	}
+	nb.Spec.DBSpec.DBImage = &r.images.NooBaaDB
+	nb.Spec.DBSpec.DBMinVolumeSize = dbMinVolumeSize
 
 	if !r.IsNoobaaStandalone {
 		storageClassName := util.GenerateNameForCephBlockPoolStorageClass(sc)
