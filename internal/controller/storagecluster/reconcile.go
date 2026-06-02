@@ -622,9 +622,20 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			util.RemoveExternalCephClusterNegativeConditions(&instance.Status.Conditions)
 		}
 
-		// TODO: block operator upgrade via olm v1 if clients are on unsupported version
-		// currently olm v1 does not have something similar to operator conditions
-		// implement this once such functionality is available
+		if instance.Status.Phase != ocsv1.PhaseClusterExpanding {
+			instance.Status.Phase = ocsv1.PhaseReady
+
+			if count, err := getUnsupportedClientsCount(r, instance.Namespace); err != nil {
+				r.Log.Error(err, "failed to get unsupported clients count")
+			} else if count > 0 {
+				// TODO: block operator upgrade via olm v1 if clients are on unsupported version
+				// currently olm v1 does not have something similar to operator conditions
+				// implement this once such functionality is available
+				// if possible raise alerts
+				errMsg := fmt.Errorf("found unsupported clients")
+				r.Log.Error(errMsg, "resolve the unsupported clients")
+			}
+		}
 
 	} else {
 		// If any component operator reports negatively we want to write that to
@@ -979,7 +990,6 @@ func validateCustomStorageClassNames(sc *ocsv1.StorageCluster) error {
 	return nil
 }
 
-// nolint:unused
 func getUnsupportedClientsCount(r *StorageClusterReconciler, namespace string) (int, error) {
 	scList := &ocsv1alpha1.StorageConsumerList{}
 	err := r.List(r.ctx, scList, client.InNamespace(namespace))
