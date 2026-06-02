@@ -674,6 +674,11 @@ spec:
               daemon_type="osd"
               }[24h:]
           ) > 0.010
+          and on(instance, job, daemon_type, namespace)
+          probe_success{
+            job="odf-blackbox-exporter",
+            daemon_type="osd"
+          } == 1
         ) > 0
       for: 10m
       labels:
@@ -693,6 +698,11 @@ spec:
               daemon_type="mon"
               }[24h:]
           ) > 0.100
+          and on(instance, job, daemon_type, namespace)
+          probe_success{
+            job="odf-blackbox-exporter",
+            daemon_type="mon"
+          } == 1
         ) > 0
       for: 10m
       labels:
