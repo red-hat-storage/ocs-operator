@@ -460,8 +460,8 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 	}
 
 	ocsOperatorConfigData := map[string]string{
-		util.ClusterNameKey:              util.GetClusterID(r.ctx, r, &r.Log),
-		util.RookCurrentNamespaceOnlyKey: strconv.FormatBool(!(len(r.clusters.GetStorageClusters()) > 1)),
+		util.ClusterNameKey:              util.GetClusterID(r.ctx, r.Client, &r.Log),
+		util.RookCurrentNamespaceOnlyKey: strconv.FormatBool(len(r.clusters.GetStorageClusters()) <= 1),
 		util.EnableTopologyKey:           r.getEnableTopologyKeyValue(),
 		util.TopologyDomainLabelsKey:     r.getTopologyDomainLabelsKeyValue(),
 		util.EnableNFSKey:                r.getEnableNFSKeyValue(),

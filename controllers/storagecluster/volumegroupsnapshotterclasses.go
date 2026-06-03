@@ -60,7 +60,7 @@ func (r *StorageClusterReconciler) createGroupSnapshotClasses(vsccs []GroupSnaps
 		if !reflect.DeepEqual(vsc.Parameters, existing.Parameters) {
 			// we have to update the existing SnapshotClass
 			r.Log.Info("GroupSnapshotClass needs to be updated", "GroupSnapshotClass", klog.KRef("", existing.Name))
-			existing.ObjectMeta.OwnerReferences = vsc.ObjectMeta.OwnerReferences
+			existing.OwnerReferences = vsc.OwnerReferences
 			vsc.ObjectMeta = existing.ObjectMeta
 			if err := r.Update(r.ctx, vsc); err != nil {
 				r.Log.Error(err, "GroupSnapshotClass updation failed.", "GroupSnapshotClass", klog.KRef("", existing.Name))

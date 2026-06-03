@@ -96,9 +96,9 @@ func assertCephRGWRoutes(t *testing.T, reconciler *StorageClusterReconciler, cr 
 				},
 			},
 		}
-		assert.Equal(t, expectedCos[0].ObjectMeta.Name, actualCos.ObjectMeta.Name)
+		assert.Equal(t, expectedCos[0].Name, actualCos.Name)
 		assert.Equal(t, expectedCos[0].Spec, actualCos.Spec)
-		assert.Equal(t, expectedCos[1].ObjectMeta.Name, actualCosSecure.ObjectMeta.Name)
+		assert.Equal(t, expectedCos[1].Name, actualCosSecure.Name)
 		assert.Equal(t, expectedCos[1].Spec, actualCosSecure.Spec)
 	}
 
