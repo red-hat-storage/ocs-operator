@@ -39,6 +39,33 @@ spec:
           spec:
             description: StorageConsumerSpec defines the desired state of StorageConsumer
             properties:
+              cephClientCephx:
+                properties:
+                  keyGeneration:
+                    description: |-
+                      KeyGeneration specifies the desired CephX key generation. This is used when KeyRotationPolicy
+                      is KeyGeneration and ignored for other policies. If this is set to greater than the current
+                      key generation, relevant keys will be rotated, and the generation value will be updated to
+                      this new value (generation values are not necessarily incremental, though that is the
+                      intended use case). If this is set to less than or equal to the current key generation, keys
+                      are not rotated.
+                    format: int32
+                    maximum: 4294967295
+                    minimum: 0
+                    type: integer
+                    x-kubernetes-validations:
+                    - message: keyGeneration cannot be decreased
+                      rule: self >= oldSelf
+                  keyRotationPolicy:
+                    description: |-
+                      KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
+                      One of Disabled, or KeyGeneration. Default Disabled.
+                    enum:
+                    - ""
+                    - Disabled
+                    - KeyGeneration
+                    type: string
+                type: object
               enable:
                 description: Enable flag ignores a reconcile if set to false
                 type: boolean
@@ -206,6 +233,10 @@ spec:
                     type: string
                   clusterName:
                     description: ClusterName is the name of the openshift cluster
+                    type: string
+                  kernelVersion:
+                    description: kernelVersion is minimum kernel version for OCP nodes
+                      on connected client
                     type: string
                   name:
                     description: Name is the name of connected storageclient

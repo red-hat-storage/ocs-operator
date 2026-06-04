@@ -27,6 +27,7 @@ import (
 	"time"
 
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	ocscontrollersutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
@@ -60,7 +61,11 @@ const (
 	storageConsumerFinalizer      = "ocs.openshift.io/storageconsumer-protection"
 	primaryConsumerUIDAnnotation  = "ocs.openshift.io/primary-consumer-uid"
 	blockPoolNameLabel            = "ocs.openshift.io/cephblockpool-name"
-	csiCephUserCurrGen            = 1
+	csiCephUserCurrGenDefault     = 1
+)
+
+var (
+	csiCephUserCurrGen int64 = csiCephUserCurrGenDefault
 )
 
 // StorageConsumerReconciler reconciles a StorageConsumer object
@@ -271,6 +276,13 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 		}
 
 		if isPrimaryConsumer {
+			kernelVersion := r.storageConsumer.Status.Client.KernelVersion
+			if supported, err := ocscontrollersutil.IsKernelVersionSupported(kernelVersion, ocscontrollersutil.CephxKeyRotaionKernelSupportVersion); supported && err == nil {
+				csiCephUserCurrGen = 2
+			}
+			r.storageConsumer.Spec.CephClientCephx.KeyRotationPolicy = rookCephv1.KeyGenerationCephxKeyRotationPolicy
+			r.storageConsumer.Spec.CephClientCephx.KeyGeneration = uint32(csiCephUserCurrGen)
+
 			if availableServices.Rbd {
 				if err := r.reconcileCephRadosNamespace(
 					consumerResources.GetRbdRadosNamespaceName(),

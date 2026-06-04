@@ -177,6 +177,9 @@ message ReportStatusRequest{
     uint32 cephFsPVCount = 10;
     // cephFsVolumeSnapshotContentCount is the number of CephFS VolumeSnapshotContent resources
     uint32 cephFsVolumeSnapshotContentCount = 11;
+    // kernelVersion is minimum kernel version for OCP nodes
+    string kernelVersion = 12;
+
 }
 
 message ReportStatusResponse{

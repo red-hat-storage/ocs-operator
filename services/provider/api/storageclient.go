@@ -72,6 +72,11 @@ func (r *ReportStatusRequest) SetCephFsVolumeSnapshotContentCount(count uint32) 
 	return r
 }
 
+func (r *ReportStatusRequest) SetKernelVersion(kernelVersion string) ifaces.StorageClientStatus {
+	r.KernelVersion = kernelVersion
+	return r
+}
+
 // ensure OnboardConsumerRequest satisfies StorageClientOnboarding interface
 var _ ifaces.StorageClientOnboarding = &OnboardConsumerRequest{}
 
