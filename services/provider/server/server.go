@@ -27,6 +27,7 @@ import (
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	ifaces "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces"
+	ocscontrollersutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
@@ -84,7 +85,6 @@ const (
 	monSecret                     = "rook-ceph-mon"
 	mirroringTokenKey             = "rbdMirrorBootstrapPeerSecretName"
 	clientInfoRbdClientProfileKey = "csiop-rbd-client-profile"
-	csiCephUserCurrGen            = 1
 
 	remoteObcCreationAnnotationKey = "remote-obc-creation"
 	remoteObcNameLabelKey          = "remote-obc-name"
@@ -95,12 +95,15 @@ const (
 	prefixOfHashedName             = "remote-obc"
 
 	s3EndpointsConfigMapLabelKey = "ocs.openshift.io/hub-s3-endpoints"
+
+	csiCephUserCurrGenDefault = 1
 )
 
 var (
 	knownOcsInstalledCsvName        string
 	knownOcsSubscriptionChannelName string
 	ocsSubChannelAndCsvMutex        sync.Mutex
+	csiCephUserCurrGen              int64 = csiCephUserCurrGenDefault
 )
 
 type CommonClassSpecAccessors interface {
@@ -488,6 +491,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			useHostNetworkForCtrlPlugin,
 			obcResourceVersions,
 			s3EndpointsListResourceVersion,
+			consumer.Spec.CephClientCephx,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -795,6 +799,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		util.ShouldUseHostNetworking(storageCluster),
 		obcResourceVersions,
 		s3EndpointsListResourceVersion,
+		storageConsumer.Spec.CephClientCephx,
 	)
 
 	logger.Info("Successfully processed status report")
@@ -1662,6 +1667,11 @@ func (s *OCSProviderServer) appendCephClientSecretKubeResources(
 	consumer *ocsv1alpha1.StorageConsumer,
 	consumerConfig util.StorageConsumerResources,
 ) ([]kubeObjectWithOpRecord, error) {
+
+	kernelVersion := consumer.Status.Client.KernelVersion
+	if supported, err := ocscontrollersutil.IsKernelVersionSupported(kernelVersion, ocscontrollersutil.CephxKeyRotaionKernelSupportVersion); supported && err == nil {
+		csiCephUserCurrGen = 2
+	}
 
 	var err error
 	if destSecretName := consumerConfig.GetCsiRbdProvisionerCephUserName(); destSecretName != "" {

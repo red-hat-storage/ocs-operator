@@ -31,6 +31,9 @@ type StorageClientStatus interface {
 
 	GetCephFsVolumeSnapshotContentCount() uint32
 	SetCephFsVolumeSnapshotContentCount(uint32) StorageClientStatus
+
+	GetKernelVersion() string
+	SetKernelVersion(string) StorageClientStatus
 }
 
 type StorageClientOnboarding interface {
