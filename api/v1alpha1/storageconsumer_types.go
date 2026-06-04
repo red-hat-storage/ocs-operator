@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -59,6 +60,8 @@ type StorageConsumerSpec struct {
 	VolumeGroupReplicationClasses []VolumeGroupReplicationClassSpec `json:"volumeGroupReplicationClasses,omitempty"`
 	// +optional
 	NetworkFenceClasses []NetworkFenceClassesSpec `json:"networkFenceClasses,omitempty"`
+	// +optional
+	CephClientCephx rookCephv1.CephxConfig `json:"cephClientCephx,omitempty"`
 }
 
 type CommonClassSpec struct {
@@ -176,6 +179,9 @@ type ClientStatus struct {
 	// ID is the k8s UID of connected storageclient
 	// +optional
 	ID string `json:"clientId,omitempty"`
+
+	//kernelVersion is minimum kernel version for OCP nodes on connected client
+	KernelVersion string `json:"kernelVersion,omitempty"`
 }
 
 //+kubebuilder:object:root=true
