@@ -60,10 +60,33 @@ type MultusNetStatus struct {
 	IPs       []string `json:"ips"`
 }
 
+type NetworkAttachment struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace,omitempty"`
+	Interface string `json:"interface,omitempty"`
+}
+
 // deployBlackboxExporter ensures the Blackbox Exporter is deployed by default
 func (r *StorageClusterReconciler) deployBlackboxExporter(ctx context.Context, instance *ocsv1.StorageCluster) error {
 	if instance.Spec.Monitoring != nil && instance.Spec.Monitoring.DisableBlackboxExporter {
 		return r.deleteBlackboxExporter(ctx, instance)
+	}
+
+	// Get the Ceph cluster network configuration from OSD pods
+	cephClusterNetwork, err := r.getCephClusterNetwork(ctx, instance.Namespace)
+	if err != nil {
+		r.Log.Error(err, "Failed to get Ceph cluster network")
+		return err
+	}
+
+	// Build Multus annotation for Blackbox (attach to same networks as Ceph cluster)
+	var podAnnotations map[string]string
+	multusValue := buildMultusAnnotation(cephClusterNetwork, instance.Namespace)
+	if multusValue != "" {
+		podAnnotations = map[string]string{
+			"k8s.v1.cni.cncf.io/networks": multusValue,
+		}
+		r.Log.Info("Attaching Blackbox to Ceph cluster network", "networks", cephClusterNetwork)
 	}
 
 	if err := r.createBlackboxServiceAccount(ctx, instance); err != nil {
@@ -78,7 +101,7 @@ func (r *StorageClusterReconciler) deployBlackboxExporter(ctx context.Context, i
 		r.Log.Error(err, "unable to create configmap for blackbox metrics exporter")
 		return err
 	}
-	if err := r.createBlackboxDeployment(ctx, instance); err != nil {
+	if err := r.createBlackboxDeployment(ctx, instance, podAnnotations); err != nil {
 		r.Log.Error(err, "unable to create deployment for blackbox metrics exporter")
 		return err
 	}
@@ -86,7 +109,7 @@ func (r *StorageClusterReconciler) deployBlackboxExporter(ctx context.Context, i
 		r.Log.Error(err, "unable to create service for blackbox metrics exporter")
 		return err
 	}
-	if err := r.createBlackboxProbe(ctx, instance); err != nil {
+	if err := r.createBlackboxProbe(ctx, instance, cephClusterNetwork); err != nil {
 		r.Log.Error(err, "unable to create probe for blackbox metrics exporter")
 		return err
 	}
@@ -331,9 +354,165 @@ modules:
 	return nil
 }
 
+// getCephClusterNetwork returns the Ceph cluster network configuration from OSD pod's networks annotation
+// Returns empty slice if no networks annotation (use default SDN)
+func (r *StorageClusterReconciler) getCephClusterNetwork(ctx context.Context, namespace string) ([]NetworkAttachment, error) {
+	pods := &corev1.PodList{}
+	if err := r.List(ctx, pods, client.InNamespace(namespace),
+		client.MatchingLabels{"ceph_daemon_type": "osd"}); err != nil {
+		return nil, err
+	}
+
+	if len(pods.Items) == 0 {
+		return nil, fmt.Errorf("no OSD pods found in namespace %s", namespace)
+	}
+
+	// Read the networks annotation (Ceph cluster network configuration)
+	networksJSON := pods.Items[0].Annotations["k8s.v1.cni.cncf.io/networks"]
+	if networksJSON == "" {
+		r.Log.V(1).Info("No networks annotation found on OSD pod, using default SDN",
+			"pod", pods.Items[0].Name)
+		return []NetworkAttachment{}, nil // Empty = use default SDN
+	}
+
+	var networks []NetworkAttachment
+	if err := json.Unmarshal([]byte(networksJSON), &networks); err != nil {
+		return nil, fmt.Errorf("failed to parse networks annotation: %w", err)
+	}
+
+	r.Log.Info("Found Ceph cluster network configuration", "networks", networks)
+	return networks, nil
+}
+
+// buildMultusAnnotation creates the k8s.v1.cni.cncf.io/networks annotation value for Blackbox
+// Format: "net1" for single network, or JSON array for multiple
+func buildMultusAnnotation(networks []NetworkAttachment, namespace string) string {
+	if len(networks) == 0 {
+		return ""
+	}
+
+	if len(networks) == 1 {
+		// Single network: use simple format
+		net := networks[0]
+		if net.Namespace != "" && net.Namespace != namespace {
+			return fmt.Sprintf("%s/%s", net.Namespace, net.Name)
+		}
+		return net.Name
+	}
+
+	// Multiple networks: use JSON array format
+	// Preserve namespace info for each network
+	jsonBytes, err := json.Marshal(networks)
+	if err != nil {
+		return ""
+	}
+	return string(jsonBytes)
+}
+
+// getCephDaemonPodIPsFromNetworks extracts IPs only from specified networks
+// If networks slice is empty, returns PodIP (default SDN)
+func (r *StorageClusterReconciler) getCephDaemonPodIPsFromNetworks(
+	ctx context.Context,
+	namespace string,
+	daemonType string,
+	networks []NetworkAttachment,
+) ([]string, error) {
+	pods := &corev1.PodList{}
+	if err := r.List(ctx, pods, client.InNamespace(namespace),
+		client.MatchingLabels{"ceph_daemon_type": daemonType}); err != nil {
+		return nil, err
+	}
+
+	var allIPs []string
+
+	// If no networks specified, collect PodIPs (default SDN)
+	if len(networks) == 0 {
+		for _, pod := range pods.Items {
+			if pod.Status.Phase != corev1.PodRunning {
+				continue
+			}
+			if pod.Status.PodIP != "" {
+				allIPs = append(allIPs, pod.Status.PodIP)
+			}
+		}
+		r.Log.Info("Collected daemon pod IPs from default network",
+			"type", daemonType,
+			"count", len(allIPs))
+		return allIPs, nil
+	}
+
+	for _, pod := range pods.Items {
+		if pod.Status.Phase != corev1.PodRunning {
+			continue
+		}
+
+		// Parse network-status annotation
+		netStatusJSON, exists := pod.Annotations["k8s.v1.cni.cncf.io/network-status"]
+		if !exists || netStatusJSON == "" {
+			r.Log.V(1).Info("No network-status annotation, falling back to PodIP",
+				"pod", pod.Name)
+			if pod.Status.PodIP != "" {
+				allIPs = append(allIPs, pod.Status.PodIP)
+			}
+			continue
+		}
+
+		var netStatusList []MultusNetStatus
+		if err := json.Unmarshal([]byte(netStatusJSON), &netStatusList); err != nil {
+			r.Log.V(1).Info("Failed to parse network-status, falling back to PodIP",
+				"pod", pod.Name, "error", err)
+			if pod.Status.PodIP != "" {
+				allIPs = append(allIPs, pod.Status.PodIP)
+			}
+			continue
+		}
+
+		// Build a set of network names to match (handles namespace qualification)
+		targetNetworks := make(map[string]bool)
+		for _, net := range networks {
+			// Add both qualified and unqualified forms for matching
+			targetNetworks[net.Name] = true
+			if net.Namespace != "" {
+				targetNetworks[fmt.Sprintf("%s/%s", net.Namespace, net.Name)] = true
+			}
+		}
+
+		// Extract IPs from matching networks only
+		for _, netStatus := range netStatusList {
+			// Check if this network is in our target list
+			if !targetNetworks[netStatus.Name] {
+				// Try matching unqualified name
+				parts := strings.SplitN(netStatus.Name, "/", 2)
+				if len(parts) == 2 && !targetNetworks[parts[1]] {
+					continue // Not a target network
+				} else if len(parts) == 1 && !targetNetworks[netStatus.Name] {
+					continue // Not a target network
+				}
+			}
+
+			// This is a target network - collect its IPs
+			if len(netStatus.IPs) > 0 {
+				allIPs = append(allIPs, netStatus.IPs...)
+				r.Log.V(1).Info("Extracted IPs from target network",
+					"pod", pod.Name,
+					"network", netStatus.Name,
+					"ips", netStatus.IPs)
+			}
+		}
+	}
+
+	r.Log.Info("Collected daemon pod IPs from specified networks",
+		"type", daemonType,
+		"count", len(allIPs),
+		"networks", networks)
+
+	return allIPs, nil
+}
+
 // createBlackboxDeployment deploys the Blackbox Exporter
-func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context, instance *ocsv1.StorageCluster) error {
+func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context, instance *ocsv1.StorageCluster, podAnnotations map[string]string) error {
 	placement := GetPlacement(instance, defaults.BlackboxExporterKey)
+
 	desired := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      blackboxExporterName,
@@ -345,7 +524,8 @@ func (r *StorageClusterReconciler) createBlackboxDeployment(ctx context.Context,
 			Selector: &metav1.LabelSelector{MatchLabels: blackboxExporterLabels},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: blackboxExporterLabels,
+					Labels:      blackboxExporterLabels,
+					Annotations: podAnnotations,
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: blackboxServiceAccount,
@@ -535,67 +715,6 @@ func (r *StorageClusterReconciler) createBlackboxService(ctx context.Context, in
 	return nil
 }
 
-// getCephDaemonPodIPs returns PodIPs for running Ceph daemon pods of specified type
-// Works for both Multus and non-Multus clusters
-func (r *StorageClusterReconciler) getCephDaemonPodIPs(
-	ctx context.Context,
-	namespace string,
-	daemonType string,
-) ([]string, error) {
-	pods := &corev1.PodList{}
-	labelSelector := client.MatchingLabels{
-		"ceph_daemon_type": daemonType,
-	}
-
-	if err := r.List(ctx, pods, client.InNamespace(namespace), labelSelector); err != nil {
-		return nil, fmt.Errorf("failed to list %s pods: %w", daemonType, err)
-	}
-
-	var allIPs []string
-
-	for _, pod := range pods.Items {
-		if pod.Status.Phase != corev1.PodRunning {
-			r.Log.Info("Skipping non-running pod", "pod", pod.Name, "phase", pod.Status.Phase)
-			continue
-		}
-
-		networkStatusJSON, exists := pod.Annotations["k8s.v1.cni.cncf.io/network-status"]
-		if !exists || networkStatusJSON == "" {
-			r.Log.Info("Pod missing network-status annotation, falling back to PodIP",
-				"pod", pod.Name)
-			// Fallback: use PodIP if annotation is missing
-			if pod.Status.PodIP != "" {
-				allIPs = append(allIPs, pod.Status.PodIP)
-			}
-			continue
-		}
-
-		var networks []MultusNetStatus
-		if err := json.Unmarshal([]byte(networkStatusJSON), &networks); err != nil {
-			r.Log.Info("Failed to parse network-status annotation", "pod", pod.Name)
-			// Fallback: use PodIP if parsing fails
-			if pod.Status.PodIP != "" {
-				allIPs = append(allIPs, pod.Status.PodIP)
-			}
-			continue
-		}
-
-		for _, net := range networks {
-			if len(net.IPs) > 0 {
-				allIPs = append(allIPs, net.IPs...)
-				r.Log.Info("Extracted IPs from network-status",
-					"pod", pod.Name,
-					"network", net.Name,
-					"interface", net.Interface,
-					"ips", net.IPs)
-			}
-		}
-	}
-
-	r.Log.Info("Collected Ceph daemon pod IPs", "type", daemonType, "count", len(allIPs))
-	return allIPs, nil
-}
-
 // buildIPRegex creates a Prometheus-compatible regex matching any IP in the list
 // Input: ["10.0.0.1", "10.0.0.2"] → Output: "^(10\\.0\\.0\\.1|10\\.0\\.0\\.2)$"
 func buildIPRegex(ips []string) string {
@@ -612,14 +731,15 @@ func buildIPRegex(ips []string) string {
 }
 
 // createBlackboxProbe creates or updates the Probe with relabeling for daemon_type labels
-func (r *StorageClusterReconciler) createBlackboxProbe(ctx context.Context, instance *ocsv1.StorageCluster) error {
-	osdIPs, err := r.getCephDaemonPodIPs(ctx, instance.Namespace, "osd")
+func (r *StorageClusterReconciler) createBlackboxProbe(ctx context.Context, instance *ocsv1.StorageCluster, cephClusterNetwork []NetworkAttachment) error {
+
+	osdIPs, err := r.getCephDaemonPodIPsFromNetworks(ctx, instance.Namespace, "osd", cephClusterNetwork)
 	if err != nil {
 		r.Log.Error(err, "Failed to get OSD pod IPs")
 		return err
 	}
 
-	monIPs, err := r.getCephDaemonPodIPs(ctx, instance.Namespace, "mon")
+	monIPs, err := r.getCephDaemonPodIPsFromNetworks(ctx, instance.Namespace, "mon", cephClusterNetwork)
 	if err != nil {
 		r.Log.Error(err, "Failed to get MON pod IPs")
 		return err
@@ -667,9 +787,6 @@ func (r *StorageClusterReconciler) createBlackboxProbe(ctx context.Context, inst
 			Targets: monitoringv1.ProbeTargets{
 				StaticConfig: &monitoringv1.ProbeTargetStaticConfig{
 					Targets: allTargets,
-					Labels: map[string]string{
-						"job": blackboxExporterName,
-					},
 				},
 			},
 			Interval:             blackboxScrapeInterval,

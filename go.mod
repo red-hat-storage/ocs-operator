@@ -13,6 +13,7 @@ require (
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20251118081640-a91f3af51dfd
 	github.com/ceph/ceph-csi/api v0.0.0-20251120101229-f3b5a5957149
 	github.com/csi-addons/kubernetes-csi-addons v0.13.0
+	github.com/go-jose/go-jose/v4 v4.1.3
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
@@ -70,7 +71,6 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.22.1 // indirect
 	github.com/go-openapi/jsonreference v0.21.2 // indirect
