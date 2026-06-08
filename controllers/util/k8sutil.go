@@ -60,12 +60,14 @@ const (
 	ExitCodeThatShouldRestartTheProcess = 42
 
 	//ForbidMirroringLabel is used to forbid mirroring for ceph resources such as CephBlockPool
-	ForbidMirroringLabel                 = "ocs.openshift.io/forbid-mirroring"
-	BlockPoolMirroringTargetIDAnnotation = "ocs.openshift.io/mirroring-target-id"
-	RequestMaintenanceModeAnnotation     = "ocs.openshift.io/request-maintenance-mode"
-	CephRBDMirrorName                    = "cephrbdmirror"
-	OcsClientTimeout                     = 10 * time.Second
-	StorageClientMappingConfigName       = "storage-client-mapping"
+	ForbidMirroringLabel                  = "ocs.openshift.io/forbid-mirroring"
+	BlockPoolMirroringTargetIDAnnotation  = "ocs.openshift.io/mirroring-target-id"
+	RequestMaintenanceModeAnnotation      = "ocs.openshift.io/request-maintenance-mode"
+	CephRBDMirrorName                     = "cephrbdmirror"
+	OcsClientTimeout                      = 10 * time.Second
+	StorageClientMappingConfigName        = "storage-client-mapping"
+	CreatedAtDfVersionLabelKey            = "ocs.openshift.io/created-at-df-version"
+	CreatedWithCephXFeaturesAnnotationKey = "ocs.openshift.io/created-with-cephx-features"
 )
 
 var podNamespace = os.Getenv(PodNamespaceEnvVar)
