@@ -270,6 +270,10 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			}
 			util.AddAnnotation(cephCluster, util.CreatedAtDfVersionLabelKey, majorAndMinorVersion)
 			util.AddAnnotation(cephCluster, util.CreatedWithCephXFeaturesAnnotationKey, "")
+			err = setCephXFeaturesSpec(cephCluster, sc)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 
 			if sc.Spec.ExternalStorage.Enable {
 				r.Log.Info("Creating external CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
@@ -292,6 +296,15 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return reconcile.Result{}, err
 	} else if reconcileStrategy == ReconcileStrategyInit {
 		return reconcile.Result{}, nil
+	}
+
+	// Copy annotations from the existing CephCluster to the in-memory object,
+	// as they are used to determine the desired state during reconciliation.
+	cephCluster.Annotations = found.Annotations
+
+	err = setCephXFeaturesSpec(cephCluster, sc)
+	if err != nil {
+		return reconcile.Result{}, err
 	}
 
 	// Record actual Ceph container image version before attempting update
@@ -401,6 +414,34 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func setCephXFeaturesSpec(cephCluster *rookCephv1.CephCluster, sc *ocsv1.StorageCluster) error {
+	cephCluster.Spec.Security.CephX.AllowedCiphers = []rookCephv1.CephxKeyType{rookCephv1.CephxKeyTypeAes, rookCephv1.CephxKeyTypeAes256k}
+
+	if _, ok := cephCluster.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+		cephCluster.Spec.Security.CephX.RBDMirrorPeer.KeyType = rookCephv1.CephxKeyTypeAes
+	} else {
+		desiredCephxKeyGenAsString := util.MustGetEnv(util.DesiredCephxKeyGenEnvVarName)
+		desiredCephxKeyGen, err := strconv.Atoi(desiredCephxKeyGenAsString)
+		if err != nil {
+			err = fmt.Errorf("could not convert the value %q of env var %q", desiredCephxKeyGenAsString, util.DesiredCephxKeyGenEnvVarName)
+			return err
+		}
+
+		cephCluster.Spec.Security.CephX.Daemon.KeyRotationPolicy = rookCephv1.KeyGenerationCephxKeyRotationPolicy
+		cephCluster.Spec.Security.CephX.Daemon.KeyGeneration = uint32(desiredCephxKeyGen)
+	}
+
+	// Always set the KeyGeneration value if it is specified in the StorageCluster,
+	// regardless of whether the deployment is greenfield or brownfield.
+	if sc.Spec.ManagedResources.CephCluster.CephSecurity != nil &&
+		sc.Spec.ManagedResources.CephCluster.CephSecurity.CephX.Daemon.KeyGeneration > uint32(0) {
+		cephCluster.Spec.Security.CephX.Daemon.KeyRotationPolicy = rookCephv1.KeyGenerationCephxKeyRotationPolicy
+		cephCluster.Spec.Security.CephX.Daemon.KeyGeneration = sc.Spec.ManagedResources.CephCluster.CephSecurity.CephX.Daemon.KeyGeneration
+	}
+
+	return nil
 }
 
 // ensureDeleted deletes the CephCluster owned by the StorageCluster
