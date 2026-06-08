@@ -576,7 +576,7 @@ github.com/rook/rook/pkg/client/clientset/versioned
 github.com/rook/rook/pkg/client/clientset/versioned/scheme
 github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1
 github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1
-# github.com/rook/rook/pkg/apis v0.0.0-20260526152021-b70a0c925724
+# github.com/rook/rook/pkg/apis v0.0.0-20260526152021-b70a0c925724 => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260722214556-e1ecd97a7483
 ## explicit; go 1.25.0
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
@@ -1554,5 +1554,6 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
+# github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260722214556-e1ecd97a7483
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
 # k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.35.4
