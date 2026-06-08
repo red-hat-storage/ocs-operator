@@ -1157,6 +1157,9 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) Sto
 		},
 	}
 	obj = append(obj, cbp, cfs, rookCephMonSecret, csv)
+
+	os.Setenv(statusutil.DesiredCephxKeyGenEnvVarName, "2")
+
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 
 	clusters, err := statusutil.GetClusters(context.TODO(), client)
