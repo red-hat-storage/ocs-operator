@@ -16,6 +16,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	ocsutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	tassert "github.com/stretchr/testify/assert"
 	"gotest.tools/v3/assert"
@@ -95,6 +96,16 @@ func TestEnsureCephCluster(t *testing.T) {
 		expected := newCephCluster(reconciler, mockStorageCluster.DeepCopy(), nil)
 		expected.Status.State = c.cephClusterState
 
+		if c.shouldCreate {
+			majorAndMinorVersion, err := version.GetMajorAndMinorVersion()
+			assert.NilError(t, err)
+			ocsutil.AddAnnotation(expected, ocsutil.CreatedAtDfVersionLabelKey, majorAndMinorVersion)
+			ocsutil.AddAnnotation(expected, ocsutil.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		err := setCephXFeaturesSpec(expected, sc)
+		assert.NilError(t, err)
+
 		if !c.shouldCreate {
 			createErr := reconciler.Client.Create(context.TODO(), expected)
 			assert.NilError(t, createErr)
@@ -125,7 +136,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		}
 
 		var obj ocsCephCluster
-		_, err := obj.ensureCreated(reconciler, sc)
+		_, err = obj.ensureCreated(reconciler, sc)
 		assert.NilError(t, err)
 
 		actual := &rookCephv1.CephCluster{}
@@ -134,6 +145,17 @@ func TestEnsureCephCluster(t *testing.T) {
 		assert.Equal(t, expected.ObjectMeta.Name, actual.ObjectMeta.Name)
 		assert.Equal(t, expected.ObjectMeta.Namespace, actual.ObjectMeta.Namespace)
 		assert.DeepEqual(t, expected.Spec, actual.Spec)
+		if c.shouldCreate {
+			majorAndMinorVersion, err := version.GetMajorAndMinorVersion()
+			assert.NilError(t, err)
+			assert.Equal(t, actual.GetAnnotations()[ocsutil.CreatedAtDfVersionLabelKey], majorAndMinorVersion)
+			assert.Equal(t, actual.GetAnnotations()[ocsutil.CreatedWithCephXFeaturesAnnotationKey], "")
+		} else {
+			_, exists := actual.GetAnnotations()[ocsutil.CreatedAtDfVersionLabelKey]
+			assert.Assert(t, !exists)
+			_, exists = actual.GetAnnotations()[ocsutil.CreatedWithCephXFeaturesAnnotationKey]
+			assert.Assert(t, !exists)
+		}
 
 		expectedConditions := []conditionsv1.Condition{}
 		if c.cephClusterState == "" {
@@ -174,6 +196,75 @@ func TestEnsureCephCluster(t *testing.T) {
 		_, err := obj.ensureCreated(reconciler, sc)
 		assert.Equal(t, sc.Status.KMSServerConnection.KMSServerAddress, KMSConfigMap.Data["VAULT_ADDR"])
 		assert.Equal(t, sc.Status.KMSServerConnection.KMSServerConnectionError, err.Error())
+	}
+}
+
+func TestSetCephXFeaturesSpec(t *testing.T) {
+	t.Setenv(ocsutil.DesiredCephxKeyGenEnvVarName, "2")
+	cases := []struct {
+		label                  string
+		cephXAnnotation        bool
+		storageClusterCephXGen uint32
+		expectedCephX          rookCephv1.ClusterCephxConfig
+	}{
+		{
+			label: "without CephX feature annotation",
+			expectedCephX: rookCephv1.ClusterCephxConfig{
+				AllowedCiphers: []rookCephv1.CephxKeyType{rookCephv1.CephxKeyTypeAes, rookCephv1.CephxKeyTypeAes256k},
+				Daemon: rookCephv1.CephxConfig{
+					KeyRotationPolicy: rookCephv1.KeyGenerationCephxKeyRotationPolicy,
+					KeyGeneration:     2,
+				},
+			},
+		},
+		{
+			label:                  "with key generation in StorageCluster spec",
+			storageClusterCephXGen: 3,
+			expectedCephX: rookCephv1.ClusterCephxConfig{
+				AllowedCiphers: []rookCephv1.CephxKeyType{rookCephv1.CephxKeyTypeAes, rookCephv1.CephxKeyTypeAes256k},
+				Daemon: rookCephv1.CephxConfig{
+					KeyRotationPolicy: rookCephv1.KeyGenerationCephxKeyRotationPolicy,
+					KeyGeneration:     3,
+				},
+			},
+		},
+		{
+			label:           "with CephX feature annotation",
+			cephXAnnotation: true,
+			expectedCephX: rookCephv1.ClusterCephxConfig{
+				AllowedCiphers: []rookCephv1.CephxKeyType{rookCephv1.CephxKeyTypeAes, rookCephv1.CephxKeyTypeAes256k},
+				RBDMirrorPeer: rookCephv1.CephxConfig{
+					KeyType: rookCephv1.CephxKeyTypeAes,
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.label, func(t *testing.T) {
+
+			sc := &ocsv1.StorageCluster{}
+			mockStorageCluster.DeepCopyInto(sc)
+			if c.storageClusterCephXGen > 0 {
+				sc.Spec.ManagedResources.CephCluster.CephSecurity = &ocsv1.CephClusterSecurity{
+					CephX: rookCephv1.ClusterCephxConfig{
+						Daemon: rookCephv1.CephxConfig{
+							KeyGeneration: c.storageClusterCephXGen,
+						},
+					},
+				}
+			}
+
+			cephCluster := &rookCephv1.CephCluster{}
+			if c.cephXAnnotation {
+				ocsutil.AddAnnotation(cephCluster, ocsutil.CreatedWithCephXFeaturesAnnotationKey, "")
+			}
+
+			err := setCephXFeaturesSpec(cephCluster, sc)
+			assert.NilError(t, err)
+
+			assert.DeepEqual(t, c.expectedCephX, cephCluster.Spec.Security.CephX)
+		})
 	}
 }
 
