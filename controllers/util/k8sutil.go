@@ -42,6 +42,9 @@ const (
 
 	// This is the name for the OwnerUID FieldIndex
 	OwnerUIDIndexName = "ownerUID"
+
+	CreatedAtDfVersionLabelKey            = "ocs.openshift.io/created-at-df-version"
+	CreatedWithCephXFeaturesAnnotationKey = "ocs.openshift.io/created-with-cephx-features"
 )
 
 // GetWatchNamespace returns the namespace the operator should be watching for changes
