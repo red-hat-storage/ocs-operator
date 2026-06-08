@@ -1,5 +1,9 @@
 package util
 
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
 func RemoveDuplicatesFromStringSlice(slice []string) []string {
 	keys := make(map[string]bool)
 	list := []string{}
@@ -19,6 +23,19 @@ func DetectDuplicateInStringSlice(slice []string) bool {
 			return true
 		}
 		keys[entry] = true
+	}
+	return false
+}
+
+func AddAnnotation(obj metav1.Object, key string, value string) bool {
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+		obj.SetAnnotations(annotations)
+	}
+	if oldValue, exist := annotations[key]; !exist || oldValue != value {
+		annotations[key] = value
+		return true
 	}
 	return false
 }
