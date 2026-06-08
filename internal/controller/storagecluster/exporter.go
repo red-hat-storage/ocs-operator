@@ -1050,6 +1050,15 @@ func (r *StorageClusterReconciler) createMetricsExporterCephClient(instance *ocs
 		if err := controllerutil.SetControllerReference(instance, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		cephClient.Spec.SecretName = cephClient.Name
 		cephClient.Spec.Caps = map[string]string{
 			"mon": "profile rbd, allow command 'osd blocklist'",
