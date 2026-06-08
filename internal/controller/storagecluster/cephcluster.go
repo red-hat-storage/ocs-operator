@@ -21,6 +21,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
+	"github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -263,6 +264,13 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	err = r.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			majorAndMinorVersion, err := version.GetMajorAndMinorVersion()
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+			util.AddAnnotation(cephCluster, util.CreatedAtDfVersionLabelKey, majorAndMinorVersion)
+			util.AddAnnotation(cephCluster, util.CreatedWithCephXFeaturesAnnotationKey, "")
+
 			if sc.Spec.ExternalStorage.Enable {
 				r.Log.Info("Creating external CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
 			} else {
