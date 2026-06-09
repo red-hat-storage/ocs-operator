@@ -3787,6 +3787,22 @@ spec:
                 description: MultiCloudGatewaySpec defines specific multi-cloud gateway
                   configuration options
                 properties:
+                  autoscaler:
+                    description: Autoscaler (optional) sets configuration for NooBaa
+                      endpoint autoscaling.
+                    properties:
+                      autoscalerType:
+                        description: Type of autoscaling (optional) for noobaa-endpoint,
+                          hpav2(default) and keda - Prometheus metrics based
+                        enum:
+                        - hpav2
+                        - keda
+                        type: string
+                      prometheusNamespace:
+                        description: Prometheus namespace that scrap metrics from
+                          noobaa
+                        type: string
+                    type: object
                   dbBackup:
                     description: DBBackup (optional) configure automatic scheduled
                       backups of noobaa database volume.
