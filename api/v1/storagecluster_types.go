@@ -217,6 +217,9 @@ type ManageCephCluster struct {
 
 	// If set to true, ocs-operator will not set the default target size ratio for the data pools it creates.
 	ClearDefaultTargetSizeRatio bool `json:"clearDefaultTargetSizeRatio,omitempty"`
+
+	// CephSecurity represents security settings for ceph cluster
+	CephSecurity *CephClusterSecurity `json:"security,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
@@ -321,6 +324,10 @@ type ManageCephRBDMirror struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 	// +kubebuilder:validation:Minimum=1
 	DaemonCount int `json:"daemonCount,omitempty"`
+}
+
+type CephClusterSecurity struct {
+	CephX rookCephv1.ClusterCephxConfig `json:"cephx,omitempty"`
 }
 
 // ExternalStorageKind specifies a kind of the external storage
