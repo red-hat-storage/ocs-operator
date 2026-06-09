@@ -42,6 +42,7 @@ rules:
   - cephclusters
   - cephblockpools
   - cephblockpoolradosnamespaces
+  - cephfilesystems
   - cephrbdmirrors
   verbs:
     - get
