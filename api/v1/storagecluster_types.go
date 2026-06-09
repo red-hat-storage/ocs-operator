@@ -447,6 +447,10 @@ type MultiCloudGatewaySpec struct {
 	// +optional
 	Endpoints *nbv1.EndpointsSpec `json:"endpoints,omitempty"`
 
+	// Autoscaler (optional) sets configuration for NooBaa endpoint autoscaling.
+	// +optional
+	Autoscaler *nbv1.AutoscalerSpec `json:"autoscaler,omitempty"`
+
 	// DisableLoadBalancerService (optional) sets the service type to ClusterIP instead of LoadBalancer
 	// +nullable
 	// +optional
