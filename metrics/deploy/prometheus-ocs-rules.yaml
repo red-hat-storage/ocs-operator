@@ -786,3 +786,17 @@ spec:
       labels:
         severity: warning
         component: odf
+  - name: cephx-key-rotation-alert.rules
+    rules:
+    - alert: CephxKeyGenerationFailed
+      annotations:
+        description: CephX key rotation has not completed for {{ $labels.daemon }} daemon in namespace:cluster {{ $labels.namespace }}:{{ $labels.ceph_cluster }}. Please investigate the key rotation status.
+        message: CephX key rotation failed for {{ $labels.daemon }} daemon in namespace:cluster {{ $labels.namespace }}:{{ $labels.ceph_cluster }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephxKeyGenerationFailed.md
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        ocs_cephx_daemon_key_rotation_mismatch{job="ocs-metrics-exporter"} == 1
+      for: 5m
+      labels:
+        severity: warning
