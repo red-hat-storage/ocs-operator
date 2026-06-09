@@ -204,6 +204,9 @@ type ManageCephCluster struct {
 	// CleanupPolicy defines the cleanup policy for the Rook Ceph cluster.
 	// +optional
 	CleanupPolicy *rookCephv1.CleanupPolicySpec `json:"cleanupPolicy,omitempty"`
+
+	// CephSecurity represents security settings for ceph cluster
+	CephSecurity *CephClusterSecurity `json:"security,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
@@ -321,6 +324,10 @@ type ManageCephRBDMirror struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
 	// +kubebuilder:validation:Minimum=1
 	DaemonCount int `json:"daemonCount,omitempty"`
+}
+
+type CephClusterSecurity struct {
+	CephX rookCephv1.ClusterCephxConfig `json:"cephx,omitempty"`
 }
 
 // ExternalStorageKind specifies a kind of the external storage
