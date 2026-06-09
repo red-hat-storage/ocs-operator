@@ -29,6 +29,7 @@ rules:
   - cephobjectstores
   - cephclusters
   - cephblockpools
+  - cephfilesystems
   - cephrbdmirrors
   verbs:
     - get
