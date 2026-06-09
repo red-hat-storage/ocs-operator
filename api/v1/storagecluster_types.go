@@ -185,6 +185,9 @@ type ManageCephCluster struct {
 	// This timeout won't be applied if `skipUpgradeChecks` is `true`.
 	// The default wait timeout is 10 minutes.
 	WaitTimeoutForHealthyOSDInMinutes time.Duration `json:"waitTimeoutForHealthyOSDInMinutes,omitempty"`
+
+	// CephSecurity represents security settings for ceph cluster
+	CephSecurity *CephClusterSecurity `json:"security,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
@@ -278,6 +281,10 @@ type ManageCephRBDMirror struct {
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=1
 	DaemonCount int `json:"daemonCount,omitempty"`
+}
+
+type CephClusterSecurity struct {
+	CephX rookCephv1.ClusterCephxConfig `json:"cephx,omitempty"`
 }
 
 // MgrSpec defines the settings for the Ceph Manager
