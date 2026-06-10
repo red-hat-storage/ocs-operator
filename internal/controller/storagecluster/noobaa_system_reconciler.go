@@ -224,6 +224,14 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 				nb.Spec.Endpoints.Resources = epSpec.Resources
 			}
 		}
+		if sc.Spec.MultiCloudGateway.Autoscaler != nil {
+			if sc.Spec.MultiCloudGateway.Autoscaler.AutoscalerType != "" {
+				nb.Spec.Autoscaler.AutoscalerType = sc.Spec.MultiCloudGateway.Autoscaler.AutoscalerType
+			}
+			if sc.Spec.MultiCloudGateway.Autoscaler.PrometheusNamespace != "" {
+				nb.Spec.Autoscaler.PrometheusNamespace = sc.Spec.MultiCloudGateway.Autoscaler.PrometheusNamespace
+			}
+		}
 		nb.Spec.DisableLoadBalancerService = sc.Spec.MultiCloudGateway.DisableLoadBalancerService
 
 		nb.Spec.DisableRoutes = sc.Spec.MultiCloudGateway.DisableRoutes
