@@ -614,6 +614,11 @@ func (in *MultiCloudGatewaySpec) DeepCopyInto(out *MultiCloudGatewaySpec) {
 		*out = new(v1alpha1.EndpointsSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Autoscaler != nil {
+		in, out := &in.Autoscaler, &out.Autoscaler
+		*out = new(v1alpha1.AutoscalerSpec)
+		**out = **in
+	}
 	if in.ExternalPgConfig != nil {
 		in, out := &in.ExternalPgConfig, &out.ExternalPgConfig
 		*out = new(ExternalPGSpec)

@@ -330,6 +330,18 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 			},
 			dbStorageClassName: noobaDbDefaultStorageClass,
 		},
+		{
+			label: "case 7", // autoscalerType should reflect Autoscaler in noobaa spec
+			sc: v1.StorageCluster{
+				Spec: v1.StorageClusterSpec{
+					MultiCloudGateway: &v1.MultiCloudGatewaySpec{
+						Autoscaler: &nbv1.AutoscalerSpec{
+							AutoscalerType: nbv1.AutoscalerTypeKeda,
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -394,6 +406,11 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		}
 		if c.envDB != "" {
 			assert.Equalf(t, *noobaa.Spec.DBSpec.DBImage, c.envDB, "[%s] db envVar not applied to noobaa spec", c.label)
+		}
+		if c.label == "case 7" {
+			assert.Equal(t, nbv1.AutoscalerTypeKeda, noobaa.Spec.Autoscaler.AutoscalerType)
+		} else {
+			assert.Equal(t, nbv1.AutoscalerTypeHPAV2, noobaa.Spec.Autoscaler.AutoscalerType)
 		}
 	}
 }
