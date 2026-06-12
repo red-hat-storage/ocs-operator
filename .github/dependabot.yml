@@ -8,9 +8,11 @@ updates:
       - "/services/provider/api"
     schedule:
       interval: daily
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     groups:
       go-security:
         applies-to: security-updates
+        group-by: dependency-name
         patterns:
           - "*"
+          
