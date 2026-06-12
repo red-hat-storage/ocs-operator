@@ -1,18 +1,18 @@
 version: 2
 updates:
-  - package-ecosystem: gomod
-    directories:
-      - "/"
-      - "/api"
-      - "/metrics"
-      - "/services/provider/api"
+  - package-ecosystem: "gomod"
+    directory: "/"
     schedule:
       interval: daily
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     groups:
+      go-deps:
+        applies-to: version-updates
+        group-by: dependency-name
+        patterns:
+          - "*"
       go-security:
         applies-to: security-updates
         group-by: dependency-name
         patterns:
-          - "*"
-          
+          - "*"    
