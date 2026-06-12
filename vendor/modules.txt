@@ -11,7 +11,7 @@ github.com/antlr4-go/antlr/v4
 # github.com/avast/retry-go/v5 v5.0.0
 ## explicit; go 1.20
 github.com/avast/retry-go/v5
-# github.com/aws/aws-sdk-go-v2 v1.41.5
+# github.com/aws/aws-sdk-go-v2 v1.41.7
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/aws
 github.com/aws/aws-sdk-go-v2/aws/middleware
@@ -22,10 +22,10 @@ github.com/aws/aws-sdk-go-v2/internal/rand
 github.com/aws/aws-sdk-go-v2/internal/sdk
 github.com/aws/aws-sdk-go-v2/internal/strings
 github.com/aws/aws-sdk-go-v2/internal/sync/singleflight
-# github.com/aws/aws-sdk-go-v2/credentials v1.19.14
+# github.com/aws/aws-sdk-go-v2/credentials v1.19.17
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/credentials
-# github.com/aws/smithy-go v1.25.0
+# github.com/aws/smithy-go v1.25.1
 ## explicit; go 1.24
 github.com/aws/smithy-go
 github.com/aws/smithy-go/auth
@@ -54,7 +54,7 @@ github.com/cenkalti/backoff/v4
 # github.com/cenkalti/backoff/v5 v5.0.3
 ## explicit; go 1.23
 github.com/cenkalti/backoff/v5
-# github.com/ceph/ceph-csi-operator/api v0.0.0-20260415063820-1864d7f0fa4c
+# github.com/ceph/ceph-csi-operator/api v0.0.0-20260527105556-70b2f7cfddf0
 ## explicit; go 1.25.0
 github.com/ceph/ceph-csi-operator/api/v1
 # github.com/ceph/ceph-csi/api v0.0.0-20260414210325-d6f0ea81b6d4
@@ -570,7 +570,7 @@ github.com/red-hat-storage/ocs-client-operator/api/v1alpha1
 # github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd65
 ## explicit; go 1.25.0
 github.com/red-hat-storage/ocs-tls-profiles/api/v1
-# github.com/rook/rook v1.19.4
+# github.com/rook/rook v1.20.0
 ## explicit; go 1.25.0
 github.com/rook/rook/pkg/client/clientset/versioned
 github.com/rook/rook/pkg/client/clientset/versioned/scheme
