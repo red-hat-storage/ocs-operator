@@ -61,7 +61,6 @@ func InitNamespacedName() types.NamespacedName {
 }
 
 // OCSInitializationReconciler reconciles a OCSInitialization object
-// nolint:revive
 type OCSInitializationReconciler struct {
 	client.Client
 	ctx      context.Context
@@ -109,7 +108,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 			"Got",
 			request.NamespacedName,
 		)
-		err := r.Client.Get(ctx, request.NamespacedName, instance)
+		err := r.Get(ctx, request.NamespacedName, instance)
 		if err != nil {
 			// the resource probably got deleted
 			if errors.IsNotFound(err) {
@@ -119,7 +118,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		}
 
 		instance.Status.Phase = util.PhaseIgnored
-		err = r.Client.Status().Update(ctx, instance)
+		err = r.Status().Update(ctx, instance)
 		if err != nil {
 			r.Log.Error(err, "Failed to update ignored OCSInitialization resource.", "OCSInitialization", klog.KRef(instance.Namespace, instance.Name))
 		}
@@ -127,14 +126,14 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 	}
 
 	// Fetch the OCSInitialization instance
-	err := r.Client.Get(ctx, request.NamespacedName, instance)
+	err := r.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Recreating since we depend on this to exist. A user may delete it to
 			// induce a reset of all initial data.
 			r.Log.Info("Recreating OCSInitialization resource.")
-			return reconcile.Result{}, r.Client.Create(ctx, &ocsv1.OCSInitialization{
+			return reconcile.Result{}, r.Create(ctx, &ocsv1.OCSInitialization{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      initNamespacedName.Name,
 					Namespace: initNamespacedName.Namespace,
@@ -155,7 +154,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		util.SetProgressingCondition(&instance.Status.Conditions, reason, message)
 
 		instance.Status.Phase = util.PhaseProgressing
-		err = r.Client.Status().Update(ctx, instance)
+		err = r.Status().Update(ctx, instance)
 		if err != nil {
 			r.Log.Error(err, "Failed to add conditions to status of OCSInitialization resource.", "OCSInitialization", klog.KRef(instance.Namespace, instance.Name))
 			return reconcile.Result{}, err
@@ -176,7 +175,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 
 		instance.Status.Phase = util.PhaseError
 		// don't want to overwrite the actual reconcile failure
-		uErr := r.Client.Status().Update(ctx, instance)
+		uErr := r.Status().Update(ctx, instance)
 		if uErr != nil {
 			r.Log.Error(uErr, "Failed to update conditions of OCSInitialization resource.", "OCSInitialization", klog.KRef(instance.Namespace, instance.Name))
 		}
@@ -184,7 +183,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 	}
 	instance.Status.SCCsCreated = true
 
-	err = r.Client.Status().Update(ctx, instance)
+	err = r.Status().Update(ctx, instance)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -256,7 +255,7 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 	util.SetCompleteCondition(&instance.Status.Conditions, reason, message)
 
 	instance.Status.Phase = util.PhaseReady
-	err = r.Client.Status().Update(ctx, instance)
+	err = r.Status().Update(ctx, instance)
 
 	return reconcile.Result{}, err
 }
@@ -439,7 +438,7 @@ func (r *OCSInitializationReconciler) ensureRookCephOperatorConfigExists(initial
 			Namespace: initialData.Namespace,
 		},
 	}
-	err := r.Client.Create(r.ctx, rookCephOperatorConfig)
+	err := r.Create(r.ctx, rookCephOperatorConfig)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}
@@ -462,7 +461,7 @@ func (r *OCSInitializationReconciler) ensureOcsOperatorConfigExists(initialData 
 
 	ocsOperatorConfigData := map[string]string{
 		util.ClusterNameKey:              util.GetClusterID(r.ctx, r.Client, &r.Log),
-		util.RookCurrentNamespaceOnlyKey: strconv.FormatBool(!(len(r.clusters.GetStorageClusters()) > 1)),
+		util.RookCurrentNamespaceOnlyKey: strconv.FormatBool(len(r.clusters.GetStorageClusters()) <= 1),
 		util.EnableTopologyKey:           r.getEnableTopologyKeyValue(),
 		util.TopologyDomainLabelsKey:     r.getTopologyDomainLabelsKeyValue(),
 		util.EnableNFSKey:                r.getEnableNFSKeyValue(),
@@ -562,7 +561,7 @@ func (r *OCSInitializationReconciler) getEnableCephfsKeyValue() (string, error) 
 
 	// list all storage classes and check if any of them is using cephfs
 	storageClasses := &storagev1.StorageClassList{}
-	if err := r.Client.List(r.ctx, storageClasses); err != nil {
+	if err := r.List(r.ctx, storageClasses); err != nil {
 		r.Log.Error(err, "Failed to list storage classes")
 		return "", err
 	}
@@ -715,7 +714,7 @@ func (r *OCSInitializationReconciler) reconcileK8sMetricsServiceMonitor(initialD
 
 func (r *OCSInitializationReconciler) reconcilePrometheusOperatorCSV(initialData *ocsv1.OCSInitialization) error {
 	csvList := &opv1a1.ClusterServiceVersionList{}
-	if err := r.Client.List(r.ctx, csvList, client.InNamespace(initialData.Namespace)); err != nil {
+	if err := r.List(r.ctx, csvList, client.InNamespace(initialData.Namespace)); err != nil {
 		return fmt.Errorf("failed to list csvs in namespace %s,%v", initialData.Namespace, err)
 	}
 	csv := util.Find(
@@ -747,7 +746,7 @@ func (r *OCSInitializationReconciler) reconcilePrometheusOperatorCSV(initialData
 	currentDeploymentSpec := deploymentSpec.DeepCopy()
 	deploymentSpec.Spec.Replicas = ptr.To(int32(1))
 	if !reflect.DeepEqual(currentDeploymentSpec, deploymentSpec) {
-		if err := r.Client.Update(r.ctx, csv); err != nil {
+		if err := r.Update(r.ctx, csv); err != nil {
 			r.Log.Error(err, "Failed to update Prometheus csv")
 			return err
 		}

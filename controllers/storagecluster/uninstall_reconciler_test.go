@@ -38,13 +38,13 @@ func TestReconcileUninstallAnnotations(t *testing.T) {
 	assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful, false)
 
 	// verify it corrects wrong value
-	sc.ObjectMeta.Annotations[UninstallModeAnnotation] = "blablabla"
-	sc.ObjectMeta.Annotations[CleanupPolicyAnnotation] = "blablabla"
+	sc.Annotations[UninstallModeAnnotation] = "blablabla"
+	sc.Annotations[CleanupPolicyAnnotation] = "blablabla"
 	assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyDelete, UninstallModeGraceful, true)
 
 	// verify it does not change if !default value is set
-	sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(UninstallModeForced)
-	sc.ObjectMeta.Annotations[CleanupPolicyAnnotation] = string(CleanupPolicyRetain)
+	sc.Annotations[UninstallModeAnnotation] = string(UninstallModeForced)
+	sc.Annotations[CleanupPolicyAnnotation] = string(CleanupPolicyRetain)
 	assertStorageClusterUninstallAnnotation(t, reconciler, sc, CleanupPolicyRetain, UninstallModeForced, false)
 	platform.UnsetFakePlatformInstanceForTesting()
 }
@@ -56,13 +56,13 @@ func assertStorageClusterUninstallAnnotation(
 	wasSCUpdated := reconciler.checkAndSetUninstallAnnotations(sc)
 	assert.Equal(t, ShouldSCUpdate, wasSCUpdated)
 
-	if val, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
+	if val, found := sc.Annotations[UninstallModeAnnotation]; !found {
 		assert.FailNow(t, "UninstallModeAnnotation not found")
 	} else {
 		assert.Equal(t, string(UninstallMode), val)
 	}
 
-	if val, found := sc.ObjectMeta.Annotations[CleanupPolicyAnnotation]; !found {
+	if val, found := sc.Annotations[CleanupPolicyAnnotation]; !found {
 		assert.FailNow(t, "CleanupPolicyAnnotation not found")
 	} else {
 		assert.Equal(t, string(CleanupPolicy), val)
@@ -90,8 +90,8 @@ func TestSetRookUninstallandCleanupPolicy(t *testing.T) {
 	}
 
 	for _, obj := range combinationsList {
-		sc.ObjectMeta.Annotations[CleanupPolicyAnnotation] = string(obj.CleanupPolicy)
-		sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(obj.UninstallMode)
+		sc.Annotations[CleanupPolicyAnnotation] = string(obj.CleanupPolicy)
+		sc.Annotations[UninstallModeAnnotation] = string(obj.UninstallMode)
 
 		// verify it set the cleanup policy and uninstall mode on cephCluster wrt annotations
 		assertCephClusterCleanupPolicy(t, reconciler, sc, obj.CleanupPolicyConfirmation, obj.AllowUninstallWithVolumes)
@@ -106,7 +106,7 @@ func assertCephClusterCleanupPolicy(
 	var err error
 
 	cephCluster := &cephv1.CephCluster{}
-	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: util.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	err = reconciler.Get(context.TODO(), types.NamespacedName{Name: util.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	assert.NoError(t, err)
 
 	// verify it set the cleanup policy and uninstall mode on cephCluster wrt annotations
@@ -155,7 +155,7 @@ func assertTestDeleteNodeAffinityKeyFromNodes(
 	if !createUserDefinedKey {
 		// verify default NodeAffinityKey present on nodes
 		for _, node := range nodes.Items {
-			_, ok := node.ObjectMeta.Labels[defaults.NodeAffinityKey]
+			_, ok := node.Labels[defaults.NodeAffinityKey]
 			assert.Equal(t, ok, true)
 		}
 	}
@@ -181,14 +181,14 @@ func addFakeNodeAffinityKeyOnNodesAndSC(t *testing.T, reconciler *StorageCluster
 
 	// get all nodes
 	nodes := &corev1.NodeList{}
-	err := reconciler.Client.List(context.TODO(), nodes)
+	err := reconciler.List(context.TODO(), nodes)
 	assert.NoError(t, err)
 	assert.NotEqual(t, 0, len(nodes.Items))
 
 	// Add labels on nodes
 	for _, node := range nodes.Items {
 		updatedNode := node.DeepCopy()
-		updatedNode.ObjectMeta.Labels[fakeKey] = fakeVal
+		updatedNode.Labels[fakeKey] = fakeVal
 
 		oldJSON, err := json.Marshal(node)
 		assert.NoError(t, err)
@@ -199,7 +199,7 @@ func addFakeNodeAffinityKeyOnNodesAndSC(t *testing.T, reconciler *StorageCluster
 		patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)
 		assert.NoError(t, err)
 
-		err = reconciler.Client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
+		err = reconciler.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
 		assert.NoError(t, err)
 	}
 }
@@ -268,7 +268,7 @@ func addDefaultNodeTaintOnNodes(t *testing.T, reconciler *StorageClusterReconcil
 		patch, err := strategicpatch.CreateTwoWayMergePatch(oldJSON, newJSON, node)
 		assert.NoError(t, err)
 
-		err = reconciler.Client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
+		err = reconciler.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
 		assert.NoError(t, err)
 	}
 }
@@ -307,7 +307,7 @@ func assertTestDeleteCephCluster(
 	}
 
 	cephCluster := &cephv1.CephCluster{}
-	err := reconciler.Client.Get(context.TODO(), types.NamespacedName{
+	err := reconciler.Get(context.TODO(), types.NamespacedName{
 		Name: util.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 
 	if cephClusterExist {
@@ -320,7 +320,7 @@ func assertTestDeleteCephCluster(
 	assert.NoError(t, err)
 
 	cephCluster = &cephv1.CephCluster{}
-	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
+	err = reconciler.Get(context.TODO(), types.NamespacedName{
 		Name: util.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	assert.True(t, errors.IsNotFound(err))
 }
@@ -363,7 +363,7 @@ func assertTestDeleteCephFilesystems(
 
 	for _, cephFilesystem := range cephFilesystems {
 		foundCephFilesystem := &cephv1.CephFilesystem{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Get(context.TODO(), types.NamespacedName{
 			Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
 
 		if cephFilesystemsExist {
@@ -378,7 +378,7 @@ func assertTestDeleteCephFilesystems(
 
 	for _, cephFilesystem := range cephFilesystems {
 		foundCephFilesystem := &cephv1.CephFilesystem{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Get(context.TODO(), types.NamespacedName{
 			Name: cephFilesystem.Name, Namespace: sc.Namespace}, foundCephFilesystem)
 		assert.True(t, errors.IsNotFound(err))
 	}
@@ -418,7 +418,7 @@ func assertTestDeleteCephBlockPools(
 
 	for _, cephBlockPool := range cephBlockPools {
 		foundCephBlockPool := &cephv1.CephBlockPool{}
-		err := reconciler.Client.Get(context.TODO(), types.NamespacedName{
+		err := reconciler.Get(context.TODO(), types.NamespacedName{
 			Name: cephBlockPool, Namespace: sc.Namespace}, foundCephBlockPool)
 
 		if cephBlockPoolsExist {
@@ -436,7 +436,7 @@ func assertTestDeleteCephBlockPools(
 
 	for _, cephBlockPool := range cephBlockPools {
 		foundCephBlockPool := &cephv1.CephBlockPool{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Get(context.TODO(), types.NamespacedName{
 			Name: cephBlockPool, Namespace: sc.Namespace}, foundCephBlockPool)
 		assert.True(t, errors.IsNotFound(err))
 	}
@@ -514,7 +514,7 @@ func assertTestDeleteCephObjectStoreUsers(
 
 	for _, cephStoreUser := range cephStoreUsers {
 		foundCephStoreUser := &cephv1.CephObjectStoreUser{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Get(context.TODO(), types.NamespacedName{
 			Name: cephStoreUser.Name, Namespace: sc.Namespace}, foundCephStoreUser)
 
 		if CephObjectStoreUsersExist {
@@ -529,7 +529,7 @@ func assertTestDeleteCephObjectStoreUsers(
 
 	for _, cephStoreUser := range cephStoreUsers {
 		foundCephStoreUser := &cephv1.CephObjectStoreUser{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Get(context.TODO(), types.NamespacedName{
 			Name: cephStoreUser.Name, Namespace: sc.Namespace}, foundCephStoreUser)
 
 		assert.True(t, errors.IsNotFound(err))
@@ -614,7 +614,7 @@ func assertTestDeleteCephObjectStores(
 
 	for _, cephStore := range cephStores {
 		foundCephStore := &cephv1.CephObjectStore{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Get(context.TODO(), types.NamespacedName{
 			Name: cephStore.Name, Namespace: sc.Namespace}, foundCephStore)
 
 		if CephObjectStoreExist {
@@ -629,7 +629,7 @@ func assertTestDeleteCephObjectStores(
 
 	for _, cephStore := range cephStores {
 		foundCephStore := &cephv1.CephObjectStore{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{
+		err = reconciler.Get(context.TODO(), types.NamespacedName{
 			Name: cephStore.Name, Namespace: sc.Namespace}, foundCephStore)
 
 		assert.True(t, errors.IsNotFound(err))
@@ -686,13 +686,13 @@ func assertTestSetNoobaaUninstallMode(
 
 	_ = reconciler.checkAndSetUninstallAnnotations(sc)
 
-	sc.ObjectMeta.Annotations[UninstallModeAnnotation] = string(UninstallMode)
+	sc.Annotations[UninstallModeAnnotation] = string(UninstallMode)
 
 	err := reconciler.setNoobaaUninstallMode(sc)
 	assert.NoError(t, err)
 
 	noobaa := &nbv1.NooBaa{}
-	err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
+	err = reconciler.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
 	assert.NoError(t, err)
 
 	assert.Equal(t, NoobaaUninstallMode, noobaa.Spec.CleanupPolicy.Confirmation)
@@ -729,13 +729,13 @@ func TestVerifyNoStorageConsumerExist(t *testing.T) {
 				Name: "fake",
 			},
 		}
-		err := r.Client.Create(context.TODO(), storageConsumer)
+		err := r.Create(context.TODO(), storageConsumer)
 		assert.NoError(t, err)
 
 		err = r.verifyNoStorageConsumerExist(instance)
 		assert.Error(t, err)
-		expectedErr := fmt.Errorf("Failed to cleanup provider resources. StorageConsumers are present in the  namespace. " +
-			"Offboard all consumer clusters for the provider cleanup to proceed")
+		expectedErr := fmt.Errorf("failed to cleanup provider resources. StorageConsumers are present in the  namespace. " +
+			"offboard all consumer clusters for the provider cleanup to proceed")
 		assert.Equal(t, expectedErr, err)
 	})
 

@@ -31,7 +31,7 @@ func TestCephFileSystem(t *testing.T) {
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
 
 		if c.createRuntimeObjects {
-			objects = createUpdateRuntimeObjects(t) //nolint:staticcheck //no need to use objects as they update in runtime
+			_ = createUpdateRuntimeObjects(t)
 		}
 		assertCephFileSystem(t, reconciler, cr, request)
 	}
@@ -44,7 +44,7 @@ func assertCephFileSystem(t *testing.T, reconciler *StorageClusterReconciler, cr
 		},
 	}
 	request.Name = "ocsinit-cephfilesystem"
-	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actualFs)
+	err := reconciler.Get(context.TODO(), request.NamespacedName, actualFs)
 	assert.NoError(t, err)
 
 	expectedAf, err := reconciler.newCephFilesystemInstances(cr)
@@ -52,7 +52,7 @@ func assertCephFileSystem(t *testing.T, reconciler *StorageClusterReconciler, cr
 
 	assert.Equal(t, len(expectedAf[0].OwnerReferences), 1)
 
-	assert.Equal(t, expectedAf[0].ObjectMeta.Name, actualFs.ObjectMeta.Name)
+	assert.Equal(t, expectedAf[0].Name, actualFs.Name)
 	assert.Equal(t, expectedAf[0].Spec, actualFs.Spec)
 }
 

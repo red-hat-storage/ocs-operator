@@ -114,7 +114,7 @@ func (s *storageClient) updateClientConfigMap(r *StorageClusterReconciler, names
 	clientConfig.Name = ocsClientConfigMapName
 	clientConfig.Namespace = namespace
 
-	if err := r.Client.Get(r.ctx, client.ObjectKeyFromObject(clientConfig), clientConfig); err != nil {
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(clientConfig), clientConfig); err != nil {
 		r.Log.Error(err, "failed to get ocs client configmap")
 		return err
 	}
@@ -128,7 +128,7 @@ func (s *storageClient) updateClientConfigMap(r *StorageClusterReconciler, names
 	clientConfig.Data[disableInstallPlanAutoApprovalKey] = strconv.FormatBool(true)
 
 	if !maps.Equal(clientConfig.Data, existingData) {
-		if err := r.Client.Update(r.ctx, clientConfig); err != nil {
+		if err := r.Update(r.ctx, clientConfig); err != nil {
 			r.Log.Error(err, "failed to update client operator's configmap data")
 			return err
 		}

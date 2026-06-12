@@ -130,7 +130,7 @@ func (r *StorageClusterReconciler) deleteBlackboxExporter(ctx context.Context, i
 	}
 
 	for _, obj := range resources {
-		err := r.Client.Delete(ctx, obj)
+		err := r.Delete(ctx, obj)
 		if err != nil && !apierrors.IsNotFound(err) {
 			r.Log.Error(err, "Failed to delete Blackbox resource", "Kind", fmt.Sprintf("%T", obj), "Name", obj.GetName())
 			multierr.AppendInto(&finalErr, err)
@@ -173,10 +173,10 @@ func (r *StorageClusterReconciler) createBlackboxServiceAccount(ctx context.Cont
 		},
 	}
 
-	err := r.Client.Get(ctx, types.NamespacedName{Name: actual.Name, Namespace: actual.Namespace}, actual)
+	err := r.Get(ctx, types.NamespacedName{Name: actual.Name, Namespace: actual.Namespace}, actual)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return r.Client.Create(ctx, desired)
+			return r.Create(ctx, desired)
 		}
 		return err
 	}
@@ -189,7 +189,7 @@ func (r *StorageClusterReconciler) createBlackboxServiceAccount(ctx context.Cont
 	// If ServiceAccount exists but Labels and/or OwnerReferences are incorrect, we need to update it.
 	actual.Labels = desired.Labels
 	actual.OwnerReferences = desired.OwnerReferences
-	err = r.Client.Update(ctx, actual)
+	err = r.Update(ctx, actual)
 	return err
 
 }
@@ -670,7 +670,7 @@ func (r *StorageClusterReconciler) createBlackboxService(ctx context.Context, in
 		},
 	}
 
-	err := r.Client.Get(ctx, types.NamespacedName{Name: actual.Name, Namespace: actual.Namespace}, actual)
+	err := r.Get(ctx, types.NamespacedName{Name: actual.Name, Namespace: actual.Namespace}, actual)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Create new Service
@@ -678,7 +678,7 @@ func (r *StorageClusterReconciler) createBlackboxService(ctx context.Context, in
 				r.Log.Error(err, "Failed to set owner reference on Service", "Service", expected.Name)
 				return err
 			}
-			if err := r.Client.Create(ctx, expected); err != nil {
+			if err := r.Create(ctx, expected); err != nil {
 				r.Log.Error(err, "Failed to create Service", "Service", expected.Name)
 				return err
 			}
@@ -705,7 +705,7 @@ func (r *StorageClusterReconciler) createBlackboxService(ctx context.Context, in
 			r.Log.Error(err, "Failed to set owner reference on Service", "Service", actual.Name)
 			return err
 		}
-		if err := r.Client.Update(ctx, actual); err != nil {
+		if err := r.Update(ctx, actual); err != nil {
 			r.Log.Error(err, "Failed to update Service", "Service", actual.Name)
 			return err
 		}

@@ -112,7 +112,7 @@ func TestEnsureToolsDeployment(t *testing.T) {
 		assert.NoErrorf(t, err, "[%s] failed to ensure ceph tools deployment", tc.label)
 		if tc.enableCephTools {
 			cephtoolsDeployment := &appsv1.Deployment{}
-			err := reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: request.Namespace}, cephtoolsDeployment)
+			err := reconciler.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: request.Namespace}, cephtoolsDeployment)
 			assert.NoErrorf(t, err, "[%s] failed to get ceph tools deployment", tc.label)
 
 			assert.Equalf(
@@ -223,13 +223,13 @@ func TestEnsureToolsDeploymentUpdate(t *testing.T) {
 				Replicas: &replicaTwo,
 			},
 		}
-		err := reconciler.Client.Create(context.TODO(), cephTools)
+		err := reconciler.Create(context.TODO(), cephTools)
 		assert.NoError(t, err)
 		err = reconciler.ensureToolsDeployment(&ocs)
 		assert.NoErrorf(t, err, "[%s] failed to create ceph tools deployment", tc.label)
 
 		cephtoolsDeployment := &appsv1.Deployment{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: request.Namespace}, cephtoolsDeployment)
+		err = reconciler.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: request.Namespace}, cephtoolsDeployment)
 		if tc.enableCephTools {
 			assert.NoErrorf(t, err, "[%s] failed to get ceph tools deployment", tc.label)
 			assert.Equalf(t, int32(1), *cephtoolsDeployment.Spec.Replicas, "[%s] failed to update the ceph tools replica count", tc.label)
@@ -279,7 +279,7 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.StorageCluster, reconci
 	//Therefore we cannot use the fake object that we provided as input to the
 	//the fake client and should use the object obtained from the Get
 	//operation.
-	_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &ocs)
+	_ = reconciler.Get(context.TODO(), request.NamespacedName, &ocs)
 
 	return ocs, request, reconciler
 }

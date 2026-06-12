@@ -18,7 +18,7 @@ type ocsCephRbdMirrors struct{}
 
 func (r *StorageClusterReconciler) fetchCephRbdMirrorInstance(cephRbdMirror *cephv1.CephRBDMirror) (cephv1.CephRBDMirror, error) {
 	existing := cephv1.CephRBDMirror{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephRbdMirror.Name, Namespace: cephRbdMirror.Namespace}, &existing)
+	err := r.Get(context.TODO(), types.NamespacedName{Name: cephRbdMirror.Name, Namespace: cephRbdMirror.Namespace}, &existing)
 	return existing, err
 }
 
@@ -33,7 +33,7 @@ func (r *StorageClusterReconciler) deleteCephRbdMirrorInstance(cephRbdMirrors []
 		}
 		if cephRbdMirror.GetDeletionTimestamp().IsZero() {
 			r.Log.Info("Deleting CephRbdMirror.", "CephRbdMirror", klog.KRef(cephRbdMirror.Namespace, cephRbdMirror.Name))
-			err := r.Client.Delete(context.TODO(), &existing)
+			err := r.Delete(context.TODO(), &existing)
 			if err != nil {
 				r.Log.Error(err, "Failed to delete CephRbdMirror.", "CephRbdMirror", klog.KRef(existing.Namespace, existing.Name))
 				return fmt.Errorf("failed to delete CephRbdMirror %v: %v", existing.Name, err)

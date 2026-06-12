@@ -35,14 +35,14 @@ func (obj *ocsStorageQuota) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 		}
 
 		currentQuota := &quotav1.ClusterResourceQuota{}
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: storageQuota.Name}, currentQuota)
+		err := r.Get(context.TODO(), types.NamespacedName{Name: storageQuota.Name}, currentQuota)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				r.Log.Error(err, fmt.Sprintf("get ClusterResourceQuota %s failed", storageQuota.Name))
 				return reconcile.Result{}, err
 			}
 			r.Log.Info(fmt.Sprintf("creating ClusterResourceQuota %s with %+v", storageQuota.Name, storageQuota.Spec.Quota.Hard))
-			err := r.Client.Create(context.TODO(), storageQuota)
+			err := r.Create(context.TODO(), storageQuota)
 			if err != nil {
 				r.Log.Error(err, "create ClusterResourceQuota failed", "name", storageQuota.Name)
 				return reconcile.Result{}, err
@@ -53,7 +53,7 @@ func (obj *ocsStorageQuota) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 		// See: https://github.com/kubernetes/apimachinery/issues/75
 		if !apiequality.Semantic.DeepEqual(storageQuota.Spec, currentQuota.Spec) {
 			storageQuota.Spec.DeepCopyInto(&currentQuota.Spec)
-			err = r.Client.Update(context.TODO(), currentQuota)
+			err = r.Update(context.TODO(), currentQuota)
 			if err != nil {
 				r.Log.Error(err, "update ClusterResourceQuota failed", "name", storageQuota.Name)
 				return reconcile.Result{}, err
@@ -68,10 +68,10 @@ func (obj *ocsStorageQuota) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 	for _, opc := range sc.Spec.OverprovisionControl {
 		quotaName := util.GenerateStorageQuotaName(opc.StorageClassName, opc.QuotaName)
 		currentQuota := &quotav1.ClusterResourceQuota{}
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: quotaName}, currentQuota)
+		err := r.Get(context.TODO(), types.NamespacedName{Name: quotaName}, currentQuota)
 		if err == nil {
 			r.Log.Info("delete ClusterResourceQuota", quotaName)
-			err = r.Client.Delete(context.TODO(), currentQuota)
+			err = r.Delete(context.TODO(), currentQuota)
 			if err != nil {
 				r.Log.Error(err, "delete ClusterResourceQuota failed", "name", quotaName)
 				return reconcile.Result{}, err

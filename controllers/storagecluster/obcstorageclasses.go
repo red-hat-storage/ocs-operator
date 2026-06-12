@@ -49,7 +49,7 @@ func (s *obcStorageClasses) ensureDeleted(r *StorageClusterReconciler, storageCl
 	storageClass := &storagev1.StorageClass{}
 	storageClass.Name = scName
 
-	if err := r.Client.Delete(r.ctx, storageClass); client.IgnoreNotFound(err) != nil {
+	if err := r.Delete(r.ctx, storageClass); client.IgnoreNotFound(err) != nil {
 		r.Log.Error(err, "failed to delete OBC StorageClass", "Name", scName)
 		return ctrl.Result{}, err
 	}

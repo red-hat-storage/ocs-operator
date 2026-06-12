@@ -46,7 +46,7 @@ func (c *ocsConsumerManager) EnableStorageConsumer(
 	// k8s spec and status are two different endpoints and we need to update them separately
 	fillStorageClientInfo(&consumer.Status, clientInfo)
 	if err := c.client.Status().Update(ctx, consumer); err != nil {
-		return "", fmt.Errorf("Failed to update status for StorageConsumer %v: %v", consumer.Name, err)
+		return "", fmt.Errorf("failed to update status for StorageConsumer %v: %v", consumer.Name, err)
 	}
 	consumer.Spec.Enable = true
 	// update here acts as a synchronization point even if two api calls
@@ -100,7 +100,7 @@ func (c *ocsConsumerManager) UpdateConsumerStatus(ctx context.Context, id string
 	consumerObj.Status.Client.StorageQuotaUtilizationRatio = status.GetStorageQuotaUtilizationRatio()
 
 	if err := c.client.Status().Update(ctx, consumerObj); err != nil {
-		return fmt.Errorf("Failed to patch Status for StorageConsumer %v: %v", consumerObj.Name, err)
+		return fmt.Errorf("failed to patch Status for StorageConsumer %v: %v", consumerObj.Name, err)
 	}
 	return nil
 }

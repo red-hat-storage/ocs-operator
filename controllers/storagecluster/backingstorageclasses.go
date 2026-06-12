@@ -27,7 +27,7 @@ type backingStorageClasses struct{}
 func (obj *backingStorageClasses) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	existingBackingStorageClasses := &storagev1.StorageClassList{}
-	err := r.Client.List(
+	err := r.List(
 		r.ctx,
 		existingBackingStorageClasses,
 		client.MatchingLabels(map[string]string{
@@ -59,13 +59,13 @@ func (obj *backingStorageClasses) ensureCreated(r *StorageClusterReconciler, sc 
 		if storageClass == nil {
 			continue
 		}
-		if err := r.Client.Delete(r.ctx, storageClass); err != nil && !errors.IsNotFound(err) {
+		if err := r.Delete(r.ctx, storageClass); err != nil && !errors.IsNotFound(err) {
 			r.Log.Error(err, "Unable to delete BackingStorageClass.", "Name", storageClass.Name)
 			hasErrors = true
 		}
 	}
 	if hasErrors {
-		return reconcile.Result{}, fmt.Errorf("Delete failed on one or more backing storage classes")
+		return reconcile.Result{}, fmt.Errorf("delete failed on one or more backing storage classes")
 	}
 
 	return reconcile.Result{}, nil
@@ -108,24 +108,24 @@ func createOrUpdateBackingStorageclass(r *StorageClusterReconciler, bsc *ocsv1.B
 
 	existingStorageClass := &storagev1.StorageClass{}
 	existingStorageClass.Name = desiredStorageClass.Name
-	if err := r.Client.Get(r.ctx, types.NamespacedName{Name: desiredStorageClass.Name}, existingStorageClass); err != nil && !errors.IsNotFound(err) {
+	if err := r.Get(r.ctx, types.NamespacedName{Name: desiredStorageClass.Name}, existingStorageClass); err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	if existingStorageClass.UID == "" {
 		// Backing storage class not found. Create a new one.
-		if err := r.Client.Create(r.ctx, desiredStorageClass); err != nil {
+		if err := r.Create(r.ctx, desiredStorageClass); err != nil {
 			return err
 		}
 	} else if !reflect.DeepEqual(desiredStorageClass.Parameters, existingStorageClass.Parameters) {
 		// Since we have to update the existing StorageClass
 		// So, we will delete the existing storageclass and create a new one
 		r.Log.Info("StorageClass needs to be updated, deleting it.", "StorageClass", desiredStorageClass.Name)
-		if err := r.Client.Delete(r.ctx, existingStorageClass); err != nil {
+		if err := r.Delete(r.ctx, existingStorageClass); err != nil {
 			r.Log.Error(err, "Failed to delete StorageClass.", "StorageClass", existingStorageClass.Name)
 			return err
 		}
 		r.Log.Info("Creating StorageClass.", "StorageClass", desiredStorageClass.Name)
-		if err := r.Client.Create(r.ctx, desiredStorageClass); err != nil {
+		if err := r.Create(r.ctx, desiredStorageClass); err != nil {
 			r.Log.Info("Failed to create StorageClass.", "StorageClass", desiredStorageClass.Name)
 			return err
 		}
@@ -137,7 +137,7 @@ func createOrUpdateBackingStorageclass(r *StorageClusterReconciler, bsc *ocsv1.B
 // ensureDeleted deletes the backing storageclasses
 func (obj *backingStorageClasses) ensureDeleted(r *StorageClusterReconciler, _ *ocsv1.StorageCluster) (reconcile.Result, error) {
 	existingBackingStorageClasses := &storagev1.StorageClassList{}
-	err := r.Client.List(
+	err := r.List(
 		r.ctx,
 		existingBackingStorageClasses,
 		client.MatchingLabels(map[string]string{
@@ -150,13 +150,13 @@ func (obj *backingStorageClasses) ensureDeleted(r *StorageClusterReconciler, _ *
 	hasErrors := false
 	for i := range existingBackingStorageClasses.Items {
 		storageClass := &existingBackingStorageClasses.Items[i]
-		if err := r.Client.Delete(r.ctx, storageClass); err != nil && !errors.IsNotFound(err) {
+		if err := r.Delete(r.ctx, storageClass); err != nil && !errors.IsNotFound(err) {
 			r.Log.Error(err, "Unable to delete BackingStorageClass.", "Name", storageClass.Name)
 			hasErrors = true
 		}
 	}
 	if hasErrors {
-		return reconcile.Result{}, fmt.Errorf("Delete failed on one or more backing storage classes")
+		return reconcile.Result{}, fmt.Errorf("delete failed on one or more backing storage classes")
 	}
 	return reconcile.Result{}, nil
 }

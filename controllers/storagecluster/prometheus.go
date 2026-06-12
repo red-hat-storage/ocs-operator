@@ -29,7 +29,7 @@ func (r *StorageClusterReconciler) enablePrometheusRules(ctx context.Context, in
 		r.Log.Error(err, "Prometheus rules file not found.")
 		return err
 	}
-	err = mergo.Merge(&rule.ObjectMeta.Labels, instance.Spec.Monitoring.Labels, mergo.WithOverride)
+	err = mergo.Merge(&rule.Labels, instance.Spec.Monitoring.Labels, mergo.WithOverride)
 	if err != nil {
 		return err
 	}
@@ -99,11 +99,11 @@ func CheckFileExists(filePath string) error {
 
 // CreateOrUpdatePrometheusRules creates or updates Prometheus Rule
 func (r *StorageClusterReconciler) CreateOrUpdatePrometheusRules(ctx context.Context, rule *monitoringv1.PrometheusRule) error {
-	err := r.Client.Create(ctx, rule)
+	err := r.Create(ctx, rule)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			oldRule := &monitoringv1.PrometheusRule{}
-			err = r.Client.Get(ctx, types.NamespacedName{Name: rule.Name, Namespace: rule.Namespace}, oldRule)
+			err = r.Get(ctx, types.NamespacedName{Name: rule.Name, Namespace: rule.Namespace}, oldRule)
 			if err != nil {
 				return fmt.Errorf("failed while fetching PrometheusRule: %v", err)
 			}
@@ -114,7 +114,7 @@ func (r *StorageClusterReconciler) CreateOrUpdatePrometheusRules(ctx context.Con
 				return err
 			}
 
-			err := r.Client.Update(ctx, oldRule)
+			err := r.Update(ctx, oldRule)
 			if err != nil {
 				return fmt.Errorf("failed while updating PrometheusRule: %v", err)
 			}

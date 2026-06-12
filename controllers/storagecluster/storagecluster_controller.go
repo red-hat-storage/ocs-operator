@@ -90,7 +90,6 @@ type ImageMap struct {
 }
 
 // StorageClusterReconciler reconciles a StorageCluster object
-// nolint:revive
 type StorageClusterReconciler struct {
 	client.Client
 	ctx                       context.Context
@@ -150,7 +149,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		func(context context.Context, obj client.Object) []reconcile.Request {
 			// Get the StorageCluster objects
 			scList := &ocsv1.StorageClusterList{}
-			err := r.Client.List(context, scList, &client.ListOptions{Namespace: obj.GetNamespace()})
+			err := r.List(context, scList, &client.ListOptions{Namespace: obj.GetNamespace()})
 			if err != nil {
 				r.Log.Error(err, "Unable to list StorageCluster objects")
 				return []reconcile.Request{}

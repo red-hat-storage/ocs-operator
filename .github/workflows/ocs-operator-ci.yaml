@@ -35,10 +35,10 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v9
         with:
-          version: v1.64.8
-          args: "--out-format=colored-line-number --timeout=6m ./..."
+          version: v2.11.3
+          args: "--timeout=6m ./..."
 
   go-test:
     name: go test

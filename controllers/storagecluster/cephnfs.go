@@ -69,7 +69,7 @@ func (obj *ocsCephNFS) ensureCreated(r *StorageClusterReconciler, instance *ocsv
 	for _, cephNFS := range cephNFSes {
 		existingCephNFS := cephv1.CephNFS{}
 		ctxTODO := context.TODO()
-		err = r.Client.Get(ctxTODO, types.NamespacedName{Name: cephNFS.Name, Namespace: cephNFS.Namespace}, &existingCephNFS)
+		err = r.Get(ctxTODO, types.NamespacedName{Name: cephNFS.Name, Namespace: cephNFS.Namespace}, &existingCephNFS)
 		switch {
 		case err == nil:
 			if existingCephNFS.DeletionTimestamp != nil {
@@ -78,19 +78,19 @@ func (obj *ocsCephNFS) ensureCreated(r *StorageClusterReconciler, instance *ocsv
 			}
 
 			r.Log.Info("Restoring original CephNFS.", "CephNFS", klog.KRef(cephNFS.Namespace, cephNFS.Name))
-			existingCephNFS.ObjectMeta.OwnerReferences = cephNFS.ObjectMeta.OwnerReferences
+			existingCephNFS.OwnerReferences = cephNFS.OwnerReferences
 			existingCephNFS.Spec = cephNFS.Spec
 			if instance.Spec.NFS.LogLevel != "" {
 				existingCephNFS.Spec.Server.LogLevel = instance.Spec.NFS.LogLevel
 			}
-			err = r.Client.Update(ctxTODO, &existingCephNFS)
+			err = r.Update(ctxTODO, &existingCephNFS)
 			if err != nil {
 				r.Log.Error(err, "Unable to update CephNFS.", "CephNFS", klog.KRef(cephNFS.Namespace, cephNFS.Name))
 				return reconcile.Result{}, err
 			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating CephNFS.", "CephNFS", klog.KRef(cephNFS.Namespace, cephNFS.Name))
-			err = r.Client.Create(ctxTODO, cephNFS)
+			err = r.Create(ctxTODO, cephNFS)
 			if err != nil {
 				r.Log.Error(err, "Unable to create CephNFS.", "CephNFS", klog.KRef(cephNFS.Namespace, cephNFS.Name))
 				return reconcile.Result{}, err
@@ -98,7 +98,7 @@ func (obj *ocsCephNFS) ensureCreated(r *StorageClusterReconciler, instance *ocsv
 		default:
 			r.Log.Error(err, fmt.Sprintf("Unable to retrieve CephNFS %q.", cephNFS.Name), "CephNFS",
 				klog.KRef(cephNFS.Namespace, cephNFS.Name))
-			return reconcile.Result{}, fmt.Errorf("Unable to retrieve CephNFS %q: %w", cephNFS.Name, err)
+			return reconcile.Result{}, fmt.Errorf("unable to retrieve CephNFS %q: %w", cephNFS.Name, err)
 		}
 	}
 
@@ -118,7 +118,7 @@ func (obj *ocsCephNFS) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.Stor
 	}
 
 	for _, cephNFS := range cephNFSes {
-		err = r.Client.Get(ctxTODO, types.NamespacedName{Name: cephNFS.Name, Namespace: sc.Namespace}, foundCephNFS)
+		err = r.Get(ctxTODO, types.NamespacedName{Name: cephNFS.Name, Namespace: sc.Namespace}, foundCephNFS)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: CephNFS not found.", "CephNFS", klog.KRef(cephNFS.Namespace, cephNFS.Name))
@@ -130,14 +130,14 @@ func (obj *ocsCephNFS) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.Stor
 
 		if cephNFS.GetDeletionTimestamp().IsZero() {
 			r.Log.Info("Uninstall: Deleting CephNFS.", "CephNFS", klog.KRef(foundCephNFS.Namespace, foundCephNFS.Name))
-			err = r.Client.Delete(ctxTODO, foundCephNFS)
+			err = r.Delete(ctxTODO, foundCephNFS)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Failed to delete CephNFS.", "CephNFS", klog.KRef(foundCephNFS.Namespace, foundCephNFS.Name))
 				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephNFS %q: %w", foundCephNFS.Name, err)
 			}
 		}
 
-		err = r.Client.Get(ctxTODO, types.NamespacedName{Name: cephNFS.Name, Namespace: sc.Namespace}, foundCephNFS)
+		err = r.Get(ctxTODO, types.NamespacedName{Name: cephNFS.Name, Namespace: sc.Namespace}, foundCephNFS)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: CephNFS is deleted.", "CephNFS", klog.KRef(cephNFS.Namespace, cephNFS.Name))
@@ -258,7 +258,7 @@ func (obj *ocsCephNFSService) ensureCreated(r *StorageClusterReconciler, instanc
 	ctxTODO := context.TODO()
 	for _, nfsService := range nfsServices {
 		existingNFSService := v1.Service{}
-		err = r.Client.Get(ctxTODO, types.NamespacedName{Name: nfsService.Name, Namespace: nfsService.Namespace}, &existingNFSService)
+		err = r.Get(ctxTODO, types.NamespacedName{Name: nfsService.Name, Namespace: nfsService.Namespace}, &existingNFSService)
 		switch {
 		case err == nil:
 			if existingNFSService.DeletionTimestamp != nil {
@@ -267,16 +267,16 @@ func (obj *ocsCephNFSService) ensureCreated(r *StorageClusterReconciler, instanc
 			}
 
 			r.Log.Info("Restoring original NFS service.", "NFSService", klog.KRef(nfsService.Namespace, nfsService.Name))
-			existingNFSService.ObjectMeta.OwnerReferences = nfsService.ObjectMeta.OwnerReferences
+			existingNFSService.OwnerReferences = nfsService.OwnerReferences
 			existingNFSService.Spec = nfsService.Spec
-			err = r.Client.Update(ctxTODO, &existingNFSService)
+			err = r.Update(ctxTODO, &existingNFSService)
 			if err != nil {
 				r.Log.Error(err, "Unable to update NFS service.", "NFSService", klog.KRef(nfsService.Namespace, nfsService.Name))
 				return reconcile.Result{}, err
 			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating NFS service.", "NFSService", klog.KRef(nfsService.Namespace, nfsService.Name))
-			err = r.Client.Create(ctxTODO, nfsService)
+			err = r.Create(ctxTODO, nfsService)
 			if err != nil {
 				r.Log.Error(err, "Unable to create NFS service.", "NFSService", klog.KRef(nfsService.Namespace, nfsService.Namespace))
 				return reconcile.Result{}, err
@@ -284,13 +284,13 @@ func (obj *ocsCephNFSService) ensureCreated(r *StorageClusterReconciler, instanc
 		default:
 			r.Log.Error(err, fmt.Sprintf("Unable to retrieve NFS service %q.", nfsService.Name), "NFSService",
 				klog.KRef(nfsService.Namespace, nfsService.Name))
-			return reconcile.Result{}, fmt.Errorf("Unable to retrieve NFS service %q: %w", nfsService.Name, err)
+			return reconcile.Result{}, fmt.Errorf("unable to retrieve NFS service %q: %w", nfsService.Name, err)
 		}
 	}
 
 	for _, nfsMetricsServiceMonitor := range nfsMetricsServiceMonitors {
 		existingNFSMetricsServiceMonitor := monitoringv1.ServiceMonitor{}
-		err = r.Client.Get(ctxTODO, types.NamespacedName{Name: nfsMetricsServiceMonitor.Name,
+		err = r.Get(ctxTODO, types.NamespacedName{Name: nfsMetricsServiceMonitor.Name,
 			Namespace: nfsMetricsServiceMonitor.Namespace}, &existingNFSMetricsServiceMonitor)
 		switch {
 		case err == nil:
@@ -303,9 +303,9 @@ func (obj *ocsCephNFSService) ensureCreated(r *StorageClusterReconciler, instanc
 
 			r.Log.Info("Restoring original NFS-metrics servicemonitor.", "NFSMetricsServiceMonitor",
 				klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
-			existingNFSMetricsServiceMonitor.ObjectMeta.OwnerReferences = nfsMetricsServiceMonitor.ObjectMeta.OwnerReferences
+			existingNFSMetricsServiceMonitor.OwnerReferences = nfsMetricsServiceMonitor.OwnerReferences
 			existingNFSMetricsServiceMonitor.Spec = nfsMetricsServiceMonitor.Spec
-			err = r.Client.Update(ctxTODO, &existingNFSMetricsServiceMonitor)
+			err = r.Update(ctxTODO, &existingNFSMetricsServiceMonitor)
 			if err != nil {
 				r.Log.Error(err, "Unable to update NFS-metrics servicemonitor.", "NFSMetricsServiceMonitor",
 					klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
@@ -314,7 +314,7 @@ func (obj *ocsCephNFSService) ensureCreated(r *StorageClusterReconciler, instanc
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating NFS servicemonitor.", "NFSMetricsServiceMonitor",
 				klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
-			err = r.Client.Create(ctxTODO, nfsMetricsServiceMonitor)
+			err = r.Create(ctxTODO, nfsMetricsServiceMonitor)
 			if err != nil {
 				r.Log.Error(err, "Unable to create NFS-metrics servicemonitor.", "NFSMetricsServiceMonitor",
 					klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Namespace))
@@ -323,7 +323,7 @@ func (obj *ocsCephNFSService) ensureCreated(r *StorageClusterReconciler, instanc
 		default:
 			r.Log.Error(err, fmt.Sprintf("Unable to retrieve NFS-metrics servicemonitor %q.", nfsMetricsServiceMonitor.Name),
 				"NFSServiceMonitor", klog.KRef(nfsMetricsServiceMonitor.Namespace, nfsMetricsServiceMonitor.Name))
-			return reconcile.Result{}, fmt.Errorf("Unable to retrieve NFS-metrics servicemonitor %q: %w", nfsMetricsServiceMonitor.Name, err)
+			return reconcile.Result{}, fmt.Errorf("unable to retrieve NFS-metrics servicemonitor %q: %w", nfsMetricsServiceMonitor.Name, err)
 		}
 	}
 
@@ -345,7 +345,7 @@ func (obj *ocsCephNFSService) ensureDeleted(r *StorageClusterReconciler, sc *ocs
 	}
 
 	for _, nfsService := range nfsServices {
-		err = r.Client.Get(ctxTODO, types.NamespacedName{Name: nfsService.Name, Namespace: sc.Namespace}, foundNFSService)
+		err = r.Get(ctxTODO, types.NamespacedName{Name: nfsService.Name, Namespace: sc.Namespace}, foundNFSService)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: NFS Service not found.", "NFSService", klog.KRef(nfsService.Namespace, nfsService.Name))
@@ -357,14 +357,14 @@ func (obj *ocsCephNFSService) ensureDeleted(r *StorageClusterReconciler, sc *ocs
 
 		if nfsService.GetDeletionTimestamp().IsZero() {
 			r.Log.Info("Uninstall: Deleting NFS Service.", "NFSService", klog.KRef(foundNFSService.Namespace, foundNFSService.Name))
-			err = r.Client.Delete(ctxTODO, foundNFSService)
+			err = r.Delete(ctxTODO, foundNFSService)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Failed to delete NFS Service.", "NFSService", klog.KRef(foundNFSService.Namespace, foundNFSService.Name))
 				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete NFS Service %q: %v", foundNFSService.Name, err)
 			}
 		}
 
-		err = r.Client.Get(ctxTODO, types.NamespacedName{Name: nfsService.Name, Namespace: sc.Namespace}, foundNFSService)
+		err = r.Get(ctxTODO, types.NamespacedName{Name: nfsService.Name, Namespace: sc.Namespace}, foundNFSService)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: NFS Service is deleted.", "NFSService", klog.KRef(nfsService.Namespace, nfsService.Name))
@@ -381,7 +381,7 @@ func (obj *ocsCephNFSService) ensureDeleted(r *StorageClusterReconciler, sc *ocs
 
 	for _, nfsMetricsServiceMonitor := range nfsMetricsServiceMonitors {
 		foundNFSMetricsServiceMonitor := &monitoringv1.ServiceMonitor{}
-		err = r.Client.Get(ctxTODO, types.NamespacedName{Name: nfsMetricsServiceMonitor.Name, Namespace: sc.Namespace},
+		err = r.Get(ctxTODO, types.NamespacedName{Name: nfsMetricsServiceMonitor.Name, Namespace: sc.Namespace},
 			foundNFSMetricsServiceMonitor)
 		if err != nil {
 			if errors.IsNotFound(err) {
@@ -398,7 +398,7 @@ func (obj *ocsCephNFSService) ensureDeleted(r *StorageClusterReconciler, sc *ocs
 		if nfsMetricsServiceMonitor.GetDeletionTimestamp().IsZero() {
 			r.Log.Info("Uninstall: Deleting NFS Service.", "NFSMetricsServiceMonitor",
 				klog.KRef(foundNFSMetricsServiceMonitor.Namespace, foundNFSMetricsServiceMonitor.Name))
-			err = r.Client.Delete(ctxTODO, foundNFSMetricsServiceMonitor)
+			err = r.Delete(ctxTODO, foundNFSMetricsServiceMonitor)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Failed to delete NFS-metrics servicemonitor.", "NFSMetricsServiceMonitor",
 					klog.KRef(foundNFSMetricsServiceMonitor.Namespace, foundNFSMetricsServiceMonitor.Name))
@@ -407,7 +407,7 @@ func (obj *ocsCephNFSService) ensureDeleted(r *StorageClusterReconciler, sc *ocs
 			}
 		}
 
-		err = r.Client.Get(ctxTODO, types.NamespacedName{Name: nfsMetricsServiceMonitor.Name, Namespace: sc.Namespace}, foundNFSMetricsServiceMonitor)
+		err = r.Get(ctxTODO, types.NamespacedName{Name: nfsMetricsServiceMonitor.Name, Namespace: sc.Namespace}, foundNFSMetricsServiceMonitor)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: NFS-metrics servicemonitor is deleted.", "NFSMetricsServiceMonitor",

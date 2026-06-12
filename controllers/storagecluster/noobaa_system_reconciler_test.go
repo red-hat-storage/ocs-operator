@@ -107,20 +107,20 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 	for _, c := range cases {
 		reconciler := getReconciler(t, &nbv1.NooBaa{})
 		reconciler.Log = noobaaReconcileTestLogger
-		err := reconciler.Client.Create(context.TODO(), cephCluster.DeepCopy())
+		err := reconciler.Create(context.TODO(), cephCluster.DeepCopy())
 		assert.NoError(t, err)
 
 		if c.isCreate {
-			err := reconciler.Client.Get(context.TODO(), namespacedName, &c.noobaa)
+			err := reconciler.Get(context.TODO(), namespacedName, &c.noobaa)
 			assert.True(t, errors.IsNotFound(err))
 		} else {
-			err := reconciler.Client.Create(context.TODO(), &c.noobaa)
+			err := reconciler.Create(context.TODO(), &c.noobaa)
 			assert.NoError(t, err)
 		}
 		_, err = obj.ensureCreated(&reconciler, &sc)
 		assert.NoError(t, err)
 
-		_ = reconciler.Client.Get(context.TODO(), namespacedName, &noobaa)
+		_ = reconciler.Get(context.TODO(), namespacedName, &noobaa)
 		assert.Equal(t, noobaa.Name, namespacedName.Name)
 		assert.Equal(t, noobaa.Namespace, namespacedName.Namespace)
 		if !c.isCreate {
@@ -144,7 +144,7 @@ func TestNooBaaSkipUnskip(t *testing.T) {
 		assert.NoError(t, err)
 
 		noobaa := &nbv1.NooBaa{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Namespace: sc.Namespace, Name: "noobaa"}, noobaa)
+		err = reconciler.Get(context.TODO(), types.NamespacedName{Namespace: sc.Namespace, Name: "noobaa"}, noobaa)
 		assert.True(t, errors.IsNotFound(err))
 	})
 
@@ -168,14 +168,14 @@ func TestNooBaaSkipUnskip(t *testing.T) {
 		cephCluster.Name = util.GenerateNameForCephClusterFromString(sc.Name)
 		cephCluster.Namespace = sc.Namespace
 		cephCluster.Status.State = cephv1.ClusterStateCreated
-		err := reconciler.Client.Create(context.TODO(), &cephCluster)
+		err := reconciler.Create(context.TODO(), &cephCluster)
 		assert.NoError(t, err)
 
 		_, err = obj.ensureCreated(&reconciler, &sc)
 		assert.NoError(t, err)
 
 		noobaa := &nbv1.NooBaa{}
-		err = reconciler.Client.Get(context.TODO(), types.NamespacedName{Namespace: sc.Namespace, Name: "noobaa"}, noobaa)
+		err = reconciler.Get(context.TODO(), types.NamespacedName{Namespace: sc.Namespace, Name: "noobaa"}, noobaa)
 		assert.NoError(t, err)
 	})
 }
@@ -262,7 +262,7 @@ func TestNooBaaReconcileStrategy(t *testing.T) {
 		cephCluster.Name = util.GenerateNameForCephClusterFromString(namespacedName.Name)
 		cephCluster.Namespace = namespacedName.Namespace
 		cephCluster.Status.State = cephv1.ClusterStateCreated
-		err := reconciler.Client.Create(context.TODO(), &cephCluster)
+		err := reconciler.Create(context.TODO(), &cephCluster)
 		assert.NoError(t, err)
 
 		_, err = obj.ensureCreated(&reconciler, &c.sc)
@@ -272,7 +272,7 @@ func TestNooBaaReconcileStrategy(t *testing.T) {
 		assert.NoError(t, err)
 
 		noobaa := nbv1.NooBaa{}
-		err = reconciler.Client.Get(context.TODO(), namespacedName, &noobaa)
+		err = reconciler.Get(context.TODO(), namespacedName, &noobaa)
 		if c.isCreate {
 			assert.NoError(t, err)
 		} else {
@@ -415,18 +415,18 @@ func assertNoobaaResource(t *testing.T, reconciler *StorageClusterReconciler) {
 	var obj ocsNoobaaSystem
 
 	cr := &v1.StorageCluster{}
-	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, cr)
+	err := reconciler.Get(context.TODO(), request.NamespacedName, cr)
 	assert.NoError(t, err)
 
 	// get the ceph cluster
 	request.Name = util.GenerateNameForCephCluster(cr)
 	foundCeph := &cephv1.CephCluster{}
-	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, foundCeph)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, foundCeph)
 	assert.NoError(t, err)
 
 	// set the state to 'ClusterStateConnecting' (to mock a state where external cluster is still trying to connect)
 	foundCeph.Status.State = cephv1.ClusterStateConnecting
-	err = reconciler.Client.Update(context.TODO(), foundCeph)
+	err = reconciler.Update(context.TODO(), foundCeph)
 	assert.NoError(t, err)
 	// calling 'ensureNoobaaSystem()' function and the expectation is that 'Noobaa' system is not be created
 	_, err = obj.ensureCreated(reconciler, cr)
@@ -434,12 +434,12 @@ func assertNoobaaResource(t *testing.T, reconciler *StorageClusterReconciler) {
 	fNoobaa := &nbv1.NooBaa{}
 	request.Name = "noobaa"
 	// expectation is not to get any Noobaa object
-	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, fNoobaa)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, fNoobaa)
 	assert.Error(t, err)
 
 	// now setting the state to 'ClusterStateConnected' (to mock a successful external cluster connection)
 	foundCeph.Status.State = cephv1.ClusterStateConnected
-	err = reconciler.Client.Update(context.TODO(), foundCeph)
+	err = reconciler.Update(context.TODO(), foundCeph)
 	assert.NoError(t, err)
 	// call 'ensureNoobaaSystem()' to make sure it takes appropriate action
 	// when ceph cluster is connected to an external cluster
@@ -448,7 +448,7 @@ func assertNoobaaResource(t *testing.T, reconciler *StorageClusterReconciler) {
 	fNoobaa = &nbv1.NooBaa{}
 	request.Name = "noobaa"
 	// expectation is to get an appropriate Noobaa object
-	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, fNoobaa)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, fNoobaa)
 	assert.NoError(t, err)
 }
 
@@ -533,7 +533,7 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 	reconciler := createFakeInitializationStorageClusterReconciler(t, &nbv1.NooBaa{})
 	// if kms is not disabled, create the kms ConfigMap
 	if !kmsArgs.kmsDisabled {
-		if err := reconciler.Client.Create(ctxTodo, kmsCM); err != nil {
+		if err := reconciler.Create(ctxTodo, kmsCM); err != nil {
 			t.Errorf("Unable to create KMS configmap: %v, %v", err, kmsArgs.testLabel)
 			t.FailNow()
 		}
@@ -563,12 +563,12 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 		return
 	}
 	cephCluster := &cephv1.CephCluster{}
-	err = reconciler.Client.Get(ctxTodo,
+	err = reconciler.Get(ctxTodo,
 		types.NamespacedName{Name: util.GenerateNameForCephCluster(cr)},
 		cephCluster)
 	if err == nil {
 		cephCluster.Status.State = cephv1.ClusterStateCreated
-		err = reconciler.Client.Update(context.TODO(), cephCluster)
+		err = reconciler.Update(context.TODO(), cephCluster)
 	}
 	if err != nil {
 		t.Errorf("CephCluster error: %v, %v", err, kmsArgs.testLabel)
@@ -580,7 +580,7 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 	_, err = objNoobaa.ensureCreated(reconciler, cr)
 	assert.NoError(t, err, fmt.Sprintf("Failed to ensure Noobaa system: %v, %v", err, kmsArgs.testLabel))
 	nb := &nbv1.NooBaa{}
-	err = reconciler.Client.Get(ctxTodo, types.NamespacedName{Name: "noobaa"}, nb)
+	err = reconciler.Get(ctxTodo, types.NamespacedName{Name: "noobaa"}, nb)
 	assert.NoErrorf(t, err, "Failed to get Noobaa: %v, %v", err, kmsArgs.testLabel)
 
 	if kmsArgs.kmsDisabled {

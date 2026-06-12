@@ -35,7 +35,7 @@ func TestCephBlockPools(t *testing.T) {
 		var objects []client.Object
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
 		if c.createRuntimeObjects {
-			objects = createUpdateRuntimeObjects(t) //nolint:staticcheck //no need to use objects as they update in runtime
+			_ = createUpdateRuntimeObjects(t)
 		}
 		assertCephBlockPools(t, reconciler, cr, request, false, false)
 		assertCephNFSBlockPool(t, reconciler, cr, request)
@@ -49,7 +49,7 @@ func assertCephBlockPools(t *testing.T, reconciler *StorageClusterReconciler, cr
 		},
 	}
 	request.Name = "ocsinit-cephblockpool"
-	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCbp)
+	err := reconciler.Get(context.TODO(), request.NamespacedName, actualCbp)
 	assert.NoError(t, err)
 
 	expectedCbp := cephv1.CephBlockPool{
@@ -85,7 +85,7 @@ func assertCephBlockPools(t *testing.T, reconciler *StorageClusterReconciler, cr
 
 	assert.Equal(t, len(expectedCbp.OwnerReferences), 1)
 
-	assert.Equal(t, expectedCbp.ObjectMeta.Name, actualCbp.ObjectMeta.Name)
+	assert.Equal(t, expectedCbp.Name, actualCbp.Name)
 	assert.Equal(t, expectedCbp.Spec, actualCbp.Spec)
 }
 
@@ -96,7 +96,7 @@ func assertCephNFSBlockPool(t *testing.T, reconciler *StorageClusterReconciler, 
 		},
 	}
 	request.Name = "ocsinit-cephnfs-builtin-pool"
-	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actualNFSBlockPool)
+	err := reconciler.Get(context.TODO(), request.NamespacedName, actualNFSBlockPool)
 	assert.NoError(t, err)
 
 	expectedCbp := cephv1.CephBlockPool{
@@ -122,6 +122,6 @@ func assertCephNFSBlockPool(t *testing.T, reconciler *StorageClusterReconciler, 
 	}
 
 	assert.Equal(t, len(expectedCbp.OwnerReferences), 1)
-	assert.Equal(t, expectedCbp.ObjectMeta.Name, actualNFSBlockPool.ObjectMeta.Name)
+	assert.Equal(t, expectedCbp.Name, actualNFSBlockPool.Name)
 	assert.Equal(t, expectedCbp.Spec, actualNFSBlockPool.Spec)
 }

@@ -44,7 +44,6 @@ import (
 )
 
 // StorageClusterPeerReconciler reconciles a StorageClusterPeer object
-// nolint:revive
 type StorageClusterPeerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -99,7 +98,7 @@ func (r *StorageClusterPeerReconciler) Reconcile(ctx context.Context, request ct
 	result, reconcileError := r.reconcileStates(storageClusterPeer)
 
 	// Apply status changes
-	statusError := r.Client.Status().Update(r.ctx, storageClusterPeer)
+	statusError := r.Status().Update(r.ctx, storageClusterPeer)
 	if statusError != nil {
 		r.log.Info("Could not update StorageClusterPeer status.")
 	}
@@ -199,5 +198,5 @@ func (r *StorageClusterPeerReconciler) reconcileStates(storageClusterPeer *ocsv1
 
 func (r *StorageClusterPeerReconciler) get(obj client.Object) error {
 	key := client.ObjectKeyFromObject(obj)
-	return r.Client.Get(r.ctx, key, obj)
+	return r.Get(r.ctx, key, obj)
 }

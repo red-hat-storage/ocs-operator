@@ -22,7 +22,7 @@ func TestOdfInfoConfig(t *testing.T) {
 	t.Skip("testcase is flawed, it seems both the actual & expected are test generated")
 
 	const namespace = "storage-test-ns"
-	os.Setenv(util.OperatorNamespaceEnvVar, namespace)
+	_ = os.Setenv(util.OperatorNamespaceEnvVar, namespace)
 
 	testTable := []struct {
 		label                        string
@@ -93,7 +93,7 @@ func TestOdfInfoConfig(t *testing.T) {
 		_, err := odfInfoConfigReconciler.ensureCreated(r, sc)
 		assert.NilError(t, err)
 		// get the output
-		err = r.Client.Get(r.ctx, client.ObjectKeyFromObject(configMap), configMap)
+		err = r.Get(r.ctx, client.ObjectKeyFromObject(configMap), configMap)
 		assert.NilError(t, err, "expected to find configmap %q: %+v", OdfInfoConfigMapName, err)
 
 		// compare with the expected results

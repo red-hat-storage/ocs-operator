@@ -55,7 +55,6 @@ const (
 )
 
 // MirroringReconciler reconciles a Mirroring fields for Ceph Object(s)
-// nolint:revive
 type MirroringReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -701,19 +700,19 @@ func (r *MirroringReconciler) reconcileStorageConsumer(
 }
 
 func (r *MirroringReconciler) get(obj client.Object) error {
-	return r.Client.Get(r.ctx, client.ObjectKeyFromObject(obj), obj)
+	return r.Get(r.ctx, client.ObjectKeyFromObject(obj), obj)
 }
 
 func (r *MirroringReconciler) list(obj client.ObjectList, listOptions ...client.ListOption) error {
-	return r.Client.List(r.ctx, obj, listOptions...)
+	return r.List(r.ctx, obj, listOptions...)
 }
 
 func (r *MirroringReconciler) update(obj client.Object, opts ...client.UpdateOption) error {
-	return r.Client.Update(r.ctx, obj, opts...)
+	return r.Update(r.ctx, obj, opts...)
 }
 
 func (r *MirroringReconciler) delete(obj client.Object, opts ...client.DeleteOption) error {
-	return r.Client.Delete(r.ctx, obj, opts...)
+	return r.Delete(r.ctx, obj, opts...)
 }
 
 func (r *MirroringReconciler) own(owner *corev1.ConfigMap, obj client.Object) error {

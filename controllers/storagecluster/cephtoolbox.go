@@ -41,7 +41,7 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 
 	toolsDeployment := newToolsDeployment(namespace, tolerations, nodeAffinity)
 	foundToolsDeployment := &appsv1.Deployment{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: namespace}, foundToolsDeployment)
+	err := r.Get(context.TODO(), types.NamespacedName{Name: rookCephToolDeploymentName, Namespace: namespace}, foundToolsDeployment)
 
 	if err == nil {
 		isFound = true
@@ -70,10 +70,10 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 				return err
 			}
 			if net != "" {
-				if toolsDeployment.Spec.Template.ObjectMeta.Annotations == nil {
-					toolsDeployment.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+				if toolsDeployment.Spec.Template.Annotations == nil {
+					toolsDeployment.Spec.Template.Annotations = make(map[string]string)
 				}
-				toolsDeployment.Spec.Template.ObjectMeta.Annotations["k8s.v1.cni.cncf.io/networks"] = net
+				toolsDeployment.Spec.Template.Annotations["k8s.v1.cni.cncf.io/networks"] = net
 				toolsDeployment.Spec.Template.Spec.HostNetwork = false
 			}
 		}
@@ -82,17 +82,17 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 		}
 
 		if !isFound {
-			return r.Client.Create(context.TODO(), toolsDeployment)
+			return r.Create(context.TODO(), toolsDeployment)
 		} else if !reflect.DeepEqual(foundToolsDeployment.Spec, toolsDeployment.Spec) {
 
 			updateDeployment := foundToolsDeployment.DeepCopy()
 			updateDeployment.Spec = *toolsDeployment.Spec.DeepCopy()
 
-			return r.Client.Update(context.TODO(), updateDeployment)
+			return r.Update(context.TODO(), updateDeployment)
 		}
 	} else if isFound {
 		// delete if ceph tools exists and is disabled
-		return r.Client.Delete(context.TODO(), foundToolsDeployment)
+		return r.Delete(context.TODO(), foundToolsDeployment)
 	}
 	return nil
 }
@@ -209,7 +209,7 @@ func getMultusPublicNetwork(sc *ocsv1.StorageCluster) (string, error) {
 	}
 	_, err = nadClient.K8sCniCncfIoV1().NetworkAttachmentDefinitions(nadNS).Get(context.TODO(), nadName, metav1.GetOptions{})
 	if err != nil {
-		return "", fmt.Errorf("Either create the NetworkAttachmentDefinition or alter the storagecluster Spec.Network.Selectors[\"public\"] with correct value. %v", err)
+		return "", fmt.Errorf("either create the NetworkAttachmentDefinition or alter the storagecluster Spec.Network.Selectors[\"public\"] with correct value: %v", err)
 	}
 
 	return fmt.Sprintf("%s/%s", nadNS, nadName), nil

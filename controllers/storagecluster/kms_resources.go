@@ -101,7 +101,7 @@ func deleteKMSResources(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) e
 		runtimeObj, err := kmsResourceGetFunc(sc, r.Client)
 		if err == nil {
 			errLog = "while deleting"
-			err = r.Client.Delete(context.TODO(), runtimeObj)
+			err = r.Delete(context.TODO(), runtimeObj)
 		}
 		// ignore any NotFound error,
 		// that is; resource is not there, nothing has to be deleted
@@ -143,7 +143,7 @@ func getKMSSecretToken(instance *ocsv1.StorageCluster, client client.Client) (*c
 	err := client.Get(context.TODO(),
 		types.NamespacedName{
 			Name:      KMSTokenSecretName,
-			Namespace: instance.ObjectMeta.Namespace,
+			Namespace: instance.Namespace,
 		},
 		kmsSecretToken,
 	)
@@ -160,7 +160,7 @@ func getCSIKMSSecretToken(instance *ocsv1.StorageCluster, client client.Client) 
 	err := client.Get(context.TODO(),
 		types.NamespacedName{
 			Name:      CSIKMSTokenSecretName,
-			Namespace: instance.ObjectMeta.Namespace,
+			Namespace: instance.Namespace,
 		},
 		csiKMSSecretToken,
 	)

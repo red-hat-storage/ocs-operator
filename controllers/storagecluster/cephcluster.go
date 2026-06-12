@@ -20,7 +20,6 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -132,7 +131,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 
 		diskSpeed, err := r.checkTuneStorageDevices(ds)
 		if err != nil {
-			return reconcile.Result{}, fmt.Errorf("Failed to check for known device types: %+v", err)
+			return reconcile.Result{}, fmt.Errorf("failed to check for known device types: %+v", err)
 		}
 		switch diskSpeed {
 		case diskSpeedSlow:
@@ -155,7 +154,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	if sc.Spec.ExternalStorage.Enable {
 		extRArr, ok := externalOCSResources[sc.UID]
 		if !ok {
-			return reconcile.Result{}, fmt.Errorf("Unable to retrieve external resource from externalOCSResources")
+			return reconcile.Result{}, fmt.Errorf("unable to retrieve external resource from externalOCSResources")
 		}
 		endpointR, err := findNamedResourceFromArray(extRArr, "monitoring-endpoint")
 		if err != nil {
@@ -257,7 +256,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 
 	// Check if this CephCluster already exists
 	found := &rookCephv1.CephCluster{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
+	err = r.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			if sc.Spec.ExternalStorage.Enable {
@@ -265,7 +264,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			} else {
 				r.Log.Info("Creating CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
 			}
-			if err := r.Client.Create(context.TODO(), cephCluster); err != nil {
+			if err := r.Create(context.TODO(), cephCluster); err != nil {
 				r.Log.Error(err, "Unable to create CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
 				return reconcile.Result{}, err
 			}
@@ -274,7 +273,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			// Assuming progress when ceph cluster CR is created.
 			reason := "CephClusterStatus"
 			message := "CephCluster resource is not reporting status"
-			statusutil.MapCephClusterNoConditions(&r.conditions, reason, message)
+			util.MapCephClusterNoConditions(&r.conditions, reason, message)
 			return reconcile.Result{}, nil
 		}
 		r.Log.Error(err, "Unable to fetch CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
@@ -316,31 +315,32 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		// What does this mean to OCS status? Assuming progress.
 		reason := "CephClusterStatus"
 		message := "CephCluster resource is not reporting status"
-		statusutil.MapCephClusterNoConditions(&r.conditions, reason, message)
+		util.MapCephClusterNoConditions(&r.conditions, reason, message)
 	} else {
 		// Interpret CephCluster status and set any negative conditions
 		if sc.Spec.ExternalStorage.Enable {
-			statusutil.MapExternalCephClusterNegativeConditions(&r.conditions, found)
+			util.MapExternalCephClusterNegativeConditions(&r.conditions, found)
 		} else {
-			statusutil.MapCephClusterNegativeConditions(&r.conditions, found)
+			util.MapCephClusterNegativeConditions(&r.conditions, found)
 		}
 	}
 
 	// When phase is expanding, wait for CephCluster state to be updating
 	// this means expansion is in progress and overall system is progressing
 	// else expansion is not yet triggered
-	if sc.Status.Phase == statusutil.PhaseClusterExpanding &&
+	if sc.Status.Phase == util.PhaseClusterExpanding &&
 		found.Status.State != rookCephv1.ClusterStateUpdating {
-		r.phase = statusutil.PhaseClusterExpanding
+		r.phase = util.PhaseClusterExpanding
 	}
 
 	if sc.Spec.ExternalStorage.Enable {
-		if found.Status.State == rookCephv1.ClusterStateConnecting {
-			sc.Status.Phase = statusutil.PhaseConnecting
-		} else if found.Status.State == rookCephv1.ClusterStateConnected {
-			sc.Status.Phase = statusutil.PhaseReady
-		} else {
-			sc.Status.Phase = statusutil.PhaseNotReady
+		switch found.Status.State {
+		case rookCephv1.ClusterStateConnecting:
+			sc.Status.Phase = util.PhaseConnecting
+		case rookCephv1.ClusterStateConnected:
+			sc.Status.Phase = util.PhaseReady
+		default:
+			sc.Status.Phase = util.PhaseNotReady
 		}
 	}
 
@@ -350,23 +350,23 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		if !sc.Spec.ExternalStorage.Enable {
 			// Check if Cluster is Expanding
 			if len(found.Spec.Storage.StorageClassDeviceSets) < len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
-				r.phase = statusutil.PhaseClusterExpanding
+				r.phase = util.PhaseClusterExpanding
 			} else if len(found.Spec.Storage.StorageClassDeviceSets) == len(cephCluster.Spec.Storage.StorageClassDeviceSets) {
 				for _, countInFoundSpec := range found.Spec.Storage.StorageClassDeviceSets {
 					for _, countInCephClusterSpec := range cephCluster.Spec.Storage.StorageClassDeviceSets {
 						if countInFoundSpec.Name == countInCephClusterSpec.Name && countInCephClusterSpec.Count > countInFoundSpec.Count {
-							r.phase = statusutil.PhaseClusterExpanding
+							r.phase = util.PhaseClusterExpanding
 							break
 						}
 					}
-					if r.phase == statusutil.PhaseClusterExpanding {
+					if r.phase == util.PhaseClusterExpanding {
 						break
 					}
 				}
 			}
 		}
 		found.Spec = cephCluster.Spec
-		if err := r.Client.Update(context.TODO(), found); err != nil {
+		if err := r.Update(context.TODO(), found); err != nil {
 			r.Log.Error(err, "Unable to update CephCluster.", "CephCluster", klog.KRef(found.Namespace, found.Name))
 			return reconcile.Result{}, err
 		}
@@ -394,27 +394,27 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 // ensureDeleted deletes the CephCluster owned by the StorageCluster
 func (obj *ocsCephCluster) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	cephCluster := &rookCephv1.CephCluster{}
-	cephClusterName := statusutil.GenerateNameForCephCluster(sc)
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephClusterName, Namespace: sc.Namespace}, cephCluster)
+	cephClusterName := util.GenerateNameForCephCluster(sc)
+	err := r.Get(context.TODO(), types.NamespacedName{Name: cephClusterName, Namespace: sc.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("Uninstall: CephCluster not found.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
 			return reconcile.Result{}, nil
 		}
 		r.Log.Error(err, "Uninstall: Unable to retrieve CephCluster.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
-		return reconcile.Result{}, fmt.Errorf("Uninstall: Unable to retrieve cephCluster: %v", err)
+		return reconcile.Result{}, fmt.Errorf("uninstall: unable to retrieve cephCluster: %v", err)
 	}
 
 	if cephCluster.GetDeletionTimestamp().IsZero() {
 		r.Log.Info("Uninstall: Deleting CephCluster.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
-		err = r.Client.Delete(context.TODO(), cephCluster)
+		err = r.Delete(context.TODO(), cephCluster)
 		if err != nil {
 			r.Log.Error(err, "Uninstall: Failed to delete CephCluster.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
 			return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephCluster: %v", err)
 		}
 	}
 
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: statusutil.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	err = r.Get(context.TODO(), types.NamespacedName{Name: util.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("Uninstall: CephCluster is deleted.", "CephCluster", klog.KRef(sc.Namespace, cephClusterName))
@@ -451,7 +451,7 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 
 	cephCluster := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      statusutil.GenerateNameForCephCluster(sc),
+			Name:      util.GenerateNameForCephCluster(sc),
 			Namespace: sc.Namespace,
 			Labels:    labels,
 		},
@@ -591,8 +591,8 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 			kmsConfigMap.Data["KMS_PROVIDER"] = VaultKMSProvider
 		}
 		var kmsProviderName = kmsConfigMap.Data["KMS_PROVIDER"]
-		// vault as a KMS service provider
-		if kmsProviderName == VaultKMSProvider {
+		switch kmsProviderName {
+		case VaultKMSProvider:
 			// Set default VAULT_SECRET_ENGINE values
 			if _, ok := kmsConfigMap.Data["VAULT_SECRET_ENGINE"]; !ok {
 				kmsConfigMap.Data["VAULT_SECRET_ENGINE"] = "kv"
@@ -606,14 +606,14 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 				// Secret is created by UI in "openshift-storage" namespace
 				cephCluster.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
 			}
-		} else if kmsProviderName == IbmKeyProtectKMSProvider || kmsProviderName == ThalesKMSProvider {
+		case IbmKeyProtectKMSProvider, ThalesKMSProvider:
 			// Secret is created by UI in "openshift-storage" namespace
 			cephCluster.Spec.Security.KeyManagementService.TokenSecretName = kmsConfigMap.Data[kmsProviderSecretKeyMap[kmsProviderName]]
 		}
 		cephCluster.Spec.Security.KeyManagementService.ConnectionDetails = kmsConfigMap.Data
 	}
 
-	isEnabled, rotationSchedule := statusutil.GetKeyRotationSpec(sc)
+	isEnabled, rotationSchedule := util.GetKeyRotationSpec(sc)
 	cephCluster.Spec.Security.KeyRotation.Enabled = isEnabled
 	cephCluster.Spec.Security.KeyRotation.Schedule = rotationSchedule
 
@@ -685,7 +685,7 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, monitoringIP, monitoringPo
 
 	externalCephCluster := &rookCephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      statusutil.GenerateNameForCephCluster(sc),
+			Name:      util.GenerateNameForCephCluster(sc),
 			Namespace: sc.Namespace,
 			Labels:    labels,
 		},
@@ -726,7 +726,7 @@ func getMinDeviceSetReplica(sc *ocsv1.StorageCluster, isTnfCluster bool) int {
 	if arbiterEnabled(sc) {
 		return defaults.ArbiterModeDeviceSetReplica
 	}
-	if statusutil.IsSingleNodeDeployment() {
+	if util.IsSingleNodeDeployment() {
 		return 1
 	}
 	return defaults.DeviceSetReplica
@@ -787,7 +787,7 @@ func getMgrCount(sc *ocsv1.StorageCluster, isTnfCluster bool) int {
 	if mgrCount != 0 {
 		return mgrCount
 	}
-	if statusutil.IsSingleNodeDeployment() || isTnfCluster {
+	if util.IsSingleNodeDeployment() || isTnfCluster {
 		return 1
 	}
 	return defaults.DefaultMgrCount
@@ -895,14 +895,14 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 			}
 
 			if ds.MetadataPVCTemplate != nil {
-				ds.MetadataPVCTemplate.ObjectMeta.Name = metadataPVCName
+				ds.MetadataPVCTemplate.Name = metadataPVCName
 				set.VolumeClaimTemplates = append(set.VolumeClaimTemplates, rookCephv1.VolumeClaimTemplate{
 					ObjectMeta: ds.MetadataPVCTemplate.ObjectMeta,
 					Spec:       ds.MetadataPVCTemplate.Spec,
 				})
 			}
 			if ds.WalPVCTemplate != nil {
-				ds.WalPVCTemplate.ObjectMeta.Name = walPVCName
+				ds.WalPVCTemplate.Name = walPVCName
 				set.VolumeClaimTemplates = append(set.VolumeClaimTemplates, rookCephv1.VolumeClaimTemplate{
 					ObjectMeta: ds.WalPVCTemplate.ObjectMeta,
 					Spec:       ds.WalPVCTemplate.Spec,
@@ -1055,7 +1055,7 @@ func (r *StorageClusterReconciler) checkTuneStorageDevices(ds ocsv1.StorageDevic
 
 	storageClassName := *ds.DataPVCTemplate.Spec.StorageClassName
 	storageClass := &storagev1.StorageClass{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: storageClassName}, storageClass)
+	err := r.Get(context.TODO(), types.NamespacedName{Namespace: "", Name: storageClassName}, storageClass)
 	if err != nil {
 		return diskSpeedUnknown, fmt.Errorf("failed to retrieve StorageClass %q. %+v", storageClassName, err)
 	}
@@ -1121,7 +1121,7 @@ func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *rookCephv1.StretchClu
 func generateMonSpec(sc *ocsv1.StorageCluster, isTnfCLuster bool) rookCephv1.MonSpec {
 	spec := rookCephv1.MonSpec{
 		Count:                getMonCount(sc),
-		AllowMultiplePerNode: statusutil.AllowMultipleCephDaemonsPerNode(isTnfCLuster),
+		AllowMultiplePerNode: util.AllowMultipleCephDaemonsPerNode(isTnfCLuster),
 	}
 	if arbiterEnabled(sc) {
 		spec.StretchCluster = generateStretchClusterSpec(sc)
@@ -1132,7 +1132,7 @@ func generateMonSpec(sc *ocsv1.StorageCluster, isTnfCLuster bool) rookCephv1.Mon
 func generateMgrSpec(sc *ocsv1.StorageCluster, isTnfCLuster bool) rookCephv1.MgrSpec {
 	spec := rookCephv1.MgrSpec{
 		Count:                getMgrCount(sc, isTnfCLuster),
-		AllowMultiplePerNode: statusutil.AllowMultipleCephDaemonsPerNode(isTnfCLuster),
+		AllowMultiplePerNode: util.AllowMultipleCephDaemonsPerNode(isTnfCLuster),
 		Modules: []rookCephv1.Module{
 			{Name: "pg_autoscaler", Enabled: true},
 			{Name: "balancer", Enabled: true},
@@ -1383,7 +1383,7 @@ func createOrUpdatePrometheusRule(r *StorageClusterReconciler, prometheusRule *m
 			return fmt.Errorf("failed to get prometheusRule object. %v", err)
 		}
 		promRule.Spec = prometheusRule.Spec
-		promRule.ObjectMeta.Labels = prometheusRule.ObjectMeta.Labels
+		promRule.Labels = prometheusRule.Labels
 		_, err = client.MonitoringV1().PrometheusRules(namespace).Update(context.TODO(), promRule, metav1.UpdateOptions{})
 		if err != nil {
 			r.Log.Error(err, "failed to update prometheus rules.", "CephCluster")
@@ -1579,7 +1579,7 @@ func getCephClusterCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageClus
 	// Configure public network if the cluster is dualstack, but not multus
 	if sc.Spec.Network != nil && sc.Spec.Network.Provider == "" && sc.Spec.Network.DualStack {
 		networkConfig := &configv1.Network{}
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "cluster", Namespace: ""}, networkConfig)
+		err := r.Get(context.TODO(), types.NamespacedName{Name: "cluster", Namespace: ""}, networkConfig)
 		if err == nil {
 			cidrNameArray := []string{}
 			for _, cidr := range networkConfig.Status.ClusterNetwork {
@@ -1601,7 +1601,7 @@ func getCephClusterCephConfig(r *StorageClusterReconciler, sc *ocsv1.StorageClus
 		Version: "v1",
 		Kind:    "CephRBDMirrorList",
 	})
-	err := r.Client.List(context.TODO(), partialList,
+	err := r.List(context.TODO(), partialList,
 		client.InNamespace(sc.Namespace),
 		client.Limit(1),
 	)

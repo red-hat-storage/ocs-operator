@@ -69,32 +69,32 @@ func (obj *ocsCephRGWRoutes) ensureDeleted(r *StorageClusterReconciler, sc *ocsv
 	}
 
 	for _, route := range routes {
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: route.Name, Namespace: sc.Namespace}, foundRoute)
+		err := r.Get(context.TODO(), types.NamespacedName{Name: route.Name, Namespace: sc.Namespace}, foundRoute)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: Ceph RGW Route not found.", "CephRGWRoute", klog.KRef(sc.Namespace, route.Name))
 				continue
 			}
-			return reconcile.Result{}, fmt.Errorf("Uninstall: Unable to retrieve route %v: %v", route.Name, err)
+			return reconcile.Result{}, fmt.Errorf("uninstall: unable to retrieve route %v: %v", route.Name, err)
 		}
 
 		if route.GetDeletionTimestamp().IsZero() {
 			r.Log.Info("Uninstall: Deleting Ceph RGW Route.", "CephRGWRoute", klog.KRef(sc.Namespace, route.Name))
-			err = r.Client.Delete(context.TODO(), foundRoute)
+			err = r.Delete(context.TODO(), foundRoute)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Failed to delete Ceph RGW Route.", "CephRGWRoute", klog.KRef(sc.Namespace, route.Name))
-				return reconcile.Result{}, fmt.Errorf("Uninstall: Failed to delete Route %v: %v", route.Name, err)
+				return reconcile.Result{}, fmt.Errorf("uninstall: failed to delete Route %v: %v", route.Name, err)
 			}
 		}
 
-		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: route.Name, Namespace: sc.Namespace}, foundRoute)
+		err = r.Get(context.TODO(), types.NamespacedName{Name: route.Name, Namespace: sc.Namespace}, foundRoute)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: Ceph RGW Route is deleted.", "CephRGWRoute", klog.KRef(sc.Namespace, route.Name))
 				continue
 			}
 		}
-		return reconcile.Result{}, fmt.Errorf("Uninstall: Waiting for Ceph RGW Route %v to be deleted", route.Name)
+		return reconcile.Result{}, fmt.Errorf("uninstall: waiting for Ceph RGW Route %v to be deleted", route.Name)
 
 	}
 	return reconcile.Result{}, nil
@@ -104,7 +104,7 @@ func (obj *ocsCephRGWRoutes) ensureDeleted(r *StorageClusterReconciler, sc *ocsv
 func (r *StorageClusterReconciler) createCephRGWRoutes(routes []*routev1.Route, instance *ocsv1.StorageCluster) error {
 	for _, route := range routes {
 		existing := routev1.Route{}
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: route.Name, Namespace: route.Namespace}, &existing)
+		err := r.Get(context.TODO(), types.NamespacedName{Name: route.Name, Namespace: route.Namespace}, &existing)
 		switch {
 		case err == nil:
 			reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
@@ -118,16 +118,16 @@ func (r *StorageClusterReconciler) createCephRGWRoutes(routes []*routev1.Route, 
 			}
 
 			r.Log.Info("Restoring original Ceph RGW Route.", "CephRGWRoute", klog.KRef(route.Namespace, route.Name))
-			existing.ObjectMeta.OwnerReferences = route.ObjectMeta.OwnerReferences
+			existing.OwnerReferences = route.OwnerReferences
 			route.ObjectMeta = existing.ObjectMeta
-			err = r.Client.Update(context.TODO(), route)
+			err = r.Update(context.TODO(), route)
 			if err != nil {
 				r.Log.Error(err, "Failed to update Ceph RGW Route Object.", "CephRGWRoute", klog.KRef(route.Namespace, route.Name))
 				return err
 			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating Ceph RGW Route.", "CephRGWRoute", klog.KRef(route.Namespace, route.Name))
-			err = r.Client.Create(context.TODO(), route)
+			err = r.Create(context.TODO(), route)
 			if err != nil {
 				r.Log.Error(err, "Failed to create Ceph RGW Route.", "CephRGWRoute", klog.KRef(route.Namespace, route.Name))
 				return err

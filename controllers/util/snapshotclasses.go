@@ -21,7 +21,7 @@ const (
 )
 
 var (
-	UnsupportedDriver = errors.New("unsupportedDriver")
+	ErrUnsupportedDriver = errors.New("unsupportedDriver")
 )
 
 // GenerateNameForSnapshotClass function generates 'SnapshotClass' name.
@@ -141,7 +141,7 @@ func VolumeSnapshotClassFromExisting(
 		provisionerSecretName = consumerConfig.GetCsiNfsProvisionerCephUserName()
 		storageId = nfsStorageId
 	default:
-		return nil, UnsupportedDriver
+		return nil, ErrUnsupportedDriver
 	}
 
 	params := snapshotClass.Parameters

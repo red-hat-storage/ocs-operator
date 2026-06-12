@@ -30,7 +30,7 @@ func TestCephObjectStoreUsers(t *testing.T) {
 		var objects []client.Object
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
 		if c.createRuntimeObjects {
-			objects = createUpdateRuntimeObjects(t) //nolint:staticcheck //no need to use objects as they update in runtime
+			_ = createUpdateRuntimeObjects(t)
 		}
 		assertCephObjectStoreUsers(t, reconciler, cr, request)
 		platform.UnsetFakePlatformInstanceForTesting()
@@ -47,7 +47,7 @@ func assertCephObjectStoreUsers(t *testing.T, reconciler *StorageClusterReconcil
 		},
 	}
 	request.Name = "ocsinit-cephobjectstoreuser"
-	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCosu)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, actualCosu)
 
 	platformType, detectError := platform.GetPlatformType()
 	assert.NoError(t, detectError)
@@ -56,7 +56,7 @@ func assertCephObjectStoreUsers(t *testing.T, reconciler *StorageClusterReconcil
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)
-		assert.Equal(t, expectedCosu[0].ObjectMeta.Name, actualCosu.ObjectMeta.Name)
+		assert.Equal(t, expectedCosu[0].Name, actualCosu.Name)
 		assert.Equal(t, expectedCosu[0].Spec, actualCosu.Spec)
 	}
 

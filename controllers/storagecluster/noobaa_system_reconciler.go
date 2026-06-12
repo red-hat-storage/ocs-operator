@@ -9,7 +9,6 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
-	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -48,23 +47,23 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	if !r.IsNoobaaStandalone {
 		// find cephCluster
 		foundCeph := &rookCephv1.CephCluster{}
-		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: statusutil.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
+		err = r.Get(context.TODO(), types.NamespacedName{Name: util.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				r.Log.Info("Waiting on Ceph Cluster to be created before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, statusutil.GenerateNameForCephCluster(sc)))
+				r.Log.Info("Waiting on Ceph Cluster to be created before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, util.GenerateNameForCephCluster(sc)))
 				return reconcile.Result{}, nil
 			}
-			r.Log.Error(err, "Failed to retrieve Ceph Cluster.", "CephCluster", klog.KRef(sc.Namespace, statusutil.GenerateNameForCephCluster(sc)))
+			r.Log.Error(err, "Failed to retrieve Ceph Cluster.", "CephCluster", klog.KRef(sc.Namespace, util.GenerateNameForCephCluster(sc)))
 			return reconcile.Result{}, err
 		}
 		if !sc.Spec.ExternalStorage.Enable {
 			if foundCeph.Status.State != rookCephv1.ClusterStateCreated {
-				r.Log.Info("Waiting on Ceph Cluster to initialize before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, statusutil.GenerateNameForCephCluster(sc)))
+				r.Log.Info("Waiting on Ceph Cluster to initialize before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, util.GenerateNameForCephCluster(sc)))
 				return reconcile.Result{}, nil
 			}
 		} else {
 			if foundCeph.Status.State != rookCephv1.ClusterStateConnected {
-				r.Log.Info("Waiting for the External Ceph Cluster to be connected before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, statusutil.GenerateNameForCephCluster(sc)))
+				r.Log.Info("Waiting for the External Ceph Cluster to be connected before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, util.GenerateNameForCephCluster(sc)))
 				return reconcile.Result{}, nil
 			}
 		}
@@ -113,7 +112,7 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 		return reconcile.Result{}, err
 	}
 
-	statusutil.MapNoobaaNegativeConditions(&r.conditions, nb)
+	util.MapNoobaaNegativeConditions(&r.conditions, nb)
 	return reconcile.Result{}, nil
 }
 
@@ -231,7 +230,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 			}
 
 			if !sc.Spec.MultiCloudGateway.ExternalPgConfig.EnableTLS && sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName != "" {
-				return fmt.Errorf("Failed to create Noobaa system: tlsSecretName is a non-nil value while enableTls is disabled. Please set spec.multiCloudGateway.externalPgConfig.enableTls to true and retry again. enableTls: %v and tlsSecretName: %v", sc.Spec.MultiCloudGateway.ExternalPgConfig.EnableTLS, sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName)
+				return fmt.Errorf("failed to create Noobaa system: tlsSecretName is a non-nil value while enableTls is disabled. please set spec.multiCloudGateway.externalPgConfig.enableTls to true and retry again. enableTls: %v and tlsSecretName: %v", sc.Spec.MultiCloudGateway.ExternalPgConfig.EnableTLS, sc.Spec.MultiCloudGateway.ExternalPgConfig.TLSSecretName)
 			}
 		}
 
@@ -251,8 +250,8 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 				kmsConfig.Data["KMS_PROVIDER"] = VaultKMSProvider
 			}
 			var kmsProviderName = kmsConfig.Data["KMS_PROVIDER"]
-			// vault as a KMS service provider
-			if kmsProviderName == VaultKMSProvider {
+			switch kmsProviderName {
+			case VaultKMSProvider:
 				// Set default VAULT_AUTH_METHOD. Possible values are: token, kubernetes.
 				if kmsConfig.Data["VAULT_AUTH_METHOD"] == "" {
 					kmsConfig.Data["VAULT_AUTH_METHOD"] = VaultTokenAuthMethod
@@ -262,7 +261,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 					// Secret is created by UI in "openshift-storage" namespace
 					nb.Spec.Security.KeyManagementService.TokenSecretName = KMSTokenSecretName
 				}
-			} else if kmsProviderName == IbmKeyProtectKMSProvider || kmsProviderName == ThalesKMSProvider {
+			case IbmKeyProtectKMSProvider, ThalesKMSProvider:
 				// Secret is created by UI in "openshift-storage" namespace
 				nb.Spec.Security.KeyManagementService.TokenSecretName = kmsConfig.Data[kmsProviderSecretKeyMap[kmsProviderName]]
 			}
@@ -270,7 +269,7 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		}
 	}
 
-	isEnabled, rotationSchedule := statusutil.GetKeyRotationSpec(sc)
+	isEnabled, rotationSchedule := util.GetKeyRotationSpec(sc)
 	nb.Spec.Security.KeyManagementService.EnableKeyRotation = isEnabled
 	nb.Spec.Security.KeyManagementService.Schedule = rotationSchedule
 	return nil
@@ -291,7 +290,7 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 		}
 	}
 	noobaa := &nbv1.NooBaa{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
+	err := r.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			pvcs := &corev1.PersistentVolumeClaimList{}
@@ -299,17 +298,17 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 				client.InNamespace(sc.Namespace),
 				client.MatchingLabels(map[string]string{"app": "noobaa"}),
 			}
-			err = r.Client.List(context.TODO(), pvcs, opts...)
+			err = r.List(context.TODO(), pvcs, opts...)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
 			if len(pvcs.Items) > 0 {
-				return reconcile.Result{}, fmt.Errorf("Uninstall: Waiting on NooBaa PVCs to be deleted")
+				return reconcile.Result{}, fmt.Errorf("uninstall: waiting on NooBaa PVCs to be deleted")
 			}
 			r.Log.Info("Uninstall: NooBaa and noobaa-db PVC not found.")
 			return reconcile.Result{}, nil
 		}
-		return reconcile.Result{}, fmt.Errorf("Uninstall: Failed to retrieve NooBaa system: %v", err)
+		return reconcile.Result{}, fmt.Errorf("uninstall: failed to retrieve NooBaa system: %v", err)
 	}
 
 	isOwned := false
@@ -327,11 +326,11 @@ func (obj *ocsNoobaaSystem) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1
 
 	if noobaa.GetDeletionTimestamp().IsZero() {
 		r.Log.Info("Uninstall: Deleting NooBaa system.", "Noobaa", klog.KRef(noobaa.Namespace, noobaa.Name))
-		err = r.Client.Delete(context.TODO(), noobaa)
+		err = r.Delete(context.TODO(), noobaa)
 		if err != nil {
 			r.Log.Error(err, "Uninstall: Failed to delete NooBaa system.", "Noobaa", klog.KRef(noobaa.Namespace, noobaa.Name))
-			return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete NooBaa system %v : %v", noobaa.ObjectMeta.Name, err)
+			return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete NooBaa system %v : %v", noobaa.Name, err)
 		}
 	}
-	return reconcile.Result{}, fmt.Errorf("uninstall: Waiting on NooBaa system %v to be deleted", noobaa.ObjectMeta.Name)
+	return reconcile.Result{}, fmt.Errorf("uninstall: Waiting on NooBaa system %v to be deleted", noobaa.Name)
 }

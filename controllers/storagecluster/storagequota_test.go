@@ -128,7 +128,7 @@ func createFakeStorageClusterWithQuotaReconciler(t *testing.T, obj ...runtime.Ob
 
 func listStorageQuotas(t *testing.T, r *StorageClusterReconciler) []quotav1.ClusterResourceQuota {
 	ls := &quotav1.ClusterResourceQuotaList{}
-	err := r.Client.List(context.TODO(), ls)
+	err := r.List(context.TODO(), ls)
 	assert.NoError(t, err)
 	return ls.Items
 }

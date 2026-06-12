@@ -50,7 +50,7 @@ func (obj *ocsConsoleConfiguration) ensureCreated(r *StorageClusterReconciler, i
 		},
 	}
 
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: ODF_CONSOLE}, consolePlugin)
+	err = r.Get(context.TODO(), types.NamespacedName{Name: ODF_CONSOLE}, consolePlugin)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("ConsolePlugin not found, skipping configuration", "ConsolePlugin", ODF_CONSOLE)
@@ -96,7 +96,7 @@ func (obj *ocsConsoleConfiguration) ensureCreated(r *StorageClusterReconciler, i
 	}
 	consolePlugin.Spec.Proxy = append(consolePlugin.Spec.Proxy, newProxy)
 
-	err = r.Client.Update(context.TODO(), consolePlugin)
+	err = r.Update(context.TODO(), consolePlugin)
 	if err != nil {
 		r.Log.Error(err, "Failed to update ConsolePlugin with internal RGW proxy", "ConsolePlugin", klog.KRef("", ODF_CONSOLE))
 		return reconcile.Result{}, fmt.Errorf("failed to update ConsolePlugin %s: %v", ODF_CONSOLE, err)
@@ -132,7 +132,7 @@ func (obj *ocsConsoleConfiguration) ensureDeleted(r *StorageClusterReconciler, s
 		},
 	}
 
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: ODF_CONSOLE}, consolePlugin)
+	err = r.Get(context.TODO(), types.NamespacedName{Name: ODF_CONSOLE}, consolePlugin)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("Uninstall: ConsolePlugin not found, nothing to clean up", "ConsolePlugin", klog.KRef("", ODF_CONSOLE))
@@ -168,7 +168,7 @@ func (obj *ocsConsoleConfiguration) ensureDeleted(r *StorageClusterReconciler, s
 		consolePlugin.Spec.Proxy[proxyIndex+1:]...,
 	)
 
-	err = r.Client.Update(context.TODO(), consolePlugin)
+	err = r.Update(context.TODO(), consolePlugin)
 	if err != nil {
 		r.Log.Error(err, "Uninstall: Failed to remove internal RGW proxy from ConsolePlugin", "ConsolePlugin", klog.KRef("", ODF_CONSOLE))
 		return reconcile.Result{}, fmt.Errorf("uninstall: failed to update ConsolePlugin %s: %v", ODF_CONSOLE, err)

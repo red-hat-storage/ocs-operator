@@ -81,13 +81,13 @@ func copyFile(src string, dst string) {
 	if err != nil {
 		panic(err)
 	}
-	defer srcFile.Close()
+	defer func() { _ = srcFile.Close() }()
 
 	outFile, err := os.Create(dst)
 	if err != nil {
 		panic(err)
 	}
-	defer outFile.Close()
+	defer func() { _ = outFile.Close() }()
 
 	_, err = io.Copy(outFile, srcFile)
 	if err != nil {
@@ -660,7 +660,7 @@ func main() {
 	}
 
 	// start with a fresh output directory if it already exists
-	os.RemoveAll(*outputDir)
+	_ = os.RemoveAll(*outputDir)
 
 	// create output directory
 	err := os.MkdirAll(*outputDir, os.FileMode(0755))

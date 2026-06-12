@@ -91,25 +91,25 @@ func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *o
 	}
 
 	for _, cephObjectStore := range cephObjectStores {
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: sc.Namespace}, foundCephObjectStore)
+		err := r.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: sc.Namespace}, foundCephObjectStore)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: CephObjectStore not found.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
 				continue
 			}
-			return reconcile.Result{}, fmt.Errorf("Uninstall: Unable to retrieve CephObjectStore %v: %v", cephObjectStore.Name, err)
+			return reconcile.Result{}, fmt.Errorf("uninstall: unable to retrieve CephObjectStore %v: %v", cephObjectStore.Name, err)
 		}
 
 		if cephObjectStore.GetDeletionTimestamp().IsZero() {
 			r.Log.Info("Uninstall: Deleting CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
-			err = r.Client.Delete(context.TODO(), foundCephObjectStore)
+			err = r.Delete(context.TODO(), foundCephObjectStore)
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Failed to delete CephObjectStore.", "name", klog.KRef(foundCephObjectStore.Namespace, foundCephObjectStore.Name))
 				return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete CephObjectStore %v: %v", foundCephObjectStore.Name, err)
 			}
 		}
 
-		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: sc.Namespace}, foundCephObjectStore)
+		err = r.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: sc.Namespace}, foundCephObjectStore)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				r.Log.Info("Uninstall: CephObjectStore is deleted.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
@@ -127,7 +127,7 @@ func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *o
 func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*cephv1.CephObjectStore, instance *ocsv1.StorageCluster) error {
 	for _, cephObjectStore := range cephObjectStores {
 		existing := cephv1.CephObjectStore{}
-		err := r.Client.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: cephObjectStore.Namespace}, &existing)
+		err := r.Get(context.TODO(), types.NamespacedName{Name: cephObjectStore.Name, Namespace: cephObjectStore.Namespace}, &existing)
 		switch {
 		case err == nil:
 			reconcileStrategy := ReconcileStrategy(instance.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
@@ -141,7 +141,7 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 			}
 
 			r.Log.Info("Restoring original CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
-			existing.ObjectMeta.OwnerReferences = cephObjectStore.ObjectMeta.OwnerReferences
+			existing.OwnerReferences = cephObjectStore.OwnerReferences
 			cephObjectStore.ObjectMeta = existing.ObjectMeta
 
 			// preserving any existing rgw ReadAffinities
@@ -156,14 +156,14 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 				cephObjectStore.Spec.Gateway.Instances = existing.Spec.Gateway.Instances
 			}
 
-			err = r.Client.Update(context.TODO(), cephObjectStore)
+			err = r.Update(context.TODO(), cephObjectStore)
 			if err != nil {
 				r.Log.Error(err, "Failed to update CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
 				return err
 			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
-			err = r.Client.Create(context.TODO(), cephObjectStore)
+			err = r.Create(context.TODO(), cephObjectStore)
 			if err != nil {
 				r.Log.Error(err, "Failed to create CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
 				return err

@@ -316,9 +316,9 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 	reconciler := createFakeInitializationStorageClusterReconciler(
 		t, rtObjsToCreateReconciler...)
 
-	_ = reconciler.Client.Create(context.TODO(), cr)
+	_ = reconciler.Create(context.TODO(), cr)
 	for _, rtObj := range runtimeObjs {
-		_ = reconciler.Client.Create(context.TODO(), rtObj)
+		_ = reconciler.Create(context.TODO(), rtObj)
 	}
 
 	err := os.Setenv("OPERATOR_NAMESPACE", cr.Namespace)
@@ -398,8 +398,8 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		},
 	}
 
-	os.Setenv(providerAPIServerImage, "fake-image")
-	os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
+	_ = os.Setenv(providerAPIServerImage, "fake-image")
+	_ = os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
 
 	ocsProviderServiceDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},

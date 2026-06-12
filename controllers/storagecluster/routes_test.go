@@ -33,7 +33,7 @@ func TestCephRGWRoutes(t *testing.T) {
 		var objects []client.Object
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
 		if c.createRuntimeObjects {
-			objects = createUpdateRuntimeObjects(t) //nolint:staticcheck //no need to use objects as they update in runtime
+			_ = createUpdateRuntimeObjects(t)
 		}
 		assertCephRGWRoutes(t, reconciler, cr, request)
 		platform.UnsetFakePlatformInstanceForTesting()
@@ -44,7 +44,7 @@ func assertCephRGWRoutes(t *testing.T, reconciler *StorageClusterReconciler, cr 
 	assert.NoError(t, err)
 	actualCos := &routev1.Route{}
 	request.Name = "ocsinit-cephobjectstore"
-	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCos)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, actualCos)
 	// for any cloud platform, 'route' should not be created
 	// 'Get' should have thrown an error
 	platformType, detectErr := platform.GetPlatformType()
@@ -96,9 +96,9 @@ func assertCephRGWRoutes(t *testing.T, reconciler *StorageClusterReconciler, cr 
 				},
 			},
 		}
-		assert.Equal(t, expectedCos[0].ObjectMeta.Name, actualCos.ObjectMeta.Name)
+		assert.Equal(t, expectedCos[0].Name, actualCos.Name)
 		assert.Equal(t, expectedCos[0].Spec, actualCos.Spec)
-		assert.Equal(t, expectedCos[1].ObjectMeta.Name, actualCosSecure.ObjectMeta.Name)
+		assert.Equal(t, expectedCos[1].Name, actualCosSecure.Name)
 		assert.Equal(t, expectedCos[1].Spec, actualCosSecure.Spec)
 	}
 

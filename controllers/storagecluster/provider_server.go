@@ -71,7 +71,7 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 		apiServerService,
 		GetProviderAPIServerDeployment(instance),
 	} {
-		err := r.Client.Delete(r.ctx, resource)
+		err := r.Delete(r.ctx, resource)
 
 		if err != nil && !errors.IsNotFound(err) {
 			r.Log.Error(err, "Failed to delete resource", "Kind", resource.GetObjectKind(), "Name", resource.GetName())
@@ -183,7 +183,7 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 		}
 
 		if len(nodeAddresses) == 0 {
-			err = fmt.Errorf("Could not find any worker nodes")
+			err = fmt.Errorf("could not find any worker nodes")
 			r.Log.Error(err, "Worker nodes count is zero")
 			return reconcile.Result{}, err
 		}
@@ -216,7 +216,7 @@ func (o *ocsProviderServer) getWorkerNodesInternalIPAddresses(r *StorageClusterR
 
 	nodes := &corev1.NodeList{}
 
-	err := r.Client.List(r.ctx, nodes)
+	err := r.List(r.ctx, nodes)
 	if err != nil {
 		r.Log.Error(err, "Failed to list nodes")
 		return nil, err
@@ -226,7 +226,7 @@ func (o *ocsProviderServer) getWorkerNodesInternalIPAddresses(r *StorageClusterR
 
 	for i := range nodes.Items {
 		node := &nodes.Items[i]
-		if _, ok := node.ObjectMeta.Labels["node-role.kubernetes.io/worker"]; ok {
+		if _, ok := node.Labels["node-role.kubernetes.io/worker"]; ok {
 			for _, address := range node.Status.Addresses {
 				if address.Type == corev1.NodeInternalIP {
 					nodeAddresses = append(nodeAddresses, address.Address)
@@ -244,7 +244,7 @@ func (o *ocsProviderServer) getWorkerNodesInternalIPAddresses(r *StorageClusterR
 func (o *ocsProviderServer) ensureDeploymentReplica(actual, desired *appsv1.Deployment) error {
 
 	if actual.Status.AvailableReplicas != *desired.Spec.Replicas {
-		return fmt.Errorf("Deployment %s is not ready", desired.Name)
+		return fmt.Errorf("deployment %s is not ready", desired.Name)
 	}
 
 	return nil
@@ -416,12 +416,12 @@ func (o *ocsProviderServer) createJob(r *StorageClusterReconciler, instance *ocs
 
 	actualSecret := &corev1.Secret{}
 	// Creating the job only if public is not found
-	err = r.Client.Get(r.ctx, types.NamespacedName{Name: onboardingValidationPublicKeySecretName,
+	err = r.Get(r.ctx, types.NamespacedName{Name: onboardingValidationPublicKeySecretName,
 		Namespace: instance.Namespace}, actualSecret)
 
 	if errors.IsNotFound(err) {
 		onboardingSecretGeneratorJob := getOnboardingJobObject(instance)
-		err = r.Client.Create(r.ctx, onboardingSecretGeneratorJob)
+		err = r.Create(r.ctx, onboardingSecretGeneratorJob)
 	}
 	if err != nil {
 		r.Log.Error(err, "failed to create/ensure secret")

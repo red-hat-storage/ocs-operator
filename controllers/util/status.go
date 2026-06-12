@@ -290,7 +290,7 @@ func MapNoobaaNegativeConditions(conditions *[]conditionsv1.Condition, found *nb
 			Type:    conditionsv1.ConditionDegraded,
 			Status:  corev1.ConditionTrue,
 			Reason:  "NoobaaNotFound",
-			Message: fmt.Sprintf("Waiting on Nooba instance creation"), //nolint:gosimple
+			Message: "Waiting on Nooba instance creation",
 		})
 		return
 	}
@@ -301,14 +301,14 @@ func MapNoobaaNegativeConditions(conditions *[]conditionsv1.Condition, found *nb
 			Type:    conditionsv1.ConditionDegraded,
 			Status:  corev1.ConditionTrue,
 			Reason:  "NoobaaSpecRejected",
-			Message: fmt.Sprintf("Noobaa object's configuration is rejected by the noobaa operator"), //nolint:gosimple
+			Message: "Noobaa object's configuration is rejected by the noobaa operator",
 		})
 	case "", nbv1.SystemPhaseVerifying, nbv1.SystemPhaseCreating, nbv1.SystemPhaseConnecting, nbv1.SystemPhaseConfiguring:
 		setStatusConditionIfNotPresent(conditions, conditionsv1.Condition{
 			Type:    conditionsv1.ConditionProgressing,
 			Status:  corev1.ConditionTrue,
 			Reason:  "NoobaaInitializing",
-			Message: fmt.Sprintf("Waiting on Nooba instance to finish initialization"), //nolint:gosimple
+			Message: "Waiting on Nooba instance to finish initialization",
 		})
 	case nbv1.SystemPhaseReady:
 		// no-op. Ready isn't a negative case

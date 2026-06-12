@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	UnsupportedProvisioner = errors.New("unsupportedProvisioner")
+	ErrUnsupportedProvisioner = errors.New("unsupportedProvisioner")
 )
 
 func GenerateNameForCephBlockPoolStorageClass(storageCluster *ocsv1.StorageCluster) string {
@@ -471,7 +471,7 @@ func StorageClassFromExisting(
 		nodeSecretName = consumerConfig.GetCsiNfsNodeCephUserName()
 		storageId = nfsStorageId
 	default:
-		return nil, UnsupportedProvisioner
+		return nil, ErrUnsupportedProvisioner
 	}
 
 	params := storageClass.Parameters

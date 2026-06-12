@@ -38,7 +38,7 @@ func TestCephObjectStores(t *testing.T) {
 		var objects []client.Object
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
 		if c.createRuntimeObjects {
-			objects = createUpdateRuntimeObjects(t) //nolint:staticcheck //no need to use objects as they update in runtime
+			_ = createUpdateRuntimeObjects(t)
 		}
 		assertCephObjectStores(t, reconciler, cr, request)
 		platform.UnsetFakePlatformInstanceForTesting()
@@ -55,7 +55,7 @@ func assertCephObjectStores(t *testing.T, reconciler *StorageClusterReconciler, 
 		},
 	}
 	request.Name = "ocsinit-cephobjectstore"
-	err = reconciler.Client.Get(context.TODO(), request.NamespacedName, actualCos)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, actualCos)
 	// for any cloud platform, 'cephobjectstore' should not be created
 	// 'Get' should have thrown an error
 	skip, skipErr := platform.PlatformsShouldSkipObjectStore()
@@ -64,7 +64,7 @@ func assertCephObjectStores(t *testing.T, reconciler *StorageClusterReconciler, 
 		assert.Error(t, err)
 	} else {
 		assert.NoError(t, err)
-		assert.Equal(t, expectedCos[0].ObjectMeta.Name, actualCos.ObjectMeta.Name)
+		assert.Equal(t, expectedCos[0].Name, actualCos.Name)
 		assert.Equal(t, expectedCos[0].Spec, actualCos.Spec)
 		assert.Condition(
 			t, func() bool { return expectedCos[0].Spec.Gateway.Instances == 1 },

@@ -233,11 +233,11 @@ func TestReconcileNodeTopologyMap(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeCount, reconciler.nodeCount, "[%s]: failed to get correct node count", tc.label)
 
-		err = reconciler.Client.Status().Update(context.TODO(), tc.storageCluster)
+		err = reconciler.Status().Update(context.TODO(), tc.storageCluster)
 		assert.NoError(t, err)
 
 		actual := &ocsv1.StorageCluster{}
-		err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
+		err = reconciler.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeTopologyMap, actual.Status.NodeTopologies, "[%s]: failed to get correct nodeToplogies", tc.label)
 	}
@@ -328,9 +328,10 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 	for _, tc := range testcases {
 		mockStorageCluster.DeepCopyInto(tc.storageCluster)
 		mockNodeList.DeepCopyInto(tc.nodeList)
-		if tc.zoneCount == 2 {
+		switch tc.zoneCount {
+		case 2:
 			tc.nodeList.Items[2].Labels[zoneTopologyLabel] = "zone2"
-		} else if tc.zoneCount == 1 {
+		case 1:
 			tc.nodeList.Items[1].Labels[zoneTopologyLabel] = "zone1"
 			tc.nodeList.Items[2].Labels[zoneTopologyLabel] = "zone1"
 		}
@@ -339,11 +340,11 @@ func TestNodeTopologyMapOnDifferentAZ(t *testing.T) {
 		err := reconciler.reconcileNodeTopologyMap(tc.storageCluster)
 		assert.NoError(t, err)
 
-		err = reconciler.Client.Status().Update(context.TODO(), tc.storageCluster)
+		err = reconciler.Status().Update(context.TODO(), tc.storageCluster)
 		assert.NoError(t, err)
 
 		actual := &ocsv1.StorageCluster{}
-		err = reconciler.Client.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
+		err = reconciler.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
 		assert.NoError(t, err)
 		assert.Equalf(t, tc.expectedNodeTopologyMap, actual.Status.NodeTopologies, "[%s]: failed to get correct nodeToplogies", tc.label)
 
@@ -732,7 +733,7 @@ func TestEnsureNodeRack(t *testing.T) {
 		assert.NoError(t, err)
 
 		actualNodeList := &corev1.NodeList{}
-		err = reconciler.Client.List(context.TODO(), actualNodeList)
+		err = reconciler.List(context.TODO(), actualNodeList)
 		assert.NoError(t, err)
 		for i, node := range actualNodeList.Items {
 			for key, value := range node.Labels {

@@ -31,7 +31,7 @@ func (obj *rookCephCsvHostNetwork) ensureCreated(r *StorageClusterReconciler, in
 	}
 
 	// List the ClusterServiceVersion for rook-ceph-operator
-	err := r.Client.List(r.ctx, csvList, listOpts)
+	err := r.List(r.ctx, csvList, listOpts)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -67,7 +67,7 @@ func (obj *rookCephCsvHostNetwork) ensureCreated(r *StorageClusterReconciler, in
 		deployment.Spec.Template.Spec.DNSPolicy = corev1.DNSClusterFirst
 	}
 
-	if err := r.Client.Update(r.ctx, rookCSV); err != nil {
+	if err := r.Update(r.ctx, rookCSV); err != nil {
 		r.Log.Error(err, "Failed to update rook-ceph-operator CSV.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		return reconcile.Result{}, err
 	}

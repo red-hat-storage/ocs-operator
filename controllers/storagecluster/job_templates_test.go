@@ -46,7 +46,7 @@ func TestJobTemplates(t *testing.T) {
 		}
 
 		request.Name = c.jobTemplateName
-		err := reconciler.Client.Get(context.TODO(), request.NamespacedName, template)
+		err := reconciler.Get(context.TODO(), request.NamespacedName, template)
 
 		assert.NoError(t, err)
 		for i, param := range c.templateParameters {
@@ -64,7 +64,7 @@ func TestJobTemplates(t *testing.T) {
 	}
 
 	actualTemplateList := &openshiftv1.TemplateList{}
-	err := reconciler.Client.List(context.TODO(), actualTemplateList)
+	err := reconciler.List(context.TODO(), actualTemplateList)
 	assert.NoError(t, err)
 	assert.Equal(t, len(cases), len(actualTemplateList.Items))
 

@@ -28,7 +28,7 @@ func TestCephNFS(t *testing.T) {
 		var objects []client.Object
 		t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, objects, nil)
 		if c.createRuntimeObjects {
-			objects = createUpdateRuntimeObjects(t) //nolint:staticcheck //no need to use objects as they update in runtime
+			_ = createUpdateRuntimeObjects(t)
 		}
 		assertCephNFS(t, reconciler, cr, request)
 		assertCephNFSService(t, reconciler, cr, request)
@@ -42,7 +42,7 @@ func assertCephNFS(t *testing.T, reconciler *StorageClusterReconciler, cr *api.S
 		},
 	}
 	request.Name = "ocsinit-cephnfs"
-	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actualNfs)
+	err := reconciler.Get(context.TODO(), request.NamespacedName, actualNfs)
 	assert.NoError(t, err)
 
 	expectedAf, err := reconciler.newCephNFSInstances(cr)
@@ -50,7 +50,7 @@ func assertCephNFS(t *testing.T, reconciler *StorageClusterReconciler, cr *api.S
 
 	assert.Equal(t, len(expectedAf[0].OwnerReferences), 1)
 
-	assert.Equal(t, expectedAf[0].ObjectMeta.Name, actualNfs.ObjectMeta.Name)
+	assert.Equal(t, expectedAf[0].Name, actualNfs.Name)
 	assert.Equal(t, expectedAf[0].Spec, actualNfs.Spec)
 }
 
@@ -61,7 +61,7 @@ func assertCephNFSService(t *testing.T, reconciler *StorageClusterReconciler, cr
 		},
 	}
 	request.Name = "ocsinit-cephnfs-service"
-	err := reconciler.Client.Get(context.TODO(), request.NamespacedName, actualNFSService)
+	err := reconciler.Get(context.TODO(), request.NamespacedName, actualNFSService)
 	assert.NoError(t, err)
 
 	expectedAf, err := reconciler.newNFSServices(cr)
@@ -69,7 +69,7 @@ func assertCephNFSService(t *testing.T, reconciler *StorageClusterReconciler, cr
 
 	assert.Equal(t, len(expectedAf[0].OwnerReferences), 1)
 
-	assert.Equal(t, expectedAf[0].ObjectMeta.Name, actualNFSService.ObjectMeta.Name)
+	assert.Equal(t, expectedAf[0].Name, actualNFSService.Name)
 	assert.Equal(t, expectedAf[0].Spec, actualNFSService.Spec)
 }
 

@@ -45,21 +45,19 @@ const (
 
 // deleteNodeAffinityKeyFromNodes deletes the default NodeAffinityKey from the OCS nodes
 // This is not used, yet.
-//
-// nolint:unused
 func (r *StorageClusterReconciler) deleteNodeAffinityKeyFromNodes(sc *ocsv1.StorageCluster) (err error) {
 
 	// We should delete the label only when the StorageCluster is using the default NodeAffinityKey
 	if sc.Spec.LabelSelector == nil {
 		nodes, err := r.getStorageClusterEligibleNodes(sc)
 		if err != nil {
-			r.Log.Error(err, "Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name)) //nolint:gosimple
+			r.Log.Error(err, "Uninstall: unable to obtain the list of nodes eligible for the Storage Cluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
 			return nil
 		}
 		for _, node := range nodes.Items {
 			r.Log.Info("Uninstall: Deleting OCS label from Node.", "Node", node.Name)
 			updatedNode := node.DeepCopy()
-			delete(updatedNode.ObjectMeta.Labels, defaults.NodeAffinityKey)
+			delete(updatedNode.Labels, defaults.NodeAffinityKey)
 
 			oldJSON, err := json.Marshal(node)
 			if err != nil {
@@ -79,7 +77,7 @@ func (r *StorageClusterReconciler) deleteNodeAffinityKeyFromNodes(sc *ocsv1.Stor
 				continue
 			}
 
-			err = r.Client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
+			err = r.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
 			if err != nil {
 				r.Log.Error(err, "Uninstall: Unable to remove the NodeAffinityKey from the Node.", "Node", node.Name)
 				continue
@@ -96,7 +94,7 @@ func (r *StorageClusterReconciler) deleteNodeTaint(sc *ocsv1.StorageCluster) (er
 
 	nodes, err := r.getStorageClusterEligibleNodes(sc)
 	if err != nil {
-		r.Log.Error(err, "Uninstall: Unable to obtain the list of nodes eligible for the Storage Cluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name)) //nolint:gosimple
+		r.Log.Error(err, "Uninstall: unable to obtain the list of nodes eligible for the Storage Cluster.", "StorageCluster", klog.KRef(sc.Namespace, sc.Name))
 		return nil
 	}
 	for _, node := range nodes.Items {
@@ -128,7 +126,7 @@ func (r *StorageClusterReconciler) deleteNodeTaint(sc *ocsv1.StorageCluster) (er
 			continue
 		}
 
-		err = r.Client.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
+		err = r.Patch(context.TODO(), &node, client.RawPatch(types.StrategicMergePatchType, patch))
 		if err != nil {
 			r.Log.Error(err, "Uninstall: Unable to remove the NodeTolerationKey from the Node.", "Node", node.Name)
 			continue
@@ -144,7 +142,7 @@ func (r *StorageClusterReconciler) setRookUninstallandCleanupPolicy(instance *oc
 
 	var updateRequired bool
 
-	if v, found := instance.ObjectMeta.Annotations[CleanupPolicyAnnotation]; found {
+	if v, found := instance.Annotations[CleanupPolicyAnnotation]; found {
 		if (v == string(CleanupPolicyDelete)) && (cephCluster.Spec.CleanupPolicy.Confirmation != cephv1.DeleteDataDirOnHostsConfirmation) {
 			cephCluster.Spec.CleanupPolicy.Confirmation = cephv1.DeleteDataDirOnHostsConfirmation
 			updateRequired = true
@@ -154,7 +152,7 @@ func (r *StorageClusterReconciler) setRookUninstallandCleanupPolicy(instance *oc
 		}
 	}
 
-	if v, found := instance.ObjectMeta.Annotations[UninstallModeAnnotation]; found {
+	if v, found := instance.Annotations[UninstallModeAnnotation]; found {
 		if (v == string(UninstallModeForced)) && (!cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes) {
 			cephCluster.Spec.CleanupPolicy.AllowUninstallWithVolumes = true
 			updateRequired = true
@@ -165,9 +163,9 @@ func (r *StorageClusterReconciler) setRookUninstallandCleanupPolicy(instance *oc
 	}
 
 	if updateRequired {
-		err := r.Client.Update(context.TODO(), cephCluster)
+		err := r.Update(context.TODO(), cephCluster)
 		if err != nil {
-			return fmt.Errorf("Uninstall: Unable to update the cephCluster to set uninstall mode and/or cleanup policy: %v", err)
+			return fmt.Errorf("uninstall: unable to update the cephCluster to set uninstall mode and/or cleanup policy: %v", err)
 		}
 		r.Log.Info("Uninstall: CephCluster uninstall mode and cleanup policy has been set.", "CephCluser", klog.KRef(cephCluster.Namespace, cephCluster.Name))
 	}
@@ -187,13 +185,13 @@ func (r *StorageClusterReconciler) setNoobaaUninstallMode(sc *ocsv1.StorageClust
 	noobaa := &nbv1.NooBaa{}
 	var updateRequired bool
 
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
+	err := r.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			r.Log.Info("Uninstall: NooBaa not found, can't set uninstall mode.", "Noobaa", klog.KRef(sc.Namespace, "noobaa"))
 			return nil
 		}
-		return fmt.Errorf("Uninstall: Error while getting NooBaa %v", err)
+		return fmt.Errorf("uninstall: error while getting NooBaa %v", err)
 	}
 
 	// Explicitly allow deletion of NooBaa CR
@@ -204,7 +202,7 @@ func (r *StorageClusterReconciler) setNoobaaUninstallMode(sc *ocsv1.StorageClust
 
 	// The CleanupPolicy attribute in the Noobaa spec decides the uninstall mode.
 	// Unlike the Rook CleanupPolicy which decides whether the data needs to be erased.
-	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; found {
+	if v, found := sc.Annotations[UninstallModeAnnotation]; found {
 		if (v == string(UninstallModeForced)) && (noobaa.Spec.CleanupPolicy.Confirmation != nbv1.DeleteOBCConfirmation) {
 			noobaa.Spec.CleanupPolicy.Confirmation = nbv1.DeleteOBCConfirmation
 			updateRequired = true
@@ -215,9 +213,9 @@ func (r *StorageClusterReconciler) setNoobaaUninstallMode(sc *ocsv1.StorageClust
 	}
 
 	if updateRequired {
-		err = r.Client.Update(context.TODO(), noobaa)
+		err = r.Update(context.TODO(), noobaa)
 		if err != nil {
-			return fmt.Errorf("Uninstall: Unable to update NooBaa uninstall mode: %v", err)
+			return fmt.Errorf("uninstall: unable to update NooBaa uninstall mode: %v", err)
 		}
 		r.Log.Info("Uninstall: NooBaa uninstall mode has been set.", "NooBaa", klog.KRef(noobaa.Namespace, noobaa.Name))
 	}
@@ -230,7 +228,7 @@ func (r *StorageClusterReconciler) setNoobaaUninstallMode(sc *ocsv1.StorageClust
 func (r *StorageClusterReconciler) checkAndSetUninstallAnnotations(sc *ocsv1.StorageCluster) bool {
 	var updateRequired bool
 
-	if v, found := sc.ObjectMeta.Annotations[UninstallModeAnnotation]; !found {
+	if v, found := sc.Annotations[UninstallModeAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(UninstallModeAnnotation), string(UninstallModeGraceful))
 		r.Log.Info("Uninstall: Setting uninstall mode annotation to default.", "UninstallMode", UninstallModeGraceful)
 		updateRequired = true
@@ -242,7 +240,7 @@ func (r *StorageClusterReconciler) checkAndSetUninstallAnnotations(sc *ocsv1.Sto
 		updateRequired = true
 	}
 
-	if v, found := sc.ObjectMeta.Annotations[CleanupPolicyAnnotation]; !found {
+	if v, found := sc.Annotations[CleanupPolicyAnnotation]; !found {
 		metav1.SetMetaDataAnnotation(&sc.ObjectMeta, string(CleanupPolicyAnnotation), string(CleanupPolicyDelete))
 		r.Log.Info("Uninstall: Setting uninstall cleanup policy annotation to default.", "CleanupPolicy", CleanupPolicyDelete)
 		updateRequired = true
@@ -264,14 +262,14 @@ func (r *StorageClusterReconciler) checkAndSetUninstallAnnotations(sc *ocsv1.Sto
 func (r *StorageClusterReconciler) verifyNoStorageConsumerExist(instance *ocsv1.StorageCluster) error {
 
 	storageConsumers := &ocsv1alpha1.StorageConsumerList{}
-	err := r.Client.List(context.TODO(), storageConsumers, &client.ListOptions{Namespace: instance.Namespace})
+	err := r.List(context.TODO(), storageConsumers, &client.ListOptions{Namespace: instance.Namespace})
 	if err != nil {
 		return err
 	}
 
 	if len(storageConsumers.Items) != 0 {
-		err = fmt.Errorf("Failed to cleanup provider resources. StorageConsumers are present in the %s namespace. "+
-			"Offboard all consumer clusters for the provider cleanup to proceed", instance.Namespace)
+		err = fmt.Errorf("failed to cleanup provider resources. StorageConsumers are present in the %s namespace. "+
+			"offboard all consumer clusters for the provider cleanup to proceed", instance.Namespace)
 		r.recorder.ReportIfNotPresent(instance, corev1.EventTypeWarning, "ProviderCleanup", err.Error())
 		r.Log.Error(err, "Waiting for all consumer clusters to offboard.")
 		return err
@@ -285,7 +283,7 @@ func (r *StorageClusterReconciler) verifyNoStorageConsumerExist(instance *ocsv1.
 func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	cephCluster := &cephv1.CephCluster{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: util.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
+	err := r.Get(context.TODO(), types.NamespacedName{Name: util.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, cephCluster)
 	if err != nil && !errors.IsNotFound(err) {
 		return reconcile.Result{}, err
 	}
@@ -295,7 +293,7 @@ func (r *StorageClusterReconciler) deleteResources(sc *ocsv1.StorageCluster) (re
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-		err = r.Client.Delete(context.TODO(), cephCluster)
+		err = r.Delete(context.TODO(), cephCluster)
 		if err != nil && !errors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}

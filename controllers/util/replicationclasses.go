@@ -61,7 +61,7 @@ func VolumeReplicationClassFromTemplate(
 		AddLabel(vrc, ramenDRStorageIDLabelKey, rbdStorageId)
 		AddLabel(vrc, ramenDRReplicationIDLabelKey, replicationID)
 	default:
-		return nil, UnsupportedProvisioner
+		return nil, ErrUnsupportedProvisioner
 	}
 	return vrc, nil
 }

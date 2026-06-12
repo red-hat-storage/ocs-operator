@@ -63,7 +63,7 @@ func getTestParams(mockNamespace bool, t *testing.T) (v1.OCSInitialization, reco
 	//Therefore we cannot use the fake object that we provided as input to the
 	//the fake client and should use the object obtained from the Get
 	//operation.
-	_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &ocs)
+	_ = reconciler.Get(context.TODO(), request.NamespacedName, &ocs)
 
 	return ocs, request, reconciler
 }
@@ -199,12 +199,12 @@ func TestNonWatchedResourceFound(t *testing.T) {
 				Namespace: tc.namespace,
 			},
 		}
-		err := reconciler.Client.Create(ctx, &ocs)
+		err := reconciler.Create(ctx, &ocs)
 		assert.NoErrorf(t, err, "[%s]: failed CREATE of non watched resource", tc.label)
 		_, err = reconciler.Reconcile(context.TODO(), request)
 		assert.NoErrorf(t, err, "[%s]: failed to reconcile with non watched resource", tc.label)
 		actual := &v1.OCSInitialization{}
-		err = reconciler.Client.Get(ctx, request.NamespacedName, actual)
+		err = reconciler.Get(ctx, request.NamespacedName, actual)
 		assert.NoErrorf(t, err, "[%s]: failed GET of actual resource", tc.label)
 		assert.Equalf(t, statusutil.PhaseIgnored, actual.Status.Phase, "[%s]: failed to update phase of non watched resource that already exists OCS:\n%v", tc.label, actual)
 	}
@@ -231,16 +231,16 @@ func TestCreateWatchedResource(t *testing.T) {
 		ctx := context.TODO()
 		ocs, request, reconciler := getTestParams(false, t)
 		if !tc.alreadyCreated {
-			err := reconciler.Client.Delete(ctx, &ocs)
+			err := reconciler.Delete(ctx, &ocs)
 			assert.NoError(t, err)
 
-			err = reconciler.Client.Get(ctx, request.NamespacedName, &ocs)
+			err = reconciler.Get(ctx, request.NamespacedName, &ocs)
 			assert.Error(t, err)
 		}
 		_, err := reconciler.Reconcile(ctx, request)
 		assert.NoError(t, err)
 		obj := v1.OCSInitialization{}
-		_ = reconciler.Client.Get(ctx, request.NamespacedName, &obj)
+		_ = reconciler.Get(ctx, request.NamespacedName, &obj)
 		assert.Equalf(t, obj.Name, request.Name, "[%s]: failed to create ocsInit resource with correct name", tc.label)
 		assert.Equalf(t, obj.Namespace, request.Namespace, "[%s]: failed to create ocsInit resource with correct namespace", tc.label)
 		platform.UnsetFakePlatformInstanceForTesting()
@@ -268,18 +268,18 @@ func TestCreateSCCs(t *testing.T) {
 
 		if tc.sccCreated {
 			ocs.Status.SCCsCreated = true
-			err := reconciler.Client.Status().Update(context.TODO(), &ocs)
+			err := reconciler.Status().Update(context.TODO(), &ocs)
 			assert.NoErrorf(t, err, "[%s]: failed to update ocsInit status", tc.label)
 		}
 
 		obj := v1.OCSInitialization{}
-		err := reconciler.Client.Get(context.TODO(), request.NamespacedName, &obj)
+		err := reconciler.Get(context.TODO(), request.NamespacedName, &obj)
 		assert.NoErrorf(t, err, "[%s]: failed to get ocsInit", tc.label)
 		assert.Equal(t, tc.sccCreated, obj.Status.SCCsCreated, "[%s] failed to set the pre condition for the test", tc.label)
 
 		_, err = reconciler.Reconcile(context.TODO(), request)
 		assert.NoErrorf(t, err, "[%s]: failed to reconcile ocsInit", tc.label)
-		_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &obj)
+		_ = reconciler.Get(context.TODO(), request.NamespacedName, &obj)
 		for cType, status := range successfulReconcileConditions {
 			found := assertCondition(obj, cType, status)
 			if !found {
@@ -296,7 +296,7 @@ func TestReconcileCompleteConditions(t *testing.T) {
 	_, err := reconciler.Reconcile(context.TODO(), request)
 	assert.NoError(t, err)
 	obj := v1.OCSInitialization{}
-	_ = reconciler.Client.Get(context.TODO(), request.NamespacedName, &obj)
+	_ = reconciler.Get(context.TODO(), request.NamespacedName, &obj)
 	assert.NotEmpty(t, obj.Status.Conditions)
 	assert.Len(t, obj.Status.Conditions, 5)
 	for cType, status := range successfulReconcileConditions {

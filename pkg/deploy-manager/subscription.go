@@ -9,7 +9,6 @@ import (
 	"time"
 
 	operatorv1 "github.com/operator-framework/api/pkg/operators/v1"
-	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	operatorv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/controller/install"
 	appsv1 "k8s.io/api/apps/v1"
@@ -59,7 +58,7 @@ func (t *DeployManager) deployClusterObjects(co *clusterObjects) error {
 		if len(operatorGroups.Items) > 1 {
 			// There should be only one operatorgroup in a namespace.
 			// The system is already misconfigured - error out.
-			return fmt.Errorf("More than one operatorgroup detected in namespace %v - aborting", operatorGroup.Namespace)
+			return fmt.Errorf("more than one operatorgroup detected in namespace %v - aborting", operatorGroup.Namespace)
 		}
 		if len(operatorGroups.Items) > 0 {
 			// There should be only one operatorgroup in a namespace.
@@ -167,66 +166,66 @@ func (t *DeployManager) generateClusterObjects(ocsCatalogImage string, subscript
 			},
 		},
 	}
-	ocsCatalog.SetGroupVersionKind(schema.GroupVersionKind{Group: v1alpha1.SchemeGroupVersion.Group, Kind: "CatalogSource", Version: v1alpha1.SchemeGroupVersion.Version})
+	ocsCatalog.SetGroupVersionKind(schema.GroupVersionKind{Group: operatorv1alpha1.SchemeGroupVersion.Group, Kind: "CatalogSource", Version: operatorv1alpha1.SchemeGroupVersion.Version})
 
 	co.catalogSources = append(co.catalogSources, ocsCatalog)
 
 	// Subscriptions
-	ocsSubscription := v1alpha1.Subscription{
+	ocsSubscription := operatorv1alpha1.Subscription{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ocs-subscription",
 			Namespace: InstallNamespace,
 		},
-		Spec: &v1alpha1.SubscriptionSpec{
+		Spec: &operatorv1alpha1.SubscriptionSpec{
 			Channel:                subscriptionChannel,
 			Package:                "ocs-operator",
 			CatalogSource:          "ocs-catalogsource",
 			CatalogSourceNamespace: marketplaceNamespace,
 		},
 	}
-	ocsSubscription.SetGroupVersionKind(schema.GroupVersionKind{Group: v1alpha1.SchemeGroupVersion.Group, Kind: "Subscription", Version: v1alpha1.SchemeGroupVersion.Version})
+	ocsSubscription.SetGroupVersionKind(schema.GroupVersionKind{Group: operatorv1alpha1.SchemeGroupVersion.Group, Kind: "Subscription", Version: operatorv1alpha1.SchemeGroupVersion.Version})
 
-	ocsClientSubscription := v1alpha1.Subscription{
+	ocsClientSubscription := operatorv1alpha1.Subscription{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ocs-client-subscription",
 			Namespace: InstallNamespace,
 		},
-		Spec: &v1alpha1.SubscriptionSpec{
+		Spec: &operatorv1alpha1.SubscriptionSpec{
 			Channel:                subscriptionChannel,
 			Package:                "ocs-client-operator",
 			CatalogSource:          "ocs-catalogsource",
 			CatalogSourceNamespace: marketplaceNamespace,
 		},
 	}
-	ocsClientSubscription.SetGroupVersionKind(schema.GroupVersionKind{Group: v1alpha1.SchemeGroupVersion.Group, Kind: "Subscription", Version: v1alpha1.SchemeGroupVersion.Version})
+	ocsClientSubscription.SetGroupVersionKind(schema.GroupVersionKind{Group: operatorv1alpha1.SchemeGroupVersion.Group, Kind: "Subscription", Version: operatorv1alpha1.SchemeGroupVersion.Version})
 
-	rookSubscription := v1alpha1.Subscription{
+	rookSubscription := operatorv1alpha1.Subscription{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rook-subscription",
 			Namespace: InstallNamespace,
 		},
-		Spec: &v1alpha1.SubscriptionSpec{
+		Spec: &operatorv1alpha1.SubscriptionSpec{
 			Channel:                subscriptionChannel,
 			Package:                "rook-ceph-operator",
 			CatalogSource:          "ocs-catalogsource",
 			CatalogSourceNamespace: marketplaceNamespace,
 		},
 	}
-	rookSubscription.SetGroupVersionKind(schema.GroupVersionKind{Group: v1alpha1.SchemeGroupVersion.Group, Kind: "Subscription", Version: v1alpha1.SchemeGroupVersion.Version})
+	rookSubscription.SetGroupVersionKind(schema.GroupVersionKind{Group: operatorv1alpha1.SchemeGroupVersion.Group, Kind: "Subscription", Version: operatorv1alpha1.SchemeGroupVersion.Version})
 
-	noobaSubscription := v1alpha1.Subscription{
+	noobaSubscription := operatorv1alpha1.Subscription{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "nooba-subscription",
 			Namespace: InstallNamespace,
 		},
-		Spec: &v1alpha1.SubscriptionSpec{
+		Spec: &operatorv1alpha1.SubscriptionSpec{
 			Channel:                subscriptionChannel,
 			Package:                "noobaa-operator",
 			CatalogSource:          "ocs-catalogsource",
 			CatalogSourceNamespace: marketplaceNamespace,
 		},
 	}
-	noobaSubscription.SetGroupVersionKind(schema.GroupVersionKind{Group: v1alpha1.SchemeGroupVersion.Group, Kind: "Subscription", Version: v1alpha1.SchemeGroupVersion.Version})
+	noobaSubscription.SetGroupVersionKind(schema.GroupVersionKind{Group: operatorv1alpha1.SchemeGroupVersion.Group, Kind: "Subscription", Version: operatorv1alpha1.SchemeGroupVersion.Version})
 
 	co.subscriptions = append(co.subscriptions, ocsSubscription, ocsClientSubscription, rookSubscription, noobaSubscription)
 
@@ -259,8 +258,8 @@ func marshallObject(obj interface{}, writer io.Writer) error {
 
 	// fix double quoted strings by removing unneeded single quotes...
 	s := string(yamlBytes)
-	s = strings.Replace(s, " '\"", " \"", -1)
-	s = strings.Replace(s, "\"'\n", "\"\n", -1)
+	s = strings.ReplaceAll(s, " '\"", " \"")
+	s = strings.ReplaceAll(s, "\"'\n", "\"\n")
 
 	yamlBytes = []byte(s)
 
@@ -568,7 +567,7 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 				}
 			}
 		}
-		lastReason = fmt.Sprintf("waiting on csv to be created and installed") //nolint:gosimple
+		lastReason = "waiting on csv to be created and installed"
 		return false, nil
 	})
 
@@ -580,7 +579,7 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 }
 
 // GetCsv retrieves the csv named ocs-operator
-func (t *DeployManager) GetCsv() (v1alpha1.ClusterServiceVersion, error) {
+func (t *DeployManager) GetCsv() (operatorv1alpha1.ClusterServiceVersion, error) {
 	csvName := "ocs-operator"
 	csv := operatorv1alpha1.ClusterServiceVersion{}
 	csvs := &operatorv1alpha1.ClusterServiceVersionList{}
@@ -606,7 +605,7 @@ func (t *DeployManager) VerifyComponentOperators() error {
 		return err
 	}
 
-	strategyDetailsDeployment, _ := strategy.(*v1alpha1.StrategyDetailsDeployment)
+	strategyDetailsDeployment, _ := strategy.(*operatorv1alpha1.StrategyDetailsDeployment)
 	for _, deployment := range strategyDetailsDeployment.DeploymentSpecs {
 		image := deployment.Spec.Template.Spec.Containers[0].Image
 		foundImage, err := t.GetDeploymentImage(deployment.Name)
@@ -614,7 +613,7 @@ func (t *DeployManager) VerifyComponentOperators() error {
 			return err
 		}
 		if image != foundImage {
-			return fmt.Errorf("Deployment: %s Expected image: %s Found image  %s", deployment.Name, image, foundImage)
+			return fmt.Errorf("deployment: %s expected image: %s found image %s", deployment.Name, image, foundImage)
 		}
 	}
 	return nil
