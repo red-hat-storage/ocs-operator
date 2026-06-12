@@ -1,8 +1,8 @@
 module github.com/red-hat-storage/ocs-operator/services/provider/api/v4
 
-go 1.24.6
+go 1.25.9
 
-toolchain go1.24.10
+toolchain go1.25.11
 
 require (
 	google.golang.org/grpc v1.77.0
