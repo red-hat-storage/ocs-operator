@@ -85,8 +85,7 @@ func setFailureDomain(sc *ocsv1.StorageCluster) {
 
 	if statusutil.IsSingleNodeDeployment() {
 		sc.Status.FailureDomain = "osd"
-		// Since nodes do not have a label for "osd" as a failure domain, setting it to "host".
-		sc.Status.FailureDomainKey, sc.Status.FailureDomainValues = sc.Status.NodeTopologies.GetKeyValues("host")
+		sc.Status.FailureDomainKey, sc.Status.FailureDomainValues = sc.Status.NodeTopologies.GetKeyValues(sc.Status.FailureDomain)
 		return
 	}
 

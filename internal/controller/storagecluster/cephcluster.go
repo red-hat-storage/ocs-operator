@@ -755,6 +755,11 @@ func getCephPoolReplicatedSize(sc *ocsv1.StorageCluster) uint {
 
 // getMinimumNodes returns the minimum number of nodes that are required for the Storage Cluster of various configurations
 func getMinimumNodes(sc *ocsv1.StorageCluster, isTnfCluster bool) int {
+	// For single-node deployments, only 1 node is required regardless of replica count
+	// This allows multiple OSDs on a single node with failureDomain: osd
+	if util.IsSingleNodeDeployment() {
+		return 1
+	}
 	// Case 1: When replicasPerFailureDomain is 1.
 	// A node is the smallest failure domain that is possible. We definitely
 	// want the devices in the same device set to be in different failure

@@ -71,6 +71,9 @@ func (m *NodeTopologyMap) GetKeyValues(topologyKey string) (string, []string) {
 		"rack": "topology.rook.io/rack",
 		"host": corev1.LabelHostname,
 		"zone": corev1.LabelZoneFailureDomainStable,
+
+		// osd failure domain uses host label, used during single node dev/test
+		"osd": corev1.LabelHostname,
 	}
 
 	// Get the specific label based on the topologyKey
