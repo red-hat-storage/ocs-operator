@@ -1,6 +1,6 @@
 module github.com/red-hat-storage/ocs-operator/metrics/v4
 
-go 1.21
+go 1.21.9
 
 replace github.com/red-hat-storage/ocs-operator/api/v4 => ../api
 
