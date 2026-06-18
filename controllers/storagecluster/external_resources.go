@@ -440,7 +440,7 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		}
 	}
 
-	err = r.enableCsiDrivers(availableSCCs)
+	err = r.configureCsiClient(availableSCCs)
 	if err != nil {
 		r.Log.Error(err, "Failed to enable CSI drivers.", "StorageCluster", klog.KRef(instance.Namespace, instance.Name))
 		return err
@@ -707,7 +707,7 @@ func getTopologyConstrainedPoolsExternalMode(data map[string]string) (string, er
 	return string(topologyConstrainedPoolsStr), nil
 }
 
-func (r *StorageClusterReconciler) enableCsiDrivers(availableSCCs []StorageClassConfiguration) error {
+func (r *StorageClusterReconciler) configureCsiClient(availableSCCs []StorageClassConfiguration) error {
 	clientConfig := &corev1.ConfigMap{}
 	clientConfig.Name = ocsClientConfigMapName
 	clientConfig.Namespace = r.OperatorNamespace
@@ -721,6 +721,7 @@ func (r *StorageClusterReconciler) enableCsiDrivers(availableSCCs []StorageClass
 	if clientConfig.Data == nil {
 		clientConfig.Data = map[string]string{}
 	}
+	clientConfig.Data[disableInstallPlanAutoApprovalKey] = strconv.FormatBool(true)
 
 	for _, scc := range availableSCCs {
 		switch scc.storageClass.Provisioner {
