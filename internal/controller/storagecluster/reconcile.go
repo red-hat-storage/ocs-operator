@@ -523,6 +523,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&ocsCephFilesystems{},
 				&ocsCephNFS{},
 				&ocsCephNFSService{},
+				&ocsCephNVMeOF{},
 				&ocsVaultAgent{},
 				&ocsCephObjectStores{tlsProfile},
 				&ocsCephObjectStoreUsers{},

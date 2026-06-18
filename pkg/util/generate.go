@@ -46,6 +46,18 @@ func GenerateNameForCephNFSBlockPool(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-builtin-pool", GenerateNameForCephNFS(initData))
 }
 
+func GenerateNameForNVMeOFBlockPool(storageCluster *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-nvmeof", storageCluster.Name)
+}
+
+func GenerateNameForCephNVMeOFGateway(storageCluster *ocsv1.StorageCluster) string {
+	return storageCluster.Name
+}
+
+func GenerateNameForNVMeOFStorageClass(storageCluster *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-ceph-nvmeof", storageCluster.Name)
+}
+
 func GenerateNameForCephFilesystem(storageClusterName string) string {
 	return fmt.Sprintf("%s-cephfilesystem", storageClusterName)
 }

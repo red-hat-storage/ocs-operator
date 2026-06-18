@@ -30,15 +30,19 @@ const (
 	csiCephFsNodeCephUserKey        = "csi-cephfs-node-ceph-user"
 	csiNfsProvisionerCephUserKey    = "csi-nfs-provisioner-ceph-user"
 	csiNfsNodeCephUserKey           = "csi-nfs-node-ceph-user"
+	csiNvmeofProvisionerCephUserKey = "csi-nvmeof-provisioner-ceph-user"
+	csiNvmeofNodeCephUserKey        = "csi-nvmeof-node-ceph-user"
 	rbdClientProfileKey             = "csiop-rbd-client-profile"
 	cephFsClientProfileKey          = "csiop-cephfs-client-profile"
 	nfsClientProfileKey             = "csiop-nfs-client-profile"
+	nvmeofClientProfileKey          = "csiop-nvmeof-client-profile"
 )
 
 type AvailableServices struct {
 	Rbd    bool
 	CephFs bool
 	Nfs    bool
+	NVMeOF bool
 	Mcg    bool
 }
 
@@ -53,9 +57,12 @@ type StorageConsumerResources interface {
 	GetCsiCephFsNodeCephUserName() string
 	GetCsiNfsProvisionerCephUserName() string
 	GetCsiNfsNodeCephUserName() string
+	GetCsiNvmeofProvisionerCephUserName() string
+	GetCsiNvmeofNodeCephUserName() string
 	GetRbdClientProfileName() string
 	GetCephFsClientProfileName() string
 	GetNfsClientProfileName() string
+	GetNvmeofClientProfileName() string
 
 	// Setters
 	SetRbdRadosNamespaceName(string)
@@ -67,9 +74,12 @@ type StorageConsumerResources interface {
 	SetCsiCephFsNodeCephUserName(string)
 	SetCsiNfsProvisionerCephUserName(string)
 	SetCsiNfsNodeCephUserName(string)
+	SetCsiNvmeofProvisionerCephUserName(string)
+	SetCsiNvmeofNodeCephUserName(string)
 	SetRbdClientProfileName(string)
 	SetCephFsClientProfileName(string)
 	SetNfsClientProfileName(string)
+	SetNvmeofClientProfileName(string)
 
 	ReplaceRbdRadosNamespaceName(string)
 	ReplaceSubVolumeGroupName(string)
@@ -80,9 +90,12 @@ type StorageConsumerResources interface {
 	ReplaceCsiCephFsNodeCephUserName(string)
 	ReplaceCsiNfsProvisionerCephUserName(string)
 	ReplaceCsiNfsNodeCephUserName(string)
+	ReplaceCsiNvmeofProvisionerCephUserName(string)
+	ReplaceCsiNvmeofNodeCephUserName(string)
 	ReplaceRbdClientProfileName(string)
 	ReplaceCephFsClientProfileName(string)
 	ReplaceNfsClientProfileName(string)
+	ReplaceNvmeofClientProfileName(string)
 }
 
 type storageConsumerResourceMapWrapper struct {
@@ -130,6 +143,14 @@ func (wrapper storageConsumerResourceMapWrapper) GetCsiNfsNodeCephUserName() str
 	return wrapper.data[csiNfsNodeCephUserKey]
 }
 
+func (wrapper storageConsumerResourceMapWrapper) GetCsiNvmeofProvisionerCephUserName() string {
+	return wrapper.data[csiNvmeofProvisionerCephUserKey]
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetCsiNvmeofNodeCephUserName() string {
+	return wrapper.data[csiNvmeofNodeCephUserKey]
+}
+
 func (wrapper storageConsumerResourceMapWrapper) GetRbdClientProfileName() string {
 	return wrapper.data[rbdClientProfileKey]
 }
@@ -140,6 +161,10 @@ func (wrapper storageConsumerResourceMapWrapper) GetCephFsClientProfileName() st
 
 func (wrapper storageConsumerResourceMapWrapper) GetNfsClientProfileName() string {
 	return wrapper.data[nfsClientProfileKey]
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetNvmeofClientProfileName() string {
+	return wrapper.data[nvmeofClientProfileKey]
 }
 
 // Setters
@@ -179,6 +204,14 @@ func (wrapper storageConsumerResourceMapWrapper) SetCsiNfsNodeCephUserName(name 
 	wrapper.data[csiNfsNodeCephUserKey] = name
 }
 
+func (wrapper storageConsumerResourceMapWrapper) SetCsiNvmeofProvisionerCephUserName(name string) {
+	wrapper.data[csiNvmeofProvisionerCephUserKey] = name
+}
+
+func (wrapper storageConsumerResourceMapWrapper) SetCsiNvmeofNodeCephUserName(name string) {
+	wrapper.data[csiNvmeofNodeCephUserKey] = name
+}
+
 func (wrapper storageConsumerResourceMapWrapper) SetRbdClientProfileName(name string) {
 	wrapper.data[rbdClientProfileKey] = name
 }
@@ -189,6 +222,10 @@ func (wrapper storageConsumerResourceMapWrapper) SetCephFsClientProfileName(name
 
 func (wrapper storageConsumerResourceMapWrapper) SetNfsClientProfileName(name string) {
 	wrapper.data[nfsClientProfileKey] = name
+}
+
+func (wrapper storageConsumerResourceMapWrapper) SetNvmeofClientProfileName(name string) {
+	wrapper.data[nvmeofClientProfileKey] = name
 }
 
 func (wrapper storageConsumerResourceMapWrapper) replaceIfExist(key, value string) {
@@ -233,6 +270,14 @@ func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiNfsNodeCephUserName(n
 	wrapper.replaceIfExist(csiNfsNodeCephUserKey, name)
 }
 
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiNvmeofProvisionerCephUserName(name string) {
+	wrapper.replaceIfExist(csiNvmeofProvisionerCephUserKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceCsiNvmeofNodeCephUserName(name string) {
+	wrapper.replaceIfExist(csiNvmeofNodeCephUserKey, name)
+}
+
 func (wrapper storageConsumerResourceMapWrapper) ReplaceRbdClientProfileName(name string) {
 	wrapper.replaceIfExist(rbdClientProfileKey, name)
 }
@@ -243,6 +288,10 @@ func (wrapper storageConsumerResourceMapWrapper) ReplaceCephFsClientProfileName(
 
 func (wrapper storageConsumerResourceMapWrapper) ReplaceNfsClientProfileName(name string) {
 	wrapper.replaceIfExist(nfsClientProfileKey, name)
+}
+
+func (wrapper storageConsumerResourceMapWrapper) ReplaceNvmeofClientProfileName(name string) {
+	wrapper.replaceIfExist(nvmeofClientProfileKey, name)
 }
 
 func GetAvailableServices(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster) (*AvailableServices, error) {
@@ -268,6 +317,15 @@ func GetAvailableServices(ctx context.Context, kubeClient client.Client, storage
 		return nil, fmt.Errorf("failed to get CephNFS: %v", err)
 	}
 	availableServices.Nfs = cephNfs.UID != ""
+
+	// nvmeof - get the default nvmeof gateway obj
+	nvmeofGw := &rookCephv1.CephNVMeOFGateway{}
+	nvmeofGw.Name = GenerateNameForCephNVMeOFGateway(storageCluster)
+	nvmeofGw.Namespace = storageCluster.Namespace
+	if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(nvmeofGw), nvmeofGw); client.IgnoreNotFound(err) != nil {
+		return nil, fmt.Errorf("failed to get CephNVMeOFGateway: %v", err)
+	}
+	availableServices.NVMeOF = nvmeofGw.UID != ""
 
 	// noobaa - get the default noobaa obj
 	noobaa := &nbv1.NooBaa{}
@@ -306,6 +364,11 @@ func GetStorageConsumerDefaultResourceNames(
 		resourceNamesMap.SetCsiNfsNodeCephUserName(fmt.Sprintf("csi-nfs-node-%s", storageConsumerUid))
 		resourceNamesMap.SetCsiNfsProvisionerCephUserName(fmt.Sprintf("csi-nfs-provisioner-%s", storageConsumerUid))
 	}
+	if availableServices.NVMeOF {
+		resourceNamesMap.SetNvmeofClientProfileName(storageConsumerUid)
+		resourceNamesMap.SetCsiNvmeofProvisionerCephUserName(fmt.Sprintf("csi-nvmeof-provisioner-%s", storageConsumerUid))
+		resourceNamesMap.SetCsiNvmeofNodeCephUserName(fmt.Sprintf("csi-nvmeof-node-%s", storageConsumerUid))
+	}
 	return defaults
 }
 
@@ -331,6 +394,14 @@ func GenerateCsiNfsProvisionerCephClientName(generation int64, uid types.UID) st
 
 func GenerateCsiNfsNodeCephClientName(generation int64, uid types.UID) string {
 	return fmt.Sprintf("%s-g%d-%v", csiNfsNodeCephUserKey, generation, uid)
+}
+
+func GenerateCsiNvmeofProvisionerCephClientName(generation int64, uid types.UID) string {
+	return fmt.Sprintf("%s-g%d-%v", csiNvmeofProvisionerCephUserKey, generation, uid)
+}
+
+func GenerateCsiNvmeofNodeCephClientName(generation int64, uid types.UID) string {
+	return fmt.Sprintf("%s-g%d-%v", csiNvmeofNodeCephUserKey, generation, uid)
 }
 
 // These methods are for backward compatibility for provider mode upgraded cluster
