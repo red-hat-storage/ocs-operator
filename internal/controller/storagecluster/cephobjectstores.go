@@ -22,9 +22,23 @@ import (
 )
 
 const (
+	enableRGWAnnotation         = "ocs.openshift.io/enable-rgw"
 	enableRGWAutoscaleAnnotation = "ocs.openshift.io/enable-rgw-autoscale"
 	stsKeyLen                    = 16 // 16 alphanumeric characters for STS key
 )
+
+func shouldSkipObjectStore(sc *ocsv1.StorageCluster) (bool, error) {
+	skip, err := platform.PlatformsShouldSkipObjectStore()
+	if err != nil {
+		return false, err
+	}
+	if skip && sc.GetAnnotations()[enableRGWAnnotation] == "true" {
+		klog.Infof("Annotation %q overrides platform skip for ObjectStore on StorageCluster %s/%s",
+			enableRGWAnnotation, sc.Namespace, sc.Name)
+		return false, nil
+	}
+	return skip, nil
+}
 
 type ocsCephObjectStores struct {
 	tlsProfile *ocstlsv1.TLSProfile
@@ -38,7 +52,7 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 		return reconcile.Result{}, nil
 	}
 
-	skip, err := platform.PlatformsShouldSkipObjectStore()
+	skip, err := shouldSkipObjectStore(instance)
 	if err != nil {
 		return reconcile.Result{}, err
 	}

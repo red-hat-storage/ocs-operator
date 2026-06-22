@@ -31,7 +31,7 @@ func (obj *ocsCephRGWRoutes) ensureCreated(r *StorageClusterReconciler, instance
 		return reconcile.Result{}, nil
 	}
 
-	skip, err := platform.PlatformsShouldSkipObjectStore()
+	skip, err := shouldSkipObjectStore(instance)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
