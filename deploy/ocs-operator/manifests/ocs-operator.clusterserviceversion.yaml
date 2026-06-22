@@ -283,6 +283,7 @@ spec:
           resources:
           - cephblockpoolradosnamespaces
           - cephfilesystemsubvolumegroups
+          - cephobjectstoreaccounts
           verbs:
           - create
           - delete
