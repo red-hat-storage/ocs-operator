@@ -267,6 +267,7 @@ rules:
   verbs:
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - ocs.openshift.io

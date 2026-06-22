@@ -142,6 +142,7 @@ func (r *MirroringReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 //+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclusterpeers;storageconsumers,verbs=get;list;watch
+//+kubebuilder:rbac:groups=ocs.openshift.io,resources=storageclusters,verbs=get;update
 //+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch
 //+kubebuilder:rbac:groups=core,resources=configmaps/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;delete
@@ -322,6 +323,30 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 	} else {
 		if err := r.delete(rbdMirror); err != nil {
 			r.log.Error(err, "failed to delete CephRBDMirror", "CephRBDMirror", rbdMirror.Name)
+			return true
+		}
+	}
+
+	storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, clientMappingConfig.Namespace)
+	if err != nil {
+		r.log.Error(err, "failed to get StorageCluster")
+		return true
+	}
+
+	annotations := storageCluster.GetAnnotations()
+	if maintenanceModeRequested {
+		if util.AddAnnotation(storageCluster, util.InMaintenanceModeAnnotation, "true") {
+			r.log.Info("Adding maintenance mode annotation to StorageCluster", "StorageCluster", storageCluster.Name)
+			if err := r.update(storageCluster); err != nil {
+				r.log.Error(err, "failed to add maintenance mode annotation to StorageCluster", "StorageCluster", storageCluster.Name)
+				return true
+			}
+		}
+	} else if _, exists := annotations[util.InMaintenanceModeAnnotation]; exists {
+		r.log.Info("Removing maintenance mode annotation from StorageCluster", "StorageCluster", storageCluster.Name)
+		delete(annotations, util.InMaintenanceModeAnnotation)
+		if err := r.update(storageCluster); err != nil {
+			r.log.Error(err, "failed to remove maintenance mode annotation from StorageCluster", "StorageCluster", storageCluster.Name)
 			return true
 		}
 	}
