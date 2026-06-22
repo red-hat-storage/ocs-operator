@@ -12,14 +12,19 @@ import (
 	"testing"
 	"time"
 
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	ifaces "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	routev1 "github.com/openshift/api/route/v1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -576,4 +581,272 @@ func TestAlertCacheConcurrentReads(t *testing.T) {
 			t.Errorf("read %d failed: %v", i, err)
 		}
 	}
+}
+
+func newRGWTestObjects() (
+	*ocsv1.StorageCluster,
+	*ocsv1a1.StorageConsumer,
+	*rookCephv1.CephObjectStoreAccount,
+	*rookCephv1.CephObjectStoreUser,
+	*corev1.Secret,
+	*routev1.Route,
+) {
+	storageCluster := &ocsv1.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ocs-storagecluster",
+			Namespace: testNamespace,
+			Annotations: map[string]string{
+				util.EnableAdvancedRGWFeaturesAnnotation: "true",
+			},
+		},
+	}
+
+	consumer := &ocsv1a1.StorageConsumer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-consumer",
+			Namespace: testNamespace,
+			UID:       "consumer-uid-123",
+			Annotations: map[string]string{
+				util.EnableRGWAccountAnnotation: "true",
+			},
+		},
+		Status: ocsv1a1.StorageConsumerStatus{
+			Client: &ocsv1a1.ClientStatus{
+				ID:                "client-id-abc",
+				OperatorNamespace: "spoke-ns",
+			},
+		},
+	}
+
+	account := &rookCephv1.CephObjectStoreAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rgw-account",
+			Namespace: testNamespace,
+		},
+		Status: &rookCephv1.ObjectStoreAccountStatus{
+			Phase:     "Ready",
+			AccountID: "RGW12345678901234567",
+		},
+	}
+
+	adminUser := &rookCephv1.CephObjectStoreUser{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      util.GenerateRGWAdminUserName("test-consumer"),
+			Namespace: testNamespace,
+		},
+		Status: &rookCephv1.ObjectStoreUserStatus{
+			Phase: "Ready",
+			Info: map[string]string{
+				"secretName": "rook-ceph-object-user-test-secret",
+			},
+		},
+	}
+
+	rookSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "rook-ceph-object-user-test-secret",
+			Namespace:       testNamespace,
+			ResourceVersion: "12345",
+		},
+		Data: map[string][]byte{
+			"AccessKey": []byte("TESTACCESSKEY123"),
+			"SecretKey": []byte("TESTSecretKey456"),
+		},
+	}
+
+	rgwRoute := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      util.GenerateNameForCephObjectStore(storageCluster) + "-secure",
+			Namespace: testNamespace,
+		},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{
+				{
+					Host: "rgw.apps.example.com",
+					Conditions: []routev1.RouteIngressCondition{
+						{
+							Type:   routev1.RouteAdmitted,
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return storageCluster, consumer, account, adminUser, rookSecret, rgwRoute
+}
+
+func TestGetRGWAdminCredentialsSecret(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name         string
+		objs         func() []client.Object
+		modSC        func(*ocsv1.StorageCluster)
+		modConsumer  func(*ocsv1a1.StorageConsumer)
+		expectSecret bool
+	}{
+		{
+			name:   "missing StorageCluster annotation",
+			modSC:  func(sc *ocsv1.StorageCluster) { sc.Annotations = nil },
+		},
+		{
+			name:        "missing consumer annotation",
+			modConsumer: func(c *ocsv1a1.StorageConsumer) { c.Annotations = nil },
+		},
+		{
+			name: "Admin User not found",
+			objs: func() []client.Object {
+				_, consumer, _, _, rookSecret, _ := newRGWTestObjects()
+				return []client.Object{consumer, rookSecret}
+			},
+		},
+		{
+			name: "Admin User not Ready",
+			objs: func() []client.Object {
+				_, consumer, _, adminUser, rookSecret, _ := newRGWTestObjects()
+				adminUser.Status.Phase = "Pending"
+				return []client.Object{consumer, adminUser, rookSecret}
+			},
+		},
+		{
+			name: "Admin User missing secretName",
+			objs: func() []client.Object {
+				_, consumer, _, adminUser, rookSecret, _ := newRGWTestObjects()
+				adminUser.Status.Info = nil
+				return []client.Object{consumer, adminUser, rookSecret}
+			},
+		},
+		{
+			name: "Rook Secret not found",
+			objs: func() []client.Object {
+				_, consumer, _, adminUser, _, _ := newRGWTestObjects()
+				return []client.Object{consumer, adminUser}
+			},
+		},
+		{
+			name:         "success",
+			expectSecret: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sc, consumer, _, adminUser, rookSecret, _ := newRGWTestObjects()
+			if tt.modSC != nil {
+				tt.modSC(sc)
+			}
+			if tt.modConsumer != nil {
+				tt.modConsumer(consumer)
+			}
+
+			var objs []client.Object
+			if tt.objs != nil {
+				objs = tt.objs()
+			} else {
+				objs = []client.Object{consumer, adminUser, rookSecret}
+			}
+
+			srv := newNotifyTestServer(t, objs...)
+			secret, err := srv.getRGWAdminCredentialsSecret(ctx, consumer, sc)
+
+			assert.NoError(t, err)
+			if tt.expectSecret {
+				assert.NotNil(t, secret)
+				assert.Equal(t, "TESTACCESSKEY123", string(secret.Data["AccessKey"]))
+				assert.Equal(t, "12345", secret.ResourceVersion)
+			} else {
+				assert.Nil(t, secret)
+			}
+		})
+	}
+}
+
+func TestAppendRGWAccountCredentialsKubeResources(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name        string
+		objs        func() []client.Object
+		expectAdded bool
+	}{
+		{
+			name: "Account CR not found",
+			objs: func() []client.Object {
+				_, consumer, _, adminUser, rookSecret, rgwRoute := newRGWTestObjects()
+				return []client.Object{consumer, adminUser, rookSecret, rgwRoute}
+			},
+		},
+		{
+			name: "Account CR not Ready",
+			objs: func() []client.Object {
+				_, consumer, account, adminUser, rookSecret, rgwRoute := newRGWTestObjects()
+				account.Status.Phase = "Pending"
+				return []client.Object{consumer, account, adminUser, rookSecret, rgwRoute}
+			},
+		},
+		{
+			name: "Route has no admitted host",
+			objs: func() []client.Object {
+				_, consumer, account, adminUser, rookSecret, rgwRoute := newRGWTestObjects()
+				rgwRoute.Status.Ingress = nil
+				return []client.Object{consumer, account, adminUser, rookSecret, rgwRoute}
+			},
+		},
+		{
+			name:        "success",
+			expectAdded: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sc, consumer, account, adminUser, rookSecret, rgwRoute := newRGWTestObjects()
+
+			var objs []client.Object
+			if tt.objs != nil {
+				objs = tt.objs()
+			} else {
+				objs = []client.Object{consumer, account, adminUser, rookSecret, rgwRoute}
+			}
+
+			srv := newNotifyTestServer(t, objs...)
+			consumerConfig := util.WrapStorageConsumerResourceMap(map[string]string{
+				"rgw-account-name":            account.Name,
+				"rgw-credentials-secret-name": "spoke-account-iam-credentials",
+			})
+
+			records, err := srv.appendRGWAccountCredentialsKubeResources(ctx, nil, consumer, consumerConfig, sc)
+			assert.NoError(t, err)
+
+			if !tt.expectAdded {
+				assert.Empty(t, records)
+				return
+			}
+
+			assert.Len(t, records, 1)
+			assert.Equal(t, pb.KubeClientOp_CREATE_OR_UPDATE, records[0].clientOp)
+
+			secret, ok := records[0].kubeObject.(*corev1.Secret)
+			assert.True(t, ok)
+			assert.Equal(t, "spoke-account-iam-credentials", secret.Name)
+			assert.Equal(t, "spoke-ns", secret.Namespace)
+			assert.Equal(t, "client-id-abc", secret.Labels[util.StorageClientLabelKey])
+			assert.Equal(t, "https://rgw.apps.example.com", secret.StringData["AWS_ENDPOINT_URL"])
+			assert.Equal(t, "RGW12345678901234567", secret.StringData["AWS_ACCOUNT_ID"])
+			assert.Equal(t, "TESTACCESSKEY123", secret.StringData["AWS_ACCESS_KEY_ID"])
+			assert.Equal(t, "TESTSecretKey456", secret.StringData["AWS_SECRET_ACCESS_KEY"])
+		})
+	}
+}
+
+func TestGetRGWCredentialsResourceVersion(t *testing.T) {
+	ctx := context.Background()
+	sc, consumer, _, adminUser, rookSecret, _ := newRGWTestObjects()
+	srv := newNotifyTestServer(t, consumer, adminUser, rookSecret)
+
+	version, err := srv.getRGWCredentialsResourceVersion(ctx, consumer, sc)
+	assert.NoError(t, err)
+	assert.Equal(t, "12345", version)
 }

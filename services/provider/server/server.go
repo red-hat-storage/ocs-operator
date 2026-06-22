@@ -468,6 +468,12 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 
+		rgwCredentialsResourceVersion, err := s.getRGWCredentialsResourceVersion(ctx, consumer, storageCluster)
+		if err != nil {
+			logger.Error(err, "failed to get RGW credentials resource version")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			zerodNonHashableFields(consumer),
@@ -488,6 +494,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			useHostNetworkForCtrlPlugin,
 			obcResourceVersions,
 			s3EndpointsListResourceVersion,
+			rgwCredentialsResourceVersion,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -775,6 +782,12 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "failed to produce client state")
 	}
 
+	rgwCredentialsResourceVersion, err := s.getRGWCredentialsResourceVersion(ctx, storageConsumer, storageCluster)
+	if err != nil {
+		logger.Error(err, "failed to get RGW credentials resource version")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state")
+	}
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		zerodNonHashableFields(storageConsumer),
@@ -795,6 +808,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		util.ShouldUseHostNetworking(storageCluster),
 		obcResourceVersions,
 		s3EndpointsListResourceVersion,
+		rgwCredentialsResourceVersion,
 	)
 
 	logger.Info("Successfully processed status report")
@@ -1492,6 +1506,17 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 		ctx,
 		records,
 		consumer,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	records, err = s.appendRGWAccountCredentialsKubeResources(
+		ctx,
+		records,
+		consumer,
+		consumerConfig,
+		storageCluster,
 	)
 	if err != nil {
 		return nil, err
@@ -2532,6 +2557,118 @@ func (s *OCSProviderServer) appendS3EndpointsListKubeResources(
 		kubeObject: clientConfigMap,
 		clientOp:   pb.KubeClientOp_CREATE_OR_UPDATE,
 	}), nil
+}
+
+func (s *OCSProviderServer) getRGWAdminCredentialsSecret(
+	ctx context.Context,
+	consumer *ocsv1alpha1.StorageConsumer,
+	storageCluster *ocsv1.StorageCluster,
+) (*corev1.Secret, error) {
+	if storageCluster.GetAnnotations()[util.EnableAdvancedRGWFeaturesAnnotation] != "true" {
+		return nil, nil
+	}
+	if consumer.GetAnnotations()[util.EnableRGWAccountAnnotation] != "true" {
+		return nil, nil
+	}
+
+	adminUser := &rookCephv1.CephObjectStoreUser{}
+	adminUser.Name = util.GenerateRGWAdminUserName(consumer.Name)
+	adminUser.Namespace = s.namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(adminUser), adminUser); err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get CephObjectStoreUser %s: %w", adminUser.Name, err)
+	}
+	if adminUser.Status == nil || adminUser.Status.Phase != "Ready" ||
+		adminUser.Status.Info == nil || adminUser.Status.Info["secretName"] == "" {
+		return nil, nil
+	}
+
+	rookSecret := &corev1.Secret{}
+	rookSecret.Name = adminUser.Status.Info["secretName"]
+	rookSecret.Namespace = s.namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(rookSecret), rookSecret); err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get Rook credentials Secret %s: %w", rookSecret.Name, err)
+	}
+
+	return rookSecret, nil
+}
+
+func (s *OCSProviderServer) appendRGWAccountCredentialsKubeResources(
+	ctx context.Context,
+	records []kubeObjectWithOpRecord,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+) ([]kubeObjectWithOpRecord, error) {
+	rookSecret, err := s.getRGWAdminCredentialsSecret(ctx, consumer, storageCluster)
+	if rookSecret == nil || err != nil {
+		return records, err
+	}
+
+	account := &rookCephv1.CephObjectStoreAccount{}
+	account.Name = consumerConfig.GetRGWAccountName()
+	account.Namespace = s.namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(account), account); err != nil {
+		if kerrors.IsNotFound(err) {
+			return records, nil
+		}
+		return records, fmt.Errorf("failed to get CephObjectStoreAccount %s: %w", account.Name, err)
+	}
+	if account.Status == nil || account.Status.Phase != "Ready" {
+		return records, nil
+	}
+
+	rgwRoute := &routev1.Route{}
+	rgwRoute.Name = util.GenerateNameForCephObjectStore(storageCluster) + "-secure"
+	rgwRoute.Namespace = s.namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(rgwRoute), rgwRoute); err != nil {
+		if kerrors.IsNotFound(err) {
+			return records, nil
+		}
+		return records, fmt.Errorf("failed to get RGW secure Route %s: %w", rgwRoute.Name, err)
+	}
+	host := util.GetAdmittedRouteHost(rgwRoute)
+	if host == "" {
+		return records, nil
+	}
+
+	spokeSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      consumerConfig.GetRGWCredentialsSecretName(),
+			Namespace: consumer.Status.Client.OperatorNamespace,
+			Labels: map[string]string{
+				util.StorageClientLabelKey: consumer.Status.Client.ID,
+			},
+		},
+		StringData: map[string]string{
+			"AWS_ENDPOINT_URL":      "https://" + host,
+			"AWS_ACCOUNT_ID":        account.Status.AccountID,
+			"AWS_ACCESS_KEY_ID":     string(rookSecret.Data["AccessKey"]),
+			"AWS_SECRET_ACCESS_KEY": string(rookSecret.Data["SecretKey"]),
+		},
+	}
+
+	return append(records, kubeObjectWithOpRecord{
+		kubeObject: spokeSecret,
+		clientOp:   pb.KubeClientOp_CREATE_OR_UPDATE,
+	}), nil
+}
+
+func (s *OCSProviderServer) getRGWCredentialsResourceVersion(
+	ctx context.Context,
+	consumer *ocsv1alpha1.StorageConsumer,
+	storageCluster *ocsv1.StorageCluster,
+) (string, error) {
+	rookSecret, err := s.getRGWAdminCredentialsSecret(ctx, consumer, storageCluster)
+	if rookSecret == nil || err != nil {
+		return "", err
+	}
+	return rookSecret.ResourceVersion, nil
 }
 
 func sanitizeKubeResource(obj client.Object, sanitizeFlags sanitizeFlags) {

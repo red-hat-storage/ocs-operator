@@ -96,6 +96,8 @@ rules:
   resources:
   - cephblockpoolradosnamespaces
   - cephfilesystemsubvolumegroups
+  - cephobjectstoreaccounts
+  - cephobjectstoreusers
   verbs:
   - create
   - delete
@@ -113,7 +115,6 @@ rules:
   - cephfilesystems
   - cephnfses
   - cephobjectstores
-  - cephobjectstoreusers
   - cephrbdmirrors
   verbs:
   - create

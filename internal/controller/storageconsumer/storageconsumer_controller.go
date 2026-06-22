@@ -79,7 +79,8 @@ type StorageConsumerReconciler struct {
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=storageconsumers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclients,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephfilesystemsubvolumegroups;cephblockpoolradosnamespaces,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpools;cephfilesystems;cephnfses,verbs=get;list;watch
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephblockpools;cephfilesystems;cephnfses;cephobjectstores,verbs=get;list;watch
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephobjectstoreaccounts;cephobjectstoreusers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;delete
 
@@ -288,6 +289,30 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 					return reconcile.Result{}, err
 				}
 			}
+			if availableServices.Rgw &&
+				storageCluster.GetAnnotations()[util.EnableAdvancedRGWFeaturesAnnotation] == "true" &&
+				r.storageConsumer.GetAnnotations()[util.EnableRGWAccountAnnotation] == "true" {
+				if err := r.reconcileRGWAccount(
+					util.GenerateNameForCephObjectStore(storageCluster),
+					consumerResources.GetRGWAccountName(),
+					consumerConfigMap,
+				); err != nil {
+					return reconcile.Result{}, err
+				}
+			}
+		}
+
+		if availableServices.Rgw &&
+			storageCluster.GetAnnotations()[util.EnableAdvancedRGWFeaturesAnnotation] == "true" &&
+			r.storageConsumer.GetAnnotations()[util.EnableRGWAccountAnnotation] == "true" {
+			if err := r.reconcileRGWAdminUser(
+				util.GenerateNameForCephObjectStore(storageCluster),
+				consumerResources.GetRGWAccountName(),
+				util.GenerateRGWAdminUserName(r.storageConsumer.Name),
+				consumerConfigMap,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 
 		r.storageConsumer.Status.State = ocsv1alpha1.StorageConsumerStateReady
@@ -343,6 +368,13 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 			svg.Namespace = r.namespace
 			if err := r.Patch(r.ctx, svg, annotationPatch); client.IgnoreNotFound(err) != nil {
 				return reconcile.Result{}, fmt.Errorf("failed to annotate CephFilesystemSubVolumeGroup: %v", err)
+			}
+
+			account := &rookCephv1.CephObjectStoreAccount{}
+			account.Name = consumerResources.GetRGWAccountName()
+			account.Namespace = r.namespace
+			if err := r.Patch(r.ctx, account, annotationPatch); client.IgnoreNotFound(err) != nil {
+				return reconcile.Result{}, fmt.Errorf("failed to annotate CephObjectStoreAccount: %v", err)
 			}
 		}
 
@@ -573,6 +605,65 @@ func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup(
 		}
 		svg.Spec.FilesystemName = cephFs.Name
 		svg.Spec.Name = subVolumeGroupName
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *StorageConsumerReconciler) reconcileRGWAccount(
+	objectStoreName string,
+	accountName string,
+	additionalOwner client.Object,
+) error {
+	account := &rookCephv1.CephObjectStoreAccount{}
+	account.Name = accountName
+	account.Namespace = r.namespace
+
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, account, func() error {
+		if err := controllerutil.SetControllerReference(r.storageConsumer, account, r.Scheme); err != nil {
+			return err
+		}
+		if err := controllerutil.SetOwnerReference(additionalOwner, account, r.Scheme); err != nil {
+			return err
+		}
+		account.Spec.Store = objectStoreName
+		account.Spec.Name = accountName
+		account.Spec.RootUser = &rookCephv1.AccountRootUserSpec{SkipCreate: ptr.To(true)}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *StorageConsumerReconciler) reconcileRGWAdminUser(
+	objectStoreName string,
+	accountName string,
+	adminUserName string,
+	additionalOwner client.Object,
+) error {
+	user := &rookCephv1.CephObjectStoreUser{}
+	user.Name = adminUserName
+	user.Namespace = r.namespace
+
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, user, func() error {
+		if err := controllerutil.SetControllerReference(r.storageConsumer, user, r.Scheme); err != nil {
+			return err
+		}
+		if err := controllerutil.SetOwnerReference(additionalOwner, user, r.Scheme); err != nil {
+			return err
+		}
+		user.Spec.Store = objectStoreName
+		user.Spec.AccountRef = rookCephv1.ObjectStoreUserAccountRef{Name: accountName}
+		user.Spec.DisplayName = string(r.storageConsumer.UID) + "-admin"
+		user.Spec.Capabilities = &rookCephv1.ObjectUserCapSpec{
+			User:     "*",
+			Buckets:  "*",
+			Usage:    "*",
+			MetaData: "*",
+		}
 		return nil
 	}); err != nil {
 		return err
@@ -848,10 +939,25 @@ func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				predicate.GenerationChangedPredicate{},
 			),
 		).
+		Owns(
+			&rookCephv1.CephObjectStoreAccount{},
+			builder.MatchEveryOwner,
+			builder.WithPredicates(
+				predicate.GenerationChangedPredicate{},
+			),
+		).
+		Owns(
+			&rookCephv1.CephObjectStoreUser{},
+			builder.MatchEveryOwner,
+			builder.WithPredicates(
+				predicate.GenerationChangedPredicate{},
+			),
+		).
 		Owns(&corev1.Secret{}).
 		// Watch non-owned resources
 		Watches(&rookCephv1.CephBlockPool{}, enqueueForAllStorageConsumers).
 		Watches(&rookCephv1.CephFilesystem{}, enqueueForAllStorageConsumers).
 		Watches(&rookCephv1.CephNFS{}, enqueueForAllStorageConsumers).
+		Watches(&rookCephv1.CephObjectStore{}, enqueueForAllStorageConsumers).
 		Complete(r)
 }

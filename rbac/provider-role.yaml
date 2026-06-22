@@ -23,6 +23,9 @@ rules:
       - cephrbdmirrors
       - cephclusters
       - cephnfses
+      - cephobjectstores
+      - cephobjectstoreaccounts
+      - cephobjectstoreusers
     verbs:
       - get
       - list
