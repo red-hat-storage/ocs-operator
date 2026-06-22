@@ -6,7 +6,6 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
-	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -62,7 +61,7 @@ func (r *StorageClusterReconciler) ensureResourceProfileChangeApplied(sc *ocsv1.
 	}
 
 	// If rgw is not skipped, Verify if expected number of rgw pods with the current resource profile label are running
-	skiprgw, err := platform.PlatformsShouldSkipObjectStore()
+	skiprgw, err := shouldSkipObjectStore(sc)
 	if err != nil {
 		return err
 	}

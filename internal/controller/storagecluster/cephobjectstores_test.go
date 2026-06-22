@@ -547,3 +547,62 @@ func TestRGWTLSConfig(t *testing.T) {
 		assert.Contains(t, stores[0].Spec.Security.TlsGroups, "secp384r1")
 	})
 }
+
+func TestShouldSkipObjectStore(t *testing.T) {
+	cases := []struct {
+		label        string
+		platform     configv1.PlatformType
+		annotations  map[string]string
+		expectedSkip bool
+	}{
+		{
+			label:        "Cloud platform without annotation skips",
+			platform:     configv1.AWSPlatformType,
+			annotations:  nil,
+			expectedSkip: true,
+		},
+		{
+			label:        "Cloud platform with enable-rgw annotation does not skip",
+			platform:     configv1.AWSPlatformType,
+			annotations:  map[string]string{enableRGWAnnotation: "true"},
+			expectedSkip: false,
+		},
+		{
+			label:        "Bare metal without annotation does not skip",
+			platform:     configv1.BareMetalPlatformType,
+			annotations:  nil,
+			expectedSkip: false,
+		},
+		{
+			label:        "Bare metal with annotation does not skip",
+			platform:     configv1.BareMetalPlatformType,
+			annotations:  map[string]string{enableRGWAnnotation: "true"},
+			expectedSkip: false,
+		},
+		{
+			label:        "Cloud platform with annotation set to non-true value skips",
+			platform:     configv1.AWSPlatformType,
+			annotations:  map[string]string{enableRGWAnnotation: "false"},
+			expectedSkip: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.label, func(t *testing.T) {
+			platform.SetFakePlatformInstanceForTesting(true, c.platform)
+			defer platform.UnsetFakePlatformInstanceForTesting()
+
+			sc := &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-sc",
+					Namespace:   "test-ns",
+					Annotations: c.annotations,
+				},
+			}
+
+			skip, err := shouldSkipObjectStore(sc)
+			assert.NoError(t, err)
+			assert.Equal(t, c.expectedSkip, skip)
+		})
+	}
+}

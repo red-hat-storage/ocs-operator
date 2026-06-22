@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
 
 	consolev1 "github.com/openshift/api/console/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -36,7 +35,7 @@ func (obj *ocsConsoleConfiguration) ensureCreated(r *StorageClusterReconciler, i
 		return reconcile.Result{}, nil
 	}
 
-	skip, err := platform.PlatformsShouldSkipObjectStore()
+	skip, err := shouldSkipObjectStore(instance)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -118,7 +117,7 @@ func (obj *ocsConsoleConfiguration) ensureDeleted(r *StorageClusterReconciler, s
 		return reconcile.Result{}, nil
 	}
 
-	skip, err := platform.PlatformsShouldSkipObjectStore()
+	skip, err := shouldSkipObjectStore(sc)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
