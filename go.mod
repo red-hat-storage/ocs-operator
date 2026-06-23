@@ -10,6 +10,8 @@ replace github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./se
 
 replace github.com/noobaa/noobaa-operator/v5 v5.21.0 => github.com/noobaa/noobaa-operator/v5 v5.0.0-20260409182054-d38322829145
 
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260605192805-bfda2474d159
+
 require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20260415063820-1864d7f0fa4c
