@@ -53,9 +53,8 @@ func getDaemonResources(name string, sc *ocsv1.StorageCluster) corev1.ResourceRe
 		// Fallback to plain daemon resources map if not found in profiled resources map
 		defaultResourceRequirements = defaults.DaemonResources[name]
 	}
-	// Adjust CPU requests for IBM Z platform (skip noobaa resources)
-	// TODO: don't skip noobaa resources after noobaa adds priorityClass to it's pods
-	if runtime.GOARCH == IbmZCpuArch && !strings.Contains(strings.ToLower(name), "noobaa") {
+	// Adjust CPU requests for IBM Z platform
+	if runtime.GOARCH == IbmZCpuArch {
 		defaultResourceRequirements = adjustCPURequests(defaultResourceRequirements, IbmZCpuAdjustFactor)
 	}
 
