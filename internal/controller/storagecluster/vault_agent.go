@@ -89,10 +89,15 @@ func (obj *ocsVaultAgent) ensureDeleted(r *StorageClusterReconciler, instance *o
 		&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: VaultAgentSAName, Namespace: instance.Namespace}},
 	}
 
-	for _, obj := range resources {
-		err := r.Delete(r.ctx, obj)
-		if err != nil && !apierrors.IsNotFound(err) {
-			r.Log.Error(err, "Failed to delete Vault Agent resource", "Kind", fmt.Sprintf("%T", obj), "Name", obj.GetName())
+	for _, resource := range resources {
+		if err := r.Get(r.ctx, client.ObjectKeyFromObject(resource), resource); err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			return reconcile.Result{}, err
+		}
+		if err := r.Delete(r.ctx, resource); err != nil && !apierrors.IsNotFound(err) {
+			r.Log.Error(err, "Failed to delete Vault Agent resource", "Kind", fmt.Sprintf("%T", resource), "Name", resource.GetName())
 			return reconcile.Result{}, err
 		}
 	}
