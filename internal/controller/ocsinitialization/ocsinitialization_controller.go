@@ -19,6 +19,7 @@ import (
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -81,6 +82,7 @@ type OCSInitializationReconciler struct {
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;list;watch;update;patch;create;delete
 // +kubebuilder:rbac:groups=operators.coreos.com,resources=clusterserviceversions,verbs=get;list;watch;delete;update;patch
 // +kubebuilder:rbac:groups=cluster.open-cluster-management.io,resources=clusterclaims,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingadmissionpolicies;validatingadmissionpolicybindings,verbs=get;list;watch;create;update
 
 // Reconcile reads that state of the cluster for a OCSInitialization object and makes changes based on the state read
 // and what is in the OCSInitialization.Spec
@@ -197,6 +199,12 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 	err = r.ensureOcsOperatorConfigExists(instance)
 	if err != nil {
 		r.Log.Error(err, "Failed to ensure ocs-operator-config ConfigMap")
+		return reconcile.Result{}, err
+	}
+
+	err = r.reconcileValidatingAdmissionPolicy()
+	if err != nil {
+		r.Log.Error(err, "Failed to reconcile ValidatingAdmissionPolicy for StorageCluster deletion protection")
 		return reconcile.Result{}, err
 	}
 
@@ -360,6 +368,16 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				util.EventTypePredicate(true, false, false, false),
 			),
 			builder.OnlyMetadata,
+		).
+		Watches(
+			&admissionv1.ValidatingAdmissionPolicy{},
+			enqueueOCSInit,
+			builder.WithPredicates(util.NamePredicate(storageClusterDeletePolicyName)),
+		).
+		Watches(
+			&admissionv1.ValidatingAdmissionPolicyBinding{},
+			enqueueOCSInit,
+			builder.WithPredicates(util.NamePredicate(storageClusterDeletePolicyBindingName)),
 		).
 		Build(r)
 
