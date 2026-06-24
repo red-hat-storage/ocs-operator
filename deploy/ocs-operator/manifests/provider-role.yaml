@@ -21,12 +21,21 @@ rules:
       - cephblockpoolradosnamespaces
       - cephblockpools
       - cephrbdmirrors
-      - cephclusters
       - cephnfses
     verbs:
       - get
       - list
       - watch
+  - apiGroups:
+      - ceph.rook.io
+    resources:
+      - cephclusters
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
   - apiGroups:
       - ocs.openshift.io
     resources:

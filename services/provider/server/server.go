@@ -1244,6 +1244,45 @@ func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.Block
 	return response, nil
 }
 
+func (s *OCSProviderServer) RotateMirroringKey(ctx context.Context, req *pb.RotateMirroringKeyRequest) (*pb.RotateMirroringKeyResponse, error) {
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		klog.Errorf("Failed to get StorageCluster: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get StorageCluster: %v", err)
+	}
+	if string(storageCluster.UID) != req.StorageClusterUID {
+		klog.Errorf("storageClusterUID %q does not match local StorageCluster UID %q", req.StorageClusterUID, storageCluster.UID)
+		return nil, status.Errorf(codes.NotFound, "unknown peer storageClusterUID %q", req.StorageClusterUID)
+	}
+
+	cephCluster, err := util.GetCephClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		klog.Errorf("Failed to get CephCluster: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get CephCluster: %v", err)
+	}
+
+	cephCluster.Spec.Security.CephX.RBDMirrorPeer.KeyRotationPolicy = rookCephv1.KeyGenerationCephxKeyRotationPolicy
+	cephCluster.Spec.Security.CephX.RBDMirrorPeer.KeyGeneration = uint32(req.DesiredKeyGeneration)
+
+	if err := s.client.Update(ctx, cephCluster); err != nil {
+		klog.Errorf("Failed to update CephCluster keyGeneration: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to update CephCluster: %v", err)
+	}
+
+	// Re-fetch to get current status — Update does not refresh the in-memory object
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephCluster), cephCluster); err != nil {
+		klog.Errorf("Failed to re-fetch CephCluster: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to re-fetch CephCluster: %v", err)
+	}
+
+	currentGen := cephCluster.Status.Cephx.RBDMirrorPeer.KeyGeneration
+	if currentGen != uint32(req.DesiredKeyGeneration) {
+		klog.Infof("CephCluster rbdMirrorPeer keyGeneration not yet rotated: expected %d, got %d. Will requeue.", req.DesiredKeyGeneration, currentGen)
+		return nil, status.Errorf(codes.Unavailable, "rbdMirrorPeer keyGeneration not yet rotated: expected %d, got %d", req.DesiredKeyGeneration, currentGen)
+	}
+	return &pb.RotateMirroringKeyResponse{}, nil
+}
+
 func (s *OCSProviderServer) isSystemInMaintenanceMode(ctx context.Context) (bool, error) {
 	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 	if err != nil {
