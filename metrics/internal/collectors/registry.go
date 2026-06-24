@@ -129,6 +129,10 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 		c.Run(opts.StopCh)
 		registry.MustRegister(c)
 	}
+	if c := NewCephxKeyRotationCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
+	}
 
 	healthScoreCollector, healthScoreErr := NewHealthScoreCollector(opts)
 	if healthScoreErr != nil {
