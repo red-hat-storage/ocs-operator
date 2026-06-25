@@ -12,14 +12,17 @@ import (
 	"testing"
 	"time"
 
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	pb "github.com/red-hat-storage/ocs-operator/services/provider/api/v4"
 	ifaces "github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -136,16 +139,16 @@ func TestGetKubeResourcesForClass(t *testing.T) {
 	}
 }
 
-// newNotifyTestServer creates an OCSProviderServer for Notify tests with the given objects pre-seeded in the fake client.
-func newNotifyTestServer(t *testing.T, objs ...client.Object) *OCSProviderServer {
+func newTestProviderServer(t *testing.T, objs ...client.Object) *OCSProviderServer {
 	t.Helper()
-	scheme, schemeErr := newScheme()
-	if schemeErr != nil {
-		t.Fatalf("newScheme() error = %v", schemeErr)
+	scheme, err := newScheme()
+	if err != nil {
+		t.Fatalf("newScheme() error = %v", err)
 	}
 	fakeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(objs...).
+		WithStatusSubresource(&ocsv1a1.StorageConsumer{}).
 		WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
 		Build()
 	return &OCSProviderServer{
@@ -154,6 +157,672 @@ func newNotifyTestServer(t *testing.T, objs ...client.Object) *OCSProviderServer
 		consumerManager: createTestConsumerManager(fakeClient),
 		namespace:       testNamespace,
 	}
+}
+
+func TestAppendVolumeAttributesClassKubeResources(t *testing.T) {
+	ctx := context.Background()
+	scheme, err := newScheme()
+	if err != nil {
+		t.Fatalf("newScheme() error = %v", err)
+	}
+
+	rbdVAC := &storagev1.VolumeAttributesClass{
+		ObjectMeta: metav1.ObjectMeta{Name: "rbd-qos-high"},
+		DriverName: util.RbdDriverName,
+		Parameters: map[string]string{
+			"maxReadIops":  "2000",
+			"maxWriteIops": "2000",
+		},
+	}
+
+	rbdVACLow := &storagev1.VolumeAttributesClass{
+		ObjectMeta: metav1.ObjectMeta{Name: "rbd-qos-low"},
+		DriverName: util.RbdDriverName,
+		Parameters: map[string]string{
+			"maxReadIops": "500",
+		},
+	}
+
+	cephfsVAC := &storagev1.VolumeAttributesClass{
+		ObjectMeta: metav1.ObjectMeta{Name: "cephfs-qos-low"},
+		DriverName: util.CephFSDriverName,
+		Parameters: map[string]string{
+			"maxReadBps": "104857600",
+		},
+	}
+
+	unsupportedVAC := &storagev1.VolumeAttributesClass{
+		ObjectMeta: metav1.ObjectMeta{Name: "ebs-qos"},
+		DriverName: "ebs.csi.aws.com",
+		Parameters: map[string]string{
+			"maxReadIops": "1000",
+		},
+	}
+
+	tests := []struct {
+		name           string
+		clusterObjs    []client.Object
+		consumerVACs   []ocsv1a1.VolumeAttributesClassesSpec
+		expectedCount  int
+		expectedNames  []string
+	}{
+		{
+			name:          "no VACs in consumer spec",
+			clusterObjs:   []client.Object{rbdVAC},
+			consumerVACs:  nil,
+			expectedCount: 0,
+		},
+		{
+			name:        "single VAC distributed",
+			clusterObjs: []client.Object{rbdVAC},
+			consumerVACs: []ocsv1a1.VolumeAttributesClassesSpec{
+				{CommonClassSpec: ocsv1a1.CommonClassSpec{Name: "rbd-qos-high"}},
+			},
+			expectedCount: 1,
+			expectedNames: []string{"rbd-qos-high"},
+		},
+		{
+			name:        "multiple RBD VACs distributed",
+			clusterObjs: []client.Object{rbdVAC, rbdVACLow},
+			consumerVACs: []ocsv1a1.VolumeAttributesClassesSpec{
+				{CommonClassSpec: ocsv1a1.CommonClassSpec{Name: "rbd-qos-high"}},
+				{CommonClassSpec: ocsv1a1.CommonClassSpec{Name: "rbd-qos-low"}},
+			},
+			expectedCount: 2,
+			expectedNames: []string{"rbd-qos-high", "rbd-qos-low"},
+		},
+		{
+			name:        "CephFS driver VAC skipped",
+			clusterObjs: []client.Object{cephfsVAC},
+			consumerVACs: []ocsv1a1.VolumeAttributesClassesSpec{
+				{CommonClassSpec: ocsv1a1.CommonClassSpec{Name: "cephfs-qos-low"}},
+			},
+			expectedCount: 0,
+		},
+		{
+			name:        "VAC with rename",
+			clusterObjs: []client.Object{rbdVAC},
+			consumerVACs: []ocsv1a1.VolumeAttributesClassesSpec{
+				{CommonClassSpec: ocsv1a1.CommonClassSpec{Name: "rbd-qos-high", Rename: "custom-qos-name"}},
+			},
+			expectedCount: 1,
+			expectedNames: []string{"custom-qos-name"},
+		},
+		{
+			name:        "VAC with aliases",
+			clusterObjs: []client.Object{rbdVAC},
+			consumerVACs: []ocsv1a1.VolumeAttributesClassesSpec{
+				{CommonClassSpec: ocsv1a1.CommonClassSpec{
+					Name:    "rbd-qos-high",
+					Aliases: []string{"alias-1", "alias-2"},
+				}},
+			},
+			expectedCount: 3,
+			expectedNames: []string{"rbd-qos-high", "alias-1", "alias-2"},
+		},
+		{
+			name:        "unsupported driver VAC skipped",
+			clusterObjs: []client.Object{unsupportedVAC},
+			consumerVACs: []ocsv1a1.VolumeAttributesClassesSpec{
+				{CommonClassSpec: ocsv1a1.CommonClassSpec{Name: "ebs-qos"}},
+			},
+			expectedCount: 0,
+		},
+		{
+			name:        "non-existent VAC skipped",
+			clusterObjs: []client.Object{},
+			consumerVACs: []ocsv1a1.VolumeAttributesClassesSpec{
+				{CommonClassSpec: ocsv1a1.CommonClassSpec{Name: "does-not-exist"}},
+			},
+			expectedCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.clusterObjs...).
+				Build()
+
+			server := &OCSProviderServer{
+				client: fakeClient,
+				scheme: scheme,
+			}
+
+			consumer := &ocsv1a1.StorageConsumer{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-consumer", Namespace: "test-ns"},
+			}
+			consumer.Spec.VolumeAttributesClasses = tt.consumerVACs
+
+			records, err := server.appendVolumeAttributesClassKubeResources(
+				ctx,
+				klog.Background(),
+				nil,
+				consumer,
+			)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if len(records) != tt.expectedCount {
+				t.Fatalf("expected %d records, got %d", tt.expectedCount, len(records))
+			}
+
+			if tt.expectedNames != nil {
+				gotNames := map[string]bool{}
+				for _, r := range records {
+					gotNames[r.kubeObject.GetName()] = true
+				}
+				for _, expectedName := range tt.expectedNames {
+					if !gotNames[expectedName] {
+						t.Errorf("expected record with name %q, got names %v", expectedName, gotNames)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestGetDesiredClientState(t *testing.T) {
+	ctx := context.Background()
+	consumerUID := "test-consumer-uid-123"
+
+	consumer := &ocsv1a1.StorageConsumer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-consumer",
+			Namespace: testNamespace,
+			UID:       types.UID(consumerUID),
+		},
+		Status: ocsv1a1.StorageConsumerStatus{
+			Client: &ocsv1a1.ClientStatus{
+				OperatorVersion:   "4.22.0",
+				PlatformVersion:   "4.22.0",
+				OperatorNamespace: "client-ns",
+				Name:              "test-client",
+				ClusterID:         "test-cluster-id",
+				ID:                "test-client-id",
+			},
+		},
+	}
+
+	tests := []struct {
+		name              string
+		setupConsumer     func() *ocsv1a1.StorageConsumer
+		expectedErrorCode codes.Code
+	}{
+		{
+			name: "consumer not found",
+			setupConsumer: func() *ocsv1a1.StorageConsumer {
+				return nil
+			},
+			expectedErrorCode: codes.Internal,
+		},
+		{
+			name: "consumer not enabled",
+			setupConsumer: func() *ocsv1a1.StorageConsumer {
+				c := consumer.DeepCopy()
+				c.Status.State = ocsv1a1.StorageConsumerStateNotEnabled
+				return c
+			},
+			expectedErrorCode: codes.FailedPrecondition,
+		},
+		{
+			name: "consumer failed",
+			setupConsumer: func() *ocsv1a1.StorageConsumer {
+				c := consumer.DeepCopy()
+				c.Status.State = ocsv1a1.StorageConsumerStateFailed
+				return c
+			},
+			expectedErrorCode: codes.Internal,
+		},
+		{
+			name: "consumer configuring",
+			setupConsumer: func() *ocsv1a1.StorageConsumer {
+				c := consumer.DeepCopy()
+				c.Status.State = ocsv1a1.StorageConsumerStateConfiguring
+				return c
+			},
+			expectedErrorCode: codes.Unavailable,
+		},
+		{
+			name: "consumer deleting",
+			setupConsumer: func() *ocsv1a1.StorageConsumer {
+				c := consumer.DeepCopy()
+				c.Status.State = ocsv1a1.StorageConsumerStateDeleting
+				return c
+			},
+			expectedErrorCode: codes.NotFound,
+		},
+		{
+			name: "consumer status not set",
+			setupConsumer: func() *ocsv1a1.StorageConsumer {
+				c := consumer.DeepCopy()
+				c.Status.State = ""
+				return c
+			},
+			expectedErrorCode: codes.Unavailable,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := tt.setupConsumer()
+			var srv *OCSProviderServer
+			if c != nil {
+				srv = newTestProviderServer(t, c)
+			} else {
+				srv = newTestProviderServer(t)
+			}
+
+			req := &pb.GetDesiredClientStateRequest{
+				StorageConsumerUUID: consumerUID,
+			}
+			_, err := srv.GetDesiredClientState(ctx, req)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if got := status.Code(err); got != tt.expectedErrorCode {
+				t.Fatalf("expected error code %v, got %v: %v", tt.expectedErrorCode, got, err)
+			}
+		})
+	}
+}
+
+func TestGetDesiredClientStateReady(t *testing.T) {
+	ctx := context.Background()
+	consumerUID := types.UID("ready-consumer-uid-999")
+
+	rbdProvisionerSecretName := util.GenerateCsiRbdProvisionerCephClientName(1, consumerUID)
+	rbdNodeSecretName := util.GenerateCsiRbdNodeCephClientName(1, consumerUID)
+
+	consumer := &ocsv1a1.StorageConsumer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ready-consumer",
+			Namespace: testNamespace,
+			UID:       consumerUID,
+		},
+		Spec: ocsv1a1.StorageConsumerSpec{
+			VolumeAttributesClasses: []ocsv1a1.VolumeAttributesClassesSpec{
+				{CommonClassSpec: ocsv1a1.CommonClassSpec{Name: "rbd-qos-high"}},
+			},
+		},
+		Status: ocsv1a1.StorageConsumerStatus{
+			State: ocsv1a1.StorageConsumerStateReady,
+			Client: &ocsv1a1.ClientStatus{
+				OperatorVersion:   "4.22.0",
+				PlatformVersion:   "4.22.0",
+				OperatorNamespace: "client-ns",
+				Name:              "test-client",
+				ClusterID:         "test-cluster-id",
+				ID:                "test-client-id",
+			},
+			ResourceNameMappingConfigMap: corev1.LocalObjectReference{
+				Name: "consumer-config",
+			},
+		},
+	}
+
+	consumerConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "consumer-config",
+			Namespace: testNamespace,
+		},
+		Data: map[string]string{
+			"rbd-rados-ns":                  "test-rados-ns",
+			"cephfs-subvolumegroup":         "test-svg",
+			"cephfs-subvolumegroup-rados-ns": "test-svg-rados-ns",
+			"csiop-rbd-client-profile":      "rbd-profile",
+			"csi-rbd-provisioner-ceph-user": "rbd-provisioner-secret",
+			"csi-rbd-node-ceph-user":        "rbd-node-secret",
+		},
+	}
+
+	storageCluster := &ocsv1.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-storagecluster",
+			Namespace: testNamespace,
+		},
+	}
+
+	cephCluster := &rookCephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cephcluster",
+			Namespace: testNamespace,
+		},
+		Status: rookCephv1.ClusterStatus{
+			CephStatus: &rookCephv1.CephStatus{
+				FSID: "b88c2d78-9de9-4227-9313-a63f62f78743",
+			},
+		},
+	}
+
+	monConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon-endpoints",
+			Namespace: testNamespace,
+		},
+		Data: map[string]string{
+			"data": "a=10.0.0.1:6789",
+		},
+	}
+
+	rbdProvisionerSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rbdProvisionerSecretName,
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"userID":  []byte("rbd-provisioner"),
+			"userKey": []byte("test-key"),
+		},
+	}
+
+	rbdNodeSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rbdNodeSecretName,
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"userID":  []byte("rbd-node"),
+			"userKey": []byte("test-key"),
+		},
+	}
+
+	rbdVAC := &storagev1.VolumeAttributesClass{
+		ObjectMeta: metav1.ObjectMeta{Name: "rbd-qos-high"},
+		DriverName: util.RbdDriverName,
+		Parameters: map[string]string{
+			"maxReadIops":  "2000",
+			"maxWriteIops": "2000",
+		},
+	}
+
+	srv := newTestProviderServer(t,
+		consumer,
+		consumerConfigMap,
+		storageCluster,
+		cephCluster,
+		monConfigMap,
+		rbdProvisionerSecret,
+		rbdNodeSecret,
+		rbdVAC,
+	)
+
+	resp, err := srv.GetDesiredClientState(ctx, &pb.GetDesiredClientStateRequest{
+		StorageConsumerUUID: string(consumerUID),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("expected non-nil response")
+	}
+	if len(resp.KubeObjects) == 0 {
+		t.Fatal("expected KubeObjects in response")
+	}
+	if resp.DesiredStateHash == "" {
+		t.Fatal("expected DesiredStateHash to be set")
+	}
+
+	foundVAC := false
+	for _, obj := range resp.KubeObjects {
+		if obj.Bytes == nil {
+			continue
+		}
+		raw := map[string]interface{}{}
+		if err := json.Unmarshal(obj.Bytes, &raw); err != nil {
+			continue
+		}
+		kind, _ := raw["kind"].(string)
+		metadata, _ := raw["metadata"].(map[string]interface{})
+		name, _ := metadata["name"].(string)
+		if kind == "VolumeAttributesClass" && name == "rbd-qos-high" {
+			foundVAC = true
+			params, _ := raw["parameters"].(map[string]interface{})
+			if params["maxReadIops"] != "2000" {
+				t.Errorf("expected maxReadIops=2000, got %v", params["maxReadIops"])
+			}
+			if params["maxWriteIops"] != "2000" {
+				t.Errorf("expected maxWriteIops=2000, got %v", params["maxWriteIops"])
+			}
+		}
+	}
+	if !foundVAC {
+		t.Error("VolumeAttributesClass 'rbd-qos-high' not found in response KubeObjects")
+	}
+}
+
+func TestOffboardConsumer(t *testing.T) {
+	ctx := context.Background()
+	consumerUID := "offboard-uid-456"
+
+	consumer := &ocsv1a1.StorageConsumer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "offboard-consumer",
+			Namespace: testNamespace,
+			UID:       types.UID(consumerUID),
+		},
+		Status: ocsv1a1.StorageConsumerStatus{
+			Client: &ocsv1a1.ClientStatus{
+				OperatorVersion:   "4.22.0",
+				OperatorNamespace: "client-ns",
+				Name:              "test-client",
+				ID:                "test-client-id",
+			},
+		},
+	}
+
+	tests := []struct {
+		name        string
+		consumerUID string
+		seedObjs    []client.Object
+		wantErr     bool
+		validate    func(t *testing.T, srv *OCSProviderServer)
+	}{
+		{
+			name:        "successful offboard clears client info",
+			consumerUID: consumerUID,
+			seedObjs:    []client.Object{consumer},
+			validate: func(t *testing.T, srv *OCSProviderServer) {
+				c, err := srv.consumerManager.Get(ctx, consumerUID)
+				if err != nil {
+					t.Fatalf("failed to get consumer after offboard: %v", err)
+				}
+				if c.Status.Client != nil {
+					t.Fatal("expected client status to be nil after offboard")
+				}
+			},
+		},
+		{
+			name:        "offboard non-existent consumer fails",
+			consumerUID: "non-existent-uid",
+			seedObjs:    []client.Object{consumer},
+			wantErr:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newTestProviderServer(t, tt.seedObjs...)
+
+			resp, err := srv.OffboardConsumer(ctx, &pb.OffboardConsumerRequest{
+				StorageConsumerUUID: tt.consumerUID,
+			})
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if resp == nil {
+				t.Fatal("expected non-nil response")
+			}
+			if tt.validate != nil {
+				tt.validate(t, srv)
+			}
+		})
+	}
+}
+
+func TestReportStatus(t *testing.T) {
+	ctx := context.Background()
+	consumerUID := "report-uid-789"
+
+	consumer := &ocsv1a1.StorageConsumer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "report-consumer",
+			Namespace: testNamespace,
+			UID:       types.UID(consumerUID),
+		},
+	}
+
+	tests := []struct {
+		name              string
+		req               *pb.ReportStatusRequest
+		seedObjs          []client.Object
+		expectedErrorCode codes.Code
+	}{
+		{
+			name: "malformed client operator version",
+			req: &pb.ReportStatusRequest{
+				StorageConsumerUUID:   consumerUID,
+				ClientOperatorVersion: "not-a-semver",
+			},
+			seedObjs:          []client.Object{consumer},
+			expectedErrorCode: codes.InvalidArgument,
+		},
+		{
+			name: "malformed client platform version",
+			req: &pb.ReportStatusRequest{
+				StorageConsumerUUID:   consumerUID,
+				ClientOperatorVersion: "4.22.0",
+				ClientPlatformVersion: "bad-version",
+			},
+			seedObjs:          []client.Object{consumer},
+			expectedErrorCode: codes.InvalidArgument,
+		},
+		{
+			name: "consumer not found",
+			req: &pb.ReportStatusRequest{
+				StorageConsumerUUID:   "non-existent-uid",
+				ClientOperatorVersion: "4.22.0",
+				ClientPlatformVersion: "4.22.0",
+			},
+			seedObjs:          []client.Object{consumer},
+			expectedErrorCode: codes.Internal,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newTestProviderServer(t, tt.seedObjs...)
+
+			_, err := srv.ReportStatus(ctx, tt.req)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if got := status.Code(err); got != tt.expectedErrorCode {
+				t.Fatalf("expected error code %v, got %v: %v", tt.expectedErrorCode, got, err)
+			}
+		})
+	}
+}
+
+func TestRequestMaintenanceMode(t *testing.T) {
+	ctx := context.Background()
+	consumerUID := "maint-uid-101"
+
+	consumer := &ocsv1a1.StorageConsumer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "maint-consumer",
+			Namespace: testNamespace,
+			UID:       types.UID(consumerUID),
+		},
+	}
+
+	tests := []struct {
+		name     string
+		enable   bool
+		seedObjs []client.Object
+		wantErr  bool
+		validate func(t *testing.T, srv *OCSProviderServer)
+	}{
+		{
+			name:     "enable maintenance mode",
+			enable:   true,
+			seedObjs: []client.Object{consumer},
+			validate: func(t *testing.T, srv *OCSProviderServer) {
+				c, err := srv.consumerManager.Get(ctx, consumerUID)
+				if err != nil {
+					t.Fatalf("failed to get consumer: %v", err)
+				}
+				if _, ok := c.GetAnnotations()[util.RequestMaintenanceModeAnnotation]; !ok {
+					t.Fatal("expected maintenance mode annotation")
+				}
+			},
+		},
+		{
+			name:   "disable maintenance mode",
+			enable: false,
+			seedObjs: []client.Object{
+				func() *ocsv1a1.StorageConsumer {
+					c := consumer.DeepCopy()
+					c.Annotations = map[string]string{util.RequestMaintenanceModeAnnotation: ""}
+					return c
+				}(),
+			},
+			validate: func(t *testing.T, srv *OCSProviderServer) {
+				c, err := srv.consumerManager.Get(ctx, consumerUID)
+				if err != nil {
+					t.Fatalf("failed to get consumer: %v", err)
+				}
+				if _, ok := c.GetAnnotations()[util.RequestMaintenanceModeAnnotation]; ok {
+					t.Fatal("expected maintenance mode annotation to be removed")
+				}
+			},
+		},
+		{
+			name:     "enable on non-existent consumer fails",
+			enable:   true,
+			seedObjs: []client.Object{},
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newTestProviderServer(t, tt.seedObjs...)
+
+			resp, err := srv.RequestMaintenanceMode(ctx, &pb.RequestMaintenanceModeRequest{
+				StorageConsumerUUID: consumerUID,
+				Enable:              tt.enable,
+			})
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if resp == nil {
+				t.Fatal("expected non-nil response")
+			}
+			if tt.validate != nil {
+				tt.validate(t, srv)
+			}
+		})
+	}
+}
+
+func newNotifyTestServer(t *testing.T, objs ...client.Object) *OCSProviderServer {
+	t.Helper()
+	return newTestProviderServer(t, objs...)
 }
 
 func TestNotify(t *testing.T) {
