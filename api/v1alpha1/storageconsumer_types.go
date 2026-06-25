@@ -59,6 +59,8 @@ type StorageConsumerSpec struct {
 	VolumeGroupReplicationClasses []VolumeGroupReplicationClassSpec `json:"volumeGroupReplicationClasses,omitempty"`
 	// +optional
 	NetworkFenceClasses []NetworkFenceClassesSpec `json:"networkFenceClasses,omitempty"`
+	// +optional
+	VolumeAttributesClasses []VolumeAttributesClassesSpec `json:"volumeAttributesClasses,omitempty"`
 }
 
 type CommonClassSpec struct {
@@ -103,6 +105,10 @@ type VolumeGroupReplicationClassSpec struct {
 }
 
 type NetworkFenceClassesSpec struct {
+	CommonClassSpec `json:",inline"`
+}
+
+type VolumeAttributesClassesSpec struct {
 	CommonClassSpec `json:",inline"`
 }
 

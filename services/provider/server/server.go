@@ -448,6 +448,11 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			logger.Error(err, "failed to get odf volume group class resource version")
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
+		vACClassesResourceVersion, err := s.getVolumeAttributesClassesResourceVersion(ctx)
+		if err != nil {
+			logger.Error(err, "failed to get volume attributes class resource version")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
 
 		topologyKey := consumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
 		if topologyKey != "" {
@@ -485,6 +490,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			// TODO: enable vgs after GA of API
 			// vGSClassesResourceVersion,
 			odfVGSClassesResourceVersion,
+			vACClassesResourceVersion,
 			useHostNetworkForCtrlPlugin,
 			obcResourceVersions,
 			s3EndpointsListResourceVersion,
@@ -762,6 +768,11 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		logger.Error(err, "failed to get odf volume group class resource version")
 		return nil, status.Errorf(codes.Internal, "failed to produce client state")
 	}
+	vACClassesResourceVersion, err := s.getVolumeAttributesClassesResourceVersion(ctx)
+	if err != nil {
+		logger.Error(err, "failed to get volume attributes class resource version")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state")
+	}
 
 	obcResourceVersions, err := s.getOBCResourceVersions(ctx, logger, storageConsumer)
 	if err != nil {
@@ -792,6 +803,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		// TODO: enable vgs
 		// vGSClassesResourceVersion,
 		odfVGSClassesResourceVersion,
+		vACClassesResourceVersion,
 		util.ShouldUseHostNetworking(storageCluster),
 		obcResourceVersions,
 		s3EndpointsListResourceVersion,
@@ -1428,6 +1440,16 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 		storageCluster,
 		rbdStorageId,
 		cephFsStorageId,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	records, err = s.appendVolumeAttributesClassKubeResources(
+		ctx,
+		logger,
+		records,
+		consumer,
 	)
 	if err != nil {
 		return nil, err
@@ -2146,6 +2168,30 @@ func (s *OCSProviderServer) appendNetworkFenceClassKubeResources(
 	return records, nil
 }
 
+func (s *OCSProviderServer) appendVolumeAttributesClassKubeResources(
+	ctx context.Context,
+	logger logr.Logger,
+	records []kubeObjectWithOpRecord,
+	consumer *ocsv1alpha1.StorageConsumer,
+) ([]kubeObjectWithOpRecord, error) {
+
+	resources := getKubeResourcesForClass(
+		logger,
+		consumer.Spec.VolumeAttributesClasses,
+		"VolumeAttributesClass",
+		func(vacName string) (client.Object, error) {
+			return util.VolumeAttributesClassFromExisting(
+				ctx,
+				s.client,
+				vacName,
+			)
+		},
+	)
+	records = append(records, resources...)
+
+	return records, nil
+}
+
 func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
 	ctx context.Context,
 	logger logr.Logger,
@@ -2453,6 +2499,19 @@ func (s *OCSProviderServer) getVolumeSnapshotClassesResourceVersion(ctx context.
 		var versions []string
 		for i := range list.Items {
 			if slices.Contains(util.SupportedCsiDrivers, list.Items[i].Driver) {
+				versions = append(versions, list.Items[i].ResourceVersion)
+			}
+		}
+		return versions
+	})
+}
+
+func (s *OCSProviderServer) getVolumeAttributesClassesResourceVersion(ctx context.Context) ([]string, error) {
+	list := &storagev1.VolumeAttributesClassList{}
+	return s.getResourceVersions(ctx, list, func() []string {
+		var versions []string
+		for i := range list.Items {
+			if list.Items[i].DriverName == util.RbdDriverName {
 				versions = append(versions, list.Items[i].ResourceVersion)
 			}
 		}
