@@ -165,11 +165,6 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	nb.Spec.CoreResources = &coreResources
 	nb.Spec.DBSpec.DBResources = &dbResources
 
-	// Set "system-cluster-critical" priority class for noobaa core, db, and endpoint pods
-	nb.Spec.CorePriorityClassName = systemClusterCritical
-	nb.Spec.DBPriorityClassName = systemClusterCritical
-	nb.Spec.EndpointPriorityClassName = systemClusterCritical
-
 	component := "noobaa-standalone"
 	// fallback to 'noobaa-core' if either the cluster is not standalone or if "noobaa-standalone" placement is not found
 	_, ok := sc.Spec.Placement[rookCephv1.KeyType(component)]

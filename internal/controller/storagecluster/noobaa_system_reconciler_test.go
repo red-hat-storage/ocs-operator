@@ -412,9 +412,6 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		} else {
 			assert.Equal(t, nbv1.AutoscalerTypeHPAV2, noobaa.Spec.Autoscaler.AutoscalerType)
 		}
-		assert.Equalf(t, systemClusterCritical, noobaa.Spec.CorePriorityClassName, "[%s] noobaa core priority class not set correctly", c.label)
-		assert.Equalf(t, systemClusterCritical, noobaa.Spec.DBPriorityClassName, "[%s] noobaa db priority class not set correctly", c.label)
-		assert.Equalf(t, systemClusterCritical, noobaa.Spec.EndpointPriorityClassName, "[%s] noobaa endpoint priority class not set correctly", c.label)
 	}
 }
 
