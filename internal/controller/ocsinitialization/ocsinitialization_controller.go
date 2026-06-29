@@ -16,6 +16,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/templates"
 
 	"github.com/go-logr/logr"
+	secv1 "github.com/openshift/api/security/v1"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -636,6 +637,10 @@ func (r *OCSInitializationReconciler) reconcilePrometheusOperatorCSV(initialData
 		Value:    "true",
 		Effect:   corev1.TaintEffectNoSchedule,
 	}}
+	if deploymentSpec.Spec.Template.Annotations == nil {
+		deploymentSpec.Spec.Template.Annotations = map[string]string{}
+	}
+	deploymentSpec.Spec.Template.Annotations[secv1.RequiredSCCAnnotation] = util.SCCRestrictedV2
 
 	currentDeploymentSpec := deploymentSpec.DeepCopy()
 	deploymentSpec.Spec.Replicas = ptr.To(int32(1))

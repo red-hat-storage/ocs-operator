@@ -373,6 +373,10 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 					nameLabel:      exporterLabels[nameLabel],
 					versionLabel:   version.Version,
 				},
+				Annotations: util.MergePodTemplateAnnotations(
+					nil,
+					util.RequiredSCCForHostNetwork(hostNetwork),
+				),
 			},
 			Spec: corev1.PodSpec{
 				SecurityContext: &corev1.PodSecurityContext{

@@ -297,6 +297,7 @@ func GetProviderAPIServerDeploymentForTest(instance *ocsv1.StorageCluster) *apps
 					Labels: map[string]string{
 						"app": "ocsProviderApiServer",
 					},
+					Annotations: util.RequiredSCCAnnotation(util.SCCRestrictedV2),
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{

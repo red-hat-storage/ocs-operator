@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	secv1 "github.com/openshift/api/security/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	corev1 "k8s.io/api/core/v1"
@@ -59,7 +60,13 @@ func (obj *rookCephCsvHostNetwork) ensureCreated(r *StorageClusterReconciler, in
 	}
 
 	deployment := &rookCSV.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[index]
-	if util.ShouldUseHostNetworking(instance) {
+	hostNetwork := util.ShouldUseHostNetworking(instance)
+	// Pin openshift.io/required-scc to SCCHostNetworkV2 when hostNetwork is true, otherwise SCCRestrictedV2.
+	if deployment.Spec.Template.Annotations == nil {
+		deployment.Spec.Template.Annotations = map[string]string{}
+	}
+	deployment.Spec.Template.Annotations[secv1.RequiredSCCAnnotation] = util.RequiredSCCForHostNetwork(hostNetwork)
+	if hostNetwork {
 		deployment.Spec.Template.Spec.HostNetwork = true
 		deployment.Spec.Template.Spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
 	} else {

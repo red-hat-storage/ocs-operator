@@ -70,9 +70,10 @@ func (r *StorageClusterReconciler) ensureToolsDeployment(sc *ocsv1.StorageCluste
 				return err
 			}
 			if net != "" {
-				if toolsDeployment.Spec.Template.Annotations == nil {
-					toolsDeployment.Spec.Template.Annotations = make(map[string]string)
-				}
+				toolsDeployment.Spec.Template.Annotations = util.MergePodTemplateAnnotations(
+					toolsDeployment.Spec.Template.Annotations,
+					util.SCCRookCeph,
+				)
 				toolsDeployment.Spec.Template.Annotations["k8s.v1.cni.cncf.io/networks"] = net
 				toolsDeployment.Spec.Template.Spec.HostNetwork = false
 			}
@@ -115,6 +116,7 @@ func newToolsDeployment(namespace string, tolerations []corev1.Toleration, nodeA
 					Labels: map[string]string{
 						"app": "rook-ceph-tools",
 					},
+					Annotations: util.RequiredSCCAnnotation(util.SCCRookCeph),
 				},
 				Spec: corev1.PodSpec{
 					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,

@@ -246,6 +246,7 @@ func (r *StorageClusterReconciler) createVaultAgentDeployment(instance *ocsv1.St
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: vaultAgentLabels,
+					Annotations: util.RequiredSCCAnnotation(util.SCCRestrictedV2),
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: VaultAgentSAName,

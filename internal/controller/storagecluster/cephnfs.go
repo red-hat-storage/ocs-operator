@@ -39,6 +39,7 @@ func (r *StorageClusterReconciler) newCephNFSInstances(initData *ocsv1.StorageCl
 					// pods using NFS volumes.
 					PriorityClassName: systemClusterCritical,
 					LogLevel:          initData.Spec.NFS.LogLevel,
+					Annotations:       util.RequiredSCCAnnotation(util.SCCRookCeph),
 				},
 			},
 		},
