@@ -3,6 +3,7 @@ package templates
 import (
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 )
@@ -10,6 +11,9 @@ import (
 var AlertmanagerSpecTemplate = promv1.AlertmanagerSpec{
 	Replicas:  ptr.To(int32(1)),
 	Resources: defaults.MonitoringResources["alertmanager"],
+	PodMetadata: &promv1.EmbeddedObjectMetadata{
+		Annotations: util.RequiredSCCAnnotation(util.SCCNonRootV2),
+	},
 	Tolerations: []corev1.Toleration{{
 		Key:      defaults.NodeTolerationKey,
 		Operator: corev1.TolerationOpEqual,

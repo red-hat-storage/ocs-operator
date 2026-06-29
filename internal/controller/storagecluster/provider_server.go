@@ -269,6 +269,7 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 					Labels: map[string]string{
 						"app": "ocsProviderApiServer",
 					},
+					Annotations: util.RequiredSCCAnnotation(util.SCCRestrictedV2),
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
@@ -380,6 +381,9 @@ func getOnboardingJobObject(instance *ocsv1.StorageCluster) *batchv1.Job {
 			// Eligible to delete automatically when job finishes
 			TTLSecondsAfterFinished: ptr.To(int32(0)),
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: util.RequiredSCCAnnotation(util.SCCRestrictedV2),
+				},
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					ServiceAccountName: onboardingValidationKeysGeneratorJobName,

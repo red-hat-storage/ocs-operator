@@ -63,6 +63,7 @@ func (r *StorageClusterReconciler) newCephRbdMirrorInstances(initData *ocsv1.Sto
 				}(),
 				Resources: getDaemonResources("rbd-mirror", initData),
 				Placement: GetPlacement(initData, "rbd-mirror"),
+				Annotations: util.RequiredSCCAnnotation(util.SCCRookCeph),
 			},
 		},
 	}

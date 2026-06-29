@@ -217,6 +217,7 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 					// set PriorityClassName for the rgw pods
 					PriorityClassName: systemClusterCritical,
 					Labels:            cephv1.Labels{defaults.ODFResourceProfileKey: initData.Spec.ResourceProfile},
+					Annotations:         util.RequiredSCCAnnotation(util.SCCRookCeph),
 				},
 			},
 		},
