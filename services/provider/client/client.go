@@ -30,10 +30,10 @@ func NewProviderClient(ctx context.Context, serverAddr string, timeout time.Dura
 
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(config)),
-		grpc.WithBlock(),
+		grpc.WithBlock(), //nolint:staticcheck // keep blocking dial until grpc.NewClient migration
 	}
 
-	conn, err := grpc.DialContext(apiCtx, serverAddr, opts...)
+	conn, err := grpc.DialContext(apiCtx, serverAddr, opts...) //nolint:staticcheck
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial: %v", err)
 	}
