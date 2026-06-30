@@ -8,7 +8,7 @@ import (
 
 var (
 	// Version of the operator
-	Version = "4.22.0"
+	Version = "4.23.0"
 )
 
 // Returns Major and Minor Version joined by dot (.)
