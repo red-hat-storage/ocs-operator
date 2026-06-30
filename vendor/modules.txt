@@ -562,11 +562,11 @@ github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapsh
 ## explicit; go 1.24.6
 github.com/red-hat-storage/ocs-client-operator/api/v1alpha1
 # github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-00010101000000-000000000000 => ./api
-## explicit; go 1.25.8
+## explicit; go 1.26.0
 # github.com/red-hat-storage/ocs-operator/services/provider/api/v4 v4.0.0-00010101000000-000000000000 => ./services/provider/api
-## explicit; go 1.25.8
+## explicit; go 1.26.0
 # github.com/red-hat-storage/ocs-operator/v4 v4.0.0-00010101000000-000000000000 => .
-## explicit; go 1.25.8
+## explicit; go 1.26.0
 # github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd65
 ## explicit; go 1.25.0
 github.com/red-hat-storage/ocs-tls-profiles/api/v1
