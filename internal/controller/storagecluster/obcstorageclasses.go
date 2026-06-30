@@ -2,7 +2,6 @@ package storagecluster
 
 import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
-	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	storagev1 "k8s.io/api/storage/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -19,7 +18,7 @@ func (s *obcStorageClasses) ensureCreated(r *StorageClusterReconciler, storageCl
 		return ctrl.Result{}, nil
 	}
 
-	if skip, err := platform.PlatformsShouldSkipObjectStore(); err != nil {
+	if skip, err := shouldSkipObjectStore(storageCluster); err != nil {
 		r.Log.Error(err, "failed to identify if ObjectStore SC should be created")
 	} else if skip || r.isTnfCluster {
 		return ctrl.Result{}, nil

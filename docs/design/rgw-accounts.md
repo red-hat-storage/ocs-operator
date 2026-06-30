@@ -16,7 +16,7 @@ Account creation requires two gates. One at the cluster level and one at the spo
 
 Two annotations on StorageCluster control RGW deployment and advanced features independently.
 
-- **`ocs.openshift.io/enable-advanced-rgw-features`** — enables advanced RGW features (Accounts, STS and any future capabilities). On platforms where RGW is already deployed (bare metal), this enables the features on the existing RGW.
+- **`ocs.openshift.io/enable-advanced-rgw-features: "true"`** — enables advanced RGW features (Accounts, STS and any future capabilities). On platforms where RGW is already deployed (bare metal), this enables the features on the existing RGW.
 - **`ocs.openshift.io/enable-rgw: "true"`** — forces RGW deployment on platforms where it is not normally deployed (e.g., cloud). Not needed on bare metal.
 - The deploying operator sets these annotations.
 
@@ -70,7 +70,7 @@ The Admin User CR is per-consumer. Each consumer with the `enable-rgw-account` a
 - `spec.accountRef.name`: references the Account CR's `metadata.name` (immutable after creation)
 - Capabilities: `user: "*"`, `buckets: "*"`, `usage: "*"`, `metadata: "*"` — covers IAM user management, bucket operations, usage stats and metadata access
 - OwnerRefs: StorageConsumer (controller reference) and the consumer's resource mapping ConfigMap (owner reference), matching the dual-owner pattern used for CephClient and other per-consumer sub-resources.
-- Rook derives the RGW user UID from `metadata.name` and generates a credentials Secret whose reference (name, namespace, resourceVersion) is published in `CephObjectStoreUser.status.keys[]`. OCS reads the secret name from status rather than constructing it.
+- Rook derives the RGW user UID from `metadata.name` and generates a credentials Secret whose name is published in `CephObjectStoreUser.status.info["secretName"]`. OCS reads the secret name from status rather than constructing it.
 
 
 ### Resource Name Mapping
@@ -108,7 +108,7 @@ The hub constructs the credentials Secret containing:
 
 - Credentials are only advertised after both the Account and User CRs report `status.phase == "Ready"`. 
 - If either is not ready, the Secret is omitted from the response. The spoke gets it on the next reconciliation cycle.
-- The `resourceVersion` of the Rook-generated credentials Secret is read from `CephObjectStoreUser.status.keys[]` and included in the `desiredClientConfigHash` computed in `ReportStatus`. This ensures the spoke detects credential changes and triggers a re-sync.
+- The `resourceVersion` of the Rook-generated credentials Secret is included in the `desiredClientConfigHash` computed in `ReportStatus`. This ensures the spoke detects credential changes and triggers a re-sync.
 
 **Note:** ODF does not pass a CA certificate for the RGW endpoint. The endpoint is an OCP Route. It is the hub admin's responsibility to ensure the Route's TLS certificate is trusted by spoke applications.
 
