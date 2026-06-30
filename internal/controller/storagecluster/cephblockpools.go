@@ -266,6 +266,53 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 	return reconcile.Result{}, nil
 }
 
+func (o *ocsCephBlockPools) reconcileNVMeOFCephBlockPool(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (reconcile.Result, error) {
+
+	if storageCluster.Spec.NVMeOF == nil {
+		return reconcile.Result{}, nil
+	}
+
+	cephBlockPool := &cephv1.CephBlockPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      util.GenerateNameForNVMeOFBlockPool(storageCluster),
+			Namespace: storageCluster.Namespace,
+		},
+	}
+
+	err := r.Get(r.ctx, client.ObjectKeyFromObject(cephBlockPool), cephBlockPool)
+	if client.IgnoreNotFound(err) != nil {
+		return reconcile.Result{}, err
+	}
+
+	// storageCluster is marked for deletion - delete the block pool
+	if storageCluster.GetDeletionTimestamp() != nil {
+		if !errors.IsNotFound(err) {
+			return o.deleteCephBlockPool(r, cephBlockPool)
+		}
+		return reconcile.Result{}, nil
+	}
+
+	if !errors.IsNotFound(err) && ReconcileStrategy(storageCluster.Spec.ManagedResources.CephBlockPools.ReconcileStrategy) == ReconcileStrategyInit {
+		return reconcile.Result{}, nil
+	}
+
+	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
+		if storageCluster.Spec.NVMeOF.PoolSpec != nil {
+			cephBlockPool.Spec.PoolSpec = *storageCluster.Spec.NVMeOF.PoolSpec
+		}
+		setDefaultDataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
+		cephBlockPool.Spec.EnableRBDStats = true
+		util.AddLabel(cephBlockPool, util.ForInternalUseOnlyLabelKey, "true")
+
+		return controllerutil.SetControllerReference(storageCluster, cephBlockPool, r.Scheme)
+	})
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update NVMeOF CephBlockPool.", "CephBlockPool", klog.KRef(cephBlockPool.Namespace, cephBlockPool.Name))
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
+}
+
 func (o *ocsCephBlockPools) reconcileNonResilientCephBlockPool(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (reconcile.Result, error) {
 
 	if !storageCluster.Spec.ManagedResources.CephNonResilientPools.Enable {
@@ -358,6 +405,10 @@ func (o *ocsCephBlockPools) ensureCreated(r *StorageClusterReconciler, storageCl
 		return res, err
 	}
 
+	if res, err := o.reconcileNVMeOFCephBlockPool(r, storageCluster); err != nil || !res.IsZero() {
+		return res, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -386,6 +437,10 @@ func (o *ocsCephBlockPools) ensureDeleted(r *StorageClusterReconciler, storageCl
 	}
 
 	if res, err := o.reconcileNFSCephBlockPool(r, storageCluster); err != nil || !res.IsZero() {
+		return res, err
+	}
+
+	if res, err := o.reconcileNVMeOFCephBlockPool(r, storageCluster); err != nil || !res.IsZero() {
 		return res, err
 	}
 
