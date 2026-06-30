@@ -357,7 +357,7 @@ golang.org/x/crypto/pbkdf2
 # golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c
 ## explicit; go 1.22.0
 golang.org/x/exp/maps
-# golang.org/x/net v0.33.0
+# golang.org/x/net v0.34.0
 ## explicit; go 1.18
 golang.org/x/net/context
 golang.org/x/net/html
@@ -367,7 +367,7 @@ golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
-# golang.org/x/oauth2 v0.23.0
+# golang.org/x/oauth2 v0.25.0
 ## explicit; go 1.18
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
@@ -408,7 +408,7 @@ golang.org/x/time/rate
 ## explicit; go 1.22.0
 golang.org/x/tools/cover
 golang.org/x/tools/go/ast/inspector
-# google.golang.org/protobuf v1.35.1
+# google.golang.org/protobuf v1.36.4
 ## explicit; go 1.21
 google.golang.org/protobuf/encoding/protodelim
 google.golang.org/protobuf/encoding/prototext
@@ -430,6 +430,7 @@ google.golang.org/protobuf/internal/genid
 google.golang.org/protobuf/internal/impl
 google.golang.org/protobuf/internal/order
 google.golang.org/protobuf/internal/pragma
+google.golang.org/protobuf/internal/protolazy
 google.golang.org/protobuf/internal/set
 google.golang.org/protobuf/internal/strs
 google.golang.org/protobuf/internal/version
@@ -780,3 +781,4 @@ sigs.k8s.io/yaml/goyaml.v2
 # github.com/red-hat-storage/ocs-operator/api/v4 => ../api
 # github.com/red-hat-storage/ocs-operator/v4 => ../
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
+# google.golang.org/grpc => github.com/openshift-sustaining/grpc-go v1.71.3-sec.1
