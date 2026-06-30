@@ -103,7 +103,7 @@ github.com/go-jose/go-jose/v4
 github.com/go-jose/go-jose/v4/cipher
 github.com/go-jose/go-jose/v4/json
 github.com/go-jose/go-jose/v4/jwt
-# github.com/go-logr/logr v1.4.2
+# github.com/go-logr/logr v1.4.3
 ## explicit; go 1.18
 github.com/go-logr/logr
 github.com/go-logr/logr/funcr
@@ -426,7 +426,7 @@ golang.org/x/net/internal/httpcommon
 golang.org/x/net/internal/socks
 golang.org/x/net/proxy
 golang.org/x/net/websocket
-# golang.org/x/oauth2 v0.28.0
+# golang.org/x/oauth2 v0.30.0
 ## explicit; go 1.23.0
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
@@ -474,8 +474,8 @@ golang.org/x/tools/go/ast/inspector
 # gomodules.xyz/jsonpatch/v2 v2.4.0
 ## explicit; go 1.20
 gomodules.xyz/jsonpatch/v2
-# google.golang.org/protobuf v1.36.5
-## explicit; go 1.21
+# google.golang.org/protobuf v1.36.6
+## explicit; go 1.22
 google.golang.org/protobuf/encoding/protodelim
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
@@ -1028,3 +1028,4 @@ sigs.k8s.io/yaml/goyaml.v2
 # github.com/red-hat-storage/ocs-operator/api/v4 => ../api
 # github.com/red-hat-storage/ocs-operator/v4 => ../
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
+# google.golang.org/grpc => github.com/openshift-sustaining/grpc-go v1.75.1-sec.1
