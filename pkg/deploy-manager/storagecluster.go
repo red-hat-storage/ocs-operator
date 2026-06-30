@@ -172,8 +172,15 @@ func (t *DeployManager) deleteStorageCluster() error {
 		return err
 	}
 
-	err = t.Client.Delete(context.TODO(), sc)
-	return err
+	if sc.Annotations == nil {
+		sc.Annotations = map[string]string{}
+	}
+	sc.Annotations["uninstall.ocs.openshift.io/confirm-deletion"] = "true"
+	if err := t.Client.Update(context.TODO(), sc); err != nil {
+		return err
+	}
+
+	return t.Client.Delete(context.TODO(), sc)
 }
 
 // WaitOnStorageCluster waits for storage cluster to come online

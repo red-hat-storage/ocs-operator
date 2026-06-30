@@ -57,7 +57,19 @@ func StorageClusterCreationTest() {
 		})
 
 		ginkgo.AfterEach(func() {
-			err := sccObj.client.Delete(context.TODO(), sccObj.duplicateStorageCluster)
+			sc := &ocsv1.StorageCluster{}
+			err := sccObj.client.Get(context.TODO(), client.ObjectKey{
+				Name:      sccObj.duplicateStorageCluster.Name,
+				Namespace: sccObj.duplicateStorageCluster.Namespace,
+			}, sc)
+			gomega.Expect(err).To(gomega.BeNil())
+			if sc.Annotations == nil {
+				sc.Annotations = map[string]string{}
+			}
+			sc.Annotations["uninstall.ocs.openshift.io/confirm-deletion"] = "true"
+			err = sccObj.client.Update(context.TODO(), sc)
+			gomega.Expect(err).To(gomega.BeNil())
+			err = sccObj.client.Delete(context.TODO(), sc)
 			gomega.Expect(err).To(gomega.BeNil())
 		})
 

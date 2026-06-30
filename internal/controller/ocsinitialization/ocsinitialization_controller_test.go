@@ -14,6 +14,7 @@ import (
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
 	"github.com/stretchr/testify/assert"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -126,6 +127,11 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = storagev1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add storagev1 scheme")
+	}
+
+	err = admissionv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add admissionregistration/v1 scheme")
 	}
 
 	return scheme
@@ -304,6 +310,43 @@ func TestReconcileCompleteConditions(t *testing.T) {
 			assert.Fail(t, "expected status condition not found")
 		}
 	}
+}
+
+func TestReconcileCreatesVAPAndBinding(t *testing.T) {
+	platform.SetFakePlatformInstanceForTesting(true, "")
+	defer platform.UnsetFakePlatformInstanceForTesting()
+
+	_, request, reconciler := getTestParams(false, t)
+
+	_, err := reconciler.Reconcile(context.TODO(), request)
+	assert.NoError(t, err)
+
+	vap := &admissionv1.ValidatingAdmissionPolicy{}
+	err = reconciler.Get(context.TODO(), types.NamespacedName{Name: storageClusterDeletePolicyName}, vap)
+	assert.NoError(t, err)
+
+	assert.NotNil(t, vap.Spec.FailurePolicy)
+	assert.Equal(t, admissionv1.Fail, *vap.Spec.FailurePolicy)
+
+	assert.NotNil(t, vap.Spec.MatchConstraints)
+	assert.Len(t, vap.Spec.MatchConstraints.ResourceRules, 1)
+	rule := vap.Spec.MatchConstraints.ResourceRules[0]
+	assert.Equal(t, []admissionv1.OperationType{admissionv1.Delete}, rule.Operations)
+	assert.Equal(t, []string{"ocs.openshift.io"}, rule.APIGroups)
+	assert.Equal(t, []string{"v1"}, rule.APIVersions)
+	assert.Equal(t, []string{"storageclusters"}, rule.Resources)
+
+	assert.Len(t, vap.Spec.Validations, 1)
+	assert.Contains(t, vap.Spec.Validations[0].Expression, "uninstall.ocs.openshift.io/confirm-deletion")
+	assert.NotEmpty(t, vap.Spec.Validations[0].MessageExpression)
+	assert.Equal(t, metav1.StatusReasonForbidden, *vap.Spec.Validations[0].Reason)
+
+	vapBinding := &admissionv1.ValidatingAdmissionPolicyBinding{}
+	err = reconciler.Get(context.TODO(), types.NamespacedName{Name: storageClusterDeletePolicyBindingName}, vapBinding)
+	assert.NoError(t, err)
+
+	assert.Equal(t, storageClusterDeletePolicyName, vapBinding.Spec.PolicyName)
+	assert.Equal(t, []admissionv1.ValidationAction{admissionv1.Deny}, vapBinding.Spec.ValidationActions)
 }
 
 func assertCondition(ocs v1.OCSInitialization, conditionType conditionsv1.ConditionType, status corev1.ConditionStatus) bool {
