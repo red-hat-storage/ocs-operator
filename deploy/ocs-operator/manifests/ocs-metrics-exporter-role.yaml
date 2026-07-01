@@ -1,0 +1,65 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ocs-metrics-exporter
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - prometheusrules
+  - servicemonitors
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - cephobjectstores
+  - cephclusters
+  - cephblockpools
+  - cephrbdmirrors
+  - cephblockpoolradosnamespaces
+  - cephfilesystemsubvolumegroups
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - objectbucket.io
+  resources:
+  - objectbucketclaims
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ocs.openshift.io
+  resources:
+  - storageconsumers
+  - storageclusters
+  - storageautoscalers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - operators.coreos.com
+  resources:
+  - operatorconditions
+  verbs:
+  - get
+  - list
+  - watch
+
