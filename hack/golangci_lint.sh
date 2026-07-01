@@ -2,7 +2,7 @@
 
 source hack/common.sh
 
-GOLANGCI_LINT_DL_SCRIPT_URL="https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh"
+GOLANGCI_LINT_DL_SCRIPT_URL="https://golangci-lint.run/install.sh"
 
 mkdir -p "${LOCALBIN}"
 
