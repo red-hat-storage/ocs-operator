@@ -27,6 +27,8 @@ import (
 type CephCsiSecretsSpec struct {
 	//+kubebuilder:validation:Optional
 	ControllerPublishSecret corev1.SecretReference `json:"controllerPublishSecret,omitempty"`
+	//+kubebuilder:validation:Optional
+	NodePublishSecret corev1.SecretReference `json:"nodePublishSecret,omitempty"`
 }
 
 // CephFsConfigSpec defines the desired CephFs configuration
