@@ -178,6 +178,15 @@ type NodePluginSpec struct {
 	// Topology settings for the plugin pods
 	//+kubebuilder:validation:Optional
 	Topology *TopologySpec `json:"topology,omitempty"`
+
+	// Extra arguments for containers in the node plugin daemonset.
+	// The key is the container name, the value is a list of CLI arguments.
+	// The operator will not override the default CLI argument values it's setting.
+	// This is more for customizing what comes as default with cephcsi.
+	// Examples of container names: csi-rbdplugin, driver-registrar, csi-addons,
+	// liveness-prometheus, etc.
+	//+kubebuilder:validation:Optional
+	ContainerExtraArgs map[string][]string `json:"containerExtraArgs,omitempty"`
 }
 
 type ControllerPluginResourcesSpec struct {
@@ -220,9 +229,12 @@ type ControllerPluginSpec struct {
 	//+kubebuilder:validation:Optional
 	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
 
-	// Set replicas for controller plugin's deployment. Defaults to 2
+	// Set replicas for controller plugin's deployment. Defaults to 2.
+	// On single-node clusters, the operator automatically caps the replica
+	// count to the number of available nodes when this field is not set.
 	//+kubebuilder:validation:Optional
 	//+kubebuilder:validation:Minimum:=1
+	//+kubebuilder:default:=2
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Resource requirements for controller plugin's containers
@@ -234,6 +246,15 @@ type ControllerPluginSpec struct {
 	// For example, OpenShift with SELinux restrictions requires the pod to be privileged to write to hostPath.
 	//+kubebuilder:validation:Optional
 	Privileged *bool `json:"privileged,omitempty"`
+
+	// Extra arguments for containers in the controller plugin deployment.
+	// The key is the container name, the value is a list of CLI arguments.
+	// The operator will not override the default CLI argument values it's setting.
+	// This is more for customizing what comes as default with cephcsi.
+	// Examples of container names: csi-rbdplugin, csi-provisioner, csi-attacher,
+	// csi-resizer, csi-snapshotter, csi-omap-generator, liveness-prometheus, etc.
+	//+kubebuilder:validation:Optional
+	ContainerExtraArgs map[string][]string `json:"containerExtraArgs,omitempty"`
 }
 
 type LivenessSpec struct {
@@ -291,9 +312,7 @@ type DriverSpec struct {
 	//+kubebuilder:validation:Optional
 	ClusterName *string `json:"clusterName,omitempty"`
 
-	// Set to true to enable adding volume metadata on the CephFS subvolumes and RBD images.
-	// Not all users might be interested in getting volume/snapshot details as metadata on CephFS subvolume and RBD images.
-	// Hence enable metadata is false by default.
+	// Deprecated: This field is no longer used by the ceph-csi driver and will be ignored.
 	//+kubebuilder:validation:Optional
 	EnableMetadata *bool `json:"enableMetadata,omitempty"`
 
