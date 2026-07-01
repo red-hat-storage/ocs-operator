@@ -1,38 +1,6 @@
-## workspace
 # github.com/Masterminds/semver/v3 v3.4.0
 ## explicit; go 1.21
 github.com/Masterminds/semver/v3
-# github.com/aws/aws-sdk-go-v2 v1.39.6
-## explicit; go 1.23
-github.com/aws/aws-sdk-go-v2/aws
-github.com/aws/aws-sdk-go-v2/aws/middleware
-github.com/aws/aws-sdk-go-v2/aws/signer/internal/v4
-github.com/aws/aws-sdk-go-v2/aws/signer/v4
-github.com/aws/aws-sdk-go-v2/internal/auth
-github.com/aws/aws-sdk-go-v2/internal/rand
-github.com/aws/aws-sdk-go-v2/internal/sdk
-github.com/aws/aws-sdk-go-v2/internal/strings
-github.com/aws/aws-sdk-go-v2/internal/sync/singleflight
-# github.com/aws/aws-sdk-go-v2/credentials v1.18.24
-## explicit; go 1.23
-github.com/aws/aws-sdk-go-v2/credentials
-# github.com/aws/smithy-go v1.23.2
-## explicit; go 1.23
-github.com/aws/smithy-go
-github.com/aws/smithy-go/auth
-github.com/aws/smithy-go/auth/bearer
-github.com/aws/smithy-go/context
-github.com/aws/smithy-go/encoding/httpbinding
-github.com/aws/smithy-go/internal/sync/singleflight
-github.com/aws/smithy-go/logging
-github.com/aws/smithy-go/metrics
-github.com/aws/smithy-go/middleware
-github.com/aws/smithy-go/ptr
-github.com/aws/smithy-go/rand
-github.com/aws/smithy-go/time
-github.com/aws/smithy-go/tracing
-github.com/aws/smithy-go/transport/http
-github.com/aws/smithy-go/transport/http/internal/io
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
@@ -48,9 +16,6 @@ github.com/ceph/ceph-csi-operator/api/v1
 # github.com/ceph/ceph-csi/api v0.0.0-20251120101229-f3b5a5957149
 ## explicit; go 1.24.0
 github.com/ceph/ceph-csi/api/deploy/ocp
-# github.com/ceph/go-ceph v0.36.0
-## explicit; go 1.24.0
-github.com/ceph/go-ceph/rgw/admin
 # github.com/cespare/xxhash/v2 v2.3.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
@@ -104,8 +69,6 @@ github.com/davecgh/go-spew/spew
 ## explicit; go 1.13
 github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
-# github.com/evanphx/json-patch v5.9.11+incompatible
-## explicit
 # github.com/evanphx/json-patch/v5 v5.9.11
 ## explicit; go 1.18
 github.com/evanphx/json-patch/v5
@@ -283,11 +246,6 @@ github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/utils
 ## explicit; go 1.13
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1
-github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned
-github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned/fake
-github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned/scheme
-github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned/typed/objectbucket.io/v1alpha1
-github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned/typed/objectbucket.io/v1alpha1/fake
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api
 # github.com/kubernetes-csi/external-snapshotter/client/v8 v8.4.0
 ## explicit; go 1.22.0
@@ -309,7 +267,7 @@ github.com/mitchellh/go-homedir
 # github.com/mitchellh/mapstructure v1.5.0
 ## explicit; go 1.14
 github.com/mitchellh/mapstructure
-# github.com/moby/spdystream v0.5.0
+# github.com/moby/spdystream v0.5.1
 ## explicit; go 1.13
 github.com/moby/spdystream
 github.com/moby/spdystream/spdy
@@ -333,9 +291,6 @@ github.com/mxk/go-flowrate/flowrate
 github.com/noobaa/noobaa-operator/v5/pkg/apis
 github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1
 github.com/noobaa/noobaa-operator/v5/pkg/bundle
-# github.com/oklog/run v1.2.0
-## explicit; go 1.20
-github.com/oklog/run
 # github.com/onsi/ginkgo/v2 v2.27.2
 ## explicit; go 1.23.0
 github.com/onsi/ginkgo/v2
@@ -489,18 +444,13 @@ github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapsh
 github.com/red-hat-storage/ocs-client-operator/api/v1alpha1
 # github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-00010101000000-000000000000 => ./api
 ## explicit; go 1.24.6
+github.com/red-hat-storage/ocs-operator/api/v4/v1
+github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
 # github.com/red-hat-storage/ocs-operator/services/provider/api/v4 v4.0.0-00010101000000-000000000000 => ./services/provider/api
 ## explicit; go 1.24.6
-# github.com/red-hat-storage/ocs-operator/v4 v4.0.0-00010101000000-000000000000 => .
-## explicit; go 1.24.6
-# github.com/rogpeppe/go-internal v1.14.1
-## explicit; go 1.23
-# github.com/rook/rook v1.18.0-alpha.0.0.20251119183400-8782e9183d04
-## explicit; go 1.24.3
-github.com/rook/rook/pkg/client/clientset/versioned
-github.com/rook/rook/pkg/client/clientset/versioned/scheme
-github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1
-github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1
+github.com/red-hat-storage/ocs-operator/services/provider/api/v4
+github.com/red-hat-storage/ocs-operator/services/provider/api/v4/client
+github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces
 # github.com/rook/rook/pkg/apis v0.0.0-20251119183400-8782e9183d04
 ## explicit; go 1.24.3
 github.com/rook/rook/pkg/apis/ceph.rook.io
@@ -977,7 +927,6 @@ k8s.io/client-go/applyconfigurations/storage/v1alpha1
 k8s.io/client-go/applyconfigurations/storage/v1beta1
 k8s.io/client-go/applyconfigurations/storagemigration/v1alpha1
 k8s.io/client-go/discovery
-k8s.io/client-go/discovery/fake
 k8s.io/client-go/dynamic
 k8s.io/client-go/features
 k8s.io/client-go/gentype
@@ -1332,4 +1281,6 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
+# github.com/red-hat-storage/ocs-operator/api/v4 => ./api
+# github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
