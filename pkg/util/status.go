@@ -223,6 +223,24 @@ func RemoveExternalCephClusterNegativeConditions(conditions *[]conditionsv1.Cond
 	}
 }
 
+// RemoveCephClusterNegativeConditions clears stale ceph-origin Upgradeable=False from StorageCluster status once internal CephCluster is Created and HEALTH_OK.
+func RemoveCephClusterNegativeConditions(conditions *[]conditionsv1.Condition, found *cephv1.CephCluster) {
+	if found.Status.State != cephv1.ClusterStateCreated {
+		return
+	}
+	if found.Status.CephStatus != nil && found.Status.CephStatus.Health != "HEALTH_OK" {
+		return
+	}
+	c := conditionsv1.FindStatusCondition(*conditions, conditionsv1.ConditionUpgradeable)
+	if c == nil || c.Status != corev1.ConditionFalse {
+		return
+	}
+	switch c.Reason {
+	case "ClusterStateCreating", "ClusterStateUpdating", "CephClusterHealthNotOK":
+		conditionsv1.RemoveStatusCondition(conditions, conditionsv1.ConditionUpgradeable)
+	}
+}
+
 // MapCephClusterNoConditions sets status conditions to progressing. Used when component operator isn't
 // reporting any status, and we have to assume progress.
 func MapCephClusterNoConditions(conditions *[]conditionsv1.Condition, reason string, message string) {
