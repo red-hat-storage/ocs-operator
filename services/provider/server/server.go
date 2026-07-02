@@ -1627,6 +1627,10 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 					Name:      consumerConfig.GetCsiRbdProvisionerCephUserName(),
 					Namespace: consumer.Status.Client.OperatorNamespace,
 				},
+				NodePublishSecret: corev1.SecretReference{
+					Name:      consumerConfig.GetCsiRbdNodeCephUserName(),
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
 			},
 		}
 	}
