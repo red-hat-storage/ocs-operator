@@ -420,6 +420,7 @@ rules:
   - storage.k8s.io
   resources:
   - storageclasses
+  - volumeattributesclasses
   verbs:
   - create
   - delete
