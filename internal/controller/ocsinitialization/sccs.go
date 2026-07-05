@@ -5,14 +5,12 @@ import (
 	"fmt"
 
 	cephcsi "github.com/ceph/ceph-csi/api/deploy/ocp"
-	nbbundle "github.com/noobaa/noobaa-operator/v5/pkg/bundle"
 	secv1 "github.com/openshift/api/security/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/yaml"
 )
 
 func (r *OCSInitializationReconciler) ensureSCCs(initialData *ocsv1.OCSInitialization) error {
@@ -47,7 +45,6 @@ func getAllSCCs(namespace string) []*secv1.SecurityContextConstraints {
 	return []*secv1.SecurityContextConstraints{
 		newRookCephSCC(namespace),
 		newRookCephCSISCC(namespace),
-		newNooBaaOperatorSCC(namespace),
 	}
 }
 
@@ -67,15 +64,5 @@ func newRookCephCSISCC(namespace string) *secv1.SecurityContextConstraints {
 
 	scc, _ := cephcsi.NewSecurityContextConstraints(rookValues)
 
-	return scc
-}
-
-func newNooBaaOperatorSCC(namespace string) *secv1.SecurityContextConstraints {
-	scc := &secv1.SecurityContextConstraints{}
-	if err := yaml.Unmarshal([]byte(nbbundle.File_deploy_scc_yaml), &scc); err != nil {
-		return nil
-	}
-
-	scc.Namespace = namespace
 	return scc
 }
