@@ -1,7 +1,11 @@
 version: 2
 updates:
   - package-ecosystem: "gomod"
-    directory: "/"
+    directories:
+      - "/"
+      - "/api"
+      - "/metrics"
+      - "/services/provider/api"
     schedule:
       interval: daily
     open-pull-requests-limit: 10
@@ -15,4 +19,4 @@ updates:
         applies-to: security-updates
         group-by: dependency-name
         patterns:
-          - "*"    
+          - "*"
