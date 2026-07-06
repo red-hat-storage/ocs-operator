@@ -36,7 +36,15 @@ jobs:
           git config user.name "${GIT_AUTHOR_NAME}"
           git config user.email "${GIT_AUTHOR_EMAIL}"
 
-          git add .
+          paths=(
+            go.mod go.sum go.work go.work.sum
+            api/go.mod api/go.sum
+            metrics/go.mod metrics/go.sum
+            services/provider/api/go.mod services/provider/api/go.sum
+            vendor/
+            api config/crd/bases deploy/csv-templates deploy/ocs-operator
+          )
+          git add "${paths[@]}"
 
           if git diff --staged --quiet; then
             echo "Nothing to commit"
