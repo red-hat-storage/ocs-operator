@@ -1,4 +1,4 @@
-// Copyright 2022 The prometheus-operator Authors
+// Copyright The prometheus-operator Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -410,6 +410,7 @@ func convertWebhookConfigTo(in WebhookConfig) v1alpha1.WebhookConfig {
 		HTTPConfig:   convertHTTPConfigTo(in.HTTPConfig),
 		MaxAlerts:    in.MaxAlerts,
 		Timeout:      in.Timeout,
+		Payload:      in.Payload,
 	}
 }
 
@@ -446,6 +447,13 @@ func convertEmailConfigTo(in EmailConfig) v1alpha1.EmailConfig {
 		RequireTLS:       in.RequireTLS,
 		TLSConfig:        in.TLSConfig,
 		ForceImplicitTLS: in.ForceImplicitTLS,
+		Threading:        convertEmailThreadingConfigTo(in.Threading),
+	}
+}
+
+func convertEmailThreadingConfigTo(in *EmailThreadingConfig) *v1alpha1.EmailThreadingConfig {
+	return &v1alpha1.EmailThreadingConfig{
+		ThreadByDate: v1alpha1.ThreadByDateType(in.ThreadByDate),
 	}
 }
 
