@@ -22,13 +22,10 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Refresh deps, vendor, CRDs, and CSV
-        run: |
-          make deps-update
-          make update-generated
-          make gen-latest-csv
+      - name: Refresh dependencies
+        run: make deps-update
 
-      - name: Commit and push
+      - name: Commit dependency updates
         env:
           GIT_AUTHOR_NAME: ${{ secrets.DEPENDABOT_REFRESH_GIT_NAME }}
           GIT_AUTHOR_EMAIL: ${{ secrets.DEPENDABOT_REFRESH_GIT_EMAIL }}
@@ -36,10 +33,40 @@ jobs:
           git config user.name "${GIT_AUTHOR_NAME}"
           git config user.email "${GIT_AUTHOR_EMAIL}"
 
-          git add .
+          paths=(
+            go.mod go.sum go.work go.work.sum
+            api/go.mod api/go.sum
+            metrics/go.mod metrics/go.sum
+            services/provider/api/go.mod services/provider/api/go.sum
+            vendor/
+          )
+          git add "${paths[@]}"
 
           if git diff --staged --quiet; then
-            echo "Nothing to commit"
+            echo "No dependency changes to commit"
+          else
+            git commit -s -m "Sync root and submodule dependencies for Dependabot update"
+            git push
+          fi
+
+      - name: Refresh generated code, CSV & CRD
+        run: |
+          make update-generated
+          make gen-latest-csv
+
+      - name: Commit generated files
+        env:
+          GIT_AUTHOR_NAME: ${{ secrets.DEPENDABOT_REFRESH_GIT_NAME }}
+          GIT_AUTHOR_EMAIL: ${{ secrets.DEPENDABOT_REFRESH_GIT_EMAIL }}
+        run: |
+          git config user.name "${GIT_AUTHOR_NAME}"
+          git config user.email "${GIT_AUTHOR_EMAIL}"
+
+          paths=(api config/crd/bases deploy/csv-templates deploy/ocs-operator)
+          git add "${paths[@]}"
+
+          if git diff --staged --quiet; then
+            echo "No generated changes to commit"
             exit 0
           fi
 
