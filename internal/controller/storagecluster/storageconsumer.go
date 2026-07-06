@@ -50,6 +50,11 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 
 	networkFenceClassesSpec := getLocalNetworkFenceClassNames(storageCluster)
 
+	volumeAttributesClassesSpec, err := getLocalVolumeAttributesClassNames(r.ctx, r.Client)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to generate volumeattributesclasses list for distribution: %v", err)
+	}
+
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = defaults.LocalStorageConsumerName
 	storageConsumer.Namespace = storageCluster.Namespace
@@ -62,6 +67,7 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		spec.StorageClasses = storageClassesSpec
 		spec.VolumeSnapshotClasses = volumeSnapshotClassesSpec
 		spec.NetworkFenceClasses = networkFenceClassesSpec
+		spec.VolumeAttributesClasses = volumeAttributesClassesSpec
 		// TODO: this is to support upgraded 4.18 provider mode cluster and should be retired in 4.20
 		if dfVersion := storageConsumer.GetLabels()[util.CreatedAtDfVersionLabelKey]; dfVersion == "4.18" {
 			for idx := range spec.VolumeSnapshotClasses {
@@ -383,4 +389,34 @@ func getLocalNetworkFenceClassNames(storageCluster *ocsv1.StorageCluster) []ocsv
 		return strings.Compare(a.Name, b.Name)
 	})
 	return nfcSpec
+}
+
+func getLocalVolumeAttributesClassNames(ctx context.Context, kubeClient client.Client) (
+	[]ocsv1a1.VolumeAttributesClassesSpec, error) {
+
+	volumeAttributesClassesInCluster := &storagev1.VolumeAttributesClassList{}
+	if err := kubeClient.List(ctx, volumeAttributesClassesInCluster, &client.MatchingLabelsSelector{
+		Selector: util.GetExternalClassesBlacklistSelector(),
+	}); err != nil {
+		return nil, err
+	}
+
+	vacNames := map[string]bool{}
+	for idx := range volumeAttributesClassesInCluster.Items {
+		vac := &volumeAttributesClassesInCluster.Items[idx]
+		if vac.DriverName == util.RbdDriverName {
+			vacNames[vac.Name] = true
+		}
+	}
+
+	vacSpec := make([]ocsv1a1.VolumeAttributesClassesSpec, 0, len(vacNames))
+	for vacName := range maps.Keys(vacNames) {
+		vacItem := ocsv1a1.VolumeAttributesClassesSpec{}
+		vacItem.Name = vacName
+		vacSpec = append(vacSpec, vacItem)
+	}
+	slices.SortFunc(vacSpec, func(a, b ocsv1a1.VolumeAttributesClassesSpec) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	return vacSpec, nil
 }

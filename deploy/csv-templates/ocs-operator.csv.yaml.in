@@ -577,6 +577,7 @@ spec:
           - storage.k8s.io
           resources:
           - storageclasses
+          - volumeattributesclasses
           verbs:
           - create
           - delete
@@ -601,6 +602,7 @@ spec:
           - storage.k8s.io
           resources:
           - storageclasses
+          - volumeattributesclasses
           verbs:
           - get
           - list
