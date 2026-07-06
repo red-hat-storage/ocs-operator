@@ -52,7 +52,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No dependency changes to commit"
           else
-            git commit -s -m "Sync root and submodule dependencies for Dependabot update"
+            git commit -s -m "Add make deps-update changes"
             git push
           fi
 
@@ -70,12 +70,11 @@ jobs:
           git config user.email "${GIT_AUTHOR_EMAIL}"
 
           paths=(api config/crd/bases deploy/csv-templates deploy/ocs-operator)
-          git add "${paths[@]}"
-
-          if git diff --staged --quiet; then
+          if git diff --ignore-matching-lines=createdAt --quiet -- "${paths[@]}"; then
             echo "No generated changes to commit"
             exit 0
           fi
 
-          git commit -s -m "Add generated files for dependency update"
+          git add "${paths[@]}"
+          git commit -s -m "Add generated changes from make update-generated and make gen-latest-csv"
           git push
