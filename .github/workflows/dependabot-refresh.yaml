@@ -11,6 +11,8 @@ jobs:
   refresh:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: auto
     steps:
       - uses: actions/checkout@v4
         with:
