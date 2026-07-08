@@ -490,23 +490,6 @@ github.com/operator-framework/api/pkg/operators
 github.com/operator-framework/api/pkg/operators/v1
 github.com/operator-framework/api/pkg/operators/v1alpha1
 github.com/operator-framework/api/pkg/operators/v2
-# github.com/operator-framework/operator-lifecycle-manager v0.42.0
-## explicit; go 1.25.7
-github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/listers/operators/v1
-github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/listers/operators/v1alpha1
-github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/listers/operators/v2
-github.com/operator-framework/operator-lifecycle-manager/pkg/api/wrappers
-github.com/operator-framework/operator-lifecycle-manager/pkg/controller/certs
-github.com/operator-framework/operator-lifecycle-manager/pkg/controller/install
-github.com/operator-framework/operator-lifecycle-manager/pkg/controller/operators/olm/overrides/inject
-github.com/operator-framework/operator-lifecycle-manager/pkg/lib/kubernetes/pkg/apis/rbac
-github.com/operator-framework/operator-lifecycle-manager/pkg/lib/kubernetes/pkg/apis/rbac/v1
-github.com/operator-framework/operator-lifecycle-manager/pkg/lib/kubernetes/pkg/registry/rbac/validation
-github.com/operator-framework/operator-lifecycle-manager/pkg/lib/kubernetes/pkg/util/hash
-github.com/operator-framework/operator-lifecycle-manager/pkg/lib/kubernetes/plugin/pkg/auth/authorizer/rbac
-github.com/operator-framework/operator-lifecycle-manager/pkg/lib/operatorclient
-github.com/operator-framework/operator-lifecycle-manager/pkg/lib/operatorlister
-github.com/operator-framework/operator-lifecycle-manager/pkg/lib/ownerutil
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
@@ -997,13 +980,6 @@ k8s.io/api/storagemigration/v1beta1
 ## explicit; go 1.25.0
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
-k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1
-k8s.io/apiextensions-apiserver/pkg/client/applyconfiguration/apiextensions/v1
-k8s.io/apiextensions-apiserver/pkg/client/applyconfiguration/apiextensions/v1beta1
-k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset
-k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme
-k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1
-k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 # k8s.io/apimachinery v0.35.4
 ## explicit; go 1.25.0
 k8s.io/apimachinery/pkg/api/equality
@@ -1363,7 +1339,6 @@ k8s.io/client-go/listers/storage/v1alpha1
 k8s.io/client-go/listers/storage/v1beta1
 k8s.io/client-go/listers/storagemigration/v1beta1
 k8s.io/client-go/metadata
-k8s.io/client-go/metadata/metadatalister
 k8s.io/client-go/openapi
 k8s.io/client-go/pkg/apis/clientauthentication
 k8s.io/client-go/pkg/apis/clientauthentication/install
@@ -1430,16 +1405,6 @@ k8s.io/klog/v2/internal/dbg
 k8s.io/klog/v2/internal/serialize
 k8s.io/klog/v2/internal/severity
 k8s.io/klog/v2/internal/sloghandler
-# k8s.io/kube-aggregator v0.35.4
-## explicit; go 1.25.0
-k8s.io/kube-aggregator/pkg/apis/apiregistration
-k8s.io/kube-aggregator/pkg/apis/apiregistration/v1
-k8s.io/kube-aggregator/pkg/apis/apiregistration/v1beta1
-k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset
-k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/scheme
-k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/typed/apiregistration/v1
-k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/typed/apiregistration/v1beta1
-k8s.io/kube-aggregator/pkg/client/listers/apiregistration/v1
 # k8s.io/kube-openapi v0.0.0-20260414162039-ec9c827d403f
 ## explicit; go 1.23.0
 k8s.io/kube-openapi/pkg/cached
