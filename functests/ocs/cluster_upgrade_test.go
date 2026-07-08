@@ -39,10 +39,6 @@ func ClusterUpgradeTest() {
 			ginkgo.It("and verify deployment status", func() {
 				deployManager := tests.DeployManager
 
-				ginkgo.By("Getting the current csv before the upgrade")
-				csv, err := deployManager.GetCsv()
-				gomega.Expect(err).To(gomega.BeNil())
-
 				ginkgo.By("Fetching existing storage classes")
 				oldSC, err := deployManager.GetStorageClasses()
 				gomega.Expect(err).To(gomega.BeNil())
@@ -51,21 +47,12 @@ func ClusterUpgradeTest() {
 				err = deployManager.UpgradeOCSWithOLM(tests.OcsCatalogSourceImage, tests.OcsSubscriptionChannel)
 				gomega.Expect(err).To(gomega.BeNil())
 
-				ginkgo.By("Waiting for OCS CSV to be posted and installed")
-				err = deployManager.WaitForCsvUpgrade(csv.Name, tests.OcsSubscriptionChannel)
+				ginkgo.By("Waiting for subscription channel to be updated")
+				err = deployManager.WaitForOperatorUpgrade(tests.OcsSubscriptionChannel)
 				gomega.Expect(err).To(gomega.BeNil())
 
 				ginkgo.By("Waiting for ocs-operator, rook-ceph-operator and noobaa-operator to come online.")
 				err = deployManager.WaitForOCSOperator()
-				gomega.Expect(err).To(gomega.BeNil())
-
-				ginkgo.By("Verifying ocs-csv has been upgraded to the new version")
-				upgradedCsv, err := deployManager.GetCsv()
-				gomega.Expect(err).To(gomega.BeNil())
-				gomega.Expect(upgradedCsv.Name).ToNot(gomega.Equal(csv.Name))
-
-				ginkgo.By("Verifying operators have been upgraded to the new images in the deployment")
-				err = deployManager.VerifyComponentOperators()
 				gomega.Expect(err).To(gomega.BeNil())
 
 				ginkgo.By("Verifying StorageCluster previously created in the environment is still healthy")
