@@ -886,6 +886,7 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 	ocsSubChannelAndCsvMutex.Lock()
 	defer ocsSubChannelAndCsvMutex.Unlock()
 
+	// TODO: Look into this later once we decide a replacement for this flow with OLM v1
 	// If the installed CSV has changed then validate the current channel otherwise return the known valid channel
 	if subscription.Status.InstalledCSV != knownOcsInstalledCsvName {
 		ok, err := s.isSubscriptionChannelValid(ctx, subscription)
@@ -899,6 +900,7 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 	return knownOcsSubscriptionChannelName, nil
 }
 
+// TODO: Look into this later once we decide a replacement for this flow with OLM v1
 func (s *OCSProviderServer) isSubscriptionChannelValid(ctx context.Context, subscription *opv1a1.Subscription) (bool, error) {
 	installedCSVName := subscription.Status.InstalledCSV
 	channelName := subscription.Spec.Channel
