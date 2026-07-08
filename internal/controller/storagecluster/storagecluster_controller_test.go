@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	opverion "github.com/operator-framework/api/pkg/lib/version"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 
@@ -1093,19 +1092,6 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 			Phase: rookCephv1.ConditionType(api.PhaseReady),
 		},
 	}
-	verOcs, err := semver.Make(ocsversion.Version)
-	if err != nil {
-		panic(fmt.Sprintf("failed to parse version: %v", err))
-	}
-	csv := &opv1a1.ClusterServiceVersion{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("ocs-operator-%s", sc.Name),
-			Namespace: namespace,
-		},
-		Spec: opv1a1.ClusterServiceVersionSpec{
-			Version: opverion.OperatorVersion{Version: verOcs},
-		},
-	}
 	rookCephMonSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-mon", Namespace: namespace},
 		Data: map[string][]byte{
@@ -1153,12 +1139,10 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 		cbp,
 		cfs,
 		rookCephMonSecret,
-		csv,
 		clientConfigMap,
 		ocsProviderService,
 		ocsProviderServiceDeployment,
 		ocsProviderServiceSecret,
-		createRookCephOperatorCSV(namespace),
 		fakeInfra,
 	)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
