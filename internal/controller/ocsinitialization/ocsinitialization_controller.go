@@ -5,19 +5,16 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 	"sync"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/internal/controller/storagecluster"
-	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/red-hat-storage/ocs-operator/v4/templates"
 
 	"github.com/go-logr/logr"
 	secv1client "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
-	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -27,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	"open-cluster-management.io/api/cluster/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -46,7 +42,6 @@ var operatorNamespace string
 
 const (
 	PrometheusOperatorDeploymentName = "prometheus-operator"
-	PrometheusOperatorCSVNamePrefix  = "odf-prometheus-operator"
 	ClusterClaimCrdName              = "clusterclaims.cluster.open-cluster-management.io"
 )
 
@@ -79,7 +74,6 @@ type OCSInitializationReconciler struct {
 // +kubebuilder:rbac:groups=security.openshift.io,resourceNames=privileged,resources=securitycontextconstraints,verbs=get;create;update
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources={alertmanagers,prometheuses},verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=get;list;watch;update;patch;create;delete
-// +kubebuilder:rbac:groups=operators.coreos.com,resources=clusterserviceversions,verbs=get;list;watch;delete;update;patch
 // +kubebuilder:rbac:groups=cluster.open-cluster-management.io,resources=clusterclaims,verbs=get;list;watch;create;update
 
 // Reconcile reads that state of the cluster for a OCSInitialization object and makes changes based on the state read
@@ -205,11 +199,6 @@ func (r *OCSInitializationReconciler) Reconcile(ctx context.Context, request rec
 		return reconcile.Result{}, err
 	} else if isROSAHCP {
 		r.Log.Info("Setting up monitoring resources for ROSA HCP platform")
-		err = r.reconcilePrometheusOperatorCSV(instance)
-		if err != nil {
-			r.Log.Error(err, "Failed to ensure prometheus operator deployment")
-			return reconcile.Result{}, err
-		}
 
 		err = r.reconcilePrometheusKubeRBACConfigMap(instance)
 		if err != nil {
@@ -294,12 +283,6 @@ func (r *OCSInitializationReconciler) reconcileDynamicWatches() error {
 // SetupWithManager sets up a controller with a manager
 func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	operatorNamespace = r.OperatorNamespace
-	prometheusPredicate := predicate.NewPredicateFuncs(
-		func(client client.Object) bool {
-			return strings.HasPrefix(client.GetName(), PrometheusOperatorCSVNamePrefix)
-		},
-	)
-
 	enqueueOCSInit := handler.EnqueueRequestsFromMapFunc(
 		func(context context.Context, obj client.Object) []reconcile.Request {
 			return []reconcile.Request{{
@@ -342,12 +325,6 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				},
 			},
 			enqueueOCSInit,
-		).
-		// Watcher for prometheus operator csv
-		Watches(
-			&opv1a1.ClusterServiceVersion{},
-			enqueueOCSInit,
-			builder.WithPredicates(prometheusPredicate),
 		).
 		Watches(
 			&extv1.CustomResourceDefinition{},
@@ -606,44 +583,3 @@ func (r *OCSInitializationReconciler) reconcileK8sMetricsServiceMonitor(initialD
 
 }
 
-func (r *OCSInitializationReconciler) reconcilePrometheusOperatorCSV(initialData *ocsv1.OCSInitialization) error {
-	csvList := &opv1a1.ClusterServiceVersionList{}
-	if err := r.List(r.ctx, csvList, client.InNamespace(initialData.Namespace)); err != nil {
-		return fmt.Errorf("failed to list csvs in namespace %s,%v", initialData.Namespace, err)
-	}
-	csv := util.Find(
-		csvList.Items,
-		func(csv *opv1a1.ClusterServiceVersion) bool {
-			return strings.HasPrefix(csv.Name, PrometheusOperatorCSVNamePrefix)
-		},
-	)
-	if csv == nil {
-		return fmt.Errorf("prometheus csv does not exist in namespace :%s", initialData.Namespace)
-	}
-	deploymentSpec := util.Find(
-		csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs,
-		func(deploymentSpec *opv1a1.StrategyDeploymentSpec) bool {
-			return deploymentSpec.Name == PrometheusOperatorDeploymentName
-		},
-	)
-	if deploymentSpec == nil {
-		return fmt.Errorf("unable to find prometheus operator deployment spec")
-	}
-
-	deploymentSpec.Spec.Template.Spec.Tolerations = []corev1.Toleration{{
-		Key:      defaults.NodeTolerationKey,
-		Operator: corev1.TolerationOpEqual,
-		Value:    "true",
-		Effect:   corev1.TaintEffectNoSchedule,
-	}}
-
-	currentDeploymentSpec := deploymentSpec.DeepCopy()
-	deploymentSpec.Spec.Replicas = ptr.To(int32(1))
-	if !reflect.DeepEqual(currentDeploymentSpec, deploymentSpec) {
-		if err := r.Update(r.ctx, csv); err != nil {
-			r.Log.Error(err, "Failed to update Prometheus csv")
-			return err
-		}
-	}
-	return nil
-}
