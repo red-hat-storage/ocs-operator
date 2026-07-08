@@ -79,14 +79,14 @@ metadata:
           "spec": null
         }
       ]
-    createdAt: "2026-06-09T12:43:38Z"
+    createdAt: "2026-06-23T06:51:14Z"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     operators.operatorframework.io/builder: operator-sdk-v1.34.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/red-hat-storage/ocs-operator
     support: Red Hat
-  name: ocs-operator.v4.22.0
+  name: ocs-operator.v4.23.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -200,6 +200,17 @@ spec:
           - namespaces
           verbs:
           - get
+        - apiGroups:
+          - admissionregistration.k8s.io
+          resources:
+          - validatingadmissionpolicies
+          - validatingadmissionpolicybindings
+          verbs:
+          - create
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - apiextensions.k8s.io
           resources:
@@ -566,6 +577,7 @@ spec:
           - storage.k8s.io
           resources:
           - storageclasses
+          - volumeattributesclasses
           verbs:
           - create
           - delete
@@ -590,6 +602,7 @@ spec:
           - storage.k8s.io
           resources:
           - storageclasses
+          - volumeattributesclasses
           verbs:
           - get
           - list
@@ -733,4 +746,4 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Red Hat
-  version: 4.22.0
+  version: 4.23.0

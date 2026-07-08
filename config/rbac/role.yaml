@@ -44,6 +44,17 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingadmissionpolicies
+  - validatingadmissionpolicybindings
+  verbs:
+  - create
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
   - apiextensions.k8s.io
   resources:
   - customresourcedefinitions
@@ -409,6 +420,7 @@ rules:
   - storage.k8s.io
   resources:
   - storageclasses
+  - volumeattributesclasses
   verbs:
   - create
   - delete

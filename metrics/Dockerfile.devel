@@ -9,7 +9,7 @@ FROM quay.io/ceph/ceph:v18
 
 ARG GOROOT=/usr/local/go
 ARG GOARCH
-ARG GOLANG_VERSION=1.25.8
+ARG GOLANG_VERSION=1.26.0
 
 ENV GOPATH=/go \
     GOROOT=${GOROOT} \

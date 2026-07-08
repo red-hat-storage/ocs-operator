@@ -2,7 +2,7 @@ package storagecluster
 
 import (
 	"fmt"
-	"golang.org/x/exp/maps"
+	"maps"
 	"strconv"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"

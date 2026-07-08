@@ -202,7 +202,7 @@ func If[T any](cond bool, trueVal, falseVal T) T {
 func IsDefaultPoolErasureCodingEnabled(cephBlockpool ocsv1.ManageCephBlockPools) bool {
 	// if ec is enabled set the pool names differently
 	// Change the pool name for the default storageclass only if ec spec was chosen for default day-1 cephBlockpool
-	return cephBlockpool.ErasureCodedMetadataPool != "" && cephBlockpool.PoolSpec.IsErasureCoded()
+	return cephBlockpool.ErasureCodedMetadataPool != "" && cephBlockpool.PoolSpec != nil && cephBlockpool.PoolSpec.IsErasureCoded()
 }
 
 func IsForbiddenError(err error) bool {

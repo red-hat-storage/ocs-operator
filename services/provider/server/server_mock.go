@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func mockOnboardConsumer(mockError common.MockError) (*pb.OnboardConsumerResponse, error) { //nolint:deadcode,unused
+func mockOnboardConsumer(mockError common.MockError) (*pb.OnboardConsumerResponse, error) { //nolint:unused
 	switch mockError {
 	case common.OnboardInternalError:
 		return nil, status.Errorf(codes.Internal, "mock error message")
@@ -22,7 +22,7 @@ func mockOnboardConsumer(mockError common.MockError) (*pb.OnboardConsumerRespons
 	}, nil
 }
 
-func mockOffboardConsumer(mockError common.MockError) (*pb.OffboardConsumerResponse, error) { //nolint:deadcode,unused
+func mockOffboardConsumer(mockError common.MockError) (*pb.OffboardConsumerResponse, error) { //nolint:unused
 	switch mockError {
 	case common.OffboardInternalError:
 		return nil, status.Errorf(codes.Internal, "mock error message")

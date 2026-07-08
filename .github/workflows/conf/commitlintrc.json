@@ -14,10 +14,9 @@
             2,
             "always"
         ],
-        "body-max-line-length": [
+        "footer-leading-blank": [
             2,
-            "always",
-            72
+            "always"
         ]
     }
 }

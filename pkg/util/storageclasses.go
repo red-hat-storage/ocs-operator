@@ -107,10 +107,12 @@ func NewDefaultRbdStorageClass(
 			"imageFormat":               "2",
 			"csi.storage.k8s.io/provisioner-secret-name":            provisionerSecret,
 			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
+			"csi.storage.k8s.io/node-publish-secret-name":           nodeSecret,
 			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
 			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
 			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
 			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+			"csi.storage.k8s.io/node-publish-secret-namespace":      namespace,
 		},
 	}
 
@@ -159,7 +161,6 @@ func NewDefaultVirtRbdStorageClass(
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
 				"description": "Provides RWO and RWX Block volumes suitable for Virtual Machine disks",
-				"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
 			},
 			Labels: map[string]string{},
 		},
@@ -176,10 +177,12 @@ func NewDefaultVirtRbdStorageClass(
 			"mapOptions":                "krbd:rxbounce",
 			"csi.storage.k8s.io/provisioner-secret-name":            provisionerSecret,
 			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
+			"csi.storage.k8s.io/node-publish-secret-name":           nodeSecret,
 			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
 			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
 			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
 			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+			"csi.storage.k8s.io/node-publish-secret-namespace":      namespace,
 		},
 	}
 
@@ -246,10 +249,12 @@ func NewDefaultEncryptedRbdStorageClass(
 			"encryptionKMSID":           encryptionServiceName,
 			"csi.storage.k8s.io/provisioner-secret-name":            provisionerSecret,
 			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
+			"csi.storage.k8s.io/node-publish-secret-name":           nodeSecret,
 			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
 			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
 			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
 			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+			"csi.storage.k8s.io/node-publish-secret-namespace":      namespace,
 		},
 	}
 
@@ -294,10 +299,12 @@ func NewDefaultNonResilientRbdStorageClass(
 			"imageFormat":               "2",
 			"csi.storage.k8s.io/provisioner-secret-name":            provisionerSecret,
 			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
+			"csi.storage.k8s.io/node-publish-secret-name":           nodeSecret,
 			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
 			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
 			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
 			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+			"csi.storage.k8s.io/node-publish-secret-namespace":      namespace,
 		},
 	}
 	if storageId != "" {
@@ -447,6 +454,12 @@ func StorageClassFromExisting(
 	if err != nil {
 		return nil, err
 	}
+	params := storageClass.Parameters
+	if params == nil {
+		params = map[string]string{}
+		storageClass.Parameters = params
+	}
+
 	NoobaaProvisionerName := ocsOperatorNamespace + NoobaaProvisionerNameSuffix
 	switch storageClass.Provisioner {
 	case RbdDriverName:
@@ -465,7 +478,9 @@ func StorageClassFromExisting(
 				groupReplicationID = CalculateMD5Hash([]string{remoteRbdStorageId, storageId, poolName})
 			}
 		}
-
+		// Node Publish is only required for rbd.
+		params["csi.storage.k8s.io/node-publish-secret-name"] = nodeSecretName
+		params["csi.storage.k8s.io/node-publish-secret-namespace"] = operatorNamespace
 	case CephFSDriverName:
 		clientProfileName = consumerConfig.GetCephFsClientProfileName()
 		provisionerSecretName = consumerConfig.GetCsiCephFsProvisionerCephUserName()
@@ -482,11 +497,6 @@ func StorageClassFromExisting(
 		return nil, ErrUnsupportedProvisioner
 	}
 
-	params := storageClass.Parameters
-	if params == nil {
-		params = map[string]string{}
-		storageClass.Parameters = params
-	}
 	params["clusterID"] = clientProfileName
 	params["csi.storage.k8s.io/provisioner-secret-name"] = provisionerSecretName
 	params["csi.storage.k8s.io/provisioner-secret-namespace"] = operatorNamespace

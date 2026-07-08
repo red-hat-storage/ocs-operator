@@ -68,7 +68,7 @@ func (obj *ocsCephObjectStoreUsers) ensureCreated(r *StorageClusterReconciler, i
 		return reconcile.Result{}, nil
 	}
 
-	skip, err := platform.PlatformsShouldSkipObjectStore()
+	skip, err := shouldSkipObjectStore(instance)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
