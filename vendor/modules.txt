@@ -353,9 +353,9 @@ github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versi
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned/typed/objectbucket.io/v1alpha1
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned/typed/objectbucket.io/v1alpha1/fake
 github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api
-# github.com/kubernetes-csi/external-snapshotter/client/v8 v8.4.0
-## explicit; go 1.22.0
-github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1
+# github.com/kubernetes-csi/external-snapshotter/client/v8 v8.6.0
+## explicit; go 1.26.0
+github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1
 github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1
 # github.com/lib/pq v1.12.3
 ## explicit; go 1.21
