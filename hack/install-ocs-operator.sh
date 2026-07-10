@@ -14,6 +14,16 @@ else
     oc create ns "$INSTALL_NAMESPACE"
 fi
 
+cat <<EOF | oc apply -f -
+apiVersion: operators.coreos.com/v1alpha2
+kind: OperatorGroup
+metadata:
+  name: ${INSTALL_NAMESPACE}-operatorgroup
+  namespace: ${INSTALL_NAMESPACE}
+spec:
+  targetNamespaces:
+    - ${INSTALL_NAMESPACE}
+EOF
 
 # Ensure ocs-operator-config configmap for rook to come up before ocs-operator
 cat <<EOF | oc apply -f -
