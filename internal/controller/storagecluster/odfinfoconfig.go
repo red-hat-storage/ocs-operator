@@ -6,10 +6,10 @@ import (
 	"strings"
 	"sync"
 
-	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
+	"github.com/red-hat-storage/ocs-operator/v4/version"
 
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"gopkg.in/yaml.v3"
@@ -26,9 +26,8 @@ const (
 	odfDeploymentTypeExternal = "external"
 	odfDeploymentTypeInternal = "internal"
 	rookCephMonSecretName     = "rook-ceph-mon"
-	fsidKey                   = "fsid"
-	ocsOperatorNamePrefix     = "ocs-operator"
-	OdfInfoConfigMapName      = "odf-info"
+	fsidKey               = "fsid"
+	OdfInfoConfigMapName  = "odf-info"
 	odfInfoMapKind            = "ConfigMap"
 )
 
@@ -116,10 +115,7 @@ func (obj *odfInfoConfig) ensureDeleted(r *StorageClusterReconciler, storageClus
 }
 
 func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (string, error) {
-	ocsVersion, err := getOcsVersion(r)
-	if err != nil {
-		return "", err
-	}
+	ocsVersion := version.Version
 	cephFSId, err := getCephFsid(r, storageCluster)
 	if err != nil {
 		return "", err
@@ -193,22 +189,6 @@ func getConnectedClients(r *StorageClusterReconciler, storageCluster *ocsv1.Stor
 	}
 
 	return connectedClients, nil
-}
-
-func getOcsVersion(r *StorageClusterReconciler) (string, error) {
-	var csvs operatorsv1alpha1.ClusterServiceVersionList
-	err := r.List(r.ctx, &csvs, client.InNamespace(r.OperatorNamespace))
-	if err != nil {
-		return "", err
-	}
-
-	csv := util.Find(csvs.Items, func(csv *operatorsv1alpha1.ClusterServiceVersion) bool {
-		return strings.HasPrefix(csv.Name, ocsOperatorNamePrefix)
-	})
-	if csv == nil {
-		return "", fmt.Errorf("failed to find csv with prefix %q", ocsOperatorNamePrefix)
-	}
-	return csv.Spec.Version.String(), nil
 }
 
 func getCephFsid(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (string, error) {

@@ -2,7 +2,6 @@ package storagecluster
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
@@ -10,15 +9,11 @@ import (
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
-	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 
-	"github.com/blang/semver/v4"
 	"github.com/imdario/mergo"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
-	oprverion "github.com/operator-framework/api/pkg/lib/version"
-	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -140,31 +135,6 @@ var (
 						Served: true,
 					},
 				},
-			},
-		}
-	}
-	createRookCephOperatorCSV = func(namespace string) *opv1a1.ClusterServiceVersion {
-		return &opv1a1.ClusterServiceVersion{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "rook-ceph-operator-csv",
-				Namespace: namespace,
-				Labels: map[string]string{
-					fmt.Sprintf("operators.coreos.com/rook-ceph-operator.%s", namespace): "",
-				},
-			},
-			Spec: opv1a1.ClusterServiceVersionSpec{
-				InstallStrategy: opv1a1.NamedInstallStrategy{
-					StrategySpec: opv1a1.StrategyDetailsDeployment{
-						DeploymentSpecs: []opv1a1.StrategyDeploymentSpec{
-							{
-								Name: "rook-ceph-operator",
-							},
-						},
-					},
-				},
-			},
-			Status: opv1a1.ClusterServiceVersionStatus{
-				Phase: opv1a1.CSVPhaseSucceeded,
 			},
 		}
 	}
@@ -420,21 +390,6 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 	}
 
-	operatorNamespace := os.Getenv("OPERATOR_NAMESPACE")
-	verOcs, err := semver.Make(ocsversion.Version)
-	if err != nil {
-		panic(err)
-	}
-	csv := &opv1a1.ClusterServiceVersion{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("ocs-operator-%s", sc.Name),
-			Namespace: operatorNamespace,
-		},
-		Spec: opv1a1.ClusterServiceVersionSpec{
-			Version: oprverion.OperatorVersion{Version: verOcs},
-		},
-	}
-
 	rookCephMonSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-mon", Namespace: sc.Namespace},
 		Data: map[string][]byte{
@@ -463,7 +418,6 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		infrastructure,
 		networkConfig,
 		rookCephMonSecret,
-		csv,
 		workerNode,
 		ocsProviderServiceSecret,
 		ocsProviderServiceDeployment,
@@ -472,7 +426,6 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		createStorageClientCRD(),
 		createVolumeGroupSnapshotClassCRD(),
 		createOdfVolumeGroupSnapshotClassCRD(),
-		createRookCephOperatorCSV(sc.Namespace),
 	)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
 

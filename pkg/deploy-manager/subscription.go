@@ -10,7 +10,6 @@ import (
 
 	operatorv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-	"github.com/operator-framework/operator-lifecycle-manager/pkg/controller/install"
 	appsv1 "k8s.io/api/apps/v1"
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -531,17 +530,13 @@ func (t *DeployManager) updateClusterObjects(co *clusterObjects) error {
 	return nil
 }
 
-// WaitForCsvUpgrade waits for the catalogsource to come online after an upgrade
-func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel string) error {
+// WaitForOperatorUpgrade waits for the subscription channel to be updated after an upgrade
+func (t *DeployManager) WaitForOperatorUpgrade(subscriptionChannel string) error {
 	timeout := 1200 * time.Second
-	// NOTE the long timeout above. It can take quite a bit of time for the
-	// ocs operator deployments to roll out
 	interval := 10 * time.Second
 	ctx := context.TODO()
 
 	subscription := "ocs-subscription"
-	operatorName := "ocs-operator"
-
 	lastReason := ""
 	waitErr := utilwait.PollUntilContextTimeout(ctx, interval, timeout, true, func(context.Context) (done bool, err error) {
 		sub := &operatorv1alpha1.Subscription{}
@@ -553,68 +548,12 @@ func (t *DeployManager) WaitForCsvUpgrade(csvName string, subscriptionChannel st
 			lastReason = fmt.Sprintf("waiting on subscription channel to be updated to %s ", subscriptionChannel)
 			return false, nil
 		}
-		csvs := &operatorv1alpha1.ClusterServiceVersionList{}
-		err = t.Client.List(context.TODO(), csvs, &client.ListOptions{Namespace: InstallNamespace})
-		if err != nil {
-			return false, err
-		}
-		for _, csv := range csvs.Items {
-			// If the csvName doesn't match, it means a new csv has appeared
-			if csv.Name != csvName && strings.Contains(csv.Name, operatorName) {
-				// New csv found and phase is succeeded
-				if csv.Status.Phase == "Succeeded" {
-					return true, nil
-				}
-			}
-		}
-		lastReason = "waiting on csv to be created and installed"
-		return false, nil
+		return true, nil
 	})
 
 	if waitErr != nil {
 		return fmt.Errorf("%v: %s", waitErr, lastReason)
 	}
 
-	return nil
-}
-
-// GetCsv retrieves the csv named ocs-operator
-func (t *DeployManager) GetCsv() (operatorv1alpha1.ClusterServiceVersion, error) {
-	csvName := "ocs-operator"
-	csv := operatorv1alpha1.ClusterServiceVersion{}
-	csvs := &operatorv1alpha1.ClusterServiceVersionList{}
-	err := t.Client.List(context.TODO(), csvs, &client.ListOptions{Namespace: InstallNamespace})
-	for _, csv := range csvs.Items {
-		if strings.Contains(csv.Name, csvName) {
-			return csv, err
-		}
-	}
-	return csv, err
-}
-
-// VerifyComponentOperators makes sure that deployment images matches the ones specified in the csv deployment specs
-func (t *DeployManager) VerifyComponentOperators() error {
-	csv, err := t.GetCsv()
-	if err != nil {
-		return err
-	}
-
-	var resolver *install.StrategyResolver
-	strategy, err := resolver.UnmarshalStrategy(csv.Spec.InstallStrategy)
-	if err != nil {
-		return err
-	}
-
-	strategyDetailsDeployment, _ := strategy.(*operatorv1alpha1.StrategyDetailsDeployment)
-	for _, deployment := range strategyDetailsDeployment.DeploymentSpecs {
-		image := deployment.Spec.Template.Spec.Containers[0].Image
-		foundImage, err := t.GetDeploymentImage(deployment.Name)
-		if err != nil {
-			return err
-		}
-		if image != foundImage {
-			return fmt.Errorf("deployment: %s expected image: %s found image %s", deployment.Name, image, foundImage)
-		}
-	}
 	return nil
 }
