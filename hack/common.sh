@@ -68,7 +68,7 @@ OCS_MUST_GATHER_DIR="${OCS_MUST_GATHER_DIR:-ocs-must-gather}"
 
 # Tools & binaries versions and locations
 LOCALBIN="$(pwd)/bin"
-OPERATOR_SDK_VERSION="v1.34.1"
+OPERATOR_SDK_VERSION="v1.37.0"
 OPERATOR_SDK="${LOCALBIN}/operator-sdk-${OPERATOR_SDK_VERSION}"
 GINKGO="${LOCALBIN}/ginkgo"
 GOLANGCI_LINT_VERSION="v2.12.2"
