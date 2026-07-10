@@ -140,15 +140,6 @@ func newToolsDeployment(namespace string, tolerations []corev1.Toleration, nodeA
 										},
 									},
 								},
-								{
-									Name: "ROOK_CEPH_SECRET",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
-											Key:                  "ceph-secret",
-										},
-									},
-								},
 							},
 							SecurityContext: &corev1.SecurityContext{
 								RunAsNonRoot: ptr.To(true),
@@ -158,6 +149,7 @@ func newToolsDeployment(namespace string, tolerations []corev1.Toleration, nodeA
 							VolumeMounts: []corev1.VolumeMount{
 								{Name: "ceph-config", MountPath: "/etc/ceph"},
 								{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
+								{Name: "ceph-admin-secret", MountPath: "/var/lib/rook-ceph-mon", ReadOnly: true},
 							},
 						},
 					},
@@ -174,6 +166,18 @@ func newToolsDeployment(namespace string, tolerations []corev1.Toleration, nodeA
 								},
 							},
 						},
+						},
+						{
+							Name: "ceph-admin-secret",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "rook-ceph-mon",
+									Optional:   ptr.To(false),
+									Items: []corev1.KeyToPath{
+										{Key: "ceph-secret", Path: "secret.keyring"},
+									},
+								},
+							},
 						},
 					},
 				},
