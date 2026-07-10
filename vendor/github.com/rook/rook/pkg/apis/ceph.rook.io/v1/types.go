@@ -69,6 +69,13 @@ type CephClusterHealthCheckSpec struct {
 	// StartupProbe allows changing the startupProbe configuration for a given daemon
 	// +optional
 	StartupProbe map[KeyType]*ProbeSpec `json:"startupProbe,omitempty"`
+
+	// MuteHealthWarning configures muting of Ceph health warnings.
+	// +optional
+	// +kubebuilder:validation:MinProperties=0
+	// +kubebuilder:validation:MaxProperties=10
+	// +kubebuilder:validation:XValidation:rule="self.all(k, k.matches('^[A-Z]+(_[A-Z]+)+$'))",message="keys must be valid Ceph health check codes"
+	MuteHealthWarning map[string]MuteHealthWarningSpec `json:"muteHealthWarning,omitempty"` //nolint:kubeapilinter // Map keys are the Ceph health check codes
 }
 
 // DaemonHealthSpec is a daemon health check
@@ -85,6 +92,14 @@ type DaemonHealthSpec struct {
 	// +optional
 	// +nullable
 	ObjectStorageDaemon HealthCheckSpec `json:"osd,omitempty"`
+}
+
+// MuteHealthWarningSpec configures muting of a Ceph health warning.
+type MuteHealthWarningSpec struct {
+	// Policy controls whether to mute or unmute a Ceph health warning.
+	// +kubebuilder:validation:Enum=mute;unmute
+	// +required
+	Policy string `json:"policy,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -160,7 +175,7 @@ type ClusterSpec struct {
 	// WaitTimeoutForHealthyOSDInMinutes defines the time the operator would wait before an OSD can be stopped for upgrade or restart.
 	// If the timeout exceeds and OSD is not ok to stop, then the operator would skip upgrade for the current OSD and proceed with the next one
 	// if `continueUpgradeAfterChecksEvenIfNotHealthy` is `false`. If `continueUpgradeAfterChecksEvenIfNotHealthy` is `true`, then operator would
-	// continue with the upgrade of an OSD even if its not ok to stop after the timeout. This timeout won't be applied if `skipUpgradeChecks` is `true`.
+	// continue with the upgrade of an OSD even if it's not ok to stop after the timeout. This timeout won't be applied if `skipUpgradeChecks` is `true`.
 	// The default wait timeout is 10 minutes.
 	// +optional
 	WaitTimeoutForHealthyOSDInMinutes time.Duration `json:"waitTimeoutForHealthyOSDInMinutes,omitempty"`
@@ -825,7 +840,7 @@ type ClusterCephxStatus struct {
 	Mon CephxStatus `json:"mon,omitempty"`
 	// Mgr represents the cephx key rotation status of the ceph manager daemon
 	Mgr CephxStatus `json:"mgr,omitempty"`
-	// OSD shows the CephX key status of of OSDs
+	// OSD shows the CephX key status of OSDs
 	OSD CephxStatus `json:"osd,omitempty"`
 	// CSI shows the CephX key status for Ceph-CSI components.
 	CSI CephxStatusWithKeyCount `json:"csi,omitempty"`
@@ -1152,10 +1167,10 @@ type MirroringStatusSpec struct {
 	// MirroringStatus is the mirroring status of a pool/radosNamespace
 	// +optional
 	MirroringStatus `json:",inline"`
-	// LastChecked is the last time time the status was checked
+	// LastChecked is the last time the status was checked
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
-	// LastChanged is the last time time the status last changed
+	// LastChanged is the last time the status last changed
 	// +optional
 	LastChanged string `json:"lastChanged,omitempty"`
 	// Details contains potential status errors
@@ -1274,10 +1289,10 @@ type SnapshotScheduleStatusSpec struct {
 	// +nullable
 	// +optional
 	SnapshotSchedules []SnapshotSchedulesSpec `json:"snapshotSchedules,omitempty"`
-	// LastChecked is the last time time the status was checked
+	// LastChecked is the last time the status was checked
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
-	// LastChanged is the last time time the status last changed
+	// LastChanged is the last time the status last changed
 	// +optional
 	LastChanged string `json:"lastChanged,omitempty"`
 	// Details contains potential status errors
@@ -1622,16 +1637,16 @@ type CephFilesystemStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
-// FilesystemMirroringInfo is the status of the pool mirroring
+// FilesystemMirroringInfoSpec is the status of the pool mirroring
 type FilesystemMirroringInfoSpec struct {
 	// PoolMirroringStatus is the mirroring status of a filesystem
 	// +nullable
 	// +optional
 	FilesystemMirroringAllInfo []FilesystemMirroringInfo `json:"daemonsStatus,omitempty"`
-	// LastChecked is the last time time the status was checked
+	// LastChecked is the last time the status was checked
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
-	// LastChanged is the last time time the status last changed
+	// LastChanged is the last time the status last changed
 	// +optional
 	LastChanged string `json:"lastChanged,omitempty"`
 	// Details contains potential status errors
@@ -1645,10 +1660,10 @@ type FilesystemSnapshotScheduleStatusSpec struct {
 	// +nullable
 	// +optional
 	SnapshotSchedules []FilesystemSnapshotSchedulesSpec `json:"snapshotSchedules,omitempty"`
-	// LastChecked is the last time time the status was checked
+	// LastChecked is the last time the status was checked
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
-	// LastChanged is the last time time the status last changed
+	// LastChanged is the last time the status last changed
 	// +optional
 	LastChanged string `json:"lastChanged,omitempty"`
 	// Details contains potential status errors
@@ -1703,7 +1718,7 @@ type FilesystemSnapshotScheduleStatusRetention struct {
 	Active bool `json:"active,omitempty"`
 }
 
-// FilesystemMirrorInfoSpec is the filesystem mirror status of a given filesystem
+// FilesystemMirroringInfo is the filesystem mirror status of a given filesystem
 type FilesystemMirroringInfo struct {
 	// DaemonID is the cephfs-mirror name
 	// +optional
@@ -2796,7 +2811,7 @@ type CephBucketNotificationList struct {
 	Items           []CephBucketNotification `json:"items"`
 }
 
-// BucketNotificationSpec represent the event type of the bucket notification
+// BucketNotificationEvent represent the event type of the bucket notification
 // See: https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types
 // +kubebuilder:validation:Enum="s3:ObjectCreated:*";"s3:ObjectCreated:Put";"s3:ObjectCreated:Post";"s3:ObjectCreated:Copy";"s3:ObjectCreated:CompleteMultipartUpload";"s3:ObjectRemoved:*";"s3:ObjectRemoved:Delete";"s3:ObjectRemoved:DeleteMarkerCreated";"s3:ObjectLifecycle:Expiration:Current";"s3:ObjectLifecycle:Expiration:NonCurrent";"s3:ObjectLifecycle:Expiration:DeleteMarker";"s3:ObjectLifecycle:Expiration:AbortMultipartUpload";"s3:ObjectLifecycle:Transition:Current";"s3:ObjectLifecycle:Transition:NonCurrent";"s3:LifecycleExpiration:*";"s3:LifecycleExpiration:Delete";"s3:LifecycleExpiration:DeleteMarkerCreated";"s3:LifecycleTransition";"s3:ObjectSynced:*";"s3:ObjectSynced:Create";"s3:ObjectSynced:Delete";"s3:ObjectSynced:DeletionMarkerCreated";"s3:Replication:*";"s3:Replication:Create";"s3:Replication:Delete";"s3:Replication:DeletionMarkerCreated";"s3:ObjectRestore:*";"s3:ObjectRestore:Post";"s3:ObjectRestore:Completed";"s3:ObjectRestore:Delete"
 type BucketNotificationEvent string
@@ -3460,7 +3475,7 @@ type ClientSpec struct {
 	Security ClientSecuritySpec `json:"security,omitempty"`
 }
 
-// ClinetSecuritySpec represents security settings for a Ceph Client
+// ClientSecuritySpec represents security settings for a Ceph Client
 type ClientSecuritySpec struct {
 	// CephX configures CephX key settings. More: https://docs.ceph.com/en/latest/dev/cephx/
 	// +optional
@@ -3917,7 +3932,7 @@ type CephFilesystemSubVolumeGroup struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// CephFilesystemSubVolumeGroup represents a list of Ceph Clients
+// CephFilesystemSubVolumeGroupList represents a list of Ceph filesystem subvolume groups
 type CephFilesystemSubVolumeGroupList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
@@ -4212,8 +4227,12 @@ type CephNVMeOFGatewayList struct {
 type NVMeOFGatewaySpec struct {
 	// Image is the container image to use for the NVMe-oF gateway daemon.
 	// For example, quay.io/ceph/nvmeof:1.5
+	// If not specified, the image is fetched from the Ceph mon config store
+	// (mgr/cephadm/container_image_nvmeof).
+	// +optional
 	// +kubebuilder:validation:MinLength=1
-	Image string `json:"image"`
+	// +kubebuilder:validation:MaxLength=1024
+	Image string `json:"image,omitempty"`
 
 	// The number of active gateway instances
 	// +kubebuilder:validation:Minimum=1
