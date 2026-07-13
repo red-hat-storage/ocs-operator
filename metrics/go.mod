@@ -33,7 +33,7 @@ require (
 	github.com/prometheus/common v0.67.5
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-00010101000000-000000000000
 	github.com/red-hat-storage/ocs-operator/v4 v4.0.0-00010101000000-000000000000
-	github.com/rook/rook v1.20.0-alpha.0.0.20260707223529-6c2a3a5f2b08
+	github.com/rook/rook v1.20.2
 	github.com/rook/rook/pkg/apis v0.0.0-20260707223529-6c2a3a5f2b08
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
