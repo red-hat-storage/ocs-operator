@@ -1,6 +1,6 @@
 module github.com/red-hat-storage/ocs-operator/v4
 
-go 1.26.0
+go 1.26.3
 
 replace github.com/red-hat-storage/ocs-operator/api/v4 => ./api
 
@@ -26,7 +26,7 @@ require (
 	github.com/openshift/build-machinery-go v0.0.0-20251023084048-5d77c1a5e5af
 	github.com/openshift/client-go v0.0.0-20260330134249-7e1499aaacd7
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
-	github.com/operator-framework/api v0.42.0
+	github.com/operator-framework/api v0.44.0
 	github.com/operator-framework/operator-lib v0.19.0
 	github.com/operator-framework/operator-lifecycle-manager v0.42.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.92.0
@@ -107,6 +107,7 @@ require (
 	github.com/hashicorp/vault/api/auth/kubernetes v0.12.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1 // indirect
 	github.com/lib/pq v1.12.3 // indirect
 	github.com/libopenstorage/secrets v0.0.0-20240416031220-a17cf7f72c6c // indirect
@@ -127,7 +128,6 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opentelemetry.io/otel v1.43.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
