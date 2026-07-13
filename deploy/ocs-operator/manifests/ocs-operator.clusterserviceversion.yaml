@@ -56,7 +56,7 @@ metadata:
     capabilities: Deep Insights
     categories: Storage
     containerImage: quay.io/ocs-dev/ocs-operator:latest
-    createdAt: "2026-06-25T07:58:21Z"
+    createdAt: "2026-07-10T07:15:34Z"
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     external.features.ocs.openshift.io/supported-platforms: '["BareMetal", "None",
@@ -93,7 +93,7 @@ metadata:
       \   }\n\t"
     operatorframework.io/suggested-namespace: openshift-storage
     operators.openshift.io/infrastructure-features: '["disconnected"]'
-    operators.operatorframework.io/builder: operator-sdk-v1.34.1
+    operators.operatorframework.io/builder: operator-sdk-v1.37.0
     operators.operatorframework.io/internal-objects: '["ocsinitializations.ocs.openshift.io","storageautoscalers.ocs.openshift.io","storageclusterpeers.ocs.openshift.io","storageconsumers.ocs.openshift.io"]'
     operators.operatorframework.io/operator-type: non-standalone
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
@@ -702,9 +702,9 @@ spec:
                 - name: BLACKBOX_EXPORTER_IMAGE
                   value: quay.io/prometheus/blackbox-exporter:latest
                 - name: ROOK_CEPH_IMAGE
-                  value: quay.io/ocs-dev/rook-ceph:vrelease-4.22-dfe989e84
+                  value: quay.io/ocs-dev/rook-ceph:vmaster-0768135c3
                 - name: CEPH_IMAGE
-                  value: quay.io/ceph/ceph:v20.2.1
+                  value: quay.io/ceph/ceph:v20.2.2
                 - name: NOOBAA_CORE_IMAGE
                   value: quay.io/noobaa/noobaa-core:master-20250730
                 - name: NOOBAA_DB_IMAGE
@@ -799,9 +799,9 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: quay.io/ocs-dev/rook-ceph:vrelease-4.22-dfe989e84
+  - image: quay.io/ocs-dev/rook-ceph:vmaster-0768135c3
     name: rook-container
-  - image: quay.io/ceph/ceph:v20.2.1
+  - image: quay.io/ceph/ceph:v20.2.2
     name: ceph-container
   - image: quay.io/ocs-dev/ocs-must-gather:latest
     name: ocs-must-gather

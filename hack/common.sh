@@ -22,8 +22,8 @@ OCS_FINAL_DIR="deploy/ocs-operator/manifests"
 BUNDLEMANIFESTS_DIR="rbac"
 
 # External images used in CSV generation
-LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vrelease-4.22-dfe989e84" # Using downstream rook image as it contains downstream-only changes
-LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v20.2.1" # Ref-https://github.com/rook/rook/blob/master/deploy/examples/images.txt#L3
+LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-0768135c3" # Using downstream rook image as it contains downstream-only changes
+LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v20.2.2" # Ref-https://github.com/rook/rook/blob/master/deploy/examples/images.txt#L3
 LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20250730"
 LATEST_NOOBAA_DB_IMAGE="quay.io/sclorg/postgresql-15-c9s" # Ref-https://github.com/noobaa/noobaa-operator/blob/5da5c26e9f126c488445d7d9f9326cf676bdd0ea/pkg/options/options.go#L73-L75
 KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1"
@@ -45,7 +45,7 @@ BUNDLE_FULL_IMAGE_NAME="${BUNDLE_FULL_IMAGE_NAME:=${IMAGE_REGISTRY}/${REGISTRY_N
 
 # Bundle images of Dependencies of OCS Operator
 NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20260420"
-ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:release-4.22-dfe989e84"
+ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-0768135c3"
 OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-6f2a746"
 OCS_TLS_PROFILE_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-tls-profiles-bundle:main-9fd1952"
 # Below bundles are dependencies of ocs-client-operator, Ref- https://github.com/red-hat-storage/ocs-client-operator/blob/main/bundle/metadata/dependencies.yaml
@@ -68,7 +68,7 @@ OCS_MUST_GATHER_DIR="${OCS_MUST_GATHER_DIR:-ocs-must-gather}"
 
 # Tools & binaries versions and locations
 LOCALBIN="$(pwd)/bin"
-OPERATOR_SDK_VERSION="v1.34.1"
+OPERATOR_SDK_VERSION="v1.37.0"
 OPERATOR_SDK="${LOCALBIN}/operator-sdk-${OPERATOR_SDK_VERSION}"
 GINKGO="${LOCALBIN}/ginkgo"
 GOLANGCI_LINT_VERSION="v2.12.2"
