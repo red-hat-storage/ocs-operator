@@ -568,8 +568,8 @@ github.com/red-hat-storage/ocs-client-operator/api/v1alpha1
 # github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd65
 ## explicit; go 1.25.0
 github.com/red-hat-storage/ocs-tls-profiles/api/v1
-# github.com/rook/rook v1.20.0-alpha.0.0.20260707223529-6c2a3a5f2b08
-## explicit; go 1.26.0
+# github.com/rook/rook v1.20.2
+## explicit; go 1.25.0
 github.com/rook/rook/pkg/client/clientset/versioned
 github.com/rook/rook/pkg/client/clientset/versioned/scheme
 github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1
