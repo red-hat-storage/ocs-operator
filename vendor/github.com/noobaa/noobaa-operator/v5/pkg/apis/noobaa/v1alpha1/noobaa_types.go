@@ -113,7 +113,10 @@ type NooBaaSpec struct {
 	// +optional
 	DBResources *corev1.ResourceRequirements `json:"dbResources,omitempty"`
 
-	// DBPriorityClassName (optional) overrides the priority class for the db pod
+	// DBPriorityClassName (optional) overrides the priority class for the db pod.
+	// Takes effect on next pod restart (e.g. upgrade, node drain, crash); does not trigger a rolling restart of CNPG-managed pods.
+	// To apply immediately, restart the DB pods manually after reviewing CNPG documentation.
+	// https://cloudnative-pg.io/docs
 	// +optional
 	DBPriorityClassName string `json:"dbPriorityClassName,omitempty"`
 
@@ -254,6 +257,13 @@ type NooBaaSpec struct {
 	// BucketNotifications (optional) controls bucket notification options
 	// +optional
 	BucketNotifications BucketNotificationsSpec `json:"bucketNotifications,omitempty"`
+
+	// PerformanceProfile (optional) selects a bundle of resource and count
+	// settings for the core, db and endpoint components.
+	// Explicit per-component resource/count fields take precedence over the profile.
+	// +optional
+	// +kubebuilder:validation:Enum=default;mixed-workload;small-objects;dev-env;mini-env
+	PerformanceProfile PerformanceProfileType `json:"performanceProfile,omitempty"`
 }
 
 // Affinity is a group of affinity scheduling rules.
@@ -871,4 +881,21 @@ const (
 
 	// BucketLoggingTypeGuaranteed is guaranteed
 	BucketLoggingTypeGuaranteed BucketLoggingTypes = "guaranteed"
+)
+
+// PerformanceProfileType is a string enum type for selecting a performance profile.
+type PerformanceProfileType string
+
+// These are the valid PerformanceProfileType values:
+const (
+	// PerformanceProfileDefault is the default profile
+	PerformanceProfileDefault PerformanceProfileType = "default"
+	// PerformanceProfileMixedWorkload is for mixed workload
+	PerformanceProfileMixedWorkload PerformanceProfileType = "mixed-workload"
+	// PerformanceProfileSmallObjects is for small objects workload
+	PerformanceProfileSmallObjects PerformanceProfileType = "small-objects"
+	// PerformanceProfileDevEnv is for development environments with moderate resources
+	PerformanceProfileDevEnv PerformanceProfileType = "dev-env"
+	// PerformanceProfileMiniEnv is for low-resource environments with minimal footprint
+	PerformanceProfileMiniEnv PerformanceProfileType = "mini-env"
 )

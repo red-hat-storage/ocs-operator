@@ -1,6 +1,6 @@
 package bundle
 
-const Version = "5.22.0"
+const Version = "5.23.0"
 
 const Sha256_deploy_cluster_role_yaml = "6417dcd3e52c38e04ba6b70b7e22985f0f7ddf1edec96287fcc0cb5f42b30c04"
 
@@ -298,7 +298,7 @@ spec:
 
 `
 
-const Sha256_deploy_crds_noobaa_io_backingstores_yaml = "e6b5ca2577838c95674c0e36b673bde5816c8bf80d7edb240da7e6918cb346ab"
+const Sha256_deploy_crds_noobaa_io_backingstores_yaml = "86a2cc60a53782e3eaab5ecc236f4219c9f32d36c713949c53b43fd6c932833b"
 
 const File_deploy_crds_noobaa_io_backingstores_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
@@ -433,8 +433,9 @@ spec:
                 properties:
                   secret:
                     description: |-
-                      Secret refers to a secret that provides the credentials
-                      The secret should define GoogleServiceAccountPrivateKeyJson containing the entire json string as provided by Google.
+                      Secret refers to a secret that provides the credentials.
+                      For classic google-cloud-storage, define GoogleServiceAccountPrivateKeyJson (service_account JSON).
+                      For GCP WIF (STS), define GoogleCredentialsJson (external_account JSON).
                     properties:
                       name:
                         description: name is unique within a namespace to reference
@@ -688,7 +689,7 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_bucketclasses_yaml = "99a680e6d2ad4b391758007186f24761f034b001bea6a976ae799588df3b1033"
+const Sha256_deploy_crds_noobaa_io_bucketclasses_yaml = "d31ffd534863d5fec56bbac39cf4f956fb613f5547b4402c36f19e9bc344df49"
 
 const File_deploy_crds_noobaa_io_bucketclasses_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
@@ -755,6 +756,18 @@ spec:
           spec:
             description: Specification of the desired behavior of the noobaa BucketClass.
             properties:
+              archivePolicy:
+                description: |-
+                  ArchivePolicy specifies the Archive policy for the bucket class.
+                  When set, the bucket class supports archiving objects to Deep Archive.
+                  Requires PlacementPolicy to also be set.
+                properties:
+                  deepArchiveResource:
+                    description: |-
+                      DeepArchiveResource is the name of an s3-compatible NamespaceStore that has spec.archive=true.
+                      currently only supports IBM Deep Archive as the archive target
+                    type: string
+                type: object
               namespacePolicy:
                 description: NamespacePolicy specifies the namespace policy for the
                   bucket class
@@ -963,7 +976,7 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_namespacestores_yaml = "3918d4e2b31648e242af9bb3ee522b792083d6b942279d305fbcf18a9cc72dfa"
+const Sha256_deploy_crds_noobaa_io_namespacestores_yaml = "25ae97238bab92188947130a2d883af7ea6fba1b0e209c8c2b6105b0d39f5152"
 
 const File_deploy_crds_noobaa_io_namespacestores_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
@@ -1021,6 +1034,11 @@ spec:
               accessMode:
                 description: AccessMode is an enum of supported access modes
                 type: string
+              archive:
+                description: |-
+                  Archive marks the namespace store for cold-storage archive use (e.g. IBM Deep Archive).
+                  Only valid with type s3-compatible.
+                type: boolean
               awsS3:
                 description: AWSS3Spec specifies a namespace store of type aws-s3
                 properties:
@@ -1101,8 +1119,9 @@ spec:
                 properties:
                   secret:
                     description: |-
-                      Secret refers to a secret that provides the credentials
-                      The secret should define GoogleServiceAccountPrivateKeyJson containing the entire json string as provided by Google.
+                      Secret refers to a secret that provides the credentials.
+                      For classic google-cloud-storage, define GoogleServiceAccountPrivateKeyJson (service_account JSON).
+                      For GCP WIF (STS), define GoogleCredentialsJson (external_account JSON).
                     properties:
                       name:
                         description: name is unique within a namespace to reference
@@ -1492,7 +1511,7 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_noobaas_yaml = "2036917b6e311569f1026eb39d3862d096d7a674dc97553a7f962f0172f40784"
+const Sha256_deploy_crds_noobaa_io_noobaas_yaml = "88be0872b57677c437aeb656eac747cd13871d9b2733d41b0b2ec5b2d4ea7603"
 
 const File_deploy_crds_noobaa_io_noobaas_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
@@ -2649,8 +2668,11 @@ spec:
                   db container
                 type: string
               dbPriorityClassName:
-                description: DBPriorityClassName (optional) overrides the priority
-                  class for the db pod
+                description: |-
+                  DBPriorityClassName (optional) overrides the priority class for the db pod.
+                  Takes effect on next pod restart (e.g. upgrade, node drain, crash); does not trigger a rolling restart of CNPG-managed pods.
+                  To apply immediately, restart the DB pods manually after reviewing CNPG documentation.
+                  https://cloudnative-pg.io/docs
                 type: string
               dbResources:
                 description: DBResources (optional) overrides the default resource
@@ -2991,8 +3013,9 @@ spec:
                     properties:
                       secret:
                         description: |-
-                          Secret refers to a secret that provides the credentials
-                          The secret should define GoogleServiceAccountPrivateKeyJson containing the entire json string as provided by Google.
+                          Secret refers to a secret that provides the credentials.
+                          For classic google-cloud-storage, define GoogleServiceAccountPrivateKeyJson (service_account JSON).
+                          For GCP WIF (STS), define GoogleCredentialsJson (external_account JSON).
                         properties:
                           name:
                             description: name is unique within a namespace to reference
@@ -3431,6 +3454,18 @@ spec:
                   update the admin account with new BackingStore/NamespaceStore in order to delete the DefaultBackingStore/DefaultNamespaceStore
                 nullable: true
                 type: boolean
+              performanceProfile:
+                description: |-
+                  PerformanceProfile (optional) selects a bundle of resource and count
+                  settings for the core, db and endpoint components.
+                  Explicit per-component resource/count fields take precedence over the profile.
+                enum:
+                - default
+                - mixed-workload
+                - small-objects
+                - dev-env
+                - mini-env
+                type: string
               pvPoolDefaultStorageClass:
                 description: |-
                   PVPoolDefaultStorageClass (optional) overrides the default cluster StorageClass for the pv-pool volumes.
@@ -3512,9 +3547,10 @@ spec:
                     operator:
                       description: |-
                         Operator represents a key's relationship to the value.
-                        Valid operators are Exists and Equal. Defaults to Equal.
+                        Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal.
                         Exists is equivalent to wildcard for value, so that a pod can
                         tolerate all taints of a particular category.
+                        Lt and Gt perform numeric comparisons (requires feature gate TaintTolerationComparisonOperators).
                       type: string
                     tolerationSeconds:
                       description: |-
@@ -4322,7 +4358,7 @@ data:
     shared_preload_libraries = 'pg_stat_statements'
 `
 
-const Sha256_deploy_internal_deployment_endpoint_yaml = "0b27c64555dcf8b21934c3b58419ca0d40a69868fe0764028edf07f0217195e0"
+const Sha256_deploy_internal_deployment_endpoint_yaml = "558ec22578b22c3ac3a6d6b72fa95a7122739014ded0a73adbac319aa4457aed"
 
 const File_deploy_internal_deployment_endpoint_yaml = `apiVersion: apps/v1
 kind: Deployment
@@ -4372,7 +4408,7 @@ spec:
             secretName: noobaa-vectors-serving-cert
             optional: true
         # This service account token can be used to provide identity outside the cluster.
-        # For example, this token can be used with AWS(AssumeRoleWithWebIdentity)/Azure(WorkloadIdentityCredential) 
+        # For example, this token can be used with AWS(AssumeRoleWithWebIdentity)/Azure(WorkloadIdentityCredential)
         # to authenticate with AWS/Azure using IAM OIDC provider and STS.
         - name: bound-sa-token
           projected:
@@ -4449,6 +4485,11 @@ spec:
                 configMapKeyRef:
                   name: noobaa-config
                   key: NOOBAA_VERSION_AUTH_ENABLED
+            - name: SYSTEM_STORE_SOURCE
+              valueFrom:
+                configMapKeyRef:
+                  name: noobaa-config
+                  key: ENDPOINT_SYSTEM_STORE_SOURCE
             - name: MGMT_ADDR
             - name: SYSLOG_ADDR
             - name: BG_ADDR
@@ -5555,7 +5596,7 @@ spec:
       noobaa-s3-svc: "true"
 `
 
-const Sha256_deploy_internal_statefulset_core_yaml = "950eaab1e58069eec4df071a6020f75914586a5a2b25f56470059cc9c0b7f892"
+const Sha256_deploy_internal_statefulset_core_yaml = "4ef493f94d8f81746f9d8904085de093b4ed37ee15d0767cc563f7aa89c86de8"
 
 const File_deploy_internal_statefulset_core_yaml = `apiVersion: apps/v1
 kind: StatefulSet
@@ -5698,6 +5739,9 @@ spec:
             - name: CONTAINER_PLATFORM
               value: KUBERNETES
             - name: NODE_EXTRA_CA_CERTS
+            - name: TLS_MIN_VERSION
+            - name: TLS_CIPHERS
+            - name: TLS_GROUPS
             - name: AGENT_PROFILE
               value: VALUE_AGENT_PROFILE
             - name: OAUTH_AUTHORIZATION_ENDPOINT

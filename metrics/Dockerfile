@@ -12,15 +12,15 @@ RUN dnf -y reinstall https://download.ceph.com/rpm-${CEPH_VERSION}/el9/noarch/ce
 FROM updated_base AS builder
 
 ARG GOROOT=/usr/local/go
-ARG GOLANG_VERSION=1.26.0
+ARG GOLANG_VERSION=1.26.3
 ARG GO_ARCH
 
 RUN if [ -z "${GO_ARCH}" ]; then \
-        case "$(uname -m)" in \
-            x86_64)  GO_ARCH=amd64 ;; \
-            aarch64) GO_ARCH=arm64 ;; \
-            *)       echo "unsupported arch: $(uname -m)"; exit 1 ;; \
-        esac; \
+    case "$(uname -m)" in \
+    x86_64)  GO_ARCH=amd64 ;; \
+    aarch64) GO_ARCH=arm64 ;; \
+    *)       echo "unsupported arch: $(uname -m)"; exit 1 ;; \
+    esac; \
     fi && \
     mkdir -p ${GOROOT} && \
     curl -fsSL https://dl.google.com/go/go${GOLANG_VERSION}.linux-${GO_ARCH}.tar.gz | \
