@@ -2,7 +2,7 @@ module github.com/red-hat-storage/ocs-operator/services/provider/api/v4
 
 go 1.25.8
 
-toolchain go1.25.9
+toolchain go1.25.10
 
 require (
 	github.com/noobaa/noobaa-operator/v5 v5.21.0
