@@ -468,6 +468,14 @@ type MultiCloudGatewaySpec struct {
 	// DenyHTTP (optional) if given will deny access to the NooBaa S3 service using HTTP (only HTTPS)
 	// +optional
 	DenyHTTP bool `json:"denyHTTP,omitempty"`
+
+	// PerformanceProfile (optional) selects a bundle of resource and count
+	// settings for the NooBaa core, db and endpoint components.
+	// When unset, defaults to "default".
+	// Explicit per-component resources in StorageClusterSpec.Resources take precedence over the profile.
+	// +optional
+	// +kubebuilder:validation:Enum=default;mixed-workload;small-objects
+	PerformanceProfile nbv1.PerformanceProfileType `json:"performanceProfile,omitempty"`
 }
 
 type ExternalPGSpec struct {
