@@ -2,7 +2,7 @@
 # cel.dev/expr v0.25.1
 ## explicit; go 1.23.0
 cel.dev/expr
-# github.com/Masterminds/semver/v3 v3.4.0
+# github.com/Masterminds/semver/v3 v3.5.0
 ## explicit; go 1.21
 github.com/Masterminds/semver/v3
 # github.com/antlr4-go/antlr/v4 v4.13.1
@@ -86,10 +86,11 @@ github.com/cespare/xxhash/v2
 # github.com/cloudnative-pg/barman-cloud v0.5.0
 ## explicit; go 1.25.0
 github.com/cloudnative-pg/barman-cloud/pkg/api
-# github.com/cloudnative-pg/cloudnative-pg v1.29.0
-## explicit; go 1.25.0
+# github.com/cloudnative-pg/cloudnative-pg v1.29.1
+## explicit; go 1.26.3
 github.com/cloudnative-pg/cloudnative-pg/api/v1
 github.com/cloudnative-pg/cloudnative-pg/internal/configuration
+github.com/cloudnative-pg/cloudnative-pg/pkg/configfile
 github.com/cloudnative-pg/cloudnative-pg/pkg/configparser
 github.com/cloudnative-pg/cloudnative-pg/pkg/executablehash
 github.com/cloudnative-pg/cloudnative-pg/pkg/postgres
@@ -105,6 +106,7 @@ github.com/cloudnative-pg/cnpg-i/pkg/identity
 # github.com/cloudnative-pg/machinery v0.4.0
 ## explicit; go 1.25.0
 github.com/cloudnative-pg/machinery/pkg/api
+github.com/cloudnative-pg/machinery/pkg/fileutils
 github.com/cloudnative-pg/machinery/pkg/image/reference
 github.com/cloudnative-pg/machinery/pkg/log
 github.com/cloudnative-pg/machinery/pkg/postgres/time
@@ -404,8 +406,8 @@ github.com/noobaa/noobaa-operator/v5/pkg/bundle
 # github.com/oklog/run v1.2.0
 ## explicit; go 1.20
 github.com/oklog/run
-# github.com/onsi/ginkgo/v2 v2.28.1
-## explicit; go 1.24.0
+# github.com/onsi/ginkgo/v2 v2.28.3
+## explicit; go 1.25.0
 github.com/onsi/ginkgo/v2
 github.com/onsi/ginkgo/v2/config
 github.com/onsi/ginkgo/v2/formatter
@@ -428,7 +430,7 @@ github.com/onsi/ginkgo/v2/internal/reporters
 github.com/onsi/ginkgo/v2/internal/testingtproxy
 github.com/onsi/ginkgo/v2/reporters
 github.com/onsi/ginkgo/v2/types
-# github.com/onsi/gomega v1.39.1
+# github.com/onsi/gomega v1.40.0
 ## explicit; go 1.24.0
 github.com/onsi/gomega
 github.com/onsi/gomega/format
@@ -560,11 +562,11 @@ github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapsh
 ## explicit; go 1.24.6
 github.com/red-hat-storage/ocs-client-operator/api/v1alpha1
 # github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-00010101000000-000000000000 => ./api
-## explicit; go 1.26.0
+## explicit; go 1.26.3
 # github.com/red-hat-storage/ocs-operator/services/provider/api/v4 v4.0.0-00010101000000-000000000000 => ./services/provider/api
-## explicit; go 1.26.0
+## explicit; go 1.26.3
 # github.com/red-hat-storage/ocs-operator/v4 v4.0.0-00010101000000-000000000000 => .
-## explicit; go 1.26.0
+## explicit; go 1.26.3
 # github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd65
 ## explicit; go 1.25.0
 github.com/red-hat-storage/ocs-tls-profiles/api/v1
@@ -597,6 +599,9 @@ github.com/spf13/pflag
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/assert/yaml
 github.com/stretchr/testify/require
+# github.com/thoas/go-funk v0.9.3
+## explicit; go 1.13
+github.com/thoas/go-funk
 # github.com/vishvananda/netns v0.0.5
 ## explicit; go 1.17
 # github.com/x448/float16 v0.8.4
@@ -656,8 +661,6 @@ go.opentelemetry.io/otel/sdk/resource
 go.opentelemetry.io/otel/sdk/trace
 go.opentelemetry.io/otel/sdk/trace/internal/env
 go.opentelemetry.io/otel/sdk/trace/internal/observ
-# go.opentelemetry.io/otel/sdk/metric v1.43.0
-## explicit; go 1.25.0
 # go.opentelemetry.io/otel/trace v1.43.0
 ## explicit; go 1.25.0
 go.opentelemetry.io/otel/trace
@@ -673,7 +676,7 @@ go.opentelemetry.io/proto/otlp/trace/v1
 # go.uber.org/multierr v1.11.0
 ## explicit; go 1.19
 go.uber.org/multierr
-# go.uber.org/zap v1.27.1
+# go.uber.org/zap v1.28.0
 ## explicit; go 1.19
 go.uber.org/zap
 go.uber.org/zap/buffer
@@ -798,8 +801,8 @@ google.golang.org/genproto/googleapis/api/httpbody
 ## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.80.0
-## explicit; go 1.24.0
+# google.golang.org/grpc v1.81.0
+## explicit; go 1.25.0
 google.golang.org/grpc
 google.golang.org/grpc/attributes
 google.golang.org/grpc/backoff
@@ -854,6 +857,7 @@ google.golang.org/grpc/internal/status
 google.golang.org/grpc/internal/syscall
 google.golang.org/grpc/internal/transport
 google.golang.org/grpc/internal/transport/networktype
+google.golang.org/grpc/internal/transport/readyreader
 google.golang.org/grpc/keepalive
 google.golang.org/grpc/mem
 google.golang.org/grpc/metadata
