@@ -1,6 +1,6 @@
 package bundle
 
-const Version = "5.22.0"
+const Version = "5.23.0"
 
 const Sha256_deploy_cluster_role_yaml = "6417dcd3e52c38e04ba6b70b7e22985f0f7ddf1edec96287fcc0cb5f42b30c04"
 
@@ -298,7 +298,7 @@ spec:
 
 `
 
-const Sha256_deploy_crds_noobaa_io_backingstores_yaml = "e6b5ca2577838c95674c0e36b673bde5816c8bf80d7edb240da7e6918cb346ab"
+const Sha256_deploy_crds_noobaa_io_backingstores_yaml = "86a2cc60a53782e3eaab5ecc236f4219c9f32d36c713949c53b43fd6c932833b"
 
 const File_deploy_crds_noobaa_io_backingstores_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
@@ -433,8 +433,9 @@ spec:
                 properties:
                   secret:
                     description: |-
-                      Secret refers to a secret that provides the credentials
-                      The secret should define GoogleServiceAccountPrivateKeyJson containing the entire json string as provided by Google.
+                      Secret refers to a secret that provides the credentials.
+                      For classic google-cloud-storage, define GoogleServiceAccountPrivateKeyJson (service_account JSON).
+                      For GCP WIF (STS), define GoogleCredentialsJson (external_account JSON).
                     properties:
                       name:
                         description: name is unique within a namespace to reference
@@ -688,7 +689,7 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_bucketclasses_yaml = "99a680e6d2ad4b391758007186f24761f034b001bea6a976ae799588df3b1033"
+const Sha256_deploy_crds_noobaa_io_bucketclasses_yaml = "d31ffd534863d5fec56bbac39cf4f956fb613f5547b4402c36f19e9bc344df49"
 
 const File_deploy_crds_noobaa_io_bucketclasses_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
@@ -755,6 +756,18 @@ spec:
           spec:
             description: Specification of the desired behavior of the noobaa BucketClass.
             properties:
+              archivePolicy:
+                description: |-
+                  ArchivePolicy specifies the Archive policy for the bucket class.
+                  When set, the bucket class supports archiving objects to Deep Archive.
+                  Requires PlacementPolicy to also be set.
+                properties:
+                  deepArchiveResource:
+                    description: |-
+                      DeepArchiveResource is the name of an s3-compatible NamespaceStore that has spec.archive=true.
+                      currently only supports IBM Deep Archive as the archive target
+                    type: string
+                type: object
               namespacePolicy:
                 description: NamespacePolicy specifies the namespace policy for the
                   bucket class
@@ -963,7 +976,7 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_namespacestores_yaml = "3918d4e2b31648e242af9bb3ee522b792083d6b942279d305fbcf18a9cc72dfa"
+const Sha256_deploy_crds_noobaa_io_namespacestores_yaml = "25ae97238bab92188947130a2d883af7ea6fba1b0e209c8c2b6105b0d39f5152"
 
 const File_deploy_crds_noobaa_io_namespacestores_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
@@ -1021,6 +1034,11 @@ spec:
               accessMode:
                 description: AccessMode is an enum of supported access modes
                 type: string
+              archive:
+                description: |-
+                  Archive marks the namespace store for cold-storage archive use (e.g. IBM Deep Archive).
+                  Only valid with type s3-compatible.
+                type: boolean
               awsS3:
                 description: AWSS3Spec specifies a namespace store of type aws-s3
                 properties:
@@ -1101,8 +1119,9 @@ spec:
                 properties:
                   secret:
                     description: |-
-                      Secret refers to a secret that provides the credentials
-                      The secret should define GoogleServiceAccountPrivateKeyJson containing the entire json string as provided by Google.
+                      Secret refers to a secret that provides the credentials.
+                      For classic google-cloud-storage, define GoogleServiceAccountPrivateKeyJson (service_account JSON).
+                      For GCP WIF (STS), define GoogleCredentialsJson (external_account JSON).
                     properties:
                       name:
                         description: name is unique within a namespace to reference
@@ -1492,7 +1511,7 @@ spec:
       status: {}
 `
 
-const Sha256_deploy_crds_noobaa_io_noobaas_yaml = "2036917b6e311569f1026eb39d3862d096d7a674dc97553a7f962f0172f40784"
+const Sha256_deploy_crds_noobaa_io_noobaas_yaml = "e359dfd8f3c4a8ef7ac5605b1c86ce6d939846435e13c8376cef2252bb9e95f4"
 
 const File_deploy_crds_noobaa_io_noobaas_yaml = `---
 apiVersion: apiextensions.k8s.io/v1
@@ -2649,8 +2668,11 @@ spec:
                   db container
                 type: string
               dbPriorityClassName:
-                description: DBPriorityClassName (optional) overrides the priority
-                  class for the db pod
+                description: |-
+                  DBPriorityClassName (optional) overrides the priority class for the db pod.
+                  Takes effect on next pod restart (e.g. upgrade, node drain, crash); does not trigger a rolling restart of CNPG-managed pods.
+                  To apply immediately, restart the DB pods manually after reviewing CNPG documentation.
+                  https://cloudnative-pg.io/docs
                 type: string
               dbResources:
                 description: DBResources (optional) overrides the default resource
@@ -2991,8 +3013,9 @@ spec:
                     properties:
                       secret:
                         description: |-
-                          Secret refers to a secret that provides the credentials
-                          The secret should define GoogleServiceAccountPrivateKeyJson containing the entire json string as provided by Google.
+                          Secret refers to a secret that provides the credentials.
+                          For classic google-cloud-storage, define GoogleServiceAccountPrivateKeyJson (service_account JSON).
+                          For GCP WIF (STS), define GoogleCredentialsJson (external_account JSON).
                         properties:
                           name:
                             description: name is unique within a namespace to reference
@@ -3431,6 +3454,19 @@ spec:
                   update the admin account with new BackingStore/NamespaceStore in order to delete the DefaultBackingStore/DefaultNamespaceStore
                 nullable: true
                 type: boolean
+              performanceProfile:
+                description: |-
+                  PerformanceProfile (optional) selects a bundle of resource and count
+                  settings for the core, db and endpoint components.
+                  Explicit per-component resource/count fields take precedence over the profile.
+                enum:
+                - default
+                - default-ibm-z
+                - mixed-workload
+                - small-objects
+                - dev-env
+                - mini-env
+                type: string
               pvPoolDefaultStorageClass:
                 description: |-
                   PVPoolDefaultStorageClass (optional) overrides the default cluster StorageClass for the pv-pool volumes.
@@ -3512,9 +3548,10 @@ spec:
                     operator:
                       description: |-
                         Operator represents a key's relationship to the value.
-                        Valid operators are Exists and Equal. Defaults to Equal.
+                        Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal.
                         Exists is equivalent to wildcard for value, so that a pod can
                         tolerate all taints of a particular category.
+                        Lt and Gt perform numeric comparisons (requires feature gate TaintTolerationComparisonOperators).
                       type: string
                     tolerationSeconds:
                       description: |-
@@ -4322,7 +4359,7 @@ data:
     shared_preload_libraries = 'pg_stat_statements'
 `
 
-const Sha256_deploy_internal_deployment_endpoint_yaml = "0b27c64555dcf8b21934c3b58419ca0d40a69868fe0764028edf07f0217195e0"
+const Sha256_deploy_internal_deployment_endpoint_yaml = "e028fd7874ebec9b0b63f84ed2f9b3648a8785c7f0cd99b49d8de4a28b7d1910"
 
 const File_deploy_internal_deployment_endpoint_yaml = `apiVersion: apps/v1
 kind: Deployment
@@ -4347,6 +4384,7 @@ spec:
         app: noobaa
       annotations:
         noobaa.io/configmap-hash: ""
+        openshift.io/required-scc: noobaa-endpoint
     spec:
       # Notice that changing the serviceAccountName would need to update existing AWS STS role trust policy for customers
       serviceAccountName: noobaa-endpoint
@@ -4372,7 +4410,7 @@ spec:
             secretName: noobaa-vectors-serving-cert
             optional: true
         # This service account token can be used to provide identity outside the cluster.
-        # For example, this token can be used with AWS(AssumeRoleWithWebIdentity)/Azure(WorkloadIdentityCredential) 
+        # For example, this token can be used with AWS(AssumeRoleWithWebIdentity)/Azure(WorkloadIdentityCredential)
         # to authenticate with AWS/Azure using IAM OIDC provider and STS.
         - name: bound-sa-token
           projected:
@@ -4449,6 +4487,11 @@ spec:
                 configMapKeyRef:
                   name: noobaa-config
                   key: NOOBAA_VERSION_AUTH_ENABLED
+            - name: SYSTEM_STORE_SOURCE
+              valueFrom:
+                configMapKeyRef:
+                  name: noobaa-config
+                  key: ENDPOINT_SYSTEM_STORE_SOURCE
             - name: MGMT_ADDR
             - name: SYSLOG_ADDR
             - name: BG_ADDR
@@ -4844,13 +4887,15 @@ spec:
       storage: 30Gi
 `
 
-const Sha256_deploy_internal_pod_agent_yaml = "74237f435120c893cd8e349e9ac685dd1c884e121c018f46e48228f845a51093"
+const Sha256_deploy_internal_pod_agent_yaml = "46429d12f4a438f4d3666737cd214c5c8bc2d07acf467e7b9a22439c9cc00fc6"
 
 const File_deploy_internal_pod_agent_yaml = `apiVersion: v1
 kind: Pod
 metadata:
   labels:
     app: noobaa
+  annotations:
+    openshift.io/required-scc: noobaa-agent
   name: noobaa-agent
 spec:
   containers:
@@ -4890,6 +4935,7 @@ spec:
         runAsNonRoot: true
         allowPrivilegeEscalation: false
   automountServiceAccountToken: false
+  serviceAccountName: noobaa-core
   securityContext:
     runAsUser: 10001
     runAsGroup: 0
@@ -5555,7 +5601,7 @@ spec:
       noobaa-s3-svc: "true"
 `
 
-const Sha256_deploy_internal_statefulset_core_yaml = "950eaab1e58069eec4df071a6020f75914586a5a2b25f56470059cc9c0b7f892"
+const Sha256_deploy_internal_statefulset_core_yaml = "cc38a4b3cd26c43156962823645c43be26e39ed57a7205d6b390c7849c39651b"
 
 const File_deploy_internal_statefulset_core_yaml = `apiVersion: apps/v1
 kind: StatefulSet
@@ -5579,6 +5625,7 @@ spec:
         noobaa-mgmt: noobaa
       annotations:
         noobaa.io/configmap-hash: ""
+        openshift.io/required-scc: noobaa-core
     spec:
       # Notice that changing the serviceAccountName would need to update existing AWS STS role trust policy for customers
       serviceAccountName: noobaa-core
@@ -5698,6 +5745,9 @@ spec:
             - name: CONTAINER_PLATFORM
               value: KUBERNETES
             - name: NODE_EXTRA_CA_CERTS
+            - name: TLS_MIN_VERSION
+            - name: TLS_CIPHERS
+            - name: TLS_GROUPS
             - name: AGENT_PROFILE
               value: VALUE_AGENT_PROFILE
             - name: OAUTH_AUTHORIZATION_ENDPOINT
@@ -7083,7 +7133,7 @@ subjects:
   name: custom-metrics-prometheus-adapter
 `
 
-const Sha256_deploy_role_core_yaml = "1ec420603dcec64b247852d106535a85a1a866129f78f790c2e5c9285f029ae7"
+const Sha256_deploy_role_core_yaml = "92e0178504b6d3ff202db026efe38de5cac63d29751b5e488842aa5326f36156"
 
 const File_deploy_role_core_yaml = `apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -7128,6 +7178,7 @@ rules:
   - security.openshift.io
   resourceNames:
   - noobaa-core
+  - noobaa-agent
   resources:
   - securitycontextconstraints
   verbs:
@@ -7289,6 +7340,35 @@ seLinuxContext:
 supplementalGroups:
   type: RunAsAny
 readOnlyRootFilesystem: true
+`
+
+const Sha256_deploy_scc_agent_yaml = "17f8e599442503e38885b1c1a1bb2b615d8f93d1e12d5b0d9e2c190d0129be37"
+
+const File_deploy_scc_agent_yaml = `apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: noobaa-agent
+allowPrivilegeEscalation: false
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+readOnlyRootFilesystem: false
+requiredDropCapabilities:
+  - ALL
+fsGroup:
+  type: MustRunAs
+  ranges:
+  - min: 0
+    max: 0
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
 `
 
 const Sha256_deploy_scc_core_yaml = "dd3fb26a323dddbbb9f399b8ff86c41dbbfe63b3bbb0cfe79b785c68948063a8"
