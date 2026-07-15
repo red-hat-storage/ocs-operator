@@ -12,6 +12,7 @@ import (
 	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -231,6 +232,17 @@ func TestGetCephObjectStoreGatewayInstances(t *testing.T) {
 	}
 }
 
+func Test_generateRandomSTSKey(t *testing.T) {
+	allowedChars := "abcdef0123456789"
+
+	for range 100 { // generate 100 random keys, and ensure they all meet key requirements
+		got, err := generateRandomSTSKey()
+		assert.NoError(t, err)
+		assert.Len(t, got, 32)
+		assert.Subset(t, []byte(allowedChars), []byte(got))
+	}
+}
+
 func TestSetSTSOptions(t *testing.T) {
 	testCases := []struct {
 		name            string
@@ -292,6 +304,7 @@ func TestSetSTSOptions(t *testing.T) {
 				}
 
 				// Verify secret was created
+				initialKey := []byte{}
 				if tc.expectSecret {
 					secretName := "sts-key-test-objectstore"
 					secret := &corev1.Secret{}
@@ -307,6 +320,7 @@ func TestSetSTSOptions(t *testing.T) {
 					stsKey, exists := secret.Data["rgw_sts_key"]
 					assert.True(t, exists)
 					assert.NotEmpty(t, stsKey)
+					initialKey = stsKey
 
 					// Verify the key is valid base64
 					_, err = base64.StdEncoding.DecodeString(string(stsKey))
@@ -325,9 +339,94 @@ func TestSetSTSOptions(t *testing.T) {
 					assert.Equal(t, "sts-key-test-objectstore", secretSelector.Name)
 					assert.Equal(t, "rgw_sts_key", secretSelector.Key)
 				}
+
+				if tc.expectSecret {
+					// Call setSTSOptions again, and ensure the key doesn't change on re-reconcile
+					err = reconciler.setSTSOptions(cos, sc)
+					require.NoError(t, err)
+
+					secretName := "sts-key-test-objectstore"
+					secret := &corev1.Secret{}
+					err := reconciler.Get(context.TODO(), types.NamespacedName{
+						Name:      secretName,
+						Namespace: sc.Namespace,
+					}, secret)
+					require.NoError(t, err)
+					require.NotNil(t, secret)
+
+					currentKey := secret.Data["rgw_sts_key"]
+					assert.Equal(t, initialKey, currentKey)
+				}
 			}
 		})
 	}
+
+	t.Run("rotate old 16-char key to new format", func(t *testing.T) {
+		// Setup test environment
+		var objects []runtime.Object
+		sc := &api.StorageCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-storagecluster",
+				Namespace: "test-namespace",
+			},
+			Spec: api.StorageClusterSpec{
+				ManagedResources: api.ManagedResourcesSpec{
+					CephObjectStores: api.ManageCephObjectStores{
+						EnableSTS: true,
+					},
+				},
+			},
+		}
+		objects = append(objects, sc)
+
+		reconciler := createFakeStorageClusterReconciler(t, objects...)
+
+		// Create a CephObjectStore instance
+		cos := &cephv1.CephObjectStore{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-objectstore",
+				Namespace: sc.Namespace,
+			},
+			Spec: cephv1.ObjectStoreSpec{
+				Gateway: cephv1.GatewaySpec{},
+			},
+		}
+
+		// create an STS key secret with latest requirements
+		err := reconciler.setSTSOptions(cos, sc)
+		require.NoError(t, err)
+
+		secret := &corev1.Secret{}
+		err = reconciler.Get(context.TODO(), types.NamespacedName{
+			Name:      "sts-key-test-objectstore",
+			Namespace: sc.Namespace,
+		}, secret)
+		require.NoError(t, err)
+		require.NotNil(t, secret)
+
+		// manually make changes to the secret to give it an older format
+		legacyKey := []byte("1234567890ZYXWVU") // 16 chars, non-hex, needs rotated
+		secret.Data["rgw_sts_key"] = legacyKey
+		err = reconciler.Update(context.TODO(), secret)
+		require.NoError(t, err)
+
+		// run again, which should rotate
+		err = reconciler.setSTSOptions(cos, sc)
+		require.NoError(t, err)
+
+		err = reconciler.Get(context.TODO(), types.NamespacedName{
+			Name:      "sts-key-test-objectstore",
+			Namespace: sc.Namespace,
+		}, secret)
+		require.NoError(t, err)
+		require.NotNil(t, secret)
+
+		rotatedKey := secret.Data["rgw_sts_key"]
+		assert.NotEqual(t, legacyKey, rotatedKey)
+		assert.Len(t, rotatedKey, 32)
+		// Test_generateRandomSTSKey() ensures the generated key charset is expected. We just need
+		// to ensure the key is rotated in this check, and length check ensures it's integrated.
+	})
 }
 
 func TestSetSTSOptionsIdempotency(t *testing.T) {
