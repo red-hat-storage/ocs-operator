@@ -233,7 +233,6 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 		if availableServices.CephFs {
 			if err := r.reconcileCephClientCephFSProvisioner(
 				util.GenerateCsiCephFsProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
-				consumerResources.GetSubVolumeGroupName(),
 				consumerConfigMap,
 				csiCephUserCurrGen,
 			); err != nil {
@@ -648,7 +647,6 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDNode(
 
 func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
 	cephClientName string,
-	subVolumeGroupName string,
 	additionalOwner client.Object,
 	csiCephUserGeneration int64,
 ) error {
@@ -668,7 +666,7 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
 			"mon": "allow r, allow command 'osd blocklist'",
 			"mgr": "allow rw",
 			"osd": "allow rw tag cephfs metadata=*",
-			"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
+			"mds": "allow *",
 		}
 		return nil
 	}); err != nil {
