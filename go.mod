@@ -26,7 +26,7 @@ require (
 	github.com/openshift/build-machinery-go v0.0.0-20251023084048-5d77c1a5e5af
 	github.com/openshift/client-go v0.0.0-20260330134249-7e1499aaacd7
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
-	github.com/operator-framework/api v0.42.0
+	github.com/operator-framework/api v0.44.0
 	github.com/operator-framework/operator-lib v0.19.0
 	github.com/operator-framework/operator-lifecycle-manager v0.42.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.92.0
