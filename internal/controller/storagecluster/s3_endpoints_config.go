@@ -83,20 +83,8 @@ func getNoobaaS3Endpoint(r *StorageClusterReconciler, namespace string, s3Endpoi
 		return nil
 	}
 
-	var host string
-outerLoop:
-	for i := range s3Route.Status.Ingress {
-		ing := &s3Route.Status.Ingress[i]
-		for c := range ing.Conditions {
-			if ing.Conditions[c].Type == routev1.RouteAdmitted &&
-				ing.Conditions[c].Status == corev1.ConditionTrue &&
-				ing.Host != "" {
-				host = ing.Host
-				break outerLoop
-			}
-		}
-	}
-	if host == "" {
+	host, found := util.GetAdmittedRouteHost(s3Route)
+	if !found {
 		return nil
 	}
 

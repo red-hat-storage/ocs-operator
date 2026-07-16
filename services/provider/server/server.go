@@ -473,6 +473,15 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
 		}
 
+		var rgwCredentialsResourceVersion string
+		if isRGWAccountEnabled(consumer, storageCluster) {
+			rgwCredentialsResourceVersion, err = s.getRGWCredentialsResourceVersion(ctx, consumer)
+			if err != nil {
+				logger.Error(err, "failed to get RGW credentials resource version")
+				return nil, status.Errorf(codes.Internal, "failed to produce client state")
+			}
+		}
+
 		desiredClientConfigHash := getDesiredClientConfigHash(
 			channelName,
 			zerodNonHashableFields(consumer),
@@ -494,6 +503,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			useHostNetworkForCtrlPlugin,
 			obcResourceVersions,
 			s3EndpointsListResourceVersion,
+			rgwCredentialsResourceVersion,
 		)
 		response.DesiredStateHash = desiredClientConfigHash
 
@@ -786,6 +796,15 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "failed to produce client state")
 	}
 
+	var rgwCredentialsResourceVersion string
+	if isRGWAccountEnabled(storageConsumer, storageCluster) {
+		rgwCredentialsResourceVersion, err = s.getRGWCredentialsResourceVersion(ctx, storageConsumer)
+		if err != nil {
+			logger.Error(err, "failed to get RGW credentials resource version")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state")
+		}
+	}
+
 	desiredClientConfigHash := getDesiredClientConfigHash(
 		channelName,
 		zerodNonHashableFields(storageConsumer),
@@ -807,6 +826,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		util.ShouldUseHostNetworking(storageCluster),
 		obcResourceVersions,
 		s3EndpointsListResourceVersion,
+		rgwCredentialsResourceVersion,
 	)
 
 	logger.Info("Successfully processed status report")
@@ -1292,22 +1312,28 @@ func (s *OCSProviderServer) isConsumerMirrorEnabled(ctx context.Context, consume
 	return clientMappingConfig.Data[consumer.Status.Client.ID] != "", nil
 }
 
-func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Logger, consumer *ocsv1alpha1.StorageConsumer) ([]kubeObjectWithOpRecord, error) {
-
-	consumerConfigMap := &corev1.ConfigMap{}
+func (s *OCSProviderServer) getConsumerConfig(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) (util.StorageConsumerResources, error) {
 	if consumer.Status.ResourceNameMappingConfigMap.Name == "" {
 		return nil, fmt.Errorf("waiting for ResourceNameMappingConfig to be generated")
 	}
+	consumerConfigMap := &corev1.ConfigMap{}
 	consumerConfigMap.Name = consumer.Status.ResourceNameMappingConfigMap.Name
 	consumerConfigMap.Namespace = consumer.Namespace
-	err := s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get %s configMap. %v", consumerConfigMap.Name, err)
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(consumerConfigMap), consumerConfigMap); err != nil {
+		return nil, fmt.Errorf("failed to get %s configMap: %w", consumerConfigMap.Name, err)
 	}
 	if consumerConfigMap.Data == nil {
-		return nil, fmt.Errorf("waiting StorageConsumer ResourceNameMappingConfig to be generated")
+		return nil, fmt.Errorf("waiting for StorageConsumer ResourceNameMappingConfig to be generated")
 	}
-	consumerConfig := util.WrapStorageConsumerResourceMap(consumerConfigMap.Data)
+	return util.WrapStorageConsumerResourceMap(consumerConfigMap.Data), nil
+}
+
+func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Logger, consumer *ocsv1alpha1.StorageConsumer) ([]kubeObjectWithOpRecord, error) {
+
+	consumerConfig, err := s.getConsumerConfig(ctx, consumer)
+	if err != nil {
+		return nil, err
+	}
 
 	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 	if err != nil {
@@ -1517,6 +1543,19 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if isRGWAccountEnabled(consumer, storageCluster) {
+		records, err = s.appendRGWAccountCredentialsKubeResources(
+			ctx,
+			records,
+			consumer,
+			consumerConfig,
+			storageCluster,
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return records, nil
@@ -2595,6 +2634,127 @@ func (s *OCSProviderServer) appendS3EndpointsListKubeResources(
 		kubeObject: clientConfigMap,
 		clientOp:   pb.KubeClientOp_CREATE_OR_UPDATE,
 	}), nil
+}
+
+func isRGWAccountEnabled(consumer *ocsv1alpha1.StorageConsumer, storageCluster *ocsv1.StorageCluster) bool {
+	return storageCluster.GetAnnotations()[util.EnableAdvancedRGWFeaturesAnnotation] == "true" &&
+		consumer.GetAnnotations()[util.EnableRGWAccountAnnotation] == "true"
+}
+
+func (s *OCSProviderServer) getRGWRootUserCredentialsSecret(
+	ctx context.Context,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+) (*corev1.Secret, error) {
+	logger := klog.FromContext(ctx).WithName("getRGWRootUserCredentialsSecret").WithValues("consumer", consumer.Name)
+
+	account := &rookCephv1.CephObjectStoreAccount{}
+	account.Name = consumerConfig.GetRGWAccountName()
+	account.Namespace = s.namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(account), account); err != nil {
+		return nil, fmt.Errorf("failed to get CephObjectStoreAccount %s: %w", account.Name, err)
+	}
+	if account.Status == nil || account.Status.Phase != "Ready" ||
+		account.Status.RootAccountSecretName == "" {
+		logger.Info("CephObjectStoreAccount not ready, skipping credentials", "account", account.Name)
+		return nil, nil
+	}
+
+	rookSecret := &corev1.Secret{}
+	rookSecret.Name = account.Status.RootAccountSecretName
+	rookSecret.Namespace = s.namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(rookSecret), rookSecret); err != nil {
+		return nil, fmt.Errorf("failed to get root user credentials Secret %s: %w", rookSecret.Name, err)
+	}
+
+	logger.Info("found root user credentials Secret", "account", account.Name, "secret", rookSecret.Name)
+	return rookSecret, nil
+}
+
+func (s *OCSProviderServer) appendRGWAccountCredentialsKubeResources(
+	ctx context.Context,
+	records []kubeObjectWithOpRecord,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	storageCluster *ocsv1.StorageCluster,
+) ([]kubeObjectWithOpRecord, error) {
+	logger := klog.FromContext(ctx).WithName("appendRGWAccountCredentialsKubeResources").WithValues("consumer", consumer.Name)
+
+	rookSecret, err := s.getRGWRootUserCredentialsSecret(ctx, consumer, consumerConfig)
+	if err != nil {
+		return records, err
+	}
+	if rookSecret == nil {
+		return records, nil
+	}
+
+	account := &rookCephv1.CephObjectStoreAccount{}
+	account.Name = consumerConfig.GetRGWAccountName()
+	account.Namespace = s.namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(account), account); err != nil {
+		return records, fmt.Errorf("failed to get CephObjectStoreAccount %s: %w", account.Name, err)
+	}
+
+	rgwRoute := &routev1.Route{}
+	rgwRoute.Name = util.GenerateNameForCephObjectStoreSecureRoute(storageCluster)
+	rgwRoute.Namespace = s.namespace
+	if err := s.client.Get(ctx, client.ObjectKeyFromObject(rgwRoute), rgwRoute); err != nil {
+		return records, fmt.Errorf("failed to get RGW secure Route %s: %w", rgwRoute.Name, err)
+	}
+	host, found := util.GetAdmittedRouteHost(rgwRoute)
+	if !found {
+		return records, fmt.Errorf("RGW secure Route %s has no admitted host", rgwRoute.Name)
+	}
+
+	spokeSecretName := consumerConfig.GetRGWCredentialsSecretName()
+	spokeSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      spokeSecretName,
+			Namespace: consumer.Status.Client.OperatorNamespace,
+			Labels: map[string]string{
+				util.StorageClientLabelKey: consumer.Status.Client.ID,
+			},
+		},
+		// No CA cert is included. The endpoint is an OCP Route and the hub admin
+		// is responsible for ensuring the TLS certificate is trusted by spokes.
+		StringData: map[string]string{
+			"AWS_ENDPOINT_URL":      "https://" + host,
+			"AWS_ACCOUNT_ID":        account.Status.AccountID,
+			"AWS_ACCESS_KEY_ID":     string(rookSecret.Data["AccessKey"]),
+			"AWS_SECRET_ACCESS_KEY": string(rookSecret.Data["SecretKey"]),
+		},
+	}
+
+	logger.Info("appending RGW account credentials for spoke", "spokeSecret", spokeSecretName, "endpoint", host)
+	return append(records, kubeObjectWithOpRecord{
+		kubeObject: spokeSecret,
+		clientOp:   pb.KubeClientOp_CREATE_OR_UPDATE,
+	}), nil
+}
+
+func (s *OCSProviderServer) getRGWCredentialsResourceVersion(
+	ctx context.Context,
+	consumer *ocsv1alpha1.StorageConsumer,
+) (string, error) {
+	logger := klog.FromContext(ctx).WithName("getRGWCredentialsResourceVersion").WithValues("consumer", consumer.Name)
+
+	consumerConfig, err := s.getConsumerConfig(ctx, consumer)
+	if err != nil {
+		return "", err
+	}
+	if consumerConfig.GetRGWAccountName() == "" {
+		return "", nil
+	}
+
+	rookSecret, err := s.getRGWRootUserCredentialsSecret(ctx, consumer, consumerConfig)
+	if err != nil {
+		return "", err
+	}
+	if rookSecret == nil {
+		return "", nil
+	}
+	logger.Info("resolved RGW credentials resource version", "resourceVersion", rookSecret.ResourceVersion)
+	return rookSecret.ResourceVersion, nil
 }
 
 func sanitizeKubeResource(obj client.Object, sanitizeFlags sanitizeFlags) {

@@ -58,6 +58,10 @@ func GenerateNameForCephObjectStore(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-%s", initData.Name, "cephobjectstore")
 }
 
+func GenerateNameForCephObjectStoreSecureRoute(initData *ocsv1.StorageCluster) string {
+	return GenerateNameForCephObjectStore(initData) + "-secure"
+}
+
 func GenerateNameForCephRbdMirror(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-cephrbdmirror", initData.Name)
 }

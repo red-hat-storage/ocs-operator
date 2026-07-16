@@ -19,7 +19,9 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
+	routev1 "github.com/openshift/api/route/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -200,11 +202,11 @@ func TestAppendVolumeAttributesClassKubeResources(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		clusterObjs    []client.Object
-		consumerVACs   []ocsv1a1.VolumeAttributesClassesSpec
-		expectedCount  int
-		expectedNames  []string
+		name          string
+		clusterObjs   []client.Object
+		consumerVACs  []ocsv1a1.VolumeAttributesClassesSpec
+		expectedCount int
+		expectedNames []string
 	}{
 		{
 			name:          "no VACs in consumer spec",
@@ -469,12 +471,12 @@ func TestGetDesiredClientStateReady(t *testing.T) {
 			Namespace: testNamespace,
 		},
 		Data: map[string]string{
-			"rbd-rados-ns":                  "test-rados-ns",
-			"cephfs-subvolumegroup":         "test-svg",
+			"rbd-rados-ns":                   "test-rados-ns",
+			"cephfs-subvolumegroup":          "test-svg",
 			"cephfs-subvolumegroup-rados-ns": "test-svg-rados-ns",
-			"csiop-rbd-client-profile":      "rbd-profile",
-			"csi-rbd-provisioner-ceph-user": "rbd-provisioner-secret",
-			"csi-rbd-node-ceph-user":        "rbd-node-secret",
+			"csiop-rbd-client-profile":       "rbd-profile",
+			"csi-rbd-provisioner-ceph-user":  "rbd-provisioner-secret",
+			"csi-rbd-node-ceph-user":         "rbd-node-secret",
 		},
 	}
 
@@ -1245,4 +1247,389 @@ func TestAlertCacheConcurrentReads(t *testing.T) {
 			t.Errorf("read %d failed: %v", i, err)
 		}
 	}
+}
+
+func newRGWTestObjects() (
+	*ocsv1.StorageCluster,
+	*ocsv1a1.StorageConsumer,
+	*rookCephv1.CephObjectStoreAccount,
+	*corev1.ConfigMap,
+	*corev1.Secret,
+	*routev1.Route,
+) {
+	storageCluster := &ocsv1.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ocs-storagecluster",
+			Namespace: testNamespace,
+			Annotations: map[string]string{
+				util.EnableAdvancedRGWFeaturesAnnotation: "true",
+			},
+		},
+	}
+
+	consumerConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-consumer-config",
+			Namespace: testNamespace,
+		},
+		Data: map[string]string{
+			"rgw-account-name":            "test-rgw-account",
+			"rgw-credentials-secret-name": "spoke-account-iam-credentials",
+		},
+	}
+
+	consumer := &ocsv1a1.StorageConsumer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-consumer",
+			Namespace: testNamespace,
+			UID:       "consumer-uid-123",
+			Annotations: map[string]string{
+				util.EnableRGWAccountAnnotation: "true",
+			},
+		},
+		Status: ocsv1a1.StorageConsumerStatus{
+			Client: &ocsv1a1.ClientStatus{
+				ID:                "client-id-abc",
+				OperatorNamespace: "spoke-ns",
+			},
+			ResourceNameMappingConfigMap: corev1.LocalObjectReference{
+				Name: consumerConfigMap.Name,
+			},
+		},
+	}
+
+	account := &rookCephv1.CephObjectStoreAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-rgw-account",
+			Namespace: testNamespace,
+		},
+		Status: &rookCephv1.ObjectStoreAccountStatus{
+			Phase:                 "Ready",
+			AccountID:             "RGW12345678901234567",
+			RootAccountSecretName: "rook-ceph-root-user-test-secret",
+		},
+	}
+
+	rookSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "rook-ceph-root-user-test-secret",
+			Namespace:       testNamespace,
+			ResourceVersion: "12345",
+		},
+		Data: map[string][]byte{
+			"AccessKey": []byte("TESTACCESSKEY123"),
+			"SecretKey": []byte("TESTSecretKey456"),
+		},
+	}
+
+	rgwRoute := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      util.GenerateNameForCephObjectStoreSecureRoute(storageCluster),
+			Namespace: testNamespace,
+		},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{
+				{
+					Host: "rgw.apps.example.com",
+					Conditions: []routev1.RouteIngressCondition{
+						{
+							Type:   routev1.RouteAdmitted,
+							Status: corev1.ConditionTrue,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return storageCluster, consumer, account, consumerConfigMap, rookSecret, rgwRoute
+}
+
+func TestGetRGWRootUserCredentialsSecret(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name         string
+		objs         func() []client.Object
+		expectSecret bool
+		expectError  bool
+	}{
+		{
+			name:        "Account not found",
+			expectError: true,
+			objs: func() []client.Object {
+				_, consumer, _, consumerCM, rookSecret, _ := newRGWTestObjects()
+				return []client.Object{consumer, consumerCM, rookSecret}
+			},
+		},
+		{
+			name: "Account not Ready",
+			objs: func() []client.Object {
+				_, consumer, account, consumerCM, rookSecret, _ := newRGWTestObjects()
+				account.Status.Phase = "Pending"
+				return []client.Object{consumer, consumerCM, account, rookSecret}
+			},
+		},
+		{
+			name: "Account missing rootAccountSecretName",
+			objs: func() []client.Object {
+				_, consumer, account, consumerCM, rookSecret, _ := newRGWTestObjects()
+				account.Status.RootAccountSecretName = ""
+				return []client.Object{consumer, consumerCM, account, rookSecret}
+			},
+		},
+		{
+			name:        "Root user Secret not found",
+			expectError: true,
+			objs: func() []client.Object {
+				_, consumer, account, consumerCM, _, _ := newRGWTestObjects()
+				return []client.Object{consumer, consumerCM, account}
+			},
+		},
+		{
+			name:         "success",
+			expectSecret: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, consumer, account, consumerCM, rookSecret, _ := newRGWTestObjects()
+
+			consumerConfig := util.WrapStorageConsumerResourceMap(consumerCM.Data)
+
+			var objs []client.Object
+			if tt.objs != nil {
+				objs = tt.objs()
+			} else {
+				objs = []client.Object{consumer, consumerCM, account, rookSecret}
+			}
+
+			srv := newNotifyTestServer(t, objs...)
+			secret, err := srv.getRGWRootUserCredentialsSecret(ctx, consumer, consumerConfig)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, secret)
+			} else {
+				assert.NoError(t, err)
+			}
+			if tt.expectSecret {
+				assert.NotNil(t, secret)
+				assert.Equal(t, "TESTACCESSKEY123", string(secret.Data["AccessKey"]))
+				assert.Equal(t, "12345", secret.ResourceVersion)
+			}
+		})
+	}
+}
+
+func TestAppendRGWAccountCredentialsKubeResources(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name        string
+		objs        func() []client.Object
+		expectAdded bool
+		expectError bool
+	}{
+		{
+			name:        "Account CR not found",
+			expectError: true,
+			objs: func() []client.Object {
+				_, consumer, _, consumerCM, rookSecret, rgwRoute := newRGWTestObjects()
+				return []client.Object{consumer, consumerCM, rookSecret, rgwRoute}
+			},
+		},
+		{
+			name: "Account CR not Ready",
+			objs: func() []client.Object {
+				_, consumer, account, consumerCM, rookSecret, rgwRoute := newRGWTestObjects()
+				account.Status.Phase = "Pending"
+				return []client.Object{consumer, account, consumerCM, rookSecret, rgwRoute}
+			},
+		},
+		{
+			name:        "Route not found",
+			expectError: true,
+			objs: func() []client.Object {
+				_, consumer, account, consumerCM, rookSecret, _ := newRGWTestObjects()
+				return []client.Object{consumer, account, consumerCM, rookSecret}
+			},
+		},
+		{
+			name:        "Route has no admitted host",
+			expectError: true,
+			objs: func() []client.Object {
+				_, consumer, account, consumerCM, rookSecret, rgwRoute := newRGWTestObjects()
+				rgwRoute.Status.Ingress = nil
+				return []client.Object{consumer, account, consumerCM, rookSecret, rgwRoute}
+			},
+		},
+		{
+			name:        "success",
+			expectAdded: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sc, consumer, account, consumerCM, rookSecret, rgwRoute := newRGWTestObjects()
+
+			var objs []client.Object
+			if tt.objs != nil {
+				objs = tt.objs()
+			} else {
+				objs = []client.Object{consumer, account, consumerCM, rookSecret, rgwRoute}
+			}
+
+			srv := newNotifyTestServer(t, objs...)
+			consumerConfig := util.WrapStorageConsumerResourceMap(consumerCM.Data)
+
+			records, err := srv.appendRGWAccountCredentialsKubeResources(ctx, nil, consumer, consumerConfig, sc)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Empty(t, records)
+				return
+			}
+			assert.NoError(t, err)
+
+			if !tt.expectAdded {
+				assert.Empty(t, records)
+				return
+			}
+
+			assert.Len(t, records, 1)
+			assert.Equal(t, pb.KubeClientOp_CREATE_OR_UPDATE, records[0].clientOp)
+
+			secret, ok := records[0].kubeObject.(*corev1.Secret)
+			assert.True(t, ok)
+			assert.Equal(t, "spoke-account-iam-credentials", secret.Name)
+			assert.Equal(t, "spoke-ns", secret.Namespace)
+			assert.Equal(t, "client-id-abc", secret.Labels[util.StorageClientLabelKey])
+			assert.Equal(t, "https://rgw.apps.example.com", secret.StringData["AWS_ENDPOINT_URL"])
+			assert.Equal(t, "RGW12345678901234567", secret.StringData["AWS_ACCOUNT_ID"])
+			assert.Equal(t, "TESTACCESSKEY123", secret.StringData["AWS_ACCESS_KEY_ID"])
+			assert.Equal(t, "TESTSecretKey456", secret.StringData["AWS_SECRET_ACCESS_KEY"])
+		})
+	}
+}
+
+func TestGetConsumerConfig(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("empty ConfigMap name", func(t *testing.T) {
+		consumer := &ocsv1a1.StorageConsumer{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNamespace},
+		}
+		srv := newTestProviderServer(t, consumer)
+		cfg, err := srv.getConsumerConfig(ctx, consumer)
+		assert.Error(t, err)
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("ConfigMap not found", func(t *testing.T) {
+		consumer := &ocsv1a1.StorageConsumer{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNamespace},
+			Status: ocsv1a1.StorageConsumerStatus{
+				ResourceNameMappingConfigMap: corev1.LocalObjectReference{Name: "missing-cm"},
+			},
+		}
+		srv := newTestProviderServer(t, consumer)
+		cfg, err := srv.getConsumerConfig(ctx, consumer)
+		assert.Error(t, err)
+		assert.True(t, apierrors.IsNotFound(err))
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("ConfigMap with nil data", func(t *testing.T) {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: "empty-cm", Namespace: testNamespace},
+		}
+		consumer := &ocsv1a1.StorageConsumer{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNamespace},
+			Status: ocsv1a1.StorageConsumerStatus{
+				ResourceNameMappingConfigMap: corev1.LocalObjectReference{Name: cm.Name},
+			},
+		}
+		srv := newTestProviderServer(t, consumer, cm)
+		cfg, err := srv.getConsumerConfig(ctx, consumer)
+		assert.Error(t, err)
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("success", func(t *testing.T) {
+		_, consumer, _, consumerCM, _, _ := newRGWTestObjects()
+		srv := newTestProviderServer(t, consumer, consumerCM)
+		cfg, err := srv.getConsumerConfig(ctx, consumer)
+		assert.NoError(t, err)
+		assert.NotNil(t, cfg)
+		assert.Equal(t, "test-rgw-account", cfg.GetRGWAccountName())
+	})
+}
+
+func TestGetRGWCredentialsResourceVersion(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		_, consumer, account, consumerCM, rookSecret, _ := newRGWTestObjects()
+		srv := newNotifyTestServer(t, consumer, consumerCM, account, rookSecret)
+		version, err := srv.getRGWCredentialsResourceVersion(ctx, consumer)
+		assert.NoError(t, err)
+		assert.Equal(t, "12345", version)
+	})
+
+	t.Run("no ConfigMap name returns error", func(t *testing.T) {
+		consumer := &ocsv1a1.StorageConsumer{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNamespace},
+		}
+		srv := newNotifyTestServer(t, consumer)
+		version, err := srv.getRGWCredentialsResourceVersion(ctx, consumer)
+		assert.Error(t, err)
+		assert.Empty(t, version)
+	})
+
+	t.Run("ConfigMap not found returns error", func(t *testing.T) {
+		consumer := &ocsv1a1.StorageConsumer{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNamespace},
+			Status: ocsv1a1.StorageConsumerStatus{
+				ResourceNameMappingConfigMap: corev1.LocalObjectReference{Name: "missing-cm"},
+			},
+		}
+		srv := newNotifyTestServer(t, consumer)
+		version, err := srv.getRGWCredentialsResourceVersion(ctx, consumer)
+		assert.Error(t, err)
+		assert.Empty(t, version)
+	})
+
+	t.Run("no RGW account name returns empty", func(t *testing.T) {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: "no-rgw-cm", Namespace: testNamespace},
+			Data:       map[string]string{"some-key": "some-value"},
+		}
+		consumer := &ocsv1a1.StorageConsumer{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNamespace},
+			Status: ocsv1a1.StorageConsumerStatus{
+				ResourceNameMappingConfigMap: corev1.LocalObjectReference{Name: cm.Name},
+			},
+		}
+		srv := newNotifyTestServer(t, consumer, cm)
+		version, err := srv.getRGWCredentialsResourceVersion(ctx, consumer)
+		assert.NoError(t, err)
+		assert.Empty(t, version)
+	})
+}
+
+func TestIsRGWAccountEnabled(t *testing.T) {
+	sc, consumer, _, _, _, _ := newRGWTestObjects()
+
+	assert.True(t, isRGWAccountEnabled(consumer, sc))
+
+	scNoAnnotation := sc.DeepCopy()
+	scNoAnnotation.Annotations = nil
+	assert.False(t, isRGWAccountEnabled(consumer, scNoAnnotation))
+
+	consumerNoAnnotation := consumer.DeepCopy()
+	consumerNoAnnotation.Annotations = nil
+	assert.False(t, isRGWAccountEnabled(consumerNoAnnotation, sc))
 }

@@ -6,7 +6,7 @@ RGW Accounts (Ceph Squid / v19) group users and roles under shared ownership whe
 
 OBCs cannot fill this role because they provision one bucket with one credential and have no support for creating additional buckets, managing IAM users, or attaching policies.
 
-This feature provisions per-spoke RGW Accounts on the hub, delivers admin credentials to spokes via the existing gRPC channel and handles spoke offboarding with Account cleanup.
+This feature provisions per-spoke RGW Accounts on the hub, delivers root user credentials to spokes via the existing gRPC channel and handles spoke offboarding with Account cleanup.
 
 ## Feature Gating
 
@@ -16,7 +16,7 @@ Account creation requires two gates. One at the cluster level and one at the spo
 
 Two annotations on StorageCluster control RGW deployment and advanced features independently.
 
-- **`ocs.openshift.io/enable-advanced-rgw-features`** — enables advanced RGW features (Accounts, STS and any future capabilities). On platforms where RGW is already deployed (bare metal), this enables the features on the existing RGW.
+- **`ocs.openshift.io/enable-advanced-rgw-features: "true"`** — enables advanced RGW features (Accounts, STS and any future capabilities). On platforms where RGW is already deployed (bare metal), this enables the features on the existing RGW.
 - **`ocs.openshift.io/enable-rgw: "true"`** — forces RGW deployment on platforms where it is not normally deployed (e.g., cloud). Not needed on bare metal.
 - The deploying operator sets these annotations.
 
@@ -39,11 +39,11 @@ Not all spokes need an RGW Account. The hub admin must be able to control which 
 The internal consumer (hub itself) can also receive an RGW Account. Both annotations are required: `enable-advanced-rgw-features` on StorageCluster and `enable-rgw-account` on the internal StorageConsumer. The `enable-rgw-account` annotation is not auto-propagated. The hub admin or deploying operator must explicitly set it on the internal StorageConsumer. The use case is running S3-consuming applications directly on the hub.
 
 
-## Create RGW Account and Admin User per Spoke
+## Create RGW Account per Spoke
 
-Each spoke (StorageConsumer CR) needs an isolated RGW Account and an admin-capable user whose credentials can be delivered to the spoke.
+Each spoke (StorageConsumer CR) needs an isolated RGW Account whose root user credentials can be delivered to the spoke.
 
-When RGW is running (natively or via `enable-rgw`), `enable-advanced-rgw-features` is set on StorageCluster and `enable-rgw-account` is set on StorageConsumer, OCS Operator creates a `CephObjectStoreAccount` and a `CephObjectStoreUser` (with admin capabilities) for the spoke.
+When RGW is running (natively or via `enable-rgw`), `enable-advanced-rgw-features` is set on StorageCluster and `enable-rgw-account` is set on StorageConsumer, OCS Operator creates a `CephObjectStoreAccount` for the spoke. Rook creates the Account's root user and generates a credentials Secret.
 
 ### Account CR
 
@@ -57,20 +57,11 @@ Note: RGW account names (`spec.name`) must match `^[a-zA-Z0-9 ._-]+$` (max 2048 
 
 #### Root User
 
-- Root User creation is skipped (`spec.rootUser.skipCreate: true`). Rook uses the Admin Ops API to create the admin user, not the Root User, so there is no dependency on it.
-- Skipping root user creations ensures that no unused credentials are sitting on the hub.
+- Root User creation is **not** skipped. Rook creates the root user and stores its credentials in a Kubernetes Secret whose name is published in `CephObjectStoreAccount.status.rootAccountSecretName`.
+- The root user has default S3 access and full IAM management permissions on all resources within the account. This allows the spoke to self-manage its IAM users, policies and S3 access without hub intervention.
+- Account users (non-root) start with zero permissions and require IAM policies for any S3 or IAM operation. Only the root user can use the IAM API by default. Delivering root user credentials is the intended Ceph Account model for delegating account management.
+- Account owners are encouraged to use the root user for management only and create users and roles with fine-grained permissions for specific applications.
 - For recovery, the hub admin can use `radosgw-admin` via the toolbox.
-
-### Admin User CR
-
-The Admin User CR is per-consumer. Each consumer with the `enable-rgw-account` annotation gets its own Admin User with distinct access keys. When multiple consumers share a ConfigMap (and thus an Account), each consumer still has its own Admin User for audit traceability.
-
-- `metadata.name`: derived from the consumer's identity at runtime (e.g. `rgw-admin-<consumer-name>`), not stored in the shared ConfigMap. This follows the CephClient pattern where the CR name is derived from the consumer's UID rather than read from the ConfigMap. The gRPC layer uses the same derivation to look up the correct User CR per consumer.
-- `spec.displayName`: `<consumer-UID>-admin`. Must match IAM-compatible pattern (`[\w+=,.@-]+`).
-- `spec.accountRef.name`: references the Account CR's `metadata.name` (immutable after creation)
-- Capabilities: `user: "*"`, `buckets: "*"`, `usage: "*"`, `metadata: "*"` — covers IAM user management, bucket operations, usage stats and metadata access
-- OwnerRefs: StorageConsumer (controller reference) and the consumer's resource mapping ConfigMap (owner reference), matching the dual-owner pattern used for CephClient and other per-consumer sub-resources.
-- Rook derives the RGW user UID from `metadata.name` and generates a credentials Secret whose reference (name, namespace, resourceVersion) is published in `CephObjectStoreUser.status.keys[]`. OCS reads the secret name from status rather than constructing it.
 
 
 ### Resource Name Mapping
@@ -80,16 +71,14 @@ The consumer's resource mapping ConfigMap is extended with two new keys for shar
 - `rgw-account-name`: name of the `CephObjectStoreAccount` CR
 - `rgw-credentials-secret-name`: name of the credentials Secret advertised to the spoke
 
-The Admin User CR name is NOT stored in the ConfigMap because it is per-consumer. When multiple consumers share a ConfigMap, each needs its own Admin User with a distinct name. The name is derived at runtime from the consumer's identity (e.g. `rgw-admin-<consumer-name>`), following the CephClient pattern where CR names are derived from the consumer's UID.
-
-The gRPC layer uses the ConfigMap keys to look up the Account and spoke Secret name, and derives the Admin User name from the consumer's identity. Storing shared resource names in the ConfigMap ensures MDR scenarios work without discrepancies.
+The gRPC layer uses the ConfigMap keys to look up the Account and spoke Secret name. The root user credentials are read from the Secret referenced by `CephObjectStoreAccount.status.rootAccountSecretName`.
 
 **Note:** The Account CR name (`rgw-account-name`) must be deterministically derived from immutable StorageConsumer properties. This ensures that if the ConfigMap is deleted and recreated, the regenerated defaults match the existing CRs. Only admin-overridden values (e.g. a custom `rgw-credentials-secret-name` for multi-hub) would be lost on ConfigMap deletion.
 
 
 ## Advertise Credentials via gRPC
 
-The spoke needs the Account ID, admin user credentials and RGW endpoint to connect to the hub's RGW.
+The spoke needs the Account ID, root user credentials and RGW endpoint to connect to the hub's RGW.
 
 Extend the existing gRPC response to include a fully-formed Secret as a KubeObject payload.
 
@@ -103,12 +92,12 @@ The hub constructs the credentials Secret containing:
 |-------|--------|
 | `AWS_ENDPOINT_URL` | RGW HTTPS Route endpoint |
 | `AWS_ACCOUNT_ID` | `CephObjectStoreAccount.status.accountID` |
-| `AWS_ACCESS_KEY_ID` | Admin user's Rook-generated Secret (`AccessKey` field) |
-| `AWS_SECRET_ACCESS_KEY` | Admin user's Rook-generated Secret (`SecretKey` field) |
+| `AWS_ACCESS_KEY_ID` | Root user's Rook-generated Secret (`AccessKey` field), referenced by `CephObjectStoreAccount.status.rootAccountSecretName` |
+| `AWS_SECRET_ACCESS_KEY` | Root user's Rook-generated Secret (`SecretKey` field), referenced by `CephObjectStoreAccount.status.rootAccountSecretName` |
 
-- Credentials are only advertised after both the Account and User CRs report `status.phase == "Ready"`. 
-- If either is not ready, the Secret is omitted from the response. The spoke gets it on the next reconciliation cycle.
-- The `resourceVersion` of the Rook-generated credentials Secret is read from `CephObjectStoreUser.status.keys[]` and included in the `desiredClientConfigHash` computed in `ReportStatus`. This ensures the spoke detects credential changes and triggers a re-sync.
+- Credentials are only advertised after the Account CR reports `status.phase == "Ready"` and `status.rootAccountSecretName` is populated.
+- If the Account is not ready, the Secret is omitted from the response. The spoke gets it on the next reconciliation cycle.
+- The `resourceVersion` of the Rook-generated credentials Secret is included in the `desiredClientConfigHash` computed in `ReportStatus`. This ensures the spoke detects credential changes and triggers a re-sync.
 
 **Note:** ODF does not pass a CA certificate for the RGW endpoint. The endpoint is an OCP Route. It is the hub admin's responsibility to ensure the Route's TLS certificate is trusted by spoke applications.
 
@@ -121,11 +110,15 @@ The hub constructs the credentials Secret containing:
 
 ## Spoke-Side RBAC for Credentials Secret
 
-The credentials Secret contains Account admin credentials. This Secret lives in the `openshift-storage` namespace on the spoke. The consuming application, running in its own namespace, won't be able to access it by default.
+The credentials Secret contains Account root user credentials. This Secret lives in the `openshift-storage` namespace on the spoke. The consuming application, running in its own namespace, won't be able to access it by default.
 
 ODF does not manage RBAC for this Secret. The consuming application is responsible for creating whatever RBAC it needs (e.g., Role/RoleBinding granting its ServiceAccount cross-namespace read access to the Secret).
 
 The Secret is labeled with `ocs.openshift.io/storageclient=<name>`, so consumers can discover the correct Secret in multi-hub scenarios (e.g., `oc get secret -n openshift-storage -l ocs.openshift.io/storageclient=<name>`).
+
+## S3 Access and IAM Policies
+
+The root user has default permissions on all resources within the account, including S3 data operations and IAM management. Non-root account users start with zero permissions and require IAM policies attached via the IAM API. Only the root user can use the IAM API by default. The spoke uses the root user credentials to create IAM users with fine-grained S3 policies tailored to each application's needs.
 
 ## Spoke Offboarding
 
@@ -135,9 +128,8 @@ When a spoke is offboarded, credentials are revoked and all associated resources
 2. Client Operator performs checks and initiates offboard (calls `OffboardConsumer()`)
 3. On success, the finalizer on StorageClient is removed
 4. Kubernetes garbage-collects all StorageClient dependents, including the credentials Secret on the spoke
-5. On the hub, StorageConsumer controller removes its finalizer and Kubernetes garbage-collects dependents. The ConfigMap is GC'd only if no other consumer co-owns it. The Account and User CRs are GC'd only when both their ownerRefs (StorageConsumer and ConfigMap) are gone:
-   - `CephObjectStoreUser` (admin): Rook deletes the admin user and invalidates its access keys at the RGW level
-   - `CephObjectStoreAccount`: Rook deletes the Account
+5. On the hub, StorageConsumer controller removes its finalizer and Kubernetes garbage-collects dependents. The ConfigMap is GC'd only if no other consumer co-owns it. The Account CR is GC'd only when both its ownerRefs (StorageConsumer and ConfigMap) are gone:
+   - `CephObjectStoreAccount`: Rook deletes the Account, its root user and invalidates the root user's access keys at the RGW level
 
 After this, the spoke has no credentials, the access keys are invalid in RGW and the Account is removed.
 
@@ -145,28 +137,25 @@ After this, the spoke has no credentials, the access keys are invalid in RGW and
 
 When the `ocs.openshift.io/force-deletion` annotation is set on StorageConsumer, the controller propagates the `rook.io/force-deletion` annotation to the `CephObjectStoreAccount` CR. This follows the same pattern used for RadosNamespace and SubVolumeGroup force-deletion. Rook's Account controller will handle the annotation by purging the Account's contents (users, buckets) before deleting the Account. This is new upstream Rook work. `CephObjectStoreAccount` does not support the force-deletion annotation today.
 
-The `CephObjectStoreUser` CR does not need the force-deletion annotation. Deleting a User removes the RGW user and invalidates its keys unconditionally since users do not contain child resources.
-
 ## Multiple Consumers Sharing a ConfigMap
 
 Multiple StorageConsumers can reference the same resource mapping ConfigMap. Today, shared sub-resources like RadosNamespace and SubVolumeGroup are created by the primary consumer (the one that created the ConfigMap) and used by all consumers sharing it.
 
-RGW Account creation follows the same `isPrimaryConsumer` gate. The Account is a shared resource created by the primary consumer. Each consumer with the `enable-rgw-account` annotation gets its own Admin User CR with distinct access keys for audit traceability.
+RGW Account creation follows the same `isPrimaryConsumer` gate. The Account is a shared resource created by the primary consumer.
 
 ### Behavior
 
 **Case 1: Primary has annotation, secondary has annotation**
-- Primary creates the Account CR and its own Admin User CR
-- Secondary creates its own Admin User CR (referencing the same Account)
-- Each consumer's gRPC response includes credentials from its own Admin User only
+- Primary creates the Account CR (with root user)
+- Both consumers' gRPC responses include the same root user credentials (same Account, same root user)
 
 **Case 2: Primary has annotation, secondary does not**
-- Primary creates Account + its own Admin User, gets credentials
-- Secondary is unaffected. No Admin User created, no credentials shared
+- Primary creates Account, gets root user credentials
+- Secondary is unaffected. No credentials shared
 
 ### Credential Isolation
 
-Each consumer's Admin User has its own access keys. The gRPC layer derives the Admin User name from the consumer's identity and looks up that specific User's credentials. Two consumers sharing an Account never share the same access keys.
+When multiple consumers share an Account, they share the same root user credentials. Credential isolation between consumers sharing an Account is managed at the IAM level — each spoke can create its own IAM users with distinct access keys using the root user's IAM management capabilities.
 
 ## Limitations and Future Work
 
@@ -181,10 +170,8 @@ Each consumer's Admin User has its own access keys. The gRPC layer derives the A
 
 - **Non-primary consumer triggering Account creation:** Account creation is gated on `isPrimaryConsumer`, matching the existing pattern for RadosNamespace and SubVolumeGroup. If the primary consumer does not have `enable-rgw-account` but a non-primary consumer does, the Account will not be created. Supporting this would require changing the Account's ownership model (using `SetOwnerReference` instead of `SetControllerReference` so any consumer can create it without controller conflicts).
 
-- **Stale Admin User after non-primary consumer offboarding:** Per-consumer Admin Users use the dual-owner pattern (`SetControllerReference` from consumer + `SetOwnerReference` from ConfigMap). If a non-primary consumer is offboarded while the shared ConfigMap survives (primary still owns it), the Admin User is not GC'd because the ConfigMap ownerRef keeps it alive. The same issue exists today with per-consumer CephClients using the same dual-owner pattern. Possible fix: skip the ConfigMap ownerRef on per-consumer resources so they are GC'd with their consumer alone.
-
 - **Force-deletion with shared Accounts:** For shared Accounts, multiple ownerRefs keep the Account alive until the last owner is deleted. Force-deletion of one consumer won't GC the Account but leaves a stale force-deletion annotation that could cause unintended purge when the last consumer is removed.
 
-- **S3 credential rotation:** Rook does not support declarative S3 key rotation for `CephObjectStoreUser`. Rotation currently requires manual intervention via `radosgw-admin key create` from the toolbox. If keys are rotated this way, the propagation pipeline handles it. Rook updates the credentials Secret, `status.keys[]` resourceVersion changes, `desiredClientConfigHash` changes and the spoke re-syncs. A CR-level rotation mechanism would be an upstream Rook enhancement.
+- **Root user credential rotation:** Rook does not support declarative key rotation for the Account root user. Rotation currently requires manual intervention via `radosgw-admin key create` from the toolbox. If keys are rotated this way, the propagation pipeline handles it. Rook updates the root user credentials Secret, the `resourceVersion` changes, `desiredClientConfigHash` changes and the spoke re-syncs.
 
 - **Internal consumer migration to Accounts:** The internal consumer (hub) can receive an RGW Account under this design if both annotations are set. This gives the hub a new Account-based access path to RGW. Existing OBC-based workloads on the hub continue as-is. Migration of those workloads to use Account credentials is not planned for this feature. The hub admin could do it manually since Account credentials are delivered to the hub the same way as to any spoke.
