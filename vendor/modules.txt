@@ -398,7 +398,6 @@ github.com/mwitkow/go-conntrack
 ## explicit; go 1.26.3
 github.com/noobaa/noobaa-operator/v5/pkg/apis
 github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1
-github.com/noobaa/noobaa-operator/v5/pkg/bundle
 # github.com/nxadm/tail v1.4.11
 ## explicit; go 1.13
 # github.com/oklog/run v1.2.0
