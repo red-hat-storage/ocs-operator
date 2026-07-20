@@ -176,7 +176,7 @@ func (r *StorageClusterReconciler) newCephRGWRoutes(initData *ocsv1.StorageClust
 
 	var secureRoute = routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.GenerateNameForCephObjectStore(initData) + "-secure",
+			Name:      util.GenerateNameForCephObjectStoreSecureRoute(initData),
 			Namespace: initData.Namespace,
 		},
 		Spec: routev1.RouteSpec{

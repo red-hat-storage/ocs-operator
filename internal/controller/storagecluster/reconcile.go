@@ -16,7 +16,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/go-logr/logr"
-	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
+	groupsnapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/operator-framework/operator-lib/conditions"
@@ -551,8 +551,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			&ocsExternalResources{},
 			&ocsStorageQuota{},
 			&ocsSnapshotClass{},
-			// TODO:enable vgsc after GA of API
-			// &ocsGroupSnapshotClass{},
+			&ocsGroupSnapshotClass{},
 			&ocsOdfGroupSnapshotClass{},
 			&ocsNetworkFenceClass{},
 			&ocsNoobaaSystem{tlsProfile},

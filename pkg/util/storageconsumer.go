@@ -19,6 +19,9 @@ const (
 	ImplicitRbdRadosNamespaceName          = "<implicit>"
 	TicketAnnotation                       = "ocs.openshift.io/provider-onboarding-ticket"
 	AnnotationNonResilientPoolsTopologyKey = "ocs.openshift.io/non-resilient-pools-topology-key"
+	EnableAdvancedRGWFeaturesAnnotation    = "ocs.openshift.io/enable-advanced-rgw-features"
+	EnableRGWAccountAnnotation             = "ocs.openshift.io/enable-rgw-account"
+	StorageClientLabelKey                  = "ocs.openshift.io/storageclient"
 
 	// Constants for ConfigMap keys
 	rbdRadosNamespaceKey            = "rbd-rados-ns"
@@ -33,6 +36,8 @@ const (
 	rbdClientProfileKey             = "csiop-rbd-client-profile"
 	cephFsClientProfileKey          = "csiop-cephfs-client-profile"
 	nfsClientProfileKey             = "csiop-nfs-client-profile"
+	rgwAccountNameKey               = "rgw-account-name"
+	rgwCredentialsSecretNameKey     = "rgw-credentials-secret-name"
 )
 
 type AvailableServices struct {
@@ -40,6 +45,7 @@ type AvailableServices struct {
 	CephFs bool
 	Nfs    bool
 	Mcg    bool
+	Rgw    bool
 }
 
 type StorageConsumerResources interface {
@@ -56,6 +62,8 @@ type StorageConsumerResources interface {
 	GetRbdClientProfileName() string
 	GetCephFsClientProfileName() string
 	GetNfsClientProfileName() string
+	GetRGWAccountName() string
+	GetRGWCredentialsSecretName() string
 
 	// Setters
 	SetRbdRadosNamespaceName(string)
@@ -70,6 +78,8 @@ type StorageConsumerResources interface {
 	SetRbdClientProfileName(string)
 	SetCephFsClientProfileName(string)
 	SetNfsClientProfileName(string)
+	SetRGWAccountName(string)
+	SetRGWCredentialsSecretName(string)
 
 	ReplaceRbdRadosNamespaceName(string)
 	ReplaceSubVolumeGroupName(string)
@@ -142,6 +152,14 @@ func (wrapper storageConsumerResourceMapWrapper) GetNfsClientProfileName() strin
 	return wrapper.data[nfsClientProfileKey]
 }
 
+func (wrapper storageConsumerResourceMapWrapper) GetRGWAccountName() string {
+	return wrapper.data[rgwAccountNameKey]
+}
+
+func (wrapper storageConsumerResourceMapWrapper) GetRGWCredentialsSecretName() string {
+	return wrapper.data[rgwCredentialsSecretNameKey]
+}
+
 // Setters
 func (wrapper storageConsumerResourceMapWrapper) SetRbdRadosNamespaceName(name string) {
 	wrapper.data[rbdRadosNamespaceKey] = name
@@ -189,6 +207,14 @@ func (wrapper storageConsumerResourceMapWrapper) SetCephFsClientProfileName(name
 
 func (wrapper storageConsumerResourceMapWrapper) SetNfsClientProfileName(name string) {
 	wrapper.data[nfsClientProfileKey] = name
+}
+
+func (wrapper storageConsumerResourceMapWrapper) SetRGWAccountName(name string) {
+	wrapper.data[rgwAccountNameKey] = name
+}
+
+func (wrapper storageConsumerResourceMapWrapper) SetRGWCredentialsSecretName(name string) {
+	wrapper.data[rgwCredentialsSecretNameKey] = name
 }
 
 func (wrapper storageConsumerResourceMapWrapper) replaceIfExist(key, value string) {
@@ -278,6 +304,15 @@ func GetAvailableServices(ctx context.Context, kubeClient client.Client, storage
 	}
 	availableServices.Mcg = noobaa.UID != ""
 
+	// rgw - get the default object store
+	objectStore := &rookCephv1.CephObjectStore{}
+	objectStore.Name = GenerateNameForCephObjectStore(storageCluster)
+	objectStore.Namespace = storageCluster.Namespace
+	if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(objectStore), objectStore); client.IgnoreNotFound(err) != nil {
+		return nil, fmt.Errorf("failed to get CephObjectStore: %v", err)
+	}
+	availableServices.Rgw = objectStore.UID != ""
+
 	return availableServices, nil
 }
 
@@ -305,6 +340,10 @@ func GetStorageConsumerDefaultResourceNames(
 		resourceNamesMap.SetNfsClientProfileName(storageConsumerUid)
 		resourceNamesMap.SetCsiNfsNodeCephUserName(fmt.Sprintf("csi-nfs-node-%s", storageConsumerUid))
 		resourceNamesMap.SetCsiNfsProvisionerCephUserName(fmt.Sprintf("csi-nfs-provisioner-%s", storageConsumerUid))
+	}
+	if availableServices.Rgw {
+		resourceNamesMap.SetRGWAccountName(storageConsumerName)
+		resourceNamesMap.SetRGWCredentialsSecretName("spoke-account-iam-credentials")
 	}
 	return defaults
 }
