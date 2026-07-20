@@ -192,19 +192,13 @@ func TestGetDaemonResources(t *testing.T) {
 			},
 		},
 		{
-			name:               "noobaa-core fallback to daemon resources",
+			name:               "noobaa-core with no defaults returns empty resources",
 			daemonName:         "noobaa-core",
-			resourceProfile:    "lean", // not in lean profile, should fallback
+			resourceProfile:    "lean",
 			specifiedResources: map[string]corev1.ResourceRequirements{},
 			expectedResourceRequirements: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("999m"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("999m"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
-				},
+				Requests: corev1.ResourceList{},
+				Limits:   corev1.ResourceList{},
 			},
 		},
 		{
@@ -220,12 +214,9 @@ func TestGetDaemonResources(t *testing.T) {
 			},
 			expectedResourceRequirements: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("1"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"), // from daemon resources
+					corev1.ResourceCPU: resource.MustParse("1"),
 				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceMemory: resource.MustParse("4Gi"), // from daemon resources
-				},
+				Limits: corev1.ResourceList{},
 			},
 		},
 		{
@@ -240,11 +231,8 @@ func TestGetDaemonResources(t *testing.T) {
 				},
 			},
 			expectedResourceRequirements: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("999m"), // from daemon resources
-				},
+				Requests: corev1.ResourceList{},
 				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("999m"), // from daemon resources
 					corev1.ResourceMemory: resource.MustParse("3Gi"),
 				},
 			},
@@ -396,6 +384,18 @@ func TestGetDaemonResources(t *testing.T) {
 			expectedResourceRequirements: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceStorage: resource.MustParse("100Gi"),
+				},
+				Limits: corev1.ResourceList{},
+			},
+		},
+		{
+			name:               "noobaa-db-vol fallback to daemon resources",
+			daemonName:         "noobaa-db-vol",
+			resourceProfile:    "lean",
+			specifiedResources: map[string]corev1.ResourceRequirements{},
+			expectedResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse("50Gi"),
 				},
 				Limits: corev1.ResourceList{},
 			},
@@ -662,31 +662,19 @@ func TestTNFDaemonResources(t *testing.T) {
 			},
 		},
 		{
-			name:       "noobaa-core resources for tnf",
+			name:       "noobaa-core resources for tnf have no defaults",
 			daemonName: "noobaa-core",
 			expectedResourceRequirements: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("999m"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("999m"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
-				},
+				Requests: corev1.ResourceList{},
+				Limits:   corev1.ResourceList{},
 			},
 		},
 		{
-			name:       "noobaa-db resources for tnf",
+			name:       "noobaa-db resources for tnf have no defaults",
 			daemonName: "noobaa-db",
 			expectedResourceRequirements: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
-				},
+				Requests: corev1.ResourceList{},
+				Limits:   corev1.ResourceList{},
 			},
 		},
 		{
