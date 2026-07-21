@@ -21,7 +21,6 @@ rules:
   - persistentvolumes
   - pods
   - secrets
-  - serviceaccounts
   - services
   verbs:
   - create
@@ -350,12 +349,8 @@ rules:
   - rolebindings
   - roles
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - route.openshift.io

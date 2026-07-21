@@ -178,7 +178,6 @@ spec:
           - persistentvolumes
           - pods
           - secrets
-          - serviceaccounts
           - services
           verbs:
           - create
@@ -507,12 +506,8 @@ spec:
           - rolebindings
           - roles
           verbs:
-          - create
-          - delete
           - get
           - list
-          - patch
-          - update
           - watch
         - apiGroups:
           - route.openshift.io
