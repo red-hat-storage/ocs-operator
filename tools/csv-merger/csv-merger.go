@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
-	"time"
 
 	"github.com/blang/semver/v4"
 	"github.com/operator-framework/api/pkg/lib/version"
@@ -31,7 +30,6 @@ var (
 	replacesCsvVersion = flag.String("replaces-csv-version", "", "the unified CSV version this new CSV will replace")
 	skipRange          = flag.String("skip-range", "", "the CSV version skip range")
 	ocsCSVStr          = flag.String("ocs-csv-filepath", "", "path to ocs csv yaml file")
-	timestamp          = flag.String("timestamp", "false", "bool value to enable/disable timestamp changes in CSV")
 
 	rookContainerImage       = flag.String("rook-image", "", "rook operator container image")
 	cephContainerImage       = flag.String("ceph-image", "", "ceph daemon container image")
@@ -342,13 +340,6 @@ func generateUnifiedCSV() *csvv1.ClusterServiceVersion {
 	// Used by UI to validate user uploaded metadata
 	// Metadata is used to connect to an external cluster
 	ocsCSV.Annotations["external.features.ocs.openshift.io/validation"] = `{"secrets":["rook-ceph-operator-creds", "rook-csi-rbd-node", "rook-csi-rbd-provisioner"], "configMaps": ["rook-ceph-mon-endpoints", "rook-ceph-mon"], "storageClasses": ["ceph-rbd"], "cephClusters": ["monitoring-endpoint"]}`
-	if *timestamp == "true" {
-		loc, err := time.LoadLocation("UTC")
-		if err != nil {
-			panic(err)
-		}
-		ocsCSV.Annotations["createdAt"] = time.Now().In(loc).Format("2006-01-02 15:04:05")
-	}
 	ocsCSV.Annotations["containerImage"] = *ocsContainerImage
 	ocsCSV.Annotations["capabilities"] = "Deep Insights"
 	ocsCSV.Annotations["categories"] = "Storage"
