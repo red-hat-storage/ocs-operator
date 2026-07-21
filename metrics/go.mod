@@ -28,9 +28,9 @@ require (
 	github.com/oklog/run v1.2.0
 	github.com/operator-framework/api v0.42.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.92.0
-	github.com/prometheus/client_golang v1.23.2
+	github.com/prometheus/client_golang v1.24.0
 	github.com/prometheus/client_model v0.6.2
-	github.com/prometheus/common v0.67.5
+	github.com/prometheus/common v0.70.0
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-00010101000000-000000000000
 	github.com/red-hat-storage/ocs-operator/v4 v4.0.0-00010101000000-000000000000
 	github.com/rook/rook v1.20.0-alpha.0.0.20260707223529-6c2a3a5f2b08
@@ -123,7 +123,7 @@ require (
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/procfs v0.20.1 // indirect
+	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20260409102146-bd705f8eebd0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
@@ -145,7 +145,7 @@ require (
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/term v0.44.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
