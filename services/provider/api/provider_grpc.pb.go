@@ -37,6 +37,8 @@ type OCSProviderClient interface {
 	Notify(ctx context.Context, in *NotifyRequest, opts ...grpc.CallOption) (*NotifyResponse, error)
 	// GetClientAlerts RPC call to get firing alerts relevant to a specific storage consumer
 	GetClientAlerts(ctx context.Context, in *GetClientAlertsRequest, opts ...grpc.CallOption) (*GetClientAlertsResponse, error)
+	// RotateMirroringKey RPC call to rotate the mirroring key for the given storage cluster
+	RotateMirroringKey(ctx context.Context, in *RotateMirroringKeyRequest, opts ...grpc.CallOption) (*RotateMirroringKeyResponse, error)
 }
 
 type oCSProviderClient struct {
@@ -137,6 +139,15 @@ func (c *oCSProviderClient) GetClientAlerts(ctx context.Context, in *GetClientAl
 	return out, nil
 }
 
+func (c *oCSProviderClient) RotateMirroringKey(ctx context.Context, in *RotateMirroringKeyRequest, opts ...grpc.CallOption) (*RotateMirroringKeyResponse, error) {
+	out := new(RotateMirroringKeyResponse)
+	err := c.cc.Invoke(ctx, "/provider.OCSProvider/RotateMirroringKey", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // OCSProviderServer is the server API for OCSProvider service.
 // All implementations must embed UnimplementedOCSProviderServer
 // for forward compatibility
@@ -160,6 +171,8 @@ type OCSProviderServer interface {
 	Notify(context.Context, *NotifyRequest) (*NotifyResponse, error)
 	// GetClientAlerts RPC call to get firing alerts relevant to a specific storage consumer
 	GetClientAlerts(context.Context, *GetClientAlertsRequest) (*GetClientAlertsResponse, error)
+	// RotateMirroringKey RPC call to rotate the mirroring key for the given storage cluster
+	RotateMirroringKey(context.Context, *RotateMirroringKeyRequest) (*RotateMirroringKeyResponse, error)
 	mustEmbedUnimplementedOCSProviderServer()
 }
 
@@ -196,6 +209,9 @@ func (UnimplementedOCSProviderServer) Notify(context.Context, *NotifyRequest) (*
 }
 func (UnimplementedOCSProviderServer) GetClientAlerts(context.Context, *GetClientAlertsRequest) (*GetClientAlertsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetClientAlerts not implemented")
+}
+func (UnimplementedOCSProviderServer) RotateMirroringKey(context.Context, *RotateMirroringKeyRequest) (*RotateMirroringKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RotateMirroringKey not implemented")
 }
 func (UnimplementedOCSProviderServer) mustEmbedUnimplementedOCSProviderServer() {}
 
@@ -390,6 +406,24 @@ func _OCSProvider_GetClientAlerts_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OCSProvider_RotateMirroringKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RotateMirroringKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OCSProviderServer).RotateMirroringKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/provider.OCSProvider/RotateMirroringKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OCSProviderServer).RotateMirroringKey(ctx, req.(*RotateMirroringKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // OCSProvider_ServiceDesc is the grpc.ServiceDesc for OCSProvider service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -436,6 +470,10 @@ var OCSProvider_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetClientAlerts",
 			Handler:    _OCSProvider_GetClientAlerts_Handler,
+		},
+		{
+			MethodName: "RotateMirroringKey",
+			Handler:    _OCSProvider_RotateMirroringKey_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

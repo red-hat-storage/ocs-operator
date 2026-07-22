@@ -54,6 +54,10 @@ const (
 	poolTypeMetadata = "metadata"
 )
 
+const (
+	rbdMirrorUserTypeAnnotationKey = "ocs.openshift.io/rbdMirroringKeyType"
+)
+
 type knownDiskType struct {
 	speed            diskSpeed
 	provisioner      StorageClassProvisionerType
@@ -213,9 +217,15 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 					return reconcile.Result{}, err
 				}
 			}
-			cephCluster = newCephCluster(r, sc, kmsConfigMap)
+			cephCluster, err = newCephCluster(r, sc, kmsConfigMap)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		} else {
-			cephCluster = newCephCluster(r, sc, nil)
+			cephCluster, err = newCephCluster(r, sc, nil)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 	}
 
@@ -348,6 +358,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		}
 	}
 
+	// Preserve rbdMirrorPeer keyGeneration and keyRotationPolicy set by RotateMirroringKey RPC.
+	// The RPC is the authoritative writer for these fields; StorageCluster controller only owns keyType.
+	cephCluster.Spec.Security.CephX.RBDMirrorPeer.KeyGeneration = found.Spec.Security.CephX.RBDMirrorPeer.KeyGeneration
+	cephCluster.Spec.Security.CephX.RBDMirrorPeer.KeyRotationPolicy = found.Spec.Security.CephX.RBDMirrorPeer.KeyRotationPolicy
+
 	// Update the CephCluster if it is not in the desired state
 	if !reflect.DeepEqual(cephCluster.Spec, found.Spec) {
 		r.Log.Info("Updating spec for CephCluster.", "CephCluster", klog.KRef(found.Namespace, found.Name))
@@ -440,7 +455,7 @@ func getCephClusterMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
 }
 
 // newCephCluster returns a CephCluster object.
-func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsConfigMap *corev1.ConfigMap) *rookCephv1.CephCluster {
+func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsConfigMap *corev1.ConfigMap) (*rookCephv1.CephCluster, error) {
 	labels := map[string]string{
 		"app": sc.Name,
 	}
@@ -451,6 +466,36 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 		Enabled:     true,
 		Periodicity: "daily",
 		MaxLogSize:  &maxLogSize,
+	}
+
+	desiredCephxKeyGenAsString := util.MustGetEnv(util.DesiredCephxKeyGenEnvVarName)
+	desiredCephxKeyGen, err := strconv.Atoi(desiredCephxKeyGenAsString)
+	if err != nil {
+		err = fmt.Errorf("could not convert the value %q of env var %q", desiredCephxKeyGenAsString, util.DesiredCephxKeyGenEnvVarName)
+		r.Log.Error(err, "failed to convert")
+		return nil, err
+	}
+
+	rbdMirrorPeerKeyType := "aes256k"
+	annotations := sc.GetAnnotations()
+	if val := annotations[rbdMirrorUserTypeAnnotationKey]; val != "" {
+		rbdMirrorPeerKeyType = annotations[rbdMirrorUserTypeAnnotationKey]
+	}
+
+	security := rookCephv1.ClusterSecuritySpec{
+		CephX: rookCephv1.ClusterCephxConfig{
+			Daemon: rookCephv1.CephxConfig{
+				KeyRotationPolicy: rookCephv1.KeyGenerationCephxKeyRotationPolicy,
+				KeyGeneration:     uint32(desiredCephxKeyGen),
+			},
+			RBDMirrorPeer: rookCephv1.CephxConfig{
+				KeyType: rookCephv1.CephxKeyType(rbdMirrorPeerKeyType),
+			},
+			AllowedCiphers: []rookCephv1.CephxKeyType{
+				rookCephv1.CephxKeyTypeAes,
+				rookCephv1.CephxKeyTypeAes256k,
+			},
+		},
 	}
 
 	cephCluster := &rookCephv1.CephCluster{
@@ -529,6 +574,7 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 			// if resource profile change is in progress, then set this flag to false
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: sc.Spec.ResourceProfile == sc.Status.LastAppliedResourceProfile,
 			CephConfig: getCephClusterCephConfig(r, sc),
+			Security:   security,
 		},
 	}
 
@@ -546,6 +592,10 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 
 	if sc.Spec.ManagedResources.CephCluster.HealthCheck != nil {
 		cephCluster.Spec.HealthCheck = *sc.Spec.ManagedResources.CephCluster.HealthCheck
+	}
+
+	if sc.Spec.ManagedResources.CephCluster.Security != nil && len(sc.Spec.ManagedResources.CephCluster.Security.CephX.AllowedCiphers) != 0 {
+		cephCluster.Spec.Security.CephX.AllowedCiphers = sc.Spec.ManagedResources.CephCluster.Security.CephX.AllowedCiphers
 	}
 
 	if sc.Spec.LogCollector != nil {
@@ -625,7 +675,7 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 		cephCluster.Spec.CleanupPolicy = *sc.Spec.ManagedResources.CephCluster.CleanupPolicy
 	}
 
-	return cephCluster
+	return cephCluster, nil
 }
 
 func validateMultusSelectors(selectors map[rookCephv1.CephNetworkType]string) error {

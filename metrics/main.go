@@ -21,8 +21,12 @@ import (
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/exporter"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/handler"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"go.uber.org/zap"
+	corev1 "k8s.io/api/core/v1"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
@@ -119,6 +123,23 @@ func main() {
 		close(opts.StopCh)
 		collectors.WaitForScans()
 	}()
+
+	// Start secret watcher for automatic credential rotation.
+	// When the ocs-metrics-exporter-ceph-auth secret changes, trigger reconnection.
+	if !opts.NoCeph {
+		secretWatcher := cephconn.NewSecretWatcher(opts)
+		secretWatcher.RegisterOnChange(rbdConn.Reconnect)
+		secretWatcher.RegisterOnChange(cephfsConn.Reconnect)
+
+		kubeClient, err := clientset.NewForConfig(opts.Kubeconfig)
+		if err != nil {
+			klog.Fatalf("failed to create kubernetes client for secret watcher: %v", err)
+		}
+		lw := cephconn.CreateSecretListWatch(kubeClient, opts.AllowedNamespaces[0], util.OcsMetricsExporterCephClientName)
+		reflector := cache.NewReflector(lw, &corev1.Secret{}, secretWatcher, 5*time.Minute)
+		go reflector.Run(opts.StopCh)
+		klog.Info("started secret watcher for cephx key rotation")
+	}
 
 	customResourceRegistry := prometheus.NewRegistry()
 	readyFn := func() bool { return true }

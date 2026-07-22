@@ -241,3 +241,19 @@ func (cc *OCSProviderClient) GetClientAlerts(ctx context.Context, consumerUUID s
 
 	return cc.Client.GetClientAlerts(apiCtx, req)
 }
+
+func (cc *OCSProviderClient) RotateMirroringKey(ctx context.Context, storageClusterUID string, desiredKeyGeneration int64) (*pb.RotateMirroringKeyResponse, error) {
+	if cc.Client == nil || cc.clientConn == nil {
+		return nil, fmt.Errorf("connection to Peer OCS is closed")
+	}
+
+	req := &pb.RotateMirroringKeyRequest{
+		StorageClusterUID:    storageClusterUID,
+		DesiredKeyGeneration: desiredKeyGeneration,
+	}
+
+	apiCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	return cc.Client.RotateMirroringKey(apiCtx, req)
+}
