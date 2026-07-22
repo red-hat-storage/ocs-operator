@@ -1254,7 +1254,6 @@ func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.Block
 					"Bootstrap Secret",
 					secret.Name,
 				)
-				continue
 			} else if err != nil {
 				logger.Error(
 					err,
@@ -1264,7 +1263,13 @@ func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.Block
 					"Bootstrap Secret",
 					secret.Name,
 				)
-				continue
+				response.Errors = append(response.Errors,
+					&pb.BlockPoolInfoError{
+						BlockPoolName: cephBlockPool.Name,
+						Code:          pb.ErrorCode_Internal,
+						Message:       "failed loading block pool information",
+					},
+				)
 			}
 			mirroringToken = string(secret.Data["token"])
 		}

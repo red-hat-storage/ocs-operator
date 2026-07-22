@@ -309,7 +309,7 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 				errorOccurred = true
 			}
 
-			if errored := r.reconcileRadosNamespaceMirroring(clientMappingConfig, storageConsumerByName, remoteClientInfoById); errored {
+			if errored := r.reconcileRadosNamespaceMirroring(clientMappingConfig, storageConsumerByName, remoteClientInfoById, remoteBlockPoolInfoByName); errored {
 				errorOccurred = true
 			}
 
@@ -322,7 +322,7 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 			errorOccurred = true
 		}
 
-		if errored := r.reconcileRadosNamespaceMirroring(clientMappingConfig, storageConsumerByName, nil); errored {
+		if errored := r.reconcileRadosNamespaceMirroring(clientMappingConfig, storageConsumerByName, nil, nil); errored {
 			errorOccurred = true
 		}
 
@@ -602,6 +602,7 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 	clientMappingConfig *corev1.ConfigMap,
 	storageConsumerByName map[string]*ocsv1alpha1.StorageConsumer,
 	remoteClientInfoById map[string]*pb.ClientInfo,
+	remoteBlockPoolInfoByName map[string]*pb.BlockPoolInfo,
 ) bool {
 	errorOccurred := false
 
@@ -630,7 +631,7 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 			}
 		}
 		_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, rns, func() error {
-			if remoteNamespace != "" {
+			if remoteNamespace != "" && remoteBlockPoolInfoByName[rns.Spec.BlockPoolName] != nil {
 				rns.Spec.Mirroring = &rookCephv1.RadosNamespaceMirroring{
 					RemoteNamespace: ptr.To(remoteNamespace),
 					Mode:            "image",
