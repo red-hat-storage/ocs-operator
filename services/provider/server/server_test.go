@@ -1620,6 +1620,197 @@ func TestGetRGWCredentialsResourceVersion(t *testing.T) {
 	})
 }
 
+func TestGetBlockPoolsInfo(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("empty request returns empty response", func(t *testing.T) {
+		srv := newTestProviderServer(t)
+		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
+			BlockPoolNames: []string{},
+		})
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Empty(t, resp.BlockPoolsInfo)
+		assert.Empty(t, resp.Errors)
+	})
+
+	t.Run("block pool not found is skipped", func(t *testing.T) {
+		srv := newTestProviderServer(t)
+		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
+			BlockPoolNames: []string{"non-existent-pool"},
+		})
+		assert.NoError(t, err)
+		assert.Empty(t, resp.BlockPoolsInfo)
+		assert.Empty(t, resp.Errors)
+	})
+
+	t.Run("pool without mirroring returns empty token", func(t *testing.T) {
+		pool := &rookCephv1.CephBlockPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "pool-no-mirror",
+				Namespace: testNamespace,
+			},
+			Status: &rookCephv1.CephBlockPoolStatus{
+				PoolID: 42,
+			},
+		}
+		srv := newTestProviderServer(t, pool)
+		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
+			BlockPoolNames: []string{"pool-no-mirror"},
+		})
+		assert.NoError(t, err)
+		assert.Len(t, resp.BlockPoolsInfo, 1)
+		assert.Equal(t, "pool-no-mirror", resp.BlockPoolsInfo[0].BlockPoolName)
+		assert.Equal(t, "42", resp.BlockPoolsInfo[0].BlockPoolID)
+		assert.Empty(t, resp.BlockPoolsInfo[0].MirroringToken)
+		assert.Empty(t, resp.Errors)
+	})
+
+	t.Run("pool with mirroring enabled and token secret", func(t *testing.T) {
+		pool := &rookCephv1.CephBlockPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "pool-mirrored",
+				Namespace: testNamespace,
+			},
+			Spec: rookCephv1.NamedBlockPoolSpec{
+				PoolSpec: rookCephv1.PoolSpec{
+					Mirroring: rookCephv1.MirroringSpec{Enabled: true},
+				},
+			},
+			Status: &rookCephv1.CephBlockPoolStatus{
+				PoolID: 7,
+				Info: map[string]string{
+					mirroringTokenKey: "bootstrap-secret",
+				},
+			},
+		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "bootstrap-secret",
+				Namespace: testNamespace,
+			},
+			Data: map[string][]byte{
+				"token": []byte("my-mirroring-token"),
+			},
+		}
+		srv := newTestProviderServer(t, pool, secret)
+		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
+			BlockPoolNames: []string{"pool-mirrored"},
+		})
+		assert.NoError(t, err)
+		assert.Len(t, resp.BlockPoolsInfo, 1)
+		assert.Equal(t, "pool-mirrored", resp.BlockPoolsInfo[0].BlockPoolName)
+		assert.Equal(t, "7", resp.BlockPoolsInfo[0].BlockPoolID)
+		assert.Equal(t, "my-mirroring-token", resp.BlockPoolsInfo[0].MirroringToken)
+		assert.Empty(t, resp.Errors)
+	})
+
+	t.Run("mirroring enabled but bootstrap secret not found", func(t *testing.T) {
+		pool := &rookCephv1.CephBlockPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "pool-missing-secret",
+				Namespace: testNamespace,
+			},
+			Spec: rookCephv1.NamedBlockPoolSpec{
+				PoolSpec: rookCephv1.PoolSpec{
+					Mirroring: rookCephv1.MirroringSpec{Enabled: true},
+				},
+			},
+			Status: &rookCephv1.CephBlockPoolStatus{
+				PoolID: 3,
+				Info: map[string]string{
+					mirroringTokenKey: "missing-secret",
+				},
+			},
+		}
+		srv := newTestProviderServer(t, pool)
+		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
+			BlockPoolNames: []string{"pool-missing-secret"},
+		})
+		assert.NoError(t, err)
+		assert.Len(t, resp.BlockPoolsInfo, 1)
+		assert.Equal(t, "pool-missing-secret", resp.BlockPoolsInfo[0].BlockPoolName)
+		assert.Empty(t, resp.BlockPoolsInfo[0].MirroringToken, "token should be empty when secret not found")
+		assert.Empty(t, resp.Errors, "missing secret should not produce an error entry")
+	})
+
+	t.Run("mirroring enabled but no token key in status info", func(t *testing.T) {
+		pool := &rookCephv1.CephBlockPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "pool-no-info",
+				Namespace: testNamespace,
+			},
+			Spec: rookCephv1.NamedBlockPoolSpec{
+				PoolSpec: rookCephv1.PoolSpec{
+					Mirroring: rookCephv1.MirroringSpec{Enabled: true},
+				},
+			},
+			Status: &rookCephv1.CephBlockPoolStatus{
+				PoolID: 5,
+			},
+		}
+		srv := newTestProviderServer(t, pool)
+		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
+			BlockPoolNames: []string{"pool-no-info"},
+		})
+		assert.NoError(t, err)
+		assert.Len(t, resp.BlockPoolsInfo, 1)
+		assert.Empty(t, resp.BlockPoolsInfo[0].MirroringToken)
+	})
+
+	t.Run("multiple pools mixed", func(t *testing.T) {
+		poolA := &rookCephv1.CephBlockPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "pool-a",
+				Namespace: testNamespace,
+			},
+			Spec: rookCephv1.NamedBlockPoolSpec{
+				PoolSpec: rookCephv1.PoolSpec{
+					Mirroring: rookCephv1.MirroringSpec{Enabled: true},
+				},
+			},
+			Status: &rookCephv1.CephBlockPoolStatus{
+				PoolID: 1,
+				Info: map[string]string{
+					mirroringTokenKey: "secret-a",
+				},
+			},
+		}
+		secretA := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret-a",
+				Namespace: testNamespace,
+			},
+			Data: map[string][]byte{"token": []byte("token-a")},
+		}
+		poolB := &rookCephv1.CephBlockPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "pool-b",
+				Namespace: testNamespace,
+			},
+			Status: &rookCephv1.CephBlockPoolStatus{PoolID: 2},
+		}
+
+		srv := newTestProviderServer(t, poolA, secretA, poolB)
+		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
+			BlockPoolNames: []string{"pool-a", "non-existent", "pool-b"},
+		})
+		assert.NoError(t, err)
+		assert.Len(t, resp.BlockPoolsInfo, 2, "non-existent pool should be skipped")
+		assert.Empty(t, resp.Errors)
+
+		infoByName := map[string]*pb.BlockPoolInfo{}
+		for _, info := range resp.BlockPoolsInfo {
+			infoByName[info.BlockPoolName] = info
+		}
+
+		assert.Equal(t, "token-a", infoByName["pool-a"].MirroringToken)
+		assert.Equal(t, "1", infoByName["pool-a"].BlockPoolID)
+		assert.Empty(t, infoByName["pool-b"].MirroringToken)
+		assert.Equal(t, "2", infoByName["pool-b"].BlockPoolID)
+	})
+}
+
 func TestIsRGWAccountEnabled(t *testing.T) {
 	sc, consumer, _, _, _, _ := newRGWTestObjects()
 
