@@ -99,7 +99,25 @@ type ClientProfileSpec struct {
 // configuration for volumes and snapshots configured to use
 // this profile
 type ClientProfileStatus struct {
+	// Phase indicates the current state of this CR
+	// +optional
+	Phase string `json:"phase,omitempty"`
+
+	// Message provides human-readable details about the current phase
+	// +optional
+	Message string `json:"message,omitempty"`
 }
+
+const (
+	// ClientProfilePhaseReady indicates the CR is reconciled successfully
+	ClientProfilePhaseReady = "Ready"
+
+	// ClientProfilePhaseFailed indicates reconciliation failed
+	ClientProfilePhaseFailed = "Failed"
+
+	// ClientProfilePhasePending indicates reconciliation is in progress
+	ClientProfilePhasePending = "Pending"
+)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:storageversion

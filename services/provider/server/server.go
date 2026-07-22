@@ -322,7 +322,20 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 	case ocsv1alpha1.StorageConsumerStateDeleting:
 		return nil, status.Errorf(codes.NotFound, "StorageConsumer is in deleting phase")
 	case ocsv1alpha1.StorageConsumerStateReady:
-		records, err := s.getKubeResources(ctx, logger, consumer)
+
+		consumerConfig, err := s.getConsumerConfig(ctx, consumer)
+		if err != nil {
+			return nil, err
+		}
+
+		mirroringTargetInfo := &pb.ClientInfo{}
+		if mirroringTargetInfoInBytes := []byte(consumer.GetAnnotations()[util.StorageConsumerMirroringInfoAnnotation]); len(mirroringTargetInfoInBytes) > 0 {
+			if err := json.Unmarshal(mirroringTargetInfoInBytes, mirroringTargetInfo); err != nil {
+				return nil, err
+			}
+		}
+
+		records, err := s.getKubeResources(ctx, logger, consumer, consumerConfig, mirroringTargetInfo)
 		if err != nil {
 			logger.Error(err, "failed to get kube resources")
 			return nil, status.Errorf(codes.Internal, "failed to produce client state")
@@ -407,6 +420,16 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 		}
 
+		clientProfileReplication, err := s.getDesiredClientProfileReplication(ctx, consumer, consumerConfig, mirroringTargetInfo)
+		if err != nil {
+			logger.Error(err, "failed to produce client state")
+			return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
+		}
+		clientProfileReplicationSpec := csiopv1.ClientProfileReplicationSpec{}
+		if clientProfileReplication != nil {
+			clientProfileReplicationSpec = clientProfileReplication.Spec
+		}
+
 		useHostNetworkForCtrlPlugin := util.ShouldUseHostNetworking(storageCluster)
 
 		availableServices, err := util.GetAvailableServices(ctx, s.client, storageCluster)
@@ -485,6 +508,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			channelName,
 			zerodNonHashableFields(consumer),
 			cephConnection.Spec,
+			clientProfileReplicationSpec,
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
@@ -747,6 +771,28 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
 	}
 
+	consumerConfig, err := s.getConsumerConfig(ctx, storageConsumer)
+	if err != nil {
+		return nil, err
+	}
+
+	mirroringTargetInfo := &pb.ClientInfo{}
+	if mirroringTargetInfoInBytes := []byte(storageConsumer.GetAnnotations()[util.StorageConsumerMirroringInfoAnnotation]); len(mirroringTargetInfoInBytes) > 0 {
+		if err := json.Unmarshal(mirroringTargetInfoInBytes, mirroringTargetInfo); err != nil {
+			return nil, err
+		}
+	}
+
+	clientProfileReplication, err := s.getDesiredClientProfileReplication(ctx, storageConsumer, consumerConfig, mirroringTargetInfo)
+	if err != nil {
+		logger.Error(err, "failed to produce client state")
+		return nil, status.Errorf(codes.Internal, "failed to produce client state hash")
+	}
+	clientProfileReplicationSpec := csiopv1.ClientProfileReplicationSpec{}
+	if clientProfileReplication != nil {
+		clientProfileReplicationSpec = clientProfileReplication.Spec
+	}
+
 	topologyKey := storageConsumer.GetAnnotations()[util.AnnotationNonResilientPoolsTopologyKey]
 
 	availableServices, err := util.GetAvailableServices(ctx, s.client, storageCluster)
@@ -806,6 +852,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		channelName,
 		zerodNonHashableFields(storageConsumer),
 		cephConnection.Spec,
+		clientProfileReplicationSpec,
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
@@ -1324,12 +1371,13 @@ func (s *OCSProviderServer) getConsumerConfig(ctx context.Context, consumer *ocs
 	return util.WrapStorageConsumerResourceMap(consumerConfigMap.Data), nil
 }
 
-func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Logger, consumer *ocsv1alpha1.StorageConsumer) ([]kubeObjectWithOpRecord, error) {
-
-	consumerConfig, err := s.getConsumerConfig(ctx, consumer)
-	if err != nil {
-		return nil, err
-	}
+func (s *OCSProviderServer) getKubeResources(
+	ctx context.Context,
+	logger logr.Logger,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	mirroringTargetInfo *pb.ClientInfo,
+) ([]kubeObjectWithOpRecord, error) {
 
 	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
 	if err != nil {
@@ -1356,14 +1404,6 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 
 	if consumer.Status.Client == nil {
 		return nil, fmt.Errorf("waiting for the first heart beat before sending the resources")
-	}
-
-	mirroringTargetInfo := &pb.ClientInfo{}
-	if mirroringTargetInfoInBytes := []byte(consumer.GetAnnotations()[util.StorageConsumerMirroringInfoAnnotation]); len(mirroringTargetInfoInBytes) > 0 {
-		if err := json.Unmarshal(mirroringTargetInfoInBytes, mirroringTargetInfo); err != nil {
-			return nil, err
-		}
-
 	}
 
 	records := []kubeObjectWithOpRecord{}
@@ -1520,6 +1560,20 @@ func (s *OCSProviderServer) getKubeResources(ctx context.Context, logger logr.Lo
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if clientProfileReplication, err := s.getDesiredClientProfileReplication(
+		ctx,
+		consumer,
+		consumerConfig,
+		mirroringTargetInfo,
+	); err != nil {
+		return nil, err
+	} else if clientProfileReplication != nil {
+		records = append(records, kubeObjectWithOpRecord{
+			kubeObject: clientProfileReplication,
+			clientOp:   pb.KubeClientOp_CREATE_OR_UPDATE,
+		})
 	}
 
 	records, err = s.appendOBCResources(
@@ -2380,6 +2434,47 @@ func (s *OCSProviderServer) appendClientProfileMappingKubeResources(
 		)
 	}
 	return records, nil
+}
+
+func (s *OCSProviderServer) getDesiredClientProfileReplication(
+	ctx context.Context,
+	consumer *ocsv1alpha1.StorageConsumer,
+	consumerConfig util.StorageConsumerResources,
+	mirroringTargetInfo *pb.ClientInfo,
+) (*csiopv1.ClientProfileReplication, error) {
+	remoteClientProfileName := mirroringTargetInfo.ClientProfiles[clientInfoRbdClientProfileKey]
+	if remoteClientProfileName != "" {
+		clientProfileReplication := &csiopv1.ClientProfileReplication{}
+		clientProfileReplication.Name = consumer.Status.Client.Name
+		clientProfileReplication.Namespace = consumer.Status.Client.OperatorNamespace
+
+		clientProfileReplication.Spec.LocalClientProfile = consumerConfig.GetRbdClientProfileName()
+		clientProfileReplication.Spec.RemoteClientProfile = remoteClientProfileName
+
+		poolMappings := []csiopv1.PoolMappingSpec{}
+		cbpList := &rookCephv1.CephBlockPoolList{}
+		if err := s.client.List(ctx, cbpList, client.InNamespace(s.namespace)); err != nil {
+			return nil, fmt.Errorf("failed to list cephBlockPools in namespace. %v", err)
+		}
+		for i := range cbpList.Items {
+			cephBlockPool := &cbpList.Items[i]
+			remoteBlockPoolID := cephBlockPool.GetAnnotations()[util.BlockPoolMirroringTargetIDAnnotation]
+			if remoteBlockPoolID != "" {
+				poolMappings = append(
+					poolMappings,
+					csiopv1.PoolMappingSpec{Name: cephBlockPool.Name, RemoteID: remoteBlockPoolID},
+				)
+			}
+		}
+		if len(poolMappings) > 0 {
+			clientProfileReplication.Spec.RBD = &csiopv1.RBDReplicationSpec{
+				PoolMapping: poolMappings,
+			}
+		}
+
+		return clientProfileReplication, nil
+	}
+	return nil, nil
 }
 
 func (s *OCSProviderServer) appendOBCResources(
