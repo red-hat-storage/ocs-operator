@@ -19,6 +19,7 @@ type GroupSnapshotterType string
 const (
 	RbdGroupSnapshotter    GroupSnapshotterType = "rbd"
 	CephfsGroupSnapshotter GroupSnapshotterType = "cephfs"
+	NfsGroupSnapshotter    GroupSnapshotterType = "nfs"
 )
 
 func GenerateNameForGroupSnapshotClass(initData *ocsv1.StorageCluster, groupSnapshotType GroupSnapshotterType) string {
@@ -75,6 +76,32 @@ func NewDefaultCephFsGroupSnapshotClass(
 			"csi.storage.k8s.io/group-snapshotter-secret-name":      provisionerSecret,
 			"csi.storage.k8s.io/group-snapshotter-secret-namespace": namespace,
 			"fsName": fsName,
+		},
+		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
+	}
+	if storageId != "" {
+		AddLabel(gsc, storageIdLabelKey, storageId)
+	}
+	return gsc
+}
+
+func NewDefaultNfsGroupSnapshotClass(
+	clusterID,
+	provisionerSecret,
+	namespace,
+	storageId string,
+) *groupsnapapi.VolumeGroupSnapshotClass {
+
+	gsc := &groupsnapapi.VolumeGroupSnapshotClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{},
+			Labels:      map[string]string{},
+		},
+		Driver: NfsDriverName,
+		Parameters: map[string]string{
+			"clusterID": clusterID,
+			"csi.storage.k8s.io/group-snapshotter-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/group-snapshotter-secret-namespace": namespace,
 		},
 		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
 	}

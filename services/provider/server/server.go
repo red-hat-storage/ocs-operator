@@ -2082,6 +2082,16 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 			)
 		}
 	}
+	if consumerConfig.GetNfsClientProfileName() != "" {
+		vgscMap[util.GenerateNameForGroupSnapshotClass(storageCluster, util.NfsGroupSnapshotter)] = func() *groupsnapapi.VolumeGroupSnapshotClass {
+			return util.NewDefaultNfsGroupSnapshotClass(
+				consumerConfig.GetNfsClientProfileName(),
+				consumerConfig.GetCsiNfsProvisionerCephUserName(),
+				consumer.Status.Client.OperatorNamespace,
+				cephFsStorageId,
+			)
+		}
+	}
 
 	resources := getKubeResourcesForClass(
 		logger,
