@@ -322,6 +322,8 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 
 	err := os.Setenv("OPERATOR_NAMESPACE", cr.Namespace)
 	assert.NoError(t, err)
+	t.Setenv(desiredCephxKeyGenEnvVarName, "2")
+
 	result, err := reconciler.Reconcile(context.TODO(), requestOCSInit)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -399,6 +401,7 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 
 	_ = os.Setenv(providerAPIServerImage, "fake-image")
 	_ = os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
+	t.Setenv(desiredCephxKeyGenEnvVarName, "2")
 
 	ocsProviderServiceDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
