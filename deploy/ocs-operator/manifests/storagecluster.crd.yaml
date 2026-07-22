@@ -3998,6 +3998,17 @@ spec:
                           the client side certificates if enabled
                         type: string
                     type: object
+                  performanceProfile:
+                    description: |-
+                      PerformanceProfile (optional) selects a bundle of resource and count
+                      settings for the NooBaa core, db and endpoint components.
+                      When unset, defaults to "default".
+                      Explicit per-component resources in StorageClusterSpec.Resources take precedence over the profile.
+                    enum:
+                    - default
+                    - mixed-workload
+                    - small-objects
+                    type: string
                   reconcileStrategy:
                     description: |-
                       ReconcileStrategy specifies whether to reconcile NooBaa CRs. Valid

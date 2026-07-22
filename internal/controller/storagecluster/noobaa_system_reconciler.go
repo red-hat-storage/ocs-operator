@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"runtime"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
@@ -133,12 +134,20 @@ func getNooBaaMonitoringLabels(sc ocsv1.StorageCluster) map[string]string {
 	return labels
 }
 
+// getNooBaaPerformanceProfile returns the performance profile from MultiCloudGatewaySpec
+// when set, otherwise defaults to PerformanceProfileDefault or PerformanceProfileDefaultIBMZ on IBM Z.
+// The performance profiles are defined in the noobaa-operator repository here: https://github.com/noobaa/noobaa-operator/blob/master/pkg/system/performance_profiles.go
+func getNooBaaPerformanceProfile(sc *ocsv1.StorageCluster) nbv1.PerformanceProfileType {
+	profile := nbv1.PerformanceProfileDefault
+	if sc.Spec.MultiCloudGateway != nil && sc.Spec.MultiCloudGateway.PerformanceProfile != "" {
+		profile = sc.Spec.MultiCloudGateway.PerformanceProfile
+	}
+	if profile == nbv1.PerformanceProfileDefault && runtime.GOARCH == IbmZCpuArch {
+		return nbv1.PerformanceProfileDefaultIBMZ
+	}
+	return profile
+}
 func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *ocsv1.StorageCluster, tlsProfile *ocstlsv1.TLSProfile) error {
-	coreResources := getDaemonResources("noobaa-core", sc)
-	dbResources := getDaemonResources("noobaa-db", sc)
-	dBVolumeResources := getDaemonResources("noobaa-db-vol", sc)
-	endpointResources := getDaemonResources("noobaa-endpoint", sc)
-
 	nb.Labels = map[string]string{
 		"app": "noobaa",
 	}
@@ -148,13 +157,10 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 	// Set DB information inside DBSpec and not directly in NooBaaSpec
 	// DBSpec is used for deploying a posgres client, while the DB fields were used for the single DB instance.
 	// The fields in NooBaaSpec should be left unmodified, to keep the old DB up until data is imported into the new DB cluster.
-	dbMinVolumeSize := dBVolumeResources.Requests.Storage().String()
-
 	if nb.Spec.DBSpec == nil {
 		nb.Spec.DBSpec = &nbv1.NooBaaDBSpec{}
 	}
 	nb.Spec.DBSpec.DBImage = &r.images.NooBaaDB
-	nb.Spec.DBSpec.DBMinVolumeSize = dbMinVolumeSize
 
 	if !r.IsNoobaaStandalone {
 		storageClassName := util.GenerateNameForCephBlockPoolStorageClass(sc)
@@ -162,8 +168,24 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 		nb.Spec.PVPoolDefaultStorageClass = &storageClassName
 	}
 
-	nb.Spec.CoreResources = &coreResources
-	nb.Spec.DBSpec.DBResources = &dbResources
+	// Resource defaults for NooBaa components come from the performance profile.
+	// Only set explicit overrides when the StorageCluster Resources map specifies them.
+	if _, specified := sc.Spec.Resources["noobaa-core"]; specified {
+		coreResources := getDaemonResources("noobaa-core", sc)
+		nb.Spec.CoreResources = &coreResources
+	} else {
+		nb.Spec.CoreResources = nil
+	}
+	if _, specified := sc.Spec.Resources["noobaa-db"]; specified {
+		dbResources := getDaemonResources("noobaa-db", sc)
+		nb.Spec.DBSpec.DBResources = &dbResources
+	} else {
+		nb.Spec.DBSpec.DBResources = nil
+	}
+	// DB volume size is not part of the performance profile; keep the ocs-operator default
+	// (or any StorageCluster Resources override) via getDaemonResources.
+	dBVolumeResources := getDaemonResources("noobaa-db-vol", sc)
+	nb.Spec.DBSpec.DBMinVolumeSize = dBVolumeResources.Requests.Storage().String()
 
 	// Set "system-cluster-critical" priority class for noobaa core, db, and endpoint pods
 	nb.Spec.CorePriorityClassName = systemClusterCritical
@@ -186,22 +208,24 @@ func (r *StorageClusterReconciler) setNooBaaDesiredState(nb *nbv1.NooBaa, sc *oc
 
 	nb.Spec.Image = &r.images.NooBaaCore
 
-	// Default endpoint spec.
+	// Endpoint count defaults come from the performance profile unless overridden via MultiCloudGateway.Endpoints.
 	nb.Spec.Endpoints = &nbv1.EndpointsSpec{
-		MinCount:               1,
-		MaxCount:               2,
 		AdditionalVirtualHosts: []string{},
-
-		// TODO: After spec.resources["noobaa-endpoint"] is declared obesolete this
-		// definition should hold a constant value. and should not be read from
-		// GetDaemonResources()
-		Resources: &endpointResources,
 	}
+	if _, specified := sc.Spec.Resources["noobaa-endpoint"]; specified {
+		endpointResources := getDaemonResources("noobaa-endpoint", sc)
+		nb.Spec.Endpoints.Resources = &endpointResources
+	} else {
+		nb.Spec.Endpoints.Resources = nil
+	}
+
 	// Add autoscale spec for noobaa CR
 	nb.Spec.Autoscaler = nbv1.AutoscalerSpec{
 		AutoscalerType:      nbv1.AutoscalerTypeHPAV2,
 		PrometheusNamespace: MonitoringNamespace,
 	}
+
+	nb.Spec.PerformanceProfile = getNooBaaPerformanceProfile(sc)
 
 	// Override with MCG options specified in the storage cluster spec
 	if sc.Spec.MultiCloudGateway != nil {

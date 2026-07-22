@@ -12,7 +12,9 @@ import (
 	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -377,7 +379,6 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 				Namespace: defaultInput.Namespace,
 			},
 		}
-		// TODO (leelavg): after noobaa api update expand the unit test to pass valid profile
 		err = reconciler.setNooBaaDesiredState(&noobaa, &c.sc, &ocstlsv1.TLSProfile{})
 		if err != nil {
 			assert.Failf(t, "[%s] unable to set noobaa desired state", c.label)
@@ -415,7 +416,195 @@ func TestSetNooBaaDesiredState(t *testing.T) {
 		assert.Equalf(t, systemClusterCritical, noobaa.Spec.CorePriorityClassName, "[%s] noobaa core priority class not set correctly", c.label)
 		assert.Equalf(t, systemClusterCritical, noobaa.Spec.DBPriorityClassName, "[%s] noobaa db priority class not set correctly", c.label)
 		assert.Equalf(t, systemClusterCritical, noobaa.Spec.EndpointPriorityClassName, "[%s] noobaa endpoint priority class not set correctly", c.label)
+		assert.Equalf(t, nbv1.PerformanceProfileDefault, noobaa.Spec.PerformanceProfile, "[%s] expected default performance profile", c.label)
+		assert.Nilf(t, noobaa.Spec.CoreResources, "[%s] CoreResources should be unset when not specified", c.label)
+		assert.Nilf(t, noobaa.Spec.DBSpec.DBResources, "[%s] DBResources should be unset when not specified", c.label)
+		assert.Equalf(t, "50Gi", noobaa.Spec.DBSpec.DBMinVolumeSize, "[%s] expected default DBMinVolumeSize", c.label)
+		assert.Nilf(t, noobaa.Spec.Endpoints.Resources, "[%s] Endpoint Resources should be unset when not specified", c.label)
 	}
+}
+
+func TestNooBaaPerformanceProfile(t *testing.T) {
+	cases := []struct {
+		label           string
+		sc              v1.StorageCluster
+		expectedProfile nbv1.PerformanceProfileType
+	}{
+		{
+			label:           "default when MultiCloudGateway is nil",
+			sc:              v1.StorageCluster{},
+			expectedProfile: nbv1.PerformanceProfileDefault,
+		},
+		{
+			label: "default when PerformanceProfile is unset",
+			sc: v1.StorageCluster{
+				Spec: v1.StorageClusterSpec{
+					MultiCloudGateway: &v1.MultiCloudGatewaySpec{},
+				},
+			},
+			expectedProfile: nbv1.PerformanceProfileDefault,
+		},
+		{
+			label: "explicit mixed-workload profile is propagated",
+			sc: v1.StorageCluster{
+				Spec: v1.StorageClusterSpec{
+					MultiCloudGateway: &v1.MultiCloudGatewaySpec{
+						PerformanceProfile: nbv1.PerformanceProfileMixedWorkload,
+					},
+				},
+			},
+			expectedProfile: nbv1.PerformanceProfileMixedWorkload,
+		},
+		{
+			label: "explicit small-objects profile is propagated",
+			sc: v1.StorageCluster{
+				Spec: v1.StorageClusterSpec{
+					MultiCloudGateway: &v1.MultiCloudGatewaySpec{
+						PerformanceProfile: nbv1.PerformanceProfileSmallObjects,
+					},
+				},
+			},
+			expectedProfile: nbv1.PerformanceProfileSmallObjects,
+		},
+		{
+			label: "explicit mini-env profile is propagated",
+			sc: v1.StorageCluster{
+				Spec: v1.StorageClusterSpec{
+					MultiCloudGateway: &v1.MultiCloudGatewaySpec{
+						PerformanceProfile: nbv1.PerformanceProfileMiniEnv,
+					},
+				},
+			},
+			expectedProfile: nbv1.PerformanceProfileMiniEnv,
+		},
+		{
+			label: "explicit default-ibm-z profile is propagated",
+			sc: v1.StorageCluster{
+				Spec: v1.StorageClusterSpec{
+					MultiCloudGateway: &v1.MultiCloudGatewaySpec{
+						PerformanceProfile: nbv1.PerformanceProfileDefaultIBMZ,
+					},
+				},
+			},
+			expectedProfile: nbv1.PerformanceProfileDefaultIBMZ,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.label, func(t *testing.T) {
+			scheme := createFakeScheme(t)
+			client := fake.NewClientBuilder().WithScheme(scheme).Build()
+			reconciler := StorageClusterReconciler{
+				ctx:               context.TODO(),
+				Client:            client,
+				Scheme:            scheme,
+				OperatorNamespace: "openshift-storage",
+				OperatorCondition: newStubOperatorCondition(),
+				Log:               logf.Log.WithName("controller_storagecluster_test"),
+			}
+			_ = reconciler.initializeImageVars()
+
+			noobaa := nbv1.NooBaa{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "noobaa",
+					Namespace: "openshift-storage",
+				},
+			}
+
+			err := reconciler.setNooBaaDesiredState(&noobaa, &c.sc, &ocstlsv1.TLSProfile{})
+			assert.NoError(t, err)
+			assert.Equal(t, c.expectedProfile, noobaa.Spec.PerformanceProfile)
+		})
+	}
+}
+
+func TestGetNooBaaPerformanceProfile(t *testing.T) {
+	assert.Equal(t, nbv1.PerformanceProfileDefault, getNooBaaPerformanceProfile(&v1.StorageCluster{}))
+	assert.Equal(t, nbv1.PerformanceProfileDefault, getNooBaaPerformanceProfile(&v1.StorageCluster{
+		Spec: v1.StorageClusterSpec{
+			MultiCloudGateway: &v1.MultiCloudGatewaySpec{},
+		},
+	}))
+	assert.Equal(t, nbv1.PerformanceProfileDevEnv, getNooBaaPerformanceProfile(&v1.StorageCluster{
+		Spec: v1.StorageClusterSpec{
+			MultiCloudGateway: &v1.MultiCloudGatewaySpec{
+				PerformanceProfile: nbv1.PerformanceProfileDevEnv,
+			},
+		},
+	}))
+}
+
+func TestNooBaaSpecifiedResourcesOverride(t *testing.T) {
+	sc := v1.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test_name",
+			Namespace: "openshift-storage",
+		},
+		Spec: v1.StorageClusterSpec{
+			MultiCloudGateway: &v1.MultiCloudGatewaySpec{
+				PerformanceProfile: nbv1.PerformanceProfileMixedWorkload,
+			},
+			Resources: map[string]corev1.ResourceRequirements{
+				"noobaa-core": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("2"),
+						corev1.ResourceMemory: resource.MustParse("8Gi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("2"),
+						corev1.ResourceMemory: resource.MustParse("8Gi"),
+					},
+				},
+				"noobaa-db": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU: resource.MustParse("1"),
+					},
+				},
+				"noobaa-db-vol": {
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: resource.MustParse("100Gi"),
+					},
+				},
+				"noobaa-endpoint": {
+					Limits: corev1.ResourceList{
+						corev1.ResourceMemory: resource.MustParse("3Gi"),
+					},
+				},
+			},
+		},
+	}
+
+	scheme := createFakeScheme(t)
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+	reconciler := StorageClusterReconciler{
+		ctx:               context.TODO(),
+		Client:            client,
+		Scheme:            scheme,
+		OperatorNamespace: "openshift-storage",
+		OperatorCondition: newStubOperatorCondition(),
+		Log:               logf.Log.WithName("controller_storagecluster_test"),
+	}
+	_ = reconciler.initializeImageVars()
+
+	noobaa := nbv1.NooBaa{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "noobaa",
+			Namespace: sc.Namespace,
+		},
+	}
+
+	err := reconciler.setNooBaaDesiredState(&noobaa, &sc, &ocstlsv1.TLSProfile{})
+	assert.NoError(t, err)
+
+	assert.Equal(t, nbv1.PerformanceProfileMixedWorkload, noobaa.Spec.PerformanceProfile)
+	assert.NotNil(t, noobaa.Spec.CoreResources)
+	assert.Equal(t, "2", noobaa.Spec.CoreResources.Requests.Cpu().String())
+	assert.Equal(t, "8Gi", noobaa.Spec.CoreResources.Requests.Memory().String())
+	assert.NotNil(t, noobaa.Spec.DBSpec.DBResources)
+	assert.Equal(t, "1", noobaa.Spec.DBSpec.DBResources.Requests.Cpu().String())
+	assert.Equal(t, "100Gi", noobaa.Spec.DBSpec.DBMinVolumeSize)
+	assert.NotNil(t, noobaa.Spec.Endpoints.Resources)
+	assert.Equal(t, "3Gi", noobaa.Spec.Endpoints.Resources.Limits.Memory().String())
 }
 
 func TestSetNooBaaDesiredStatePreservesDBConf(t *testing.T) {
