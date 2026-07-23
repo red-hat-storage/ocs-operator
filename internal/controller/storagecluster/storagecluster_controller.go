@@ -287,6 +287,7 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&cephv1.CephFilesystem{}).
 		Owns(&cephv1.CephFilesystemSubVolumeGroup{}).
 		Owns(&cephv1.CephNFS{}).
+		Owns(&cephv1.CephNVMeOFGateway{}).
 		Owns(&cephv1.CephObjectStore{}).
 		Owns(&cephv1.CephObjectStoreUser{}).
 		Owns(&cephv1.CephRBDMirror{}).

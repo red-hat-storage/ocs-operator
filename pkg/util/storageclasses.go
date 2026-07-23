@@ -426,6 +426,42 @@ func NewDefaultNFSStorageClass(
 	return sc
 }
 
+func NewDefaultNVMeOFStorageClass(
+	clusterID,
+	poolName,
+	nvmeofGatewayAddress,
+	provisionerSecret,
+	nodeSecret,
+	namespace string,
+) *storagev1.StorageClass {
+	sc := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				"description": "Provides RWO block volumes via NVMe-oF",
+			},
+		},
+		Provisioner:          NVMeOFDriverName,
+		ReclaimPolicy:        ptr.To(corev1.PersistentVolumeReclaimDelete),
+		AllowVolumeExpansion: ptr.To(true),
+		VolumeBindingMode:    ptr.To(storagev1.VolumeBindingImmediate),
+		Parameters: map[string]string{
+			"clusterID":            clusterID,
+			"pool":                 poolName,
+			"imageFormat":          "2",
+			"imageFeatures":        "layering,deep-flatten,exclusive-lock,object-map,fast-diff",
+			"nvmeofGatewayAddress": nvmeofGatewayAddress,
+			"nvmeofGatewayPort":    "5500",
+			"csi.storage.k8s.io/provisioner-secret-name":            provisionerSecret,
+			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
+			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
+			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
+			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+		},
+	}
+	return sc
+}
+
 func StorageClassFromExisting(
 	ctx context.Context,
 	kubeClient client.Client,
@@ -491,6 +527,10 @@ func StorageClassFromExisting(
 		provisionerSecretName = consumerConfig.GetCsiNfsProvisionerCephUserName()
 		nodeSecretName = consumerConfig.GetCsiNfsNodeCephUserName()
 		storageId = nfsStorageId
+	case NVMeOFDriverName:
+		clientProfileName = consumerConfig.GetNvmeofClientProfileName()
+		provisionerSecretName = consumerConfig.GetCsiNvmeofProvisionerCephUserName()
+		nodeSecretName = consumerConfig.GetCsiNvmeofNodeCephUserName()
 	case NoobaaProvisionerName:
 		return storageClass, nil
 	default:
