@@ -248,6 +248,10 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 		storageClassNames[util.GenerateNameForCephNetworkFilesystemStorageClass(storageCluster)] = true
 	}
 
+	if storageCluster.Spec.NVMeOF != nil {
+		storageClassNames[util.GenerateNameForNVMeOFStorageClass(storageCluster)] = true
+	}
+
 	if storageCluster.Spec.Encryption.StorageClass && storageCluster.Spec.Encryption.KeyManagementService.Enable {
 		storageClassNames[util.GenerateNameForEncryptedCephBlockPoolStorageClass(storageCluster)] = true
 	}
