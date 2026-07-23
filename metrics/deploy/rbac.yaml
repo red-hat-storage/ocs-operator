@@ -39,6 +39,7 @@ rules:
   - cephblockpools
   - cephblockpoolradosnamespaces
   - cephfilesystemsubvolumegroups
+  - cephfilesystems
   - cephrbdmirrors
   verbs:
     - get
