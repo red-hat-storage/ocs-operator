@@ -335,7 +335,8 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	cephCluster.Spec.Storage.Store = updateOSDStore(found.Spec.Storage.Store)
 
 	// confirm OSD migration if encryption is enabled as day-2 operation
-	if isEncrptionSettingUpdated(sc.Spec.Encryption.ClusterWide, found.Spec.Storage.StorageClassDeviceSets) {
+	encryptionEnabled := sc.Spec.Encryption.ClusterWide || sc.Spec.Encryption.Enable
+	if isEncrptionSettingUpdated(encryptionEnabled, found.Spec.Storage.StorageClassDeviceSets) {
 		cephCluster.Spec.Storage.Migration.Confirmation = "yes-really-migrate-osds"
 	} else {
 		// keeping the same expected state in the corresponding reconcile once encryption is enabled
