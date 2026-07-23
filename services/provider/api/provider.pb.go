@@ -606,6 +606,25 @@ func (x *NfsDriverRequirements) GetCtrlPluginHostNetwork() bool {
 	return false
 }
 
+type NvmeofDriverRequirements struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	CtrlPluginHostNetwork *bool `protobuf:"varint,1,opt,name=ctrlPluginHostNetwork,proto3,oneof" json:"ctrlPluginHostNetwork,omitempty"`
+}
+
+func (x *NvmeofDriverRequirements) ProtoReflect() protoreflect.Message {
+	return nil
+}
+
+func (x *NvmeofDriverRequirements) GetCtrlPluginHostNetwork() bool {
+	if x != nil && x.CtrlPluginHostNetwork != nil {
+		return *x.CtrlPluginHostNetwork
+	}
+	return false
+}
+
 // GetDesiredClientStateResponse holds the response for the GetDesiredClientState API request
 type GetDesiredClientStateResponse struct {
 	state         protoimpl.MessageState
@@ -630,6 +649,7 @@ type GetDesiredClientStateResponse struct {
 	RbdDriverRequirements    *RbdDriverRequirements    `protobuf:"bytes,7,opt,name=rbdDriverRequirements,proto3,oneof" json:"rbdDriverRequirements,omitempty"`
 	CephFsDriverRequirements *CephFsDriverRequirements `protobuf:"bytes,8,opt,name=CephFsDriverRequirements,proto3,oneof" json:"CephFsDriverRequirements,omitempty"`
 	NfsDriverRequirements    *NfsDriverRequirements    `protobuf:"bytes,9,opt,name=NfsDriverRequirements,proto3,oneof" json:"NfsDriverRequirements,omitempty"`
+	NvmeofDriverRequirements *NvmeofDriverRequirements `protobuf:"bytes,10,opt,name=NvmeofDriverRequirements,proto3,oneof" json:"NvmeofDriverRequirements,omitempty"`
 }
 
 func (x *GetDesiredClientStateResponse) Reset() {
