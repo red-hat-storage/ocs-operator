@@ -2005,7 +2005,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 		}
 	}
 
-	resources := getKubeResourcesForClass(
+	resources, err := getKubeResourcesForClass(
 		logger,
 		consumer.Spec.StorageClasses,
 		"StorageClass",
@@ -2027,6 +2027,11 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 			}
 		},
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	records = append(records, resources...)
 
 	return records, nil
@@ -2073,7 +2078,7 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 		}
 	}
 
-	resources := getKubeResourcesForClass(
+	resources, err := getKubeResourcesForClass(
 		logger,
 		consumer.Spec.VolumeSnapshotClasses,
 		"VolumeSnapshotClass",
@@ -2094,6 +2099,11 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 			}
 		},
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	records = append(records, resources...)
 
 	return records, nil
@@ -2147,7 +2157,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 		}
 	}
 
-	resources := getKubeResourcesForClass(
+	resources, err := getKubeResourcesForClass(
 		logger,
 		consumer.Spec.VolumeGroupSnapshotClasses,
 		"volumegroupsnapshotclass.groupsnapshot.storage.k8s.io",
@@ -2168,6 +2178,11 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 			}
 		},
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	records = append(records, resources...)
 
 	return records, nil
@@ -2195,7 +2210,7 @@ func (s *OCSProviderServer) appendOdfVolumeGroupSnapshotClassKubeResources(
 		}
 	}
 
-	resources := getKubeResourcesForClass(
+	resources, err := getKubeResourcesForClass(
 		logger,
 		consumer.Spec.VolumeGroupSnapshotClasses,
 		"volumegroupsnapshotclass.groupsnapshot.storage.openshift.io",
@@ -2214,6 +2229,11 @@ func (s *OCSProviderServer) appendOdfVolumeGroupSnapshotClassKubeResources(
 			}
 		},
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	records = append(records, resources...)
 
 	return records, nil
@@ -2252,7 +2272,7 @@ func (s *OCSProviderServer) appendNetworkFenceClassKubeResources(
 		}
 	}
 
-	resources := getKubeResourcesForClass(
+	resources, err := getKubeResourcesForClass(
 		logger,
 		consumer.Spec.NetworkFenceClasses,
 		"networkfenceclass",
@@ -2264,6 +2284,11 @@ func (s *OCSProviderServer) appendNetworkFenceClassKubeResources(
 			}
 		},
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	records = append(records, resources...)
 
 	return records, nil
@@ -2276,7 +2301,7 @@ func (s *OCSProviderServer) appendVolumeAttributesClassKubeResources(
 	consumer *ocsv1alpha1.StorageConsumer,
 ) ([]kubeObjectWithOpRecord, error) {
 
-	resources := getKubeResourcesForClass(
+	resources, err := getKubeResourcesForClass(
 		logger,
 		consumer.Spec.VolumeAttributesClasses,
 		"VolumeAttributesClass",
@@ -2288,6 +2313,11 @@ func (s *OCSProviderServer) appendVolumeAttributesClassKubeResources(
 			)
 		},
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	records = append(records, resources...)
 
 	return records, nil
@@ -2303,7 +2333,7 @@ func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
 	remoteRbdStorageId string,
 ) ([]kubeObjectWithOpRecord, error) {
 
-	resources := getKubeResourcesForClass(
+	resources, err := getKubeResourcesForClass(
 		logger,
 		consumer.Spec.VolumeReplicationClasses,
 		"VolumeReplicationClass",
@@ -2319,6 +2349,11 @@ func (s *OCSProviderServer) appendVolumeReplicationClassKubeResources(
 			)
 		},
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	records = append(records, resources...)
 
 	return records, nil
@@ -2335,7 +2370,7 @@ func (s *OCSProviderServer) appendVolumeGroupReplicationClassKubeResources(
 	remoteRbdStorageId string,
 ) ([]kubeObjectWithOpRecord, error) {
 
-	resources := getKubeResourcesForClass(
+	resources, err := getKubeResourcesForClass(
 		logger,
 		consumer.Spec.VolumeGroupReplicationClasses,
 		"VolumeGroupReplicationClass",
@@ -2351,6 +2386,11 @@ func (s *OCSProviderServer) appendVolumeGroupReplicationClassKubeResources(
 			)
 		},
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	records = append(records, resources...)
 
 	return records, nil
@@ -2892,7 +2932,7 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 	classList []T,
 	classDisplayName string,
 	genClassKubeObjFn func(string) (client.Object, error),
-) []kubeObjectWithOpRecord {
+) ([]kubeObjectWithOpRecord, error) {
 	classNameMapping := map[string]string{}
 	for i := len(classList) - 1; i >= 0; i-- {
 		src := classList[i].GetName()
@@ -2919,6 +2959,8 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 				logger.Info("Encountered unsupported provisioner", "Resource", classDisplayName, "Name", srcName)
 			} else if errors.Is(err, util.ErrUnsupportedDriver) {
 				logger.Info("Encountered unsupported driver", "Resource", classDisplayName, "Name", srcName)
+			} else if err != nil {
+				return nil, fmt.Errorf("unexpected error fetching resource: %w", err)
 			} else if srcKubeObj == nil || reflect.ValueOf(srcKubeObj).IsNil() {
 				logger.Info("Resource name does not points to a builtin or an existing object, skipping", "Resource", classDisplayName, "Name", srcName)
 			} else if srcKubeObj.GetLabels()[util.ExternalClassLabelKey] == "true" {
@@ -2936,7 +2978,7 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 			})
 		}
 	}
-	return records
+	return records, nil
 }
 
 func checkClientPreConditions(consumer *ocsv1alpha1.StorageConsumer, ocsOpVersion string, logger logr.Logger) bool {

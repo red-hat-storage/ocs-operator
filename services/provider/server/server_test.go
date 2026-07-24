@@ -105,12 +105,15 @@ func TestGetKubeResourcesForClass(t *testing.T) {
 		return srcSc, nil
 	}
 
-	objs := getKubeResourcesForClass(
+	objs, err := getKubeResourcesForClass(
 		klog.Background(),
 		consumer.Spec.StorageClasses,
 		"StorageClass",
 		genClassFn,
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// class-a, class-1 and class-2
 	wantObjs := 3
