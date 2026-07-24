@@ -109,9 +109,11 @@ func NewDefaultRbdStorageClass(
 			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
 			"csi.storage.k8s.io/node-publish-secret-name":           nodeSecret,
 			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/controller-modify-secret-name":      provisionerSecret,
 			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
 			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
 			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
+			"csi.storage.k8s.io/controller-modify-secret-namespace": namespace,
 			"csi.storage.k8s.io/node-publish-secret-namespace":      namespace,
 		},
 	}
@@ -179,10 +181,12 @@ func NewDefaultVirtRbdStorageClass(
 			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
 			"csi.storage.k8s.io/node-publish-secret-name":           nodeSecret,
 			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/controller-modify-secret-name":      provisionerSecret,
 			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
 			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
 			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
 			"csi.storage.k8s.io/node-publish-secret-namespace":      namespace,
+			"csi.storage.k8s.io/controller-modify-secret-namespace": namespace,
 		},
 	}
 
@@ -251,10 +255,12 @@ func NewDefaultEncryptedRbdStorageClass(
 			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
 			"csi.storage.k8s.io/node-publish-secret-name":           nodeSecret,
 			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/controller-modify-secret-name":      provisionerSecret,
 			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
 			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
 			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
 			"csi.storage.k8s.io/node-publish-secret-namespace":      namespace,
+			"csi.storage.k8s.io/controller-modify-secret-namespace": namespace,
 		},
 	}
 
@@ -301,10 +307,12 @@ func NewDefaultNonResilientRbdStorageClass(
 			"csi.storage.k8s.io/node-stage-secret-name":             nodeSecret,
 			"csi.storage.k8s.io/node-publish-secret-name":           nodeSecret,
 			"csi.storage.k8s.io/controller-expand-secret-name":      provisionerSecret,
+			"csi.storage.k8s.io/controller-modify-secret-name":      provisionerSecret,
 			"csi.storage.k8s.io/provisioner-secret-namespace":       namespace,
 			"csi.storage.k8s.io/node-stage-secret-namespace":        namespace,
 			"csi.storage.k8s.io/controller-expand-secret-namespace": namespace,
 			"csi.storage.k8s.io/node-publish-secret-namespace":      namespace,
+			"csi.storage.k8s.io/controller-modify-secret-namespace": namespace,
 		},
 	}
 	if storageId != "" {
@@ -481,6 +489,10 @@ func StorageClassFromExisting(
 		// Node Publish is only required for rbd.
 		params["csi.storage.k8s.io/node-publish-secret-name"] = nodeSecretName
 		params["csi.storage.k8s.io/node-publish-secret-namespace"] = operatorNamespace
+		// Controller modify secret is only required for rbd.
+		params["csi.storage.k8s.io/controller-modify-secret-name"] = provisionerSecretName
+		params["csi.storage.k8s.io/controller-modify-secret-namespace"] = operatorNamespace
+
 	case CephFSDriverName:
 		clientProfileName = consumerConfig.GetCephFsClientProfileName()
 		provisionerSecretName = consumerConfig.GetCsiCephFsProvisionerCephUserName()
