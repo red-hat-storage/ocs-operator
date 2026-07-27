@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/imdario/mergo"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -10,6 +11,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
+	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,16 +27,17 @@ import (
 )
 
 const (
-	metricsExporterName     = "ocs-metrics-exporter"
-	prometheusRoleName      = "ocs-metrics-svc"
-	metricsExporterRoleName = metricsExporterName
-	metricsMainPort         = 8443
-	metricsSelfPort         = 9443
-	portMetricsMain         = "https-main"
-	portMetricsSelf         = "https-self"
-	metricsPath             = "/metrics"
-	scrapeInterval          = "1m"
-	tlsCertPath             = "/etc/tls/private"
+	metricsExporterName         = "ocs-metrics-exporter"
+	prometheusRoleName          = "ocs-metrics-svc"
+	metricsExporterRoleName     = metricsExporterName
+	metricsMainPort             = 8443
+	metricsSelfPort             = 9443
+	portMetricsMain             = "https-main"
+	portMetricsSelf             = "https-self"
+	metricsPath                 = "/metrics"
+	scrapeInterval              = "1m"
+	tlsCertPath                 = "/etc/tls/private"
+	tlsProfileGenerationEnvName = "TLS_PROFILE_GENERATION"
 
 	componentLabel = "app.kubernetes.io/component"
 	nameLabel      = "app.kubernetes.io/name"
@@ -49,7 +52,7 @@ var exporterLabels = map[string]string{
 // enableMetricsExporter starts the metrics exporter deployment
 // and the needed services.
 func (r *StorageClusterReconciler) enableMetricsExporter(
-	ctx context.Context, instance *ocsv1.StorageCluster) error {
+	ctx context.Context, instance *ocsv1.StorageCluster, tlsProfile *ocstlsv1.TLSProfile) error {
 	// create the needed serviceaccount
 	if err := createMetricsExporterServiceAccount(ctx, r, instance); err != nil {
 		r.Log.Error(err, "unable to create serviceaccount for ocs metrics exporter")
@@ -98,7 +101,7 @@ func (r *StorageClusterReconciler) enableMetricsExporter(
 	}
 
 	// create the metrics exporter deployment
-	if err := deployMetricsExporter(ctx, r, instance); err != nil {
+	if err := deployMetricsExporter(ctx, r, instance, tlsProfile); err != nil {
 		r.Log.Error(err, "failed to create ocs-metric-exporter deployment")
 		return err
 	}
@@ -324,7 +327,7 @@ func createMetricsExporterServiceMonitor(ctx context.Context, r *StorageClusterR
 	return serviceMonitor, nil
 }
 
-func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster, tlsProfile *ocstlsv1.TLSProfile) error {
 	alertManagerURL := "https://alertmanager-main.openshift-monitoring.svc.cluster.local:9094"
 
 	currentDep := &appsv1.Deployment{
@@ -407,8 +410,12 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							return args
 						}(),
 						Command: []string{"/usr/local/bin/metrics-exporter"},
-						Image:   r.images.OCSMetricsExporter,
-						Name:    metricsExporterName,
+						Env: []corev1.EnvVar{
+							{Name: util.OperatorNamespaceEnvVar, Value: r.OperatorNamespace},
+							{Name: tlsProfileGenerationEnvName, Value: strconv.FormatInt(tlsProfile.Generation, 10)},
+						},
+						Image: r.images.OCSMetricsExporter,
+						Name:  metricsExporterName,
 						Ports: []corev1.ContainerPort{
 							{
 								Name:          portMetricsMain,
@@ -689,6 +696,11 @@ func updateMetricsExporterClusterRoles(ctx context.Context, r *StorageClusterRec
 				APIGroups: []string{"csiaddons.openshift.io"},
 				Resources: []string{"csiaddonsnodes"},
 				Verbs:     []string{"get", "list"},
+			},
+			{
+				APIGroups: []string{"ocs.openshift.io"},
+				Resources: []string{"tlsprofiles"},
+				Verbs:     []string{"get"},
 			},
 		}
 

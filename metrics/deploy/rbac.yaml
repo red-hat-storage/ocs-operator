@@ -87,6 +87,12 @@ rules:
     - list
     - watch
 - apiGroups:
+  - ocs.openshift.io
+  resources:
+  - tlsprofiles
+  verbs:
+    - get
+- apiGroups:
   - operators.coreos.com
   resources:
   - operatorconditions
