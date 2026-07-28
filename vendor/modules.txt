@@ -576,7 +576,7 @@ github.com/rook/rook/pkg/client/clientset/versioned
 github.com/rook/rook/pkg/client/clientset/versioned/scheme
 github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1
 github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1
-# github.com/rook/rook/pkg/apis v0.0.0-20260526152021-b70a0c925724 => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260722214556-e1ecd97a7483
+# github.com/rook/rook/pkg/apis v0.0.0-20260526152021-b70a0c925724 => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260727203701-01da75d0279f
 ## explicit; go 1.25.0
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
@@ -696,10 +696,10 @@ go.yaml.in/yaml/v3
 ## explicit; go 1.25.0
 golang.org/x/exp/maps
 golang.org/x/exp/slices
-# golang.org/x/mod v0.35.0
+# golang.org/x/mod v0.37.0
 ## explicit; go 1.25.0
 golang.org/x/mod/semver
-# golang.org/x/net v0.55.0
+# golang.org/x/net v0.56.0
 ## explicit; go 1.25.0
 golang.org/x/net/html
 golang.org/x/net/html/atom
@@ -721,20 +721,20 @@ golang.org/x/net/websocket
 golang.org/x/oauth2
 golang.org/x/oauth2/clientcredentials
 golang.org/x/oauth2/internal
-# golang.org/x/sync v0.20.0
+# golang.org/x/sync v0.22.0
 ## explicit; go 1.25.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/singleflight
-# golang.org/x/sys v0.45.0
+# golang.org/x/sys v0.46.0
 ## explicit; go 1.25.0
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/term v0.43.0
+# golang.org/x/term v0.44.0
 ## explicit; go 1.25.0
 golang.org/x/term
-# golang.org/x/text v0.37.0
+# golang.org/x/text v0.40.0
 ## explicit; go 1.25.0
 golang.org/x/text/encoding
 golang.org/x/text/encoding/charmap
@@ -767,7 +767,7 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.15.0
 ## explicit; go 1.25.0
 golang.org/x/time/rate
-# golang.org/x/tools v0.44.0
+# golang.org/x/tools v0.47.0
 ## explicit; go 1.25.0
 golang.org/x/tools/cover
 golang.org/x/tools/go/ast/edge
@@ -1554,6 +1554,6 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
-# github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260722214556-e1ecd97a7483
+# github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260727203701-01da75d0279f
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
 # k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.35.4

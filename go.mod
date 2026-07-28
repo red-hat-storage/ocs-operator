@@ -10,7 +10,7 @@ replace github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./se
 
 replace github.com/noobaa/noobaa-operator/v5 v5.21.0 => github.com/noobaa/noobaa-operator/v5 v5.0.0-20260409182054-d38322829145
 
-replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260722214556-e1ecd97a7483
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260727203701-01da75d0279f
 
 require (
 	github.com/blang/semver/v4 v4.0.0
@@ -138,15 +138,15 @@ require (
 	go.uber.org/zap v1.27.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/mod v0.35.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/mod v0.37.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/term v0.43.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/term v0.44.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools v0.44.0 // indirect
+	golang.org/x/tools v0.47.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
