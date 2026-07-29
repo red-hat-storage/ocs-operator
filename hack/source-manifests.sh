@@ -46,8 +46,10 @@ function gen_ocs_csv() {
 	popd
 	$KUSTOMIZE build config/manifests/ocs-operator | $OPERATOR_SDK generate bundle -q --overwrite=false --output-dir deploy/ocs-operator --kustomize-dir config/manifests/ocs-operator --package ocs-operator --version "$CSV_VERSION" --extra-service-accounts=ocs-provider-server
 	# Remove createdAt annotation injected by operator-sdk to avoid merge conflicts
-	sed -i '/createdAt:/d' deploy/ocs-operator/manifests/*clusterserviceversion.yaml
-	mv deploy/ocs-operator/manifests/*clusterserviceversion.yaml $OCS_CSV
+	# -i.bak keeps this portable across GNU sed (Linux) and BSD sed (macOS).
+	sed -i.bak '/createdAt:/d' "$OCS_FINAL_DIR"/*clusterserviceversion.yaml
+	rm -f "$OCS_FINAL_DIR"/*.bak
+	mv "$OCS_FINAL_DIR"/*clusterserviceversion.yaml $OCS_CSV
 	cp config/crd/bases/* $ocs_crds_outdir
 }
 
