@@ -24,23 +24,15 @@ type OCSProviderClient struct {
 
 // NewProviderClient creates a client to talk to the external OCS storage provider server
 func NewProviderClient(ctx context.Context, serverAddr string, timeout time.Duration) (*OCSProviderClient, error) {
-	apiCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
 	config := &tls.Config{
 		InsecureSkipVerify: true,
 	}
 
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(config)),
-		// TODO fix deprecated warning
-		//nolint:golint,all
-		grpc.WithBlock(),
 	}
 
-	// TODO fix deprecated warning
-	//nolint:golint,all
-	conn, err := grpc.DialContext(apiCtx, serverAddr, opts...)
+	conn, err := grpc.NewClient(serverAddr, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial: %v", err)
 	}

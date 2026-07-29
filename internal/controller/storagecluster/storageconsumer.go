@@ -333,6 +333,10 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 		volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = true
 	}
 
+	if storageCluster.Spec.NFS != nil && storageCluster.Spec.NFS.Enable {
+		volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.NfsGroupSnapshotter)] = true
+	}
+
 	crd := &metav1.PartialObjectMetadata{}
 	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
 	crd.Name = VolumeGroupSnapshotClassCrdName

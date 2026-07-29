@@ -10,7 +10,7 @@ replace github.com/noobaa/noobaa-operator/v5 v5.21.0 => github.com/noobaa/noobaa
 
 require (
 	github.com/blang/semver/v4 v4.0.0
-	github.com/ceph/ceph-csi-operator/api v0.0.0-20260707120029-818aaba9ed78
+	github.com/ceph/ceph-csi-operator/api v0.0.0-20260720045108-15b278476fc9
 	github.com/ceph/ceph-csi/api v0.0.0-20260414210325-d6f0ea81b6d4
 	github.com/csi-addons/kubernetes-csi-addons v0.14.0
 	github.com/go-logr/logr v1.4.3

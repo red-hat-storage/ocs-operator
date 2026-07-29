@@ -196,6 +196,7 @@ func TestCreateBlackboxProbe(t *testing.T) {
 	probe := getDesiredProbe(instance, nodeIPs)
 
 	assert.Equal(t, "odf-blackbox-exporter.openshift-storage.svc:9115", probe.Spec.ProberSpec.URL)
+	assert.Equal(t, "/probe", probe.Spec.ProberSpec.Path)
 	require.NotNil(t, probe.Spec.Targets.StaticConfig)
 	assert.Contains(t, probe.Spec.Targets.StaticConfig.Targets, "10.0.1.10")
 	assert.Equal(t, "icmp_internal", probe.Spec.Module)
@@ -210,7 +211,8 @@ func getDesiredProbe(instance *ocsv1.StorageCluster, nodeIPs []string) *monitori
 		},
 		Spec: monitoringv1.ProbeSpec{
 			ProberSpec: monitoringv1.ProberSpec{
-				URL: fmt.Sprintf("%s.%s.svc:%d", blackboxExporterName, instance.Namespace, blackboxPortNumber),
+				URL:  fmt.Sprintf("%s.%s.svc:%d", blackboxExporterName, instance.Namespace, blackboxPortNumber),
+				Path: "/probe",
 			},
 			Module: "icmp_internal",
 			Targets: monitoringv1.ProbeTargets{

@@ -58,7 +58,7 @@ github.com/cenkalti/backoff/v4
 # github.com/cenkalti/backoff/v5 v5.0.3
 ## explicit; go 1.23
 github.com/cenkalti/backoff/v5
-# github.com/ceph/ceph-csi-operator/api v0.0.0-20260707120029-818aaba9ed78
+# github.com/ceph/ceph-csi-operator/api v0.0.0-20260720045108-15b278476fc9
 ## explicit; go 1.26.0
 github.com/ceph/ceph-csi-operator/api/v1
 # github.com/ceph/ceph-csi/api v0.0.0-20260414210325-d6f0ea81b6d4

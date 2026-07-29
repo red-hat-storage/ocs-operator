@@ -757,7 +757,8 @@ func (r *StorageClusterReconciler) createBlackboxProbe(ctx context.Context, inst
 		},
 		Spec: monitoringv1.ProbeSpec{
 			ProberSpec: monitoringv1.ProberSpec{
-				URL: fmt.Sprintf("%s.%s.svc:%d", blackboxExporterName, instance.Namespace, blackboxPortNumber),
+				URL:  fmt.Sprintf("%s.%s.svc:%d", blackboxExporterName, instance.Namespace, blackboxPortNumber),
+				Path: "/probe",
 			},
 			Module: "icmp_internal",
 			Targets: monitoringv1.ProbeTargets{
@@ -779,15 +780,17 @@ func (r *StorageClusterReconciler) createBlackboxProbe(ctx context.Context, inst
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, actual, func() error {
-		if actual.CreationTimestamp.IsZero() {
-			actual.Spec = desired.Spec
-			if err := controllerutil.SetControllerReference(instance, actual, r.Scheme); err != nil {
-				return err
-			}
-		} else {
-			actual.Spec = desired.Spec
+		// Preserve authorization set by CRD defaulting or an external controller;
+		// this reconciler does not own auth on the Probe.
+		existingAuthorization := actual.Spec.Authorization
+
+		actual.Spec = desired.Spec
+
+		if desired.Spec.Authorization == nil {
+			actual.Spec.Authorization = existingAuthorization
 		}
-		return nil
+
+		return controllerutil.SetControllerReference(instance, actual, r.Scheme)
 	})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		r.Log.Error(err, "Failed to create/update Probe for Blackbox Exporter")
