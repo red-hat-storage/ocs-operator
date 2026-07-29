@@ -14,24 +14,14 @@ var (
 				corev1.ResourceStorage: resource.MustParse("50Gi"),
 			},
 		},
-		"nfs": {
+		"ocs-provider-server": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("3"),
-				corev1.ResourceMemory: resource.MustParse("8Gi"),
+				corev1.ResourceCPU:    resource.MustParse("10m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("3"),
-				corev1.ResourceMemory: resource.MustParse("8Gi"),
-			},
-		},
-		"rbd-mirror": {
-			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
-				corev1.ResourceMemory: resource.MustParse("2Gi"),
-			},
-			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
-				corev1.ResourceMemory: resource.MustParse("2Gi"),
+				corev1.ResourceCPU:    resource.MustParse("50m"),
+				corev1.ResourceMemory: resource.MustParse("512Mi"),
 			},
 		},
 		"ocs-metrics-exporter": {
@@ -52,6 +42,26 @@ var (
 			Limits: corev1.ResourceList{
 				"memory": resource.MustParse("50Mi"),
 				"cpu":    resource.MustParse("100m"),
+			},
+		},
+		"nfs": {
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("3"),
+				corev1.ResourceMemory: resource.MustParse("8Gi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("3"),
+				corev1.ResourceMemory: resource.MustParse("8Gi"),
+			},
+		},
+		"rbd-mirror": {
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("2Gi"),
+			},
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
 		"vault-agent": {
@@ -92,16 +102,6 @@ var (
 			Limits: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("0.05"),
 				corev1.ResourceMemory: resource.MustParse("128Mi"),
-			},
-		},
-		"ocs-provider-server": {
-			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("10m"),
-				corev1.ResourceMemory: resource.MustParse("128Mi"),
-			},
-			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("50m"),
-				corev1.ResourceMemory: resource.MustParse("512Mi"),
 			},
 		},
 		"mgr-sidecar": {
