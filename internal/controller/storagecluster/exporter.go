@@ -15,6 +15,7 @@ import (
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -98,6 +99,20 @@ func (r *StorageClusterReconciler) enableMetricsExporter(
 	_, err := createMetricsExporterService(ctx, r, instance)
 	if err != nil {
 		return err
+	}
+
+	// Create the network policy for the metrics exporter only when not on host network.
+	// NetworkPolicy operates at the CNI layer and has no effect on host-networked pods.
+	if !util.ShouldUseHostNetworking(instance) {
+		if err := createMetricsExporterNetworkPolicy(ctx, r, instance); err != nil {
+			r.Log.Error(err, "failed to create networkpolicy for metrics exporter")
+			return err
+		}
+	} else {
+		if err := deleteMetricsExporterNetworkPolicy(ctx, r, instance); err != nil {
+			r.Log.Error(err, "failed to delete networkpolicy for metrics exporter on host network")
+			return err
+		}
 	}
 
 	// create the metrics exporter deployment
@@ -199,6 +214,86 @@ func createMetricsExporterService(ctx context.Context, r *StorageClusterReconcil
 		return nil, fmt.Errorf("failed to update service %v. %v", namespacedName, err)
 	}
 	return service, nil
+}
+
+// createMetricsExporterNetworkPolicy creates the NetworkPolicy for the metrics exporter
+func createMetricsExporterNetworkPolicy(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+	networkPolicy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      metricsExporterName,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, networkPolicy, func() error {
+		networkPolicy.Labels = map[string]string{
+			componentLabel: exporterLabels[componentLabel],
+			nameLabel:      exporterLabels[nameLabel],
+			versionLabel:   version.Version,
+		}
+		if err := controllerutil.SetControllerReference(instance, networkPolicy, r.Scheme); err != nil {
+			return err
+		}
+
+		networkPolicy.Spec = networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					nameLabel: metricsExporterName,
+				},
+			},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					From: []networkingv1.NetworkPolicyPeer{
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": "openshift-monitoring",
+								},
+							},
+						},
+					},
+					Ports: []networkingv1.NetworkPolicyPort{
+						{
+							Protocol: ptr.To(corev1.ProtocolTCP),
+							Port:     ptr.To(intstr.FromInt32(metricsMainPort)),
+						},
+						{
+							Protocol: ptr.To(corev1.ProtocolTCP),
+							Port:     ptr.To(intstr.FromInt32(metricsSelfPort)),
+						},
+					},
+				},
+			},
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to create/update NetworkPolicy for metrics exporter: %v", err)
+	}
+
+	r.Log.Info("Successfully created/updated NetworkPolicy for metrics exporter", "Namespace", instance.Namespace, "Name", metricsExporterName)
+	return nil
+}
+
+// deleteMetricsExporterNetworkPolicy removes the NetworkPolicy if it exists.
+// Called when the exporter switches to host networking, where NetworkPolicy has no effect.
+func deleteMetricsExporterNetworkPolicy(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+	networkPolicy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      metricsExporterName,
+			Namespace: instance.Namespace,
+		},
+	}
+	err := r.Delete(ctx, networkPolicy)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete NetworkPolicy for metrics exporter: %v", err)
+	}
+	return nil
 }
 
 func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitoringv1.ServiceMonitor {
