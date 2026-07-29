@@ -37,7 +37,7 @@ var (
 		"ocs-metrics-exporter": {
 			Requests: corev1.ResourceList{
 				"memory": resource.MustParse("250Mi"),
-				"cpu":    resource.MustParse("100m"),
+				"cpu":    resource.MustParse("50m"),
 			},
 			Limits: corev1.ResourceList{
 				"memory": resource.MustParse("1.5Gi"),
@@ -47,7 +47,7 @@ var (
 		"odf-blackbox-exporter": {
 			Requests: corev1.ResourceList{
 				"memory": resource.MustParse("50Mi"),
-				"cpu":    resource.MustParse("100m"),
+				"cpu":    resource.MustParse("10m"),
 			},
 			Limits: corev1.ResourceList{
 				"memory": resource.MustParse("50Mi"),
