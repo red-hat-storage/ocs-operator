@@ -64,26 +64,6 @@ var (
 				corev1.ResourceMemory: resource.MustParse("128Mi"),
 			},
 		},
-		"kube-rbac-proxy-main": {
-			Requests: corev1.ResourceList{
-				"memory": resource.MustParse("40Mi"),
-				"cpu":    resource.MustParse("50m"),
-			},
-			Limits: corev1.ResourceList{
-				"memory": resource.MustParse("40Mi"),
-				"cpu":    resource.MustParse("50m"),
-			},
-		},
-		"kube-rbac-proxy-self": {
-			Requests: corev1.ResourceList{
-				"memory": resource.MustParse("40Mi"),
-				"cpu":    resource.MustParse("50m"),
-			},
-			Limits: corev1.ResourceList{
-				"memory": resource.MustParse("40Mi"),
-				"cpu":    resource.MustParse("50m"),
-			},
-		},
 		"crashcollector": {
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("50m"),
@@ -361,12 +341,6 @@ var (
 				corev1.ResourceMemory: resource.MustParse("100Mi"),
 			},
 		},
-		"kube-rbac-proxy-main": {
-			Requests: corev1.ResourceList{
-				"memory": resource.MustParse("40Mi"),
-				"cpu":    resource.MustParse("50m"),
-			},
-		},
 		"ocs-provider-server": {
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("10m"),
@@ -404,6 +378,16 @@ var (
 	}
 
 	MonitoringResources = map[string]corev1.ResourceRequirements{
+		"kube-rbac-proxy": {
+			Requests: corev1.ResourceList{
+				"memory": resource.MustParse("40Mi"),
+				"cpu":    resource.MustParse("50m"),
+			},
+			Limits: corev1.ResourceList{
+				"memory": resource.MustParse("40Mi"),
+				"cpu":    resource.MustParse("50m"),
+			},
+		},
 		"alertmanager": {
 			Requests: corev1.ResourceList{
 				"cpu":    resource.MustParse("100m"),
