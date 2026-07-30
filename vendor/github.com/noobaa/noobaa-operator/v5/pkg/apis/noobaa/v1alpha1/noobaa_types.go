@@ -262,7 +262,7 @@ type NooBaaSpec struct {
 	// settings for the core, db and endpoint components.
 	// Explicit per-component resource/count fields take precedence over the profile.
 	// +optional
-	// +kubebuilder:validation:Enum=default;default-ibm-z;mixed-workload;small-objects;dev-env;mini-env
+	// +kubebuilder:validation:Enum=default;mixed-workload;small-objects;dev-env;mini-env
 	PerformanceProfile PerformanceProfileType `json:"performanceProfile,omitempty"`
 }
 
@@ -849,6 +849,10 @@ const (
 
 	// AlertmanagerHostOverride is Annotation name for overriding the alertmanager host, in the format https://<alertmanager-host>:<port>
 	AlertmanagerHostOverride = "noobaa.io/alertmanager_host_override"
+
+	// PVCAccessModeRWO is a boolean Annotation name for overriding the NooBaa PVC access mode.
+	// If set to true, the PVC access mode will be set to ReadWriteOnce.
+	PVCAccessModeRWO = "noobaa.io/pvc_access_mode_rwo"
 )
 
 // DBTypes is a string enum type for specify the types of DB that are supported.
@@ -890,8 +894,6 @@ type PerformanceProfileType string
 const (
 	// PerformanceProfileDefault is the default profile
 	PerformanceProfileDefault PerformanceProfileType = "default"
-	// PerformanceProfileDefaultIBMZ is the default profile adjusted for IBM Z (s390x) with halved CPU requests
-	PerformanceProfileDefaultIBMZ PerformanceProfileType = "default-ibm-z"
 	// PerformanceProfileMixedWorkload is for mixed workload
 	PerformanceProfileMixedWorkload PerformanceProfileType = "mixed-workload"
 	// PerformanceProfileSmallObjects is for small objects workload
