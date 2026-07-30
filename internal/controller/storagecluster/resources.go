@@ -16,7 +16,7 @@ import (
 
 const (
 	IbmZCpuArch         = "s390x"
-	IbmZCpuAdjustFactor = 0.5
+	IbmZCpuAdjustFactor = 0.2
 )
 
 // getDaemonResources returns ResourceRequirements for the given daemon name based on the storage cluster's resource profile.
@@ -54,7 +54,11 @@ func getDaemonResources(name string, sc *ocsv1.StorageCluster) corev1.ResourceRe
 		defaultResourceRequirements = defaults.DaemonResources[name]
 	}
 	// Adjust CPU requests for IBM Z platform
-	if runtime.GOARCH == IbmZCpuArch {
+	// Skip non-rook-ceph daemons which already have good defaults.
+	if runtime.GOARCH == IbmZCpuArch &&
+		name != "ocs-provider-server" &&
+		name != "ocs-metrics-exporter" &&
+		name != "odf-blackbox-exporter" {
 		defaultResourceRequirements = adjustCPURequests(defaultResourceRequirements, IbmZCpuAdjustFactor)
 	}
 
