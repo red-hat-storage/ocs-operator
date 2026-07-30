@@ -477,17 +477,6 @@ func TestNooBaaPerformanceProfile(t *testing.T) {
 			},
 			expectedProfile: nbv1.PerformanceProfileMiniEnv,
 		},
-		{
-			label: "explicit default-ibm-z profile is propagated",
-			sc: v1.StorageCluster{
-				Spec: v1.StorageClusterSpec{
-					MultiCloudGateway: &v1.MultiCloudGatewaySpec{
-						PerformanceProfile: nbv1.PerformanceProfileDefaultIBMZ,
-					},
-				},
-			},
-			expectedProfile: nbv1.PerformanceProfileDefaultIBMZ,
-		},
 	}
 
 	for _, c := range cases {
