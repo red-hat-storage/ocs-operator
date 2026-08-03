@@ -1,0 +1,338 @@
+# Weekly Go minor version bump from OpenShift golang-builder images.
+#
+# Required repository secrets:
+#   REDHAT_REGISTRY_USER      - service account username for registry.redhat.io (e.g. NNNNNNN|name)
+#   REDHAT_REGISTRY_PASSWORD  - password for service account to registry.redhat.io
+#   GH_PAT                    - personal access token that can push to odf-bot/ocs-operator 
+#
+# Behavior:
+#   For each branch, read Go from the brew DS builder image. If newer than the
+#   branch go.mod, push a bump branch to odf-bot/ocs-operator and open/update a
+#   PR from that fork into this repo. Head branch is stable per target
+#   (chore/bump-go-<branch>) so re-runs force-push and update any existing open
+#   PR instead of opening a duplicate.
+#
+# Triggers: weekly schedule and workflow_dispatch.
+name: Go minor version bump
+
+on:
+  schedule:
+    # Weekly on Monday at 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    name: bump (${{ matrix.branch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - branch: main
+            brew_tag: rhel_9_golang_1.26
+          - branch: release-4.22
+            brew_tag: rhel_9_golang_1.25
+          - branch: release-4.21
+            brew_tag: rhel_9_golang_1.24
+          - branch: release-4.20
+            brew_tag: rhel_9_golang_1.24
+          - branch: release-4.19
+            brew_tag: rhel_9_golang_1.23
+          - branch: release-4.18
+            brew_tag: rhel_9_golang_1.22
+          - branch: release-4.17
+            brew_tag: rhel_9_golang_1.22
+          - branch: release-4.16
+            brew_tag: rhel_9_golang_1.21
+          # release-4.15 / release-4.14 omitted (Go 1.20 go directive has no patch support)
+    concurrency:
+      group: go-minor-version-bump-${{ matrix.branch }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: work
+    env:
+      RH_BUILDER_IMAGE: brew.registry.redhat.io/rh-osbs/openshift-golang-builder:${{ matrix.brew_tag }}
+      TARGET_BRANCH: ${{ matrix.branch }}
+      # Repo that receives the PR (this workflow's repo).
+      UPSTREAM_REPO: ${{ github.repository }}
+      # Fork that receives chore/bump-go-* branches.
+      FORK_REPO: odf-bot/ocs-operator
+      GH_PAT: ${{ secrets.GH_PAT }}
+    steps:
+      - name: Login to redhat registry
+        working-directory: ${{ github.workspace }}
+        env:
+          REDHAT_REGISTRY_USER: ${{ secrets.REDHAT_REGISTRY_USER }}
+          REDHAT_REGISTRY_PASSWORD: ${{ secrets.REDHAT_REGISTRY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "${REDHAT_REGISTRY_PASSWORD}" | skopeo login brew.registry.redhat.io \
+            --username "${REDHAT_REGISTRY_USER}" --password-stdin
+
+      - name: Probe builder image Go version
+        id: probe
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+
+          version=$(skopeo inspect "docker://${RH_BUILDER_IMAGE}" -f '{{.Labels.version}}' | sed 's/^v//')
+          echo "The go version in the redhat builder image is ${version}"
+
+          echo "target_go=${version}" >>"${GITHUB_OUTPUT}"
+
+      - name: Checkout ${{ matrix.branch }}
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5 (Node 24)
+        with:
+          ref: ${{ matrix.branch }}
+          fetch-depth: 0
+          path: work
+
+      - name: Compare versions
+        id: compare
+        env:
+          TARGET_GO: ${{ steps.probe.outputs.target_go }}
+        run: |
+          set -euo pipefail
+          if [[ ! -f go.mod ]]; then
+            echo "go.mod not found on ${TARGET_BRANCH}" >&2
+            exit 1
+          fi
+          current_go="$(awk '/^go /{print $2; exit}' go.mod)"
+          if [[ -z "${current_go}" ]]; then
+            echo "Could not parse go directive from go.mod" >&2
+            exit 1
+          fi
+          echo "Branch Go: ${current_go}"
+          echo "current_go=${current_go}" >>"${GITHUB_OUTPUT}"
+
+          if [[ "${current_go}" != "${TARGET_GO}" &&
+                "$(printf '%s\n%s\n' "${current_go}" "${TARGET_GO}" | sort -V | tail -n1)" == "${TARGET_GO}" ]]; then
+            echo "Bump needed: ${current_go} -> ${TARGET_GO}"
+            echo "should_bump=true" >>"${GITHUB_OUTPUT}"
+          else
+            echo "No bump needed (${current_go} >= ${TARGET_GO})"
+            echo "should_bump=false" >>"${GITHUB_OUTPUT}"
+          fi
+
+      - name: Configure git identity
+        if: steps.compare.outputs.should_bump == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "odf-bot"
+          git config user.email "odf-bot@users.noreply.github.com"
+
+      - name: Create bump branch and apply version changes
+        if: steps.compare.outputs.should_bump == 'true'
+        id: bump
+        env:
+          TARGET_GO: ${{ steps.probe.outputs.target_go }}
+          CURRENT_GO: ${{ steps.compare.outputs.current_go }}
+        run: |
+          set -euo pipefail
+          # Stable per target branch so re-runs update one PR (no duplicates).
+          head_branch="chore/bump-go-${TARGET_BRANCH}"
+          echo "head_branch=${head_branch}" >>"${GITHUB_OUTPUT}"
+
+          git checkout -B "${head_branch}"
+          echo "Bumping Go version to ${TARGET_GO}"
+
+          # update the go version in the go.mod and go.work files
+          find . \( -name go.mod -o -name go.work \) -not -path '*/vendor/*' -print | while read -r file; do
+            echo "  updating ${file}"
+            sed -i -e '/^$/{N;/\ntoolchain /d;}' -e '/^toolchain /d' "${file}"
+            sed -i -E "s/^go [0-9]+\.[0-9]+(\.[0-9]+)?$/go ${TARGET_GO}/" "${file}"
+          done
+
+          # update the go version in the root Dockerfile (major.minor tag, e.g. golang:1.26)
+          if [[ -f Dockerfile ]]; then
+            echo "  updating Dockerfile"
+            sed -i -E "s|(golang:)[0-9]+\.[0-9]+(\.[0-9]+)?|\1${TARGET_GO%.*}|g" Dockerfile
+          fi
+
+          # update the go version in the metrics Dockerfiles
+          if [[ -d metrics ]]; then
+            find metrics -name 'Dockerfile*' -print | while read -r file; do
+              echo "  updating ${file}"
+              sed -i -E "s|^(ARG GOLANG_VERSION=).*|\1${TARGET_GO}|" "${file}"
+            done
+          fi
+
+          # Stage whatever the bump may have touched (skip missing paths).
+          existing=()
+          while read -r f; do
+            existing+=("${f#./}")
+          done < <(find . \( -name go.mod -o -name go.work \) -not -path '*/vendor/*' -print)
+          for p in Dockerfile metrics/Dockerfile metrics/Dockerfile.devel; do
+            [[ -e "${p}" ]] && existing+=("${p}")
+          done
+
+          if [[ ${#existing[@]} -eq 0 ]]; then
+            echo "No bump paths found; skipping commit/PR"
+            echo "changed=false" >>"${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          git add -- "${existing[@]}"
+
+          if git diff --staged --quiet; then
+            echo "No file changes after applying bump; skipping commit/PR"
+            echo "changed=false" >>"${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          git commit -s -m "bump go from ${CURRENT_GO} to ${TARGET_GO}"
+          echo "changed=true" >>"${GITHUB_OUTPUT}"
+
+      - name: Set up Go ${{ steps.probe.outputs.target_go }}
+        if: steps.compare.outputs.should_bump == 'true' && steps.bump.outputs.changed == 'true'
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0 (Node 24)
+        with:
+          go-version: ${{ steps.probe.outputs.target_go }}
+          cache: false
+
+      - name: Run make deps-update
+        if: steps.compare.outputs.should_bump == 'true' && steps.bump.outputs.changed == 'true'
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          set -euo pipefail
+          if ! make -n deps-update >/dev/null 2>&1; then
+            echo "deps-update target not available; skipping"
+            exit 0
+          fi
+          make deps-update
+          echo "deps-update finished; working tree status:"
+          git status --short | head -100 || true
+
+      - name: Commit deps-update changes
+        if: steps.compare.outputs.should_bump == 'true' && steps.bump.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          candidates=(
+            go.mod go.sum go.work go.work.sum
+            api/go.mod api/go.sum
+            metrics/go.mod metrics/go.sum
+            services/provider/api/go.mod services/provider/api/go.sum
+            vendor
+            api/vendor
+            metrics/vendor
+            services/provider/api/vendor
+          )
+          existing=()
+          for p in "${candidates[@]}"; do
+            if [[ -e "${p}" ]]; then
+              existing+=("${p}")
+            fi
+          done
+
+          if [[ ${#existing[@]} -eq 0 ]]; then
+            echo "No dependency paths found to stage"
+            exit 0
+          fi
+
+          echo "Staging: ${existing[*]}"
+          git add -- "${existing[@]}"
+
+          if git diff --staged --quiet; then
+            echo "No dependency changes to commit"
+            git status --short | head -50 || true
+          else
+            git commit -s -m "Add make deps-update changes"
+            git log -1 --stat
+          fi
+
+      - name: Run make update-generated and gen-latest-csv
+        if: steps.compare.outputs.should_bump == 'true' && steps.bump.outputs.changed == 'true'
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          set -euo pipefail
+          if make -n update-generated >/dev/null 2>&1; then
+            make update-generated || echo "::warning::make update-generated failed; continuing"
+          else
+            echo "update-generated target not available; skipping"
+          fi
+          if make -n gen-latest-csv >/dev/null 2>&1; then
+            make gen-latest-csv || echo "::warning::make gen-latest-csv failed; continuing"
+          else
+            echo "gen-latest-csv target not available; skipping"
+          fi
+
+      - name: Commit generated changes
+        if: steps.compare.outputs.should_bump == 'true' && steps.bump.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          paths=(api config/crd/bases deploy/csv-templates deploy/ocs-operator)
+          existing=()
+          for p in "${paths[@]}"; do
+            [[ -e "${p}" ]] && existing+=("${p}")
+          done
+          [[ ${#existing[@]} -eq 0 ]] && exit 0
+
+          if git diff --ignore-matching-lines=createdAt --quiet -- "${existing[@]}"; then
+            echo "No generated changes to commit"
+            exit 0
+          fi
+
+          git add "${existing[@]}"
+          git commit -s -m "Add generated changes from make update-generated and make gen-latest-csv"
+
+      - name: Push branch to fork and open PR on upstream
+        if: steps.compare.outputs.should_bump == 'true' && steps.bump.outputs.changed == 'true'
+        env:
+          TARGET_GO: ${{ steps.probe.outputs.target_go }}
+          CURRENT_GO: ${{ steps.compare.outputs.current_go }}
+          HEAD_BRANCH: ${{ steps.bump.outputs.head_branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${GH_PAT}" ]]; then
+            echo "GH_PAT secret is required (PAT with push to ${FORK_REPO})" >&2
+            exit 1
+          fi
+
+          fork_owner="${FORK_REPO%%/*}"
+          fork_url="https://x-access-token:${GH_PAT}@github.com/${FORK_REPO}.git"
+
+          git config --unset-all http.https://github.com/.extraheader
+
+          git push "${fork_url}" "HEAD:refs/heads/${HEAD_BRANCH}" --force
+
+          if [[ "${TARGET_BRANCH}" == "main" ]]; then
+            title="Bump go from ${CURRENT_GO} to ${TARGET_GO}"
+          else
+            title="NO-ISSUE: [${TARGET_BRANCH}] Bump go from ${CURRENT_GO} to ${TARGET_GO}"
+          fi
+          
+          body="$(printf '%s\n' \
+            "Upgraded the Golang version of the repo." \
+            "" \
+            "- Latest version available in the DS builder image (\`${RH_BUILDER_IMAGE}\`): \`${TARGET_GO}\`")"
+
+          # Push uses GH_PAT (fork); open/update PR with GITHUB_TOKEN (this repo).
+          # Cross-repo PR head is "fork_owner:branch".
+          head_ref="${fork_owner}:${HEAD_BRANCH}"
+          existing="$(gh api "repos/${UPSTREAM_REPO}/pulls?state=open&base=${TARGET_BRANCH}&head=${head_ref}" \
+            --jq '.[0].number // empty')"
+
+          if [[ -n "${existing}" ]]; then
+            echo "PR #${existing} already open from ${head_ref}; branch updated via push, refreshing title/body"
+            jq -n --arg title "${title}" --arg body "${body}" '{title: $title, body: $body}' \
+              | gh api --method PATCH "repos/${UPSTREAM_REPO}/pulls/${existing}" --input -
+            echo "Updated PR: https://github.com/${UPSTREAM_REPO}/pull/${existing}"
+          else
+            # GITHUB_TOKEN cannot grant maintainer fork access on odf-bot's fork.
+            jq -n \
+              --arg title "${title}" \
+              --arg body "${body}" \
+              --arg head "${head_ref}" \
+              --arg base "${TARGET_BRANCH}" \
+              '{title: $title, body: $body, head: $head, base: $base, maintainer_can_modify: false}' \
+              | gh api --method POST "repos/${UPSTREAM_REPO}/pulls" --input -
+          fi
