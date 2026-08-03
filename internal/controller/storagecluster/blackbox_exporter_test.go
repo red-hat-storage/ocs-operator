@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -461,4 +462,71 @@ func TestGetCephDaemonPodIPsFromNetworks(t *testing.T) {
 			assert.ElementsMatch(t, tt.expectedIPs, ips)
 		})
 	}
+}
+
+func TestCreateBlackboxNetworkPolicy(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = ocsv1.AddToScheme(scheme)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	reconciler := &StorageClusterReconciler{
+		Client: fakeClient,
+		Log:    log,
+		Scheme: scheme,
+	}
+
+	instance := &ocsv1.StorageCluster{
+		TypeMeta: metav1.TypeMeta{APIVersion: ocsv1.GroupVersion.String(), Kind: "StorageCluster"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ocs-storagecluster",
+			Namespace: "openshift-storage",
+			UID:       "test-uid",
+		},
+	}
+
+	// First call: create
+	err := reconciler.createBlackboxNetworkPolicy(context.TODO(), instance)
+	require.NoError(t, err)
+
+	np := &networkingv1.NetworkPolicy{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{
+		Namespace: "openshift-storage",
+		Name:      blackboxExporterName,
+	}, np)
+	require.NoError(t, err)
+
+	// Labels
+	assert.Equal(t, blackboxExporterLabels, np.Labels)
+
+	// OwnerReference set by SetControllerReference
+	require.Len(t, np.OwnerReferences, 1)
+	assert.Equal(t, instance.Name, np.OwnerReferences[0].Name)
+	assert.Equal(t, instance.UID, np.OwnerReferences[0].UID)
+	require.NotNil(t, np.OwnerReferences[0].Controller)
+	assert.True(t, *np.OwnerReferences[0].Controller)
+
+	// PolicyTypes
+	assert.ElementsMatch(t, []networkingv1.PolicyType{
+		networkingv1.PolicyTypeIngress,
+		networkingv1.PolicyTypeEgress,
+	}, np.Spec.PolicyTypes)
+
+	// Ingress: Prometheus on TCP 9115
+	require.Len(t, np.Spec.Ingress, 1)
+	require.Len(t, np.Spec.Ingress[0].From, 1)
+	assert.Equal(t, "openshift-monitoring",
+		np.Spec.Ingress[0].From[0].NamespaceSelector.MatchLabels["kubernetes.io/metadata.name"])
+	require.Len(t, np.Spec.Ingress[0].Ports, 1)
+	assert.Equal(t, int32(blackboxPortNumber), np.Spec.Ingress[0].Ports[0].Port.IntVal)
+
+	// Egress: OSD + MON peers
+	require.Len(t, np.Spec.Egress, 1)
+	require.Len(t, np.Spec.Egress[0].To, 2)
+	assert.Equal(t, "rook-ceph-osd", np.Spec.Egress[0].To[0].PodSelector.MatchLabels["app"])
+	assert.Equal(t, "rook-ceph-mon", np.Spec.Egress[0].To[1].PodSelector.MatchLabels["app"])
+
+	// Second call: update path must succeed (ResourceVersion preserved)
+	err = reconciler.createBlackboxNetworkPolicy(context.TODO(), instance)
+	require.NoError(t, err, "second call (update) must not fail — ResourceVersion must be preserved")
 }
