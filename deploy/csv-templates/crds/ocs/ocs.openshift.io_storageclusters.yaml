@@ -769,6 +769,22 @@ spec:
                                   This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                                 minimum: 0
                                 type: integer
+                              crushNumFailureDomains:
+                                description: |-
+                                  Number of failure domains to use for erasure coded chunk placement.
+                                  When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                                  that distributes chunks across this many failure domains.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              crushOSDsPerFailureDomain:
+                                description: |-
+                                  Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                                  When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                                  that allows up to this many chunks on OSDs within each failure domain.
+                                format: int32
+                                minimum: 1
+                                type: integer
                               dataChunks:
                                 description: |-
                                   Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -795,6 +811,10 @@ spec:
                             - codingChunks
                             - dataChunks
                             type: object
+                            x-kubernetes-validations:
+                            - message: crushNumFailureDomains and crushOSDsPerFailureDomain
+                                must be specified together
+                              rule: has(self.crushNumFailureDomains) == has(self.crushOSDsPerFailureDomain)
                           failureDomain:
                             description: 'The failure domain: osd/host/(region or
                               zone if available) - technically also any type in the
@@ -1492,6 +1512,190 @@ spec:
                         type: integer
                       reconcileStrategy:
                         type: string
+                      security:
+                        description: CephSecurity represents security settings for
+                          ceph cluster
+                        properties:
+                          cephx:
+                            properties:
+                              allowedCiphers:
+                                description: |-
+                                  AllowedCiphers is an advanced configuration that can disrupt cluster availability!
+                                  Review Rook documentation carefully before setting this in a production cluster!
+
+                                  AllowedCiphers sets the Ceph config `auth_allowed_ciphers` to the list given.
+                                  If the list is empty, Rook will enable support for all ciphers.
+                                items:
+                                  description: |-
+                                    A CephX key type represents a cipher type for CephX keys.
+                                    Supported values: aes, aes256k.
+                                  enum:
+                                  - aes
+                                  - aes256k
+                                  maxLength: 7
+                                  minLength: 3
+                                  type: string
+                                maxItems: 2
+                                minItems: 1
+                                type: array
+                                x-kubernetes-list-type: set
+                              csi:
+                                description: |-
+                                  CSI configures CephX key rotation settings for the Ceph-CSI daemons in the current Kubernetes cluster.
+                                  CSI key rotation can affect existing PV connections, so take care when exercising this option.
+                                properties:
+                                  keepPriorKeyCountMax:
+                                    description: |-
+                                      KeepPriorKeyCountMax tells Rook how many prior keys to keep active.
+                                      Generally, this would be set to 1 to allow for a migration period for applications.
+                                      If desired, set this to 0 to delete prior keys after migration.
+                                      This config only applies to prior keys that already exist.
+                                      If PriorKeyCount is set to 2 while only a single key currently exists, only a single prior key will be kept,
+                                      and the reported status will only indicate the actual number of prior keys,
+                                      not necessarily a reflection of PriorKeyCount config here.
+                                    maximum: 10
+                                    minimum: 0
+                                    type: integer
+                                  keyGeneration:
+                                    description: |-
+                                      KeyGeneration specifies the desired CephX key generation. This is used when KeyRotationPolicy
+                                      is KeyGeneration and ignored for other policies. If this is set to greater than the current
+                                      key generation, relevant keys will be rotated, and the generation value will be updated to
+                                      this new value (generation values are not necessarily incremental, though that is the
+                                      intended use case). If this is set to less than or equal to the current key generation, keys
+                                      are not rotated.
+                                    format: int64
+                                    maximum: 4294967295
+                                    minimum: 0
+                                    type: integer
+                                    x-kubernetes-validations:
+                                    - message: keyGeneration cannot be decreased
+                                      rule: self >= oldSelf
+                                  keyRotationPolicy:
+                                    description: |-
+                                      KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
+                                      One of Disabled, or KeyGeneration. Default Disabled.
+                                    enum:
+                                    - ""
+                                    - Disabled
+                                    - KeyGeneration
+                                    type: string
+                                  keyType:
+                                    description: |-
+                                      KeyType specifies the desired CephX key cipher type.
+                                      If unspecified, Ceph's default will be used.
+                                      If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+                                      initiate key rotation.
+                                      If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+                                      initiate key rotation.
+                                    enum:
+                                    - aes
+                                    - aes256k
+                                    maxLength: 7
+                                    minLength: 3
+                                    type: string
+                                type: object
+                                x-kubernetes-validations:
+                                - message: keyGeneration cannot be removed once set
+                                  rule: '!has(oldSelf.keyGeneration) || has(self.keyGeneration)'
+                              daemon:
+                                description: |-
+                                  Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
+                                  Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
+                                properties:
+                                  keyGeneration:
+                                    description: |-
+                                      KeyGeneration specifies the desired CephX key generation. This is used when KeyRotationPolicy
+                                      is KeyGeneration and ignored for other policies. If this is set to greater than the current
+                                      key generation, relevant keys will be rotated, and the generation value will be updated to
+                                      this new value (generation values are not necessarily incremental, though that is the
+                                      intended use case). If this is set to less than or equal to the current key generation, keys
+                                      are not rotated.
+                                    format: int64
+                                    maximum: 4294967295
+                                    minimum: 0
+                                    type: integer
+                                    x-kubernetes-validations:
+                                    - message: keyGeneration cannot be decreased
+                                      rule: self >= oldSelf
+                                  keyRotationPolicy:
+                                    description: |-
+                                      KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
+                                      One of Disabled, or KeyGeneration. Default Disabled.
+                                    enum:
+                                    - ""
+                                    - Disabled
+                                    - KeyGeneration
+                                    type: string
+                                  keyType:
+                                    description: |-
+                                      KeyType specifies the desired CephX key cipher type.
+                                      If unspecified, Ceph's default will be used.
+                                      If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+                                      initiate key rotation.
+                                      If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+                                      initiate key rotation.
+                                    enum:
+                                    - aes
+                                    - aes256k
+                                    maxLength: 7
+                                    minLength: 3
+                                    type: string
+                                type: object
+                                x-kubernetes-validations:
+                                - message: keyGeneration cannot be removed once set
+                                  rule: '!has(oldSelf.keyGeneration) || has(self.keyGeneration)'
+                              rbdMirrorPeer:
+                                description: |-
+                                  RBDMirrorPeer configures CephX key settings of the `rbd-mirror-peer` user that is used for creating
+                                  bootstrap peer token used connect peer clusters. Rotating the `rbd-mirror-peer` user key will update
+                                  the mirror peer token.
+                                  Rotation will affect any existing peers connected to this cluster, so take care when exercising this option.
+                                properties:
+                                  keyGeneration:
+                                    description: |-
+                                      KeyGeneration specifies the desired CephX key generation. This is used when KeyRotationPolicy
+                                      is KeyGeneration and ignored for other policies. If this is set to greater than the current
+                                      key generation, relevant keys will be rotated, and the generation value will be updated to
+                                      this new value (generation values are not necessarily incremental, though that is the
+                                      intended use case). If this is set to less than or equal to the current key generation, keys
+                                      are not rotated.
+                                    format: int64
+                                    maximum: 4294967295
+                                    minimum: 0
+                                    type: integer
+                                    x-kubernetes-validations:
+                                    - message: keyGeneration cannot be decreased
+                                      rule: self >= oldSelf
+                                  keyRotationPolicy:
+                                    description: |-
+                                      KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
+                                      One of Disabled, or KeyGeneration. Default Disabled.
+                                    enum:
+                                    - ""
+                                    - Disabled
+                                    - KeyGeneration
+                                    type: string
+                                  keyType:
+                                    description: |-
+                                      KeyType specifies the desired CephX key cipher type.
+                                      If unspecified, Ceph's default will be used.
+                                      If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+                                      initiate key rotation.
+                                      If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+                                      initiate key rotation.
+                                    enum:
+                                    - aes
+                                    - aes256k
+                                    maxLength: 7
+                                    minLength: 3
+                                    type: string
+                                type: object
+                                x-kubernetes-validations:
+                                - message: keyGeneration cannot be removed once set
+                                  rule: '!has(oldSelf.keyGeneration) || has(self.keyGeneration)'
+                            type: object
+                        type: object
                       skipUpgradeChecks:
                         description: |-
                           Whether or not upgrade should continue even if a check fails
@@ -1590,6 +1794,22 @@ spec:
                                     This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                                   minimum: 0
                                   type: integer
+                                crushNumFailureDomains:
+                                  description: |-
+                                    Number of failure domains to use for erasure coded chunk placement.
+                                    When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                                    that distributes chunks across this many failure domains.
+                                  format: int32
+                                  minimum: 1
+                                  type: integer
+                                crushOSDsPerFailureDomain:
+                                  description: |-
+                                    Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                                    When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                                    that allows up to this many chunks on OSDs within each failure domain.
+                                  format: int32
+                                  minimum: 1
+                                  type: integer
                                 dataChunks:
                                   description: |-
                                     Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -1616,6 +1836,10 @@ spec:
                               - codingChunks
                               - dataChunks
                               type: object
+                              x-kubernetes-validations:
+                              - message: crushNumFailureDomains and crushOSDsPerFailureDomain
+                                  must be specified together
+                                rule: has(self.crushNumFailureDomains) == has(self.crushOSDsPerFailureDomain)
                             failureDomain:
                               description: 'The failure domain: osd/host/(region or
                                 zone if available) - technically also any type in
@@ -1833,6 +2057,22 @@ spec:
                                   This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                                 minimum: 0
                                 type: integer
+                              crushNumFailureDomains:
+                                description: |-
+                                  Number of failure domains to use for erasure coded chunk placement.
+                                  When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                                  that distributes chunks across this many failure domains.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              crushOSDsPerFailureDomain:
+                                description: |-
+                                  Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                                  When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                                  that allows up to this many chunks on OSDs within each failure domain.
+                                format: int32
+                                minimum: 1
+                                type: integer
                               dataChunks:
                                 description: |-
                                   Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -1859,6 +2099,10 @@ spec:
                             - codingChunks
                             - dataChunks
                             type: object
+                            x-kubernetes-validations:
+                            - message: crushNumFailureDomains and crushOSDsPerFailureDomain
+                                must be specified together
+                              rule: has(self.crushNumFailureDomains) == has(self.crushOSDsPerFailureDomain)
                           failureDomain:
                             description: 'The failure domain: osd/host/(region or
                               zone if available) - technically also any type in the
@@ -2081,6 +2325,22 @@ spec:
                                   This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                                 minimum: 0
                                 type: integer
+                              crushNumFailureDomains:
+                                description: |-
+                                  Number of failure domains to use for erasure coded chunk placement.
+                                  When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                                  that distributes chunks across this many failure domains.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              crushOSDsPerFailureDomain:
+                                description: |-
+                                  Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                                  When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                                  that allows up to this many chunks on OSDs within each failure domain.
+                                format: int32
+                                minimum: 1
+                                type: integer
                               dataChunks:
                                 description: |-
                                   Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -2107,6 +2367,10 @@ spec:
                             - codingChunks
                             - dataChunks
                             type: object
+                            x-kubernetes-validations:
+                            - message: crushNumFailureDomains and crushOSDsPerFailureDomain
+                                must be specified together
+                              rule: has(self.crushNumFailureDomains) == has(self.crushOSDsPerFailureDomain)
                           failureDomain:
                             description: 'The failure domain: osd/host/(region or
                               zone if available) - technically also any type in the
@@ -2858,6 +3122,22 @@ spec:
                                   This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                                 minimum: 0
                                 type: integer
+                              crushNumFailureDomains:
+                                description: |-
+                                  Number of failure domains to use for erasure coded chunk placement.
+                                  When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                                  that distributes chunks across this many failure domains.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              crushOSDsPerFailureDomain:
+                                description: |-
+                                  Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                                  When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                                  that allows up to this many chunks on OSDs within each failure domain.
+                                format: int32
+                                minimum: 1
+                                type: integer
                               dataChunks:
                                 description: |-
                                   Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -2884,6 +3164,10 @@ spec:
                             - codingChunks
                             - dataChunks
                             type: object
+                            x-kubernetes-validations:
+                            - message: crushNumFailureDomains and crushOSDsPerFailureDomain
+                                must be specified together
+                              rule: has(self.crushNumFailureDomains) == has(self.crushOSDsPerFailureDomain)
                           failureDomain:
                             description: 'The failure domain: osd/host/(region or
                               zone if available) - technically also any type in the
@@ -3115,6 +3399,22 @@ spec:
                                   This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
                                 minimum: 0
                                 type: integer
+                              crushNumFailureDomains:
+                                description: |-
+                                  Number of failure domains to use for erasure coded chunk placement.
+                                  When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+                                  that distributes chunks across this many failure domains.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              crushOSDsPerFailureDomain:
+                                description: |-
+                                  Number of OSDs allowed per failure domain for erasure coded chunk placement.
+                                  When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+                                  that allows up to this many chunks on OSDs within each failure domain.
+                                format: int32
+                                minimum: 1
+                                type: integer
                               dataChunks:
                                 description: |-
                                   Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
@@ -3141,6 +3441,10 @@ spec:
                             - codingChunks
                             - dataChunks
                             type: object
+                            x-kubernetes-validations:
+                            - message: crushNumFailureDomains and crushOSDsPerFailureDomain
+                                must be specified together
+                              rule: has(self.crushNumFailureDomains) == has(self.crushOSDsPerFailureDomain)
                           failureDomain:
                             description: 'The failure domain: osd/host/(region or
                               zone if available) - technically also any type in the
