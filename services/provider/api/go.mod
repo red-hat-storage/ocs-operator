@@ -9,6 +9,7 @@ require (
 	k8s.io/apimachinery v0.36.2
 )
 
+
 require (
 	github.com/avast/retry-go/v5 v5.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
