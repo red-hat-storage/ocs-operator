@@ -26,7 +26,8 @@ data:
   DEPLOY_CSI: "false"
 EOF
 
-"$OPERATOR_SDK" run bundle "$OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE" --index-image "$CSI_ADDONS_CATALOG_FULL_IMAGE_NAME"
+"$OPERATOR_SDK" run bundle "$CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
+"$OPERATOR_SDK" run bundle "$OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 
 oc wait --timeout=5m --for condition=Available -n "$INSTALL_NAMESPACE" deployment ocs-client-operator-controller-manager
 oc wait --timeout=5m --for condition=Available -n "$INSTALL_NAMESPACE" deployment csi-addons-controller-manager
