@@ -790,7 +790,7 @@ spec:
     rules:
     - alert: CephxKeyGenerationFailed
       annotations:
-        description: CephX key rotation has not completed for {{ $labels.daemon }} daemon in namespace:cluster {{ $labels.namespace }}:{{ $labels.ceph_cluster }}. Please investigate the key rotation status.
+        description: CephX key rotation has not completed for {{ $labels.daemon }} daemon in namespace:cluster {{ $labels.namespace }}:{{ $labels.ceph_cluster }}. Please contact support.
         message: CephX key rotation failed for {{ $labels.daemon }} daemon in namespace:cluster {{ $labels.namespace }}:{{ $labels.ceph_cluster }}.
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephxKeyGenerationFailed.md
         severity_level: warning
