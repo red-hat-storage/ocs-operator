@@ -559,6 +559,7 @@ func TestGetDesiredClientStateReady(t *testing.T) {
 	}
 	if resp == nil {
 		t.Fatal("expected non-nil response")
+		return
 	}
 	if len(resp.KubeObjects) == 0 {
 		t.Fatal("expected KubeObjects in response")

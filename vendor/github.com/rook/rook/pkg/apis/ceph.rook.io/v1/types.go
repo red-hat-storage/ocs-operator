@@ -341,18 +341,33 @@ type ClusterSecuritySpec struct {
 }
 
 type ClusterCephxConfig struct {
+	// AllowedCiphers is an advanced configuration that can disrupt cluster availability!
+	// Review Rook documentation carefully before setting this in a production cluster!
+	//
+	// AllowedCiphers sets the Ceph config `auth_allowed_ciphers` to the list given.
+	// If the list is empty, Rook will enable support for all ciphers.
+	// +optional
+	// +listType=set
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=2
+	// +kubebuilder:validation:items:Enum=aes;aes256k
+	AllowedCiphers []CephxKeyType `json:"allowedCiphers,omitempty"`
+
 	// Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
 	// Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
+	// +optional
 	Daemon CephxConfig `json:"daemon,omitempty"`
 
 	// RBDMirrorPeer configures CephX key settings of the `rbd-mirror-peer` user that is used for creating
 	// bootstrap peer token used connect peer clusters. Rotating the `rbd-mirror-peer` user key will update
 	// the mirror peer token.
 	// Rotation will affect any existing peers connected to this cluster, so take care when exercising this option.
+	// +optional
 	RBDMirrorPeer CephxConfig `json:"rbdMirrorPeer,omitempty"`
 
 	// CSI configures CephX key rotation settings for the Ceph-CSI daemons in the current Kubernetes cluster.
 	// CSI key rotation can affect existing PV connections, so take care when exercising this option.
+	// +optional
 	CSI CephXConfigWithPriorCount `json:"csi,omitempty"`
 }
 
@@ -372,6 +387,7 @@ type CephXConfigWithPriorCount struct {
 	KeepPriorKeyCountMax uint8 `json:"keepPriorKeyCountMax,omitempty"`
 }
 
+// +kubebuilder:validation:XValidation:message="keyGeneration cannot be removed once set",rule="!has(oldSelf.keyGeneration) || has(self.keyGeneration)"
 type CephxConfig struct {
 	// KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
 	// One of Disabled, or KeyGeneration. Default Disabled.
@@ -389,14 +405,37 @@ type CephxConfig struct {
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=4294967295
 	// +kubebuilder:validation:XValidation:message="keyGeneration cannot be decreased",rule="self >= oldSelf"
+	// +kubebuilder:validation:Format=int64
 	KeyGeneration uint32 `json:"keyGeneration,omitempty"`
+
+	// KeyType specifies the desired CephX key cipher type.
+	// If unspecified, Ceph's default will be used.
+	// If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+	// initiate key rotation.
+	// If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+	// initiate key rotation.
+	// +optional
+	// +kubebuilder:validation:Enum=aes;aes256k
+	KeyType CephxKeyType `json:"keyType,omitempty"`
 }
 
+// A CephX key rotation policy controls if and when CephX keys are rotated after initial creation.
+// Supported values: Disabled, KeyGeneration. Default: Disabled.
 type CephxKeyRotationPolicy string
+
+// A CephX key type represents a cipher type for CephX keys.
+// Supported values: aes, aes256k.
+// +kubebuilder:validation:MinLength=3
+// +kubebuilder:validation:MaxLength=7
+type CephxKeyType string
 
 const (
 	DisabledCephxKeyRotationPolicy      CephxKeyRotationPolicy = "Disabled"
 	KeyGenerationCephxKeyRotationPolicy CephxKeyRotationPolicy = "KeyGeneration"
+
+	CephxKeyTypeUndefined CephxKeyType = ""
+	CephxKeyTypeAes       CephxKeyType = "aes"
+	CephxKeyTypeAes256k   CephxKeyType = "aes256k"
 )
 
 // ObjectStoreSecuritySpec is spec to define security features like encryption
@@ -813,6 +852,11 @@ type CephxStatus struct {
 	// The special value "Uninitialized" indicates that keys are being created for the first time.
 	// An empty string indicates that the version is unknown, as expected in brownfield deployments.
 	KeyCephVersion string `json:"keyCephVersion,omitempty"`
+
+	// KeyType identifies the CephX key type for the current generation's keys, if known.
+	// If unknown, the value will be empty.
+	// +optional
+	KeyType CephxKeyType `json:"keyType,omitempty"`
 }
 
 type CephxStatusWithKeyCount struct {
@@ -1111,7 +1155,7 @@ type PoolSpec struct {
 // allowed pool names that can be specified.
 type NamedBlockPoolSpec struct {
 	// The desired name of the pool if different from the CephBlockPool CR name.
-	// +kubebuilder:validation:Enum=.rgw.root;.nfs;.mgr
+	// +kubebuilder:validation:Enum=.rgw.root;.nfs;.mgr;.nvmeof
 	// +optional
 	Name string `json:"name,omitempty"`
 	// The core pool configuration
@@ -1434,6 +1478,7 @@ type QuotaSpec struct {
 }
 
 // ErasureCodedSpec represents the spec for erasure code in a pool
+// +kubebuilder:validation:XValidation:message="crushNumFailureDomains and crushOSDsPerFailureDomain must be specified together",rule="has(self.crushNumFailureDomains) == has(self.crushOSDsPerFailureDomain)"
 type ErasureCodedSpec struct {
 	// Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type).
 	// This is the number of OSDs that can be lost simultaneously before data cannot be recovered.
@@ -1457,6 +1502,20 @@ type ErasureCodedSpec struct {
 	// +kubebuilder:validation:Enum={"4Ki","16Ki","64Ki","256Ki","1Mi"}
 	// +optional
 	StripeUnit *resource.Quantity `json:"stripeUnit,omitempty"`
+
+	// Number of failure domains to use for erasure coded chunk placement.
+	// When specified along with crushOSDsPerFailureDomain, a CRUSH MSR rule will be created
+	// that distributes chunks across this many failure domains.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	CrushNumFailureDomains int32 `json:"crushNumFailureDomains,omitempty"`
+
+	// Number of OSDs allowed per failure domain for erasure coded chunk placement.
+	// When specified along with crushNumFailureDomains, a CRUSH MSR rule will be created
+	// that allows up to this many chunks on OSDs within each failure domain.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	CrushOSDsPerFailureDomain int32 `json:"crushOSDsPerFailureDomain,omitempty"`
 }
 
 // +genclient
@@ -2484,6 +2543,16 @@ type ObjectUserCapSpec struct {
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
 	// Add capabilities for user to set rate limiter for user and bucket. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
 	RateLimit string `json:"ratelimit,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Add capabilities for user to fetch user info without keys. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	// Note: Only supported from Ceph Squid (v19.2.0) onwards
+	UserInfoWithoutKeys string `json:"userInfoWithoutKeys,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Add capabilities for user to manage accounts. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	// Note: Only supported from Ceph Squid (v19.2.3) onwards
+	Accounts string `json:"accounts,omitempty"`
 }
 
 // ObjectUserQuotaSpec can be used to set quotas for the object store user to limit their usage. See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/?#quota-management) for more
@@ -3060,6 +3129,13 @@ type GaneshaServerSpec struct {
 	// +optional
 	HostNetwork *bool `json:"hostNetwork,omitempty"`
 
+	// The port the NFS server (NFS-Ganesha) will listen on for NFS clients. Defaults to 2049.
+	// Useful when host networking is enabled and the default NFS port is already in use.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	Port int32 `json:"port,omitempty"`
+
 	// A liveness-probe to verify that Ganesha server has valid run-time state.
 	// If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.
 	// +optional
@@ -3584,7 +3660,7 @@ type RBDMirroringSpec struct {
 	// +optional
 	Peers MirroringPeerSpec `json:"peers,omitempty"`
 
-	// The affinity to place the rgw pods (default is to place on any available node)
+	// The affinity to place the rbd mirror pods (default is to place on any available node)
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
@@ -3654,7 +3730,7 @@ type CephFilesystemMirrorList struct {
 
 // FilesystemMirroringSpec is the filesystem mirroring specification
 type FilesystemMirroringSpec struct {
-	// The affinity to place the rgw pods (default is to place on any available node)
+	// The affinity to place the cephfs-mirror pods (default is to place on any available node)
 	// +nullable
 	// +optional
 	Placement Placement `json:"placement,omitempty"`
@@ -4237,10 +4313,6 @@ type NVMeOFGatewaySpec struct {
 	// The number of active gateway instances
 	// +kubebuilder:validation:Minimum=1
 	Instances int `json:"instances"`
-
-	// Pool is the RADOS pool where NVMe-oF configuration is stored
-	// +kubebuilder:validation:MinLength=1
-	Pool string `json:"pool"`
 
 	// Group is the gateway group name for high availability (ANA group)
 	// +kubebuilder:validation:MinLength=1

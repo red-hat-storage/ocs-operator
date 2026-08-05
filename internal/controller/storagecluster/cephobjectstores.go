@@ -24,7 +24,7 @@ import (
 const (
 	enableRGWAnnotation         = "ocs.openshift.io/enable-rgw"
 	enableRGWAutoscaleAnnotation = "ocs.openshift.io/enable-rgw-autoscale"
-	stsKeyLen                    = 16 // 16 alphanumeric characters for STS key
+	stsKeyLen                    = 32 // 32 hex characters for STS key
 )
 
 func shouldSkipObjectStore(sc *ocsv1.StorageCluster) (bool, error) {
@@ -405,8 +405,8 @@ func getRGWSecurePort(sc *ocsv1.StorageCluster) int32 {
 // RGW requires the STS key to be alphanumeric (letters and numbers only)
 // Returns a 16-character alphanumeric string suitable for use as rgw_sts_key
 func generateRandomSTSKey() (string, error) {
-	// Character set: alphanumeric only (a-z, A-Z, 0-9)
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	// Character set: hexadecimal [a-f0-9]
+	const charset = "abcdef0123456789"
 	const charsetLen = len(charset)
 
 	// Generate random alphanumeric string
@@ -474,7 +474,19 @@ func (r *StorageClusterReconciler) setSTSOptions(obj *cephv1.CephObjectStore, sc
 			return fmt.Errorf("failed to get STS secret: %w", err)
 		}
 	} else {
-		r.Log.Info("STS secret already exists for CephObjectStore.", "Secret", klog.KRef(secret.Namespace, secret.Name), "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
+		existingKey, ok := existingSecret.Data[secretKeyName]
+		if !ok || len(existingKey) != len(stsKey) {
+			r.Log.Info("Rotating STS secret for CephObjectStore.",
+				"Secret", klog.KRef(secret.Namespace, secret.Name), "CephObjectStore", klog.KRef(obj.Namespace, obj.Name),
+				"CurrentKeyLength", len(existingKey), "NewKeyLength", len(stsKey),
+			)
+			existingSecret.Data[secretKeyName] = []byte(stsKey)
+			if err := r.Update(context.TODO(), existingSecret); err != nil {
+				return fmt.Errorf("failed to update STS secret with rotated key: %w", err)
+			}
+		} else {
+			r.Log.Info("STS secret already exists for CephObjectStore.", "Secret", klog.KRef(secret.Namespace, secret.Name), "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
+		}
 	}
 
 	// Set rgw_sts_key in RgwConfigFromSecret with SecretKeySelector
