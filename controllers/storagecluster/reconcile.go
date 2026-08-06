@@ -94,6 +94,7 @@ var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=watch;create;update;delete;get;list
 // +kubebuilder:rbac:groups=core,resources=pods;services;serviceaccounts;endpoints;persistentvolumes;persistentvolumeclaims;events;configmaps;secrets;nodes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;delete;update
 // +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors;prometheusrules,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=template.openshift.io,resources=templates,verbs=get;list;watch;create;update;delete
