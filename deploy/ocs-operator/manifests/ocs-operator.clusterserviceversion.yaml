@@ -354,6 +354,17 @@ spec:
           - update
           - watch
         - apiGroups:
+          - networking.k8s.io
+          resources:
+          - networkpolicies
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
           - noobaa.io
           resources:
           - noobaaaccounts
