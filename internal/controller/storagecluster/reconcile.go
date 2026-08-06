@@ -727,7 +727,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				ReconcileStrategy: string(ReconcileStrategyUnknown),
 			}
 		}
-		if err := r.enableMetricsExporter(ctx, instance); err != nil {
+		if err := r.enableMetricsExporter(ctx, instance, tlsProfile); err != nil {
 			r.Log.Error(err, "Failed to reconcile metrics exporter.")
 			return reconcile.Result{}, err
 		}

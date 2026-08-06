@@ -21,6 +21,8 @@ import (
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/exporter"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/handler"
 	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/options"
+	"github.com/red-hat-storage/ocs-operator/metrics/v4/internal/tlsprofile"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"go.uber.org/zap"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -68,7 +70,17 @@ func main() {
 
 	// Create authentication filter if secure serving is enabled
 	var authFilter metricsserver.Filter
+	var baseTLSConfig *tls.Config
 	if opts.SecureServing {
+		operatorNamespace, err := util.GetOperatorNamespace()
+		if err != nil {
+			klog.Fatal(err)
+		}
+		baseTLSConfig, err = tlsprofile.GetConfig(context.Background(), kubeconfig, operatorNamespace)
+		if err != nil {
+			klog.Fatalf("failed to configure TLS: %v", err)
+		}
+
 		httpClient, err := rest.HTTPClientFor(kubeconfig)
 		if err != nil {
 			klog.Fatalf("failed to create http client: %v", err)
@@ -173,8 +185,8 @@ func main() {
 
 	// Add servers to run group
 	if opts.SecureServing {
-		rg.Add(listenAndServeTLS(ctx, customResourceHandler, opts.Host, opts.Port, opts.TLSCertFile, opts.TLSKeyFile))
-		rg.Add(listenAndServeTLS(ctx, exporterHandler, opts.ExporterHost, opts.ExporterPort, opts.TLSCertFile, opts.TLSKeyFile))
+		rg.Add(listenAndServeTLS(ctx, customResourceHandler, opts.Host, opts.Port, opts.TLSCertFile, opts.TLSKeyFile, baseTLSConfig))
+		rg.Add(listenAndServeTLS(ctx, exporterHandler, opts.ExporterHost, opts.ExporterPort, opts.TLSCertFile, opts.TLSKeyFile, baseTLSConfig))
 		klog.Infof("Running metrics server (HTTPS) on %s:%v", opts.Host, opts.Port)
 		klog.Infof("Running telemetry server (HTTPS) on %s:%v", opts.ExporterHost, opts.ExporterPort)
 	} else {
@@ -207,7 +219,7 @@ func listenAndServe(ctx context.Context, handler http.Handler, host string, port
 	return serverRunFuncs(ctx, server, addr)
 }
 
-func listenAndServeTLS(ctx context.Context, handler http.Handler, host string, port int, certFile, keyFile string) (func() error, func(error)) {
+func listenAndServeTLS(ctx context.Context, handler http.Handler, host string, port int, certFile, keyFile string, baseTLSConfig *tls.Config) (func() error, func(error)) {
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 
 	// Create certificate watcher for automatic cert reload
@@ -218,10 +230,8 @@ func listenAndServeTLS(ctx context.Context, handler http.Handler, host string, p
 		}, func(error) {}
 	}
 
-	tlsConfig := &tls.Config{
-		GetCertificate: certWatcher.GetCertificate,
-		MinVersion:     tls.VersionTLS12,
-	}
+	tlsConfig := baseTLSConfig.Clone()
+	tlsConfig.GetCertificate = certWatcher.GetCertificate
 
 	server := &http.Server{
 		Addr:      addr,
