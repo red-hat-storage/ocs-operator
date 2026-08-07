@@ -797,6 +797,6 @@ spec:
         storage_type: ceph
       expr: |
         ocs_cephx_daemon_key_rotation_mismatch{job="ocs-metrics-exporter"} == 1
-      for: 5m
+      for: 1h
       labels:
         severity: warning
