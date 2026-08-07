@@ -10,6 +10,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -54,6 +55,10 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 		return res, err
 	}
 
+	if res, err := o.createProviderServerNetworkPolicy(r, instance); err != nil || !res.IsZero() {
+		return res, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -70,6 +75,7 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 	for _, resource := range []client.Object{
 		apiServerService,
 		GetProviderAPIServerDeployment(instance),
+		&networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName, Namespace: instance.Namespace}},
 	} {
 		err := r.Delete(r.ctx, resource)
 
@@ -433,5 +439,72 @@ func (o *ocsProviderServer) createJob(r *StorageClusterReconciler, instance *ocs
 	}
 
 	r.Log.Info("Job is running as desired")
+	return reconcile.Result{}, nil
+}
+
+func (o *ocsProviderServer) createProviderServerNetworkPolicy(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	networkPolicy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ocsProviderServerName,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, networkPolicy, func() error {
+		networkPolicy.ObjectMeta = metav1.ObjectMeta{
+			Name:      ocsProviderServerName,
+			Namespace: instance.Namespace,
+			Labels: map[string]string{
+				"app": "ocsProviderApiServer",
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: instance.APIVersion,
+					Kind:       instance.Kind,
+					Name:       instance.Name,
+					UID:        instance.UID,
+				},
+			},
+		}
+
+		networkPolicy.Spec = networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "ocsProviderApiServer",
+				},
+			},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					From: []networkingv1.NetworkPolicyPeer{
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": instance.Namespace,
+								},
+							},
+						},
+					},
+					Ports: []networkingv1.NetworkPolicyPort{
+						{
+							Protocol: func() *corev1.Protocol { p := corev1.ProtocolTCP; return &p }(),
+							Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: ocsProviderServicePort},
+						},
+					},
+				},
+			},
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update NetworkPolicy for provider server")
+		return reconcile.Result{}, err
+	}
+
+	r.Log.Info("NetworkPolicy create/update succeeded for provider server")
 	return reconcile.Result{}, nil
 }
