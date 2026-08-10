@@ -681,26 +681,27 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			}
 		}
 	} else {
-		// If any component operator reports negatively we want to write that to
-		// the instance while preserving it's lastTransitionTime.
-		// For example, consider the resource has the Available condition
-		// type with type "False". When reconciling the resource we would
-		// add it to the in-memory representation of OCS's conditions (r.conditions)
-		// and here we are simply writing it back to the server.
+
+		// Component mappers only emit negatives, which are collected in r.conditions each reconcile.
+		// Since they only report negative states, a recovered component contributes nothing on the
+		// next reconcile. The negative it previously reported is not cleared once the problem is
+		// solved, so StorageCluster status can still reflect old errors. For example, when Ceph is
+		// healthy again but Noobaa is still Progressing, status may still show CephCluster error.
+		// To avoid stale errors on StorageCluster status, reset healthy defaults for types not in
+		// r.conditions and then apply the negatives reported this reconcile.
+
+		reason := ocsv1.ReconcileCompleted
+		message := ocsv1.ReconcileCompletedMessage
+		util.ResetUnreportedConditionsToHealthy(&instance.Status.Conditions, r.conditions, reason, message)
+
+		// Merge negatives from r.conditions and write them back to the StorageCluster status.
 		// One shortcoming is that only one failure of a particular condition can be
 		// captured at one time (ie. if resource1 and resource2 are both reporting !Available,
-		// you will only see resource2q as it updates last).
+		// you will only see resource2 as it updates last).
+
 		for _, condition := range r.conditions {
 			conditionsv1.SetStatusCondition(&instance.Status.Conditions, condition)
 		}
-		reason := ocsv1.ReconcileCompleted
-		message := ocsv1.ReconcileCompletedMessage
-		conditionsv1.SetStatusCondition(&instance.Status.Conditions, conditionsv1.Condition{
-			Type:    ocsv1.ConditionReconcileComplete,
-			Status:  corev1.ConditionTrue,
-			Reason:  reason,
-			Message: message,
-		})
 
 		// If for any reason we marked ourselves !upgradeable...then unset readiness
 		if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
