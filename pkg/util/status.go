@@ -103,6 +103,35 @@ func SetCompleteCondition(conditions *[]conditionsv1.Condition, reason string, m
 	})
 }
 
+// ResetUnreportedStandardConditions resets unreported standard condition types to healthy defaults.
+// Reported types that are still negative are not changed.
+// Recovered conditions are cleared.
+// lastTransitionTime for active failures does not change.
+func ResetUnreportedStandardConditions(conditions *[]conditionsv1.Condition, reportedNegatives []conditionsv1.Condition, reason string, message string) {
+	reported := make(map[conditionsv1.ConditionType]struct{}, len(reportedNegatives))
+	for _, c := range reportedNegatives {
+		reported[c.Type] = struct{}{}
+	}
+
+	setIfNotReported := func(conditionType conditionsv1.ConditionType, status corev1.ConditionStatus) {
+		if _, ok := reported[conditionType]; ok {
+			return
+		}
+		conditionsv1.SetStatusCondition(conditions, conditionsv1.Condition{
+			Type:    conditionType,
+			Status:  status,
+			Reason:  reason,
+			Message: message,
+		})
+	}
+
+	setIfNotReported(ocsv1.ConditionReconcileComplete, corev1.ConditionTrue)
+	setIfNotReported(conditionsv1.ConditionAvailable, corev1.ConditionTrue)
+	setIfNotReported(conditionsv1.ConditionProgressing, corev1.ConditionFalse)
+	setIfNotReported(conditionsv1.ConditionDegraded, corev1.ConditionFalse)
+	setIfNotReported(conditionsv1.ConditionUpgradeable, corev1.ConditionTrue)
+}
+
 // MapCephClusterNegativeConditions maps the status states from CephCluster resource into ocs status conditions.
 // This will only look for negative conditions: !Available, Degraded, Progressing
 func MapCephClusterNegativeConditions(conditions *[]conditionsv1.Condition, found *cephv1.CephCluster) {

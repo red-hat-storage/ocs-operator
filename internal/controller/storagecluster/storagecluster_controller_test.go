@@ -962,6 +962,66 @@ func TestStorageClusterInitConditions(t *testing.T) {
 	assertExpectedCondition(t, actual.Status.Conditions)
 }
 
+// stale Ceph error conditions must clear after Ceph recovers
+// even when another component (Noobaa) still reports Progressing; phase must not be Error.
+func TestStorageClusterClearsStaleCephConditions(t *testing.T) {
+	testSkipPrometheusRules = true
+
+	cephErrorMessage := "CephCluster error"
+
+	cc := &rookCephv1.CephCluster{}
+	mockCephCluster.DeepCopyInto(cc)
+	nodeList := &corev1.NodeList{}
+	mockNodeList.DeepCopyInto(nodeList)
+	cc.Status.State = rookCephv1.ClusterStateCreated
+	cc.Status.CephStatus = &rookCephv1.CephStatus{
+		Health: "HEALTH_OK",
+	}
+
+	sc := mockStorageCluster.DeepCopy()
+	sc.Status.Phase = api.PhaseError
+	sc.Status.Conditions = []conditionsv1.Condition{
+		{
+			Type:    conditionsv1.ConditionAvailable,
+			Status:  corev1.ConditionFalse,
+			Reason:  "ClusterStateError",
+			Message: cephErrorMessage,
+		},
+		{
+			Type:    conditionsv1.ConditionDegraded,
+			Status:  corev1.ConditionTrue,
+			Reason:  "ClusterStateError",
+			Message: cephErrorMessage,
+		},
+	}
+
+	reconciler := createFakeStorageClusterReconciler(t, sc, cc, nodeList, networkConfig)
+	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{}, result)
+
+	actual := &api.StorageCluster{}
+	err = reconciler.Get(context.TODO(), mockStorageClusterRequest.NamespacedName, actual)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, actual.Status.Conditions)
+	assert.Len(t, actual.Status.Conditions, 6)
+	assert.Equal(t, api.PhaseProgressing, actual.Status.Phase)
+
+	assertExpectedCondition(t, actual.Status.Conditions)
+
+	available := conditionsv1.FindStatusCondition(actual.Status.Conditions, conditionsv1.ConditionAvailable)
+	assert.NotNil(t, available)
+	assert.NotEqual(t, "ClusterStateError", available.Reason)
+
+	degraded := conditionsv1.FindStatusCondition(actual.Status.Conditions, conditionsv1.ConditionDegraded)
+	assert.NotNil(t, degraded)
+	assert.NotEqual(t, "ClusterStateError", degraded.Reason)
+
+	progressing := conditionsv1.FindStatusCondition(actual.Status.Conditions, conditionsv1.ConditionProgressing)
+	assert.NotNil(t, progressing)
+	assert.Equal(t, "NoobaaInitializing", progressing.Reason)
+}
+
 func TestStorageClusterFinalizer(t *testing.T) {
 	// TODO (leelavg): revisit after convergence
 	t.Skip("this test is flaky as even without new updates it fails occasionally")
@@ -1038,10 +1098,10 @@ func TestStorageClusterFinalizer(t *testing.T) {
 func assertExpectedCondition(t *testing.T, conditions []conditionsv1.Condition) {
 	expectedConditions := map[conditionsv1.ConditionType]corev1.ConditionStatus{
 		api.ConditionReconcileComplete:    corev1.ConditionTrue,
-		conditionsv1.ConditionAvailable:   corev1.ConditionFalse,
+		conditionsv1.ConditionAvailable:   corev1.ConditionTrue,
 		conditionsv1.ConditionProgressing: corev1.ConditionTrue,
 		conditionsv1.ConditionDegraded:    corev1.ConditionFalse,
-		conditionsv1.ConditionUpgradeable: corev1.ConditionUnknown,
+		conditionsv1.ConditionUpgradeable: corev1.ConditionTrue,
 		api.ConditionVersionMismatch:      corev1.ConditionFalse,
 	}
 	for cType, status := range expectedConditions {
