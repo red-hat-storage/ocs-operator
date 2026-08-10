@@ -297,6 +297,16 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 				return err
 			}
 		case "Secret":
+			if objectMeta.Annotations == nil {
+				objectMeta.Annotations = map[string]string{}
+			}
+			if strings.HasPrefix(d.Name, "rook-csi-rbd-provisioner") {
+				objectMeta.Annotations["csi.rook.io/RBDProvisionerSecret"] = "true"
+			} else if strings.HasPrefix(d.Name, "rook-csi-rbd-node") {
+				objectMeta.Annotations["csi.rook.io/RBDNodeSecret"] = "true"
+			} else if strings.HasPrefix(d.Name, "rook-csi-cephfs-provisioner") {
+				objectMeta.Annotations["csi.rook.io/CephFSProvisionerSecret"] = "true"
+			}
 			sec := &corev1.Secret{
 				ObjectMeta: objectMeta,
 				Data:       make(map[string][]byte),
@@ -703,10 +713,23 @@ func (r *StorageClusterReconciler) createExternalStorageClusterSecret(sec *corev
 		}
 		return err
 	}
-	// update the found secret's Data with the latest changes,
+	// update the found secret's Data and Annotations with the latest changes,
 	// if they don't match
+	needsUpdate := false
 	if !reflect.DeepEqual(found.Data, sec.Data) {
 		found.Data = sec.DeepCopy().Data
+		needsUpdate = true
+	}
+	for k, v := range sec.Annotations {
+		if found.Annotations == nil {
+			found.Annotations = map[string]string{}
+		}
+		if found.Annotations[k] != v {
+			found.Annotations[k] = v
+			needsUpdate = true
+		}
+	}
+	if needsUpdate {
 		if err = r.Update(context.TODO(), found); err != nil {
 			return err
 		}
