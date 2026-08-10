@@ -248,6 +248,10 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 		storageClassNames[util.GenerateNameForCephNetworkFilesystemStorageClass(storageCluster)] = true
 	}
 
+	if storageCluster.Spec.NVMeOF != nil && storageCluster.Spec.NVMeOF.Enable {
+		storageClassNames[util.GenerateNameForNVMeOFStorageClass(storageCluster)] = true
+	}
+
 	if storageCluster.Spec.Encryption.StorageClass && storageCluster.Spec.Encryption.KeyManagementService.Enable {
 		storageClassNames[util.GenerateNameForEncryptedCephBlockPoolStorageClass(storageCluster)] = true
 	}
@@ -260,9 +264,13 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 	}); err != nil {
 		return nil, err
 	}
+	nvmeofEnabled := storageCluster.Spec.NVMeOF != nil && storageCluster.Spec.NVMeOF.Enable
 	for idx := range storageClassesInCluster.Items {
 		sc := &storageClassesInCluster.Items[idx]
 		if slices.Contains(util.SupportedCsiDrivers, sc.Provisioner) {
+			if sc.Provisioner == util.NVMeOFDriverName && !nvmeofEnabled {
+				continue
+			}
 			storageClassNames[sc.Name] = true
 		}
 	}

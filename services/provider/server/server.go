@@ -449,6 +449,10 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			response.NfsDriverRequirements = &pb.NfsDriverRequirements{}
 			response.NfsDriverRequirements.CtrlPluginHostNetwork = ptr.To(useHostNetworkForCtrlPlugin)
 		}
+		if availableServices.NVMeOF {
+			response.NvmeofDriverRequirements = &pb.NvmeofDriverRequirements{}
+			response.NvmeofDriverRequirements.CtrlPluginHostNetwork = ptr.To(useHostNetworkForCtrlPlugin)
+		}
 
 		storageClassesResourceVersion, err := s.getStorageClassesResourceVersion(ctx)
 		if err != nil {
@@ -517,6 +521,7 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 			availableServices.Rbd,
 			availableServices.CephFs,
 			availableServices.Nfs,
+			availableServices.NVMeOF,
 			storageClassesResourceVersion,
 			vSClassesResourceVersion,
 			vGSClassesResourceVersion,
@@ -861,6 +866,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		availableServices.Rbd,
 		availableServices.CephFs,
 		availableServices.Nfs,
+		availableServices.NVMeOF,
 		storageClassesResourceVersion,
 		vSClassesResourceVersion,
 		vGSClassesResourceVersion,
@@ -1774,6 +1780,31 @@ func (s *OCSProviderServer) appendClientProfileKubeResources(
 		nfsClientProfile.Spec.Nfs = &csiopv1.NfsConfigSpec{}
 	}
 
+	nvmeofClientProfileName := consumerConfig.GetNvmeofClientProfileName()
+	if nvmeofClientProfileName != "" && storageCluster.Spec.NVMeOF != nil && storageCluster.Spec.NVMeOF.Enable {
+		nvmeofClientProfile := profileMap[nvmeofClientProfileName]
+		if nvmeofClientProfile == nil {
+			nvmeofClientProfile = &csiopv1.ClientProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      nvmeofClientProfileName,
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
+				Spec: csiopv1.ClientProfileSpec{
+					CephConnectionRef: corev1.LocalObjectReference{Name: consumer.Status.Client.Name},
+				},
+			}
+			profileMap[nvmeofClientProfileName] = nvmeofClientProfile
+		}
+		nvmeofClientProfile.Spec.Nvmeof = &csiopv1.NvmeofConfigSpec{
+			CephCsiSecrets: &csiopv1.CephCsiSecretsSpec{
+				ControllerPublishSecret: corev1.SecretReference{
+					Name:      consumerConfig.GetCsiNvmeofProvisionerCephUserName(),
+					Namespace: consumer.Status.Client.OperatorNamespace,
+				},
+			},
+		}
+	}
+
 	for _, profileObj := range profileMap {
 		records = append(records, kubeObjectWithOpRecord{
 			kubeObject: profileObj,
@@ -1853,6 +1884,30 @@ func (s *OCSProviderServer) appendCephClientSecretKubeResources(
 	}
 	if destSecretName := consumerConfig.GetCsiNfsNodeCephUserName(); destSecretName != "" {
 		srcSecretName := util.GenerateCsiNfsNodeCephClientName(csiCephUserCurrGen, consumer.UID)
+		if records, err = s.appendCephClientSecretKubeResource(
+			ctx,
+			records,
+			consumer,
+			srcSecretName,
+			destSecretName,
+		); err != nil {
+			return nil, err
+		}
+	}
+	if destSecretName := consumerConfig.GetCsiNvmeofProvisionerCephUserName(); destSecretName != "" {
+		srcSecretName := util.GenerateCsiNvmeofProvisionerCephClientName(csiCephUserCurrGen, consumer.UID)
+		if records, err = s.appendCephClientSecretKubeResource(
+			ctx,
+			records,
+			consumer,
+			srcSecretName,
+			destSecretName,
+		); err != nil {
+			return nil, err
+		}
+	}
+	if destSecretName := consumerConfig.GetCsiNvmeofNodeCephUserName(); destSecretName != "" {
+		srcSecretName := util.GenerateCsiNvmeofNodeCephClientName(csiCephUserCurrGen, consumer.UID)
 		if records, err = s.appendCephClientSecretKubeResource(
 			ctx,
 			records,
@@ -2009,12 +2064,37 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 			)
 		}
 	}
+	if consumerConfig.GetNvmeofClientProfileName() != "" && storageCluster.Spec.NVMeOF != nil && storageCluster.Spec.NVMeOF.Enable {
+		scMap[util.GenerateNameForNVMeOFStorageClass(storageCluster)] = func() *storagev1.StorageClass {
+			gwName := util.GenerateNameForCephNVMeOFGateway(storageCluster)
+			gatewayAddress := fmt.Sprintf("rook-ceph-nvmeof-%s-a.%s.svc.cluster.local", gwName, storageCluster.Namespace)
+			subsystemNQN := util.GenerateNVMeOFSubsystemNQN(storageCluster.Namespace)
+			listeners := util.GenerateNVMeOFListeners(gwName, storageCluster.Spec.NVMeOF.GatewayInstances)
+			return util.NewDefaultNVMeOFStorageClass(
+				consumerConfig.GetNvmeofClientProfileName(),
+				util.GenerateNameForNVMeOFBlockPool(storageCluster),
+				gatewayAddress,
+				subsystemNQN,
+				listeners,
+				consumerConfig.GetCsiNvmeofProvisionerCephUserName(),
+				consumerConfig.GetCsiNvmeofNodeCephUserName(),
+				consumer.Status.Client.OperatorNamespace,
+			)
+		}
+	}
 
+	nvmeofSCName := util.GenerateNameForNVMeOFStorageClass(storageCluster)
+	nvmeofDisabled := storageCluster.Spec.NVMeOF == nil || !storageCluster.Spec.NVMeOF.Enable
 	resources := getKubeResourcesForClass(
 		logger,
 		consumer.Spec.StorageClasses,
 		"StorageClass",
 		func(scName string) (client.Object, error) {
+			if scName == nvmeofSCName && nvmeofDisabled {
+				return nil, kerrors.NewNotFound(
+					storagev1.Resource("storageclass"), scName,
+				)
+			}
 			if scGen, fnExist := scMap[scName]; fnExist {
 				return scGen(), nil
 			} else {

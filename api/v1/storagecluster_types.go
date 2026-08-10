@@ -60,6 +60,7 @@ type StorageClusterSpec struct {
 	MonDataDirHostPath string                        `json:"monDataDirHostPath,omitempty"`
 	MultiCloudGateway  *MultiCloudGatewaySpec        `json:"multiCloudGateway,omitempty"`
 	NFS                *NFSSpec                      `json:"nfs,omitempty"`
+	NVMeOF             *NVMeOFSpec                   `json:"nvmeof,omitempty"`
 	CSI                *CSIDriverSpec                `json:"csi,omitempty"`
 	// Monitoring controls the configuration of resources for exposing OCS metrics
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
@@ -519,6 +520,26 @@ type NFSSpec struct {
 	// +optional
 	LogLevel          string `json:"logLevel,omitempty"`
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+}
+
+// NVMeOFSpec defines NVMe-oF gateway configuration options.
+type NVMeOFSpec struct {
+	// Enable specifies whether to enable NVMe-oF.
+	// +optional
+	Enable            bool   `json:"enable,omitempty"`
+	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	// PoolSpec defines the pool settings for the NVMe-oF block pool.
+	// If not specified, defaults to replica 3.
+	// +optional
+	PoolSpec *rookCephv1.PoolSpec `json:"poolSpec,omitempty"`
+	// GatewayGroup is the gateway group name for high availability (ANA group).
+	// Defaults to "group-a" if not specified.
+	// +optional
+	GatewayGroup string `json:"gatewayGroup,omitempty"`
+	// GatewayInstances is the number of active NVMe-oF gateway instances.
+	// +kubebuilder:default=2
+	// +optional
+	GatewayInstances int `json:"gatewayInstances,omitempty"`
 }
 
 // MonitoringSpec controls the configuration of resources for exposing OCS metrics
