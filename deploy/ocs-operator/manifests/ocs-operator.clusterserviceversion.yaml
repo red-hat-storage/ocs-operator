@@ -299,6 +299,7 @@ spec:
           - cephclusters
           - cephfilesystems
           - cephnfses
+          - cephnvmeofgateways
           - cephobjectstores
           - cephobjectstoreusers
           - cephrbdmirrors

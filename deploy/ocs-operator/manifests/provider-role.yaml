@@ -23,6 +23,7 @@ rules:
       - cephrbdmirrors
       - cephclusters
       - cephnfses
+      - cephnvmeofgateways
       - cephobjectstores
       - cephobjectstoreaccounts
       - cephobjectstoreusers
