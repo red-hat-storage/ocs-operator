@@ -53,7 +53,7 @@ when it is possible and reasonable, divide your pull request into more commits.
 
 Some times when it will almost always make sense to separate parts of a change
 into their own commits are:
-- Auto generated changes for example vendor, bundle etc.
+- Auto generated changes for example bundle etc.
 - Changes to unrelated formatting and typo-fixing.
 - Refactoring changes that prepare the codebase for your logical change.
 - Similar changes to multiple parts of the codebase (for instance, similar

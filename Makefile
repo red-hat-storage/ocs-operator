@@ -42,8 +42,6 @@ deps-update:
 	cd services/provider/api && go mod tidy
 	@echo "Running go work sync"
 	go work sync
-	@echo "Running go work vendor"
-	go work vendor
 	@echo "Done"
 
 
@@ -72,12 +70,12 @@ ocs-metrics-exporter: build
 # Build metrics exporter inside a container (provides ceph C headers for go-ceph CGO)
 containerized-metrics-build: .metrics-devel-container-id
 	$(CONTAINER_CMD) run --rm -v $(CURDIR):/workspace $(METRICS_DEVEL_IMAGE) \
-		go build -mod=vendor ./metrics/...
+		go build ./metrics/...
 
 # Run metrics exporter tests inside a container
 containerized-metrics-test: .metrics-devel-container-id
 	$(CONTAINER_CMD) run --rm -v $(CURDIR):/workspace $(METRICS_DEVEL_IMAGE) \
-		go test -mod=vendor -v -cover ./metrics/...
+		go test -v -cover ./metrics/...
 
 gen-protobuf:
 	@echo "Generating protobuf files for gRPC services"

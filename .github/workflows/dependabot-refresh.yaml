@@ -45,7 +45,6 @@ jobs:
             api/go.mod api/go.sum
             metrics/go.mod metrics/go.sum
             services/provider/api/go.mod services/provider/api/go.sum
-            vendor/
           )
           git add "${paths[@]}"
 
