@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -11,10 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/yaml"
 )
 
 func TestDeployMetricsExporterSetsTLSProfileEnvironment(t *testing.T) {
@@ -59,4 +62,42 @@ func TestMetricsExporterCanGetTLSProfiles(t *testing.T) {
 		Resources: []string{"tlsprofiles"},
 		Verbs:     []string{"get"},
 	})
+}
+
+func TestMetricsExporterNetworkPolicyMatchesYAML(t *testing.T) {
+	const namespace = "openshift-storage"
+
+	scheme := createFakeScheme(t)
+	require.NoError(t, networkingv1.AddToScheme(scheme))
+	kubeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	r := &StorageClusterReconciler{
+		Client: kubeClient,
+		Scheme: scheme,
+	}
+	instance := &ocsv1.StorageCluster{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: ocsv1.GroupVersion.String(),
+			Kind:       "StorageCluster",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-storagecluster",
+			Namespace: namespace,
+		},
+	}
+
+	require.NoError(t, createMetricsExporterNetworkPolicy(context.Background(), r, instance))
+
+	generated := &networkingv1.NetworkPolicy{}
+	require.NoError(t, kubeClient.Get(context.Background(), types.NamespacedName{
+		Name: metricsExporterName, Namespace: namespace,
+	}, generated))
+
+	yamlBytes, err := os.ReadFile("../../../metrics/deploy/networkpolicy.yaml")
+	require.NoError(t, err, "failed to read networkpolicy.yaml — if the file moved, update the path")
+
+	fromYAML := &networkingv1.NetworkPolicy{}
+	require.NoError(t, yaml.Unmarshal(yamlBytes, fromYAML))
+
+	assert.Equal(t, fromYAML.Spec, generated.Spec,
+		"the YAML in metrics/deploy/networkpolicy.yaml has drifted from the Go code in exporter.go — update one to match the other")
 }
