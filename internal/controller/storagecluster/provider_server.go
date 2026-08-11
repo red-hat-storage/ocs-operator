@@ -480,6 +480,10 @@ func getOnboardingJobObject(instance *ocsv1.StorageCluster) *batchv1.Job {
 									},
 								},
 							},
+							SecurityContext: &corev1.SecurityContext{
+								RunAsNonRoot:             ptr.To(true),
+								AllowPrivilegeEscalation: ptr.To(false),
+							},
 						},
 					},
 					// Use the same tolerations as the Provider API Server
