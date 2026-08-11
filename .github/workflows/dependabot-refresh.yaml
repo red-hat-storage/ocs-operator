@@ -41,7 +41,7 @@ jobs:
           git config user.email "${GIT_AUTHOR_EMAIL}"
 
           paths=(
-            go.mod go.sum go.work go.work.sum
+            go.mod go.sum go.work
             api/go.mod api/go.sum
             metrics/go.mod metrics/go.sum
             services/provider/api/go.mod services/provider/api/go.sum
