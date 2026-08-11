@@ -1,12 +1,12 @@
 module github.com/red-hat-storage/ocs-operator/v4
 
-go 1.24.6
-
-toolchain go1.24.10
+go 1.24.12
 
 replace github.com/red-hat-storage/ocs-operator/api/v4 => ./api
 
 replace github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api
+
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260731205444-b22929708274
 
 require (
 	github.com/blang/semver/v4 v4.0.0

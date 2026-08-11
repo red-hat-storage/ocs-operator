@@ -1,14 +1,14 @@
 module github.com/red-hat-storage/ocs-operator/metrics/v4
 
-go 1.24.6
-
-toolchain go1.24.10
+go 1.24.12
 
 replace github.com/red-hat-storage/ocs-operator/api/v4 => ../api
 
 replace github.com/red-hat-storage/ocs-operator/v4 => ../
 
 replace github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook
+
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260731205444-b22929708274
 
 exclude (
 	// This tag doesn't exist, but is imported by github.com/portworx/sched-ops.

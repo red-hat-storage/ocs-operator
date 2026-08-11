@@ -799,6 +799,8 @@ github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.2025110511273
 github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20251105112734-37d7cee66200/go.mod h1:5cstVYzNXZ6Fo8TKv7XpnlxXfTre5PQhK6EkP5lr3tE=
 github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20251117072905-ac6969fec146 h1:WyLalfu1/HIWWrdUHCnoRjD23tnBDQeyJWARKp4MyE8=
 github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20251117072905-ac6969fec146/go.mod h1:SEh0TJQgRFTK2ORqFj+RwyFJHNYdUVIybeRQNUU7rkI=
+github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260731205444-b22929708274 h1:bVdQmd3v8IBJKARk2AeQditMya3LSkpc4ytNjY2b6l0=
+github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260731205444-b22929708274/go.mod h1:8fCbGFEJthal9QazicY6QwvJpylb/CMgcLkYn1EzxKk=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-charset v0.0.0-20180617210344-2471d30d28b4/go.mod h1:qgYeAmZ5ZIpBWTGllZSQnw97Dj+woV0toclVaRGI8pc=
@@ -807,8 +809,6 @@ github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTE
 github.com/rogpeppe/go-internal v1.8.1/go.mod h1:JeRgkft04UBgHMgCIwADu4Pn6Mtm5d4nPKWu0nJ5d+o=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
-github.com/rook/rook/pkg/apis v0.0.0-20251119183400-8782e9183d04 h1:n7JezMkgv/9q2GgJsZc1zn61IVqwAVKZyJP9m1ofV4g=
-github.com/rook/rook/pkg/apis v0.0.0-20251119183400-8782e9183d04/go.mod h1:YPce6YJHn3ylNF3OIV1CqTvsDYT6BaxBe1EP7NTUfeU=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=

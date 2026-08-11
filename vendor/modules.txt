@@ -488,11 +488,11 @@ github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapsh
 ## explicit; go 1.24.6
 github.com/red-hat-storage/ocs-client-operator/api/v1alpha1
 # github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-00010101000000-000000000000 => ./api
-## explicit; go 1.24.6
+## explicit; go 1.24.12
 # github.com/red-hat-storage/ocs-operator/services/provider/api/v4 v4.0.0-00010101000000-000000000000 => ./services/provider/api
 ## explicit; go 1.24.6
 # github.com/red-hat-storage/ocs-operator/v4 v4.0.0-00010101000000-000000000000 => .
-## explicit; go 1.24.6
+## explicit; go 1.24.12
 # github.com/rogpeppe/go-internal v1.14.1
 ## explicit; go 1.23
 # github.com/rook/rook v1.18.0-alpha.0.0.20251119183400-8782e9183d04
@@ -501,8 +501,8 @@ github.com/rook/rook/pkg/client/clientset/versioned
 github.com/rook/rook/pkg/client/clientset/versioned/scheme
 github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1
 github.com/rook/rook/pkg/client/listers/ceph.rook.io/v1
-# github.com/rook/rook/pkg/apis v0.0.0-20251119183400-8782e9183d04
-## explicit; go 1.24.3
+# github.com/rook/rook/pkg/apis v0.0.0-20251119183400-8782e9183d04 => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260731205444-b22929708274
+## explicit; go 1.24.12
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
 # github.com/ryanuber/go-glob v1.0.0
@@ -1337,4 +1337,5 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
+# github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260731205444-b22929708274
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3

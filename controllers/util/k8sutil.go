@@ -42,6 +42,8 @@ const (
 	// SingleNodeEnvVar is set if StorageCluster needs to be deployed on a single node
 	SingleNodeEnvVar = "SINGLE_NODE"
 
+	DesiredCephxKeyGenEnvVarName = "DESIRED_CEPHX_KEY_GEN"
+
 	// This configmap is purely for the OCS operator to use.
 	OcsOperatorConfigName = "ocs-operator-config"
 
@@ -80,6 +82,7 @@ const (
 	CsiCephUserGenerationLabelKey          = "ocs.openshift.io/csi-ceph-user-generation"
 	CreatedAtDfVersionLabelKey             = "ocs.openshift.io/created-at-df-version"
 	ForInternalUseOnlyLabelKey             = "ocs.openshift.io/for-internal-use-only"
+	CreatedWithCephXFeaturesAnnotationKey  = "ocs.openshift.io/created-with-cephx-features"
 )
 
 type BackwardCompatabilityInfo struct {
