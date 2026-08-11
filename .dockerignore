@@ -1,0 +1,26 @@
+# VCS
+.git
+.gitignore
+
+# Local build artifacts
+bin/
+_cache/
+_output/
+build/_output/
+.metrics-devel-container-id
+
+# Vendored dependencies (not used)
+vendor/
+
+# Dev/test tooling and docs not required for image builds
+tools/
+functests/
+docs/
+.github/
+
+# Test binaries
+*.test
+
+# Editor/IDE
+.idea/
+.vscode/

@@ -15,4 +15,10 @@ if [ -z "$IMAGE_BUILD_CMD" ]; then
     exit 1
 fi
 
+# Dockerfile cache mounts (RUN --mount=type=cache) require BuildKit on Docker.
+# Podman supports the same syntax natively; no equivalent env var is needed.
+if [[ "$(basename "${IMAGE_BUILD_CMD}")" == docker ]]; then
+    export DOCKER_BUILDKIT=1
+fi
+
 IMAGE_RUN_CMD="${IMAGE_RUN_CMD:-${IMAGE_BUILD_CMD} run --rm -it}"
