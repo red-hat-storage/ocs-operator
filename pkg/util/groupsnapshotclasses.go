@@ -89,6 +89,7 @@ func NewDefaultNfsGroupSnapshotClass(
 	clusterID,
 	provisionerSecret,
 	namespace,
+	fsName,
 	storageId string,
 ) *groupsnapapi.VolumeGroupSnapshotClass {
 
@@ -102,6 +103,7 @@ func NewDefaultNfsGroupSnapshotClass(
 			"clusterID": clusterID,
 			"csi.storage.k8s.io/group-snapshotter-secret-name":      provisionerSecret,
 			"csi.storage.k8s.io/group-snapshotter-secret-namespace": namespace,
+			"fsName": fsName,
 		},
 		DeletionPolicy: snapapi.VolumeSnapshotContentDelete,
 	}
