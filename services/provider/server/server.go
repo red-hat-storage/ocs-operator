@@ -2227,6 +2227,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 				consumerConfig.GetNfsClientProfileName(),
 				consumerConfig.GetCsiNfsProvisionerCephUserName(),
 				consumer.Status.Client.OperatorNamespace,
+				util.GenerateNameForCephFilesystem(storageCluster.Name),
 				cephFsStorageId,
 			)
 		}
