@@ -45,11 +45,6 @@ jobs:
             brew_tag: rhel_9_golang_1.23
           - branch: release-4.18
             brew_tag: rhel_9_golang_1.22
-          - branch: release-4.17
-            brew_tag: rhel_9_golang_1.22
-          - branch: release-4.16
-            brew_tag: rhel_9_golang_1.21
-          # release-4.15 / release-4.14 omitted (Go 1.20 go directive has no patch support)
     concurrency:
       group: go-minor-version-bump-${{ matrix.branch }}
       cancel-in-progress: false
