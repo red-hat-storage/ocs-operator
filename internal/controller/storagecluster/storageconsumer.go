@@ -142,12 +142,15 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 			resourceMap.ReplaceRbdClientProfileName("openshift-storage")
 			resourceMap.ReplaceCephFsClientProfileName("openshift-storage")
 			resourceMap.ReplaceNfsClientProfileName("openshift-storage")
+			resourceMap.ReplaceNvmeofClientProfileName("openshift-storage")
 			resourceMap.ReplaceCsiRbdNodeCephUserName("rook-csi-rbd-node")
 			resourceMap.ReplaceCsiRbdProvisionerCephUserName("rook-csi-rbd-provisioner")
 			resourceMap.ReplaceCsiCephFsNodeCephUserName("rook-csi-cephfs-node")
 			resourceMap.ReplaceCsiCephFsProvisionerCephUserName("rook-csi-cephfs-provisioner")
 			resourceMap.ReplaceCsiNfsNodeCephUserName("rook-csi-nfs-node")
 			resourceMap.ReplaceCsiNfsProvisionerCephUserName("rook-csi-nfs-provisioner")
+			resourceMap.ReplaceCsiNvmeofNodeCephUserName("rook-csi-nvmeof-node")
+			resourceMap.ReplaceCsiNvmeofProvisionerCephUserName("rook-csi-nvmeof-provisioner")
 		} else {
 			backwardCompatibleInfo := &util.BackwardCompatabilityInfo{}
 			if err := json.Unmarshal([]byte(backwardCompatibleValue), backwardCompatibleInfo); err != nil {
