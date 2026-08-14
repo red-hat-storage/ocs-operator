@@ -830,8 +830,8 @@ github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.2026040910214
 github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20260409102146-bd705f8eebd0/go.mod h1:5cstVYzNXZ6Fo8TKv7XpnlxXfTre5PQhK6EkP5lr3tE=
 github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd65 h1:Ie0cAiC3lrzy6S5vZ7tKCs3SjAAIs3wFbNJkGrx6tXg=
 github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd65/go.mod h1:jBStZ67yVkhiTlaIB/cqm7DI0BvVp6ynTFUs7BzlAVc=
-github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260805051950-73bd6cc64015 h1:fy4QimkVFkxnaUWJoxaQbeQ478f1lRhyIdgaKklb/zw=
-github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260805051950-73bd6cc64015/go.mod h1:79nbfxfJ+jQZKPvj2ZPvULSP5g+hEpXA0sj63m42GBA=
+github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260813155012-cd5ae49fe104 h1:SFvFQlMMog9SAgvGYe1+Gez7ycFdYxlB/OKyJ1tXmXc=
+github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260813155012-cd5ae49fe104/go.mod h1:79nbfxfJ+jQZKPvj2ZPvULSP5g+hEpXA0sj63m42GBA=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-charset v0.0.0-20180617210344-2471d30d28b4/go.mod h1:qgYeAmZ5ZIpBWTGllZSQnw97Dj+woV0toclVaRGI8pc=

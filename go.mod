@@ -6,7 +6,7 @@ replace github.com/red-hat-storage/ocs-operator/api/v4 => ./api
 
 replace github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api
 
-replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260805051950-73bd6cc64015
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260813155012-cd5ae49fe104
 
 require (
 	dario.cat/mergo v1.0.2

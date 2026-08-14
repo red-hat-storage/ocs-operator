@@ -121,7 +121,7 @@ require (
 
 replace github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook
 
-replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260805051950-73bd6cc64015
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260813155012-cd5ae49fe104
 
 exclude (
 	// This tag doesn't exist, but is imported by github.com/portworx/sched-ops.
