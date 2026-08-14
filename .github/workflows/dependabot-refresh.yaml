@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GOTOOLCHAIN: auto
+      GIT_AUTHOR_NAME: odf-bot
+      GIT_AUTHOR_EMAIL: odf-bot@users.noreply.github.com
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -33,9 +35,6 @@ jobs:
         run: make deps-update
 
       - name: Commit dependency updates
-        env:
-          GIT_AUTHOR_NAME: ${{ secrets.DEPENDABOT_REFRESH_GIT_NAME }}
-          GIT_AUTHOR_EMAIL: ${{ secrets.DEPENDABOT_REFRESH_GIT_EMAIL }}
         run: |
           git config user.name "${GIT_AUTHOR_NAME}"
           git config user.email "${GIT_AUTHOR_EMAIL}"
@@ -61,9 +60,6 @@ jobs:
           make gen-latest-csv
 
       - name: Commit generated files
-        env:
-          GIT_AUTHOR_NAME: ${{ secrets.DEPENDABOT_REFRESH_GIT_NAME }}
-          GIT_AUTHOR_EMAIL: ${{ secrets.DEPENDABOT_REFRESH_GIT_EMAIL }}
         run: |
           git config user.name "${GIT_AUTHOR_NAME}"
           git config user.email "${GIT_AUTHOR_EMAIL}"

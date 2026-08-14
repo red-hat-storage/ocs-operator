@@ -11,7 +11,6 @@ replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/api
 require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20260720045108-15b278476fc9
-	github.com/ceph/ceph-csi/api v0.0.0-20260414210325-d6f0ea81b6d4
 	github.com/csi-addons/kubernetes-csi-addons v0.14.0
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
@@ -71,7 +70,6 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fsnotify/fsnotify v1.10.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
-	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.23.1 // indirect
@@ -148,7 +146,6 @@ require (
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/apiserver v0.36.2 // indirect
 	k8s.io/component-base v0.36.2 // indirect
 	k8s.io/kube-aggregator v0.35.4 // indirect
