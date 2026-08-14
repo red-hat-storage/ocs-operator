@@ -22,7 +22,7 @@ OCS_FINAL_DIR="deploy/ocs-operator/manifests"
 BUNDLEMANIFESTS_DIR="rbac"
 
 # External images used in CSV generation
-LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-0768135c3" # Using downstream rook image as it contains downstream-only changes
+LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-cd5ae49fe" # Using downstream rook image as it contains downstream-only changes
 LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v20.2.2" # Ref-https://github.com/rook/rook/blob/master/deploy/examples/images.txt#L3
 LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20260729"
 LATEST_NOOBAA_DB_IMAGE="quay.io/sclorg/postgresql-16-c9s" # Ref-https://github.com/noobaa/noobaa-operator/blob/d5bbdd7ce6a4bf15528e9e6b412e04b54e88472e/pkg/options/options.go#L70-L72
@@ -45,7 +45,7 @@ BUNDLE_FULL_IMAGE_NAME="${BUNDLE_FULL_IMAGE_NAME:=${IMAGE_REGISTRY}/${REGISTRY_N
 
 # Bundle images of Dependencies of OCS Operator
 NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20260723"
-ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-0768135c3"
+ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-cd5ae49fe"
 OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-6f2a746"
 OCS_TLS_PROFILE_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-tls-profiles-bundle:main-9fd1952"
 # Below bundles are dependencies of ocs-client-operator, Ref- https://github.com/red-hat-storage/ocs-client-operator/blob/main/bundle/metadata/dependencies.yaml
