@@ -9,6 +9,7 @@ replace github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./se
 replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260805051950-73bd6cc64015
 
 require (
+	dario.cat/mergo v1.0.2
 	github.com/blang/semver/v4 v4.0.0
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20260720045108-15b278476fc9
 	github.com/ceph/ceph-csi/api v0.0.0-20260414210325-d6f0ea81b6d4
@@ -16,7 +17,6 @@ require (
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/imdario/mergo v0.3.16
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
 	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.6.0
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20260729204503-d5bbdd7ce6a4

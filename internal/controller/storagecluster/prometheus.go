@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
