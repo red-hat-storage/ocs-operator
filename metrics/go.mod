@@ -119,7 +119,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20260729204503-d5bbdd7ce6a4 // indirect
+	github.com/noobaa/noobaa-operator/v5 v5.22.0 // indirect
 	github.com/openshift/api v0.0.0-20260416105050-3c6b218b8a80 // indirect
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

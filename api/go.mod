@@ -3,7 +3,7 @@ module github.com/red-hat-storage/ocs-operator/api/v4
 go 1.26.5
 
 require (
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20260729204503-d5bbdd7ce6a4
+	github.com/noobaa/noobaa-operator/v5 v5.22.0
 	github.com/openshift/api v0.0.0-20260416105050-3c6b218b8a80
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
 	github.com/rook/rook/pkg/apis v0.0.0-20260707223529-6c2a3a5f2b08
