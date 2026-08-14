@@ -8,6 +8,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 
+	secv1 "github.com/openshift/api/security/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,6 +45,9 @@ func (r *StorageClusterReconciler) newCephFilesystemInstances(initStorageCluster
 				// set PriorityClassName for the MDS pods
 				PriorityClassName: systemClusterCritical,
 				Labels:            cephv1.Labels{defaults.ODFResourceProfileKey: initStorageCluster.Spec.ResourceProfile},
+				Annotations: map[string]string{
+					secv1.RequiredSCCAnnotation: util.RookCephSccName,
+				},
 			},
 		},
 	}

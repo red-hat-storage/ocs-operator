@@ -6,6 +6,9 @@ import (
 
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
+
+	secv1 "github.com/openshift/api/security/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -122,6 +125,10 @@ func TestEnsureToolsDeployment(t *testing.T) {
 			assert.Equalf(
 				t, tc.expectedNodeAffinity, cephtoolsDeployment.Spec.Template.Spec.Affinity.NodeAffinity,
 				"[%s]: failed to add node affinity to the ceph tool deployment resource", tc.label,
+			)
+			assert.Equalf(
+				t, util.RookCephSccName, cephtoolsDeployment.Spec.Template.Annotations[secv1.RequiredSCCAnnotation],
+				"[%s]: failed to add required-scc annotation to the ceph tool deployment resource", tc.label,
 			)
 		}
 	}

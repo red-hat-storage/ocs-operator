@@ -23,6 +23,8 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/provider/server"
+
+	secv1 "github.com/openshift/api/security/v1"
 )
 
 func TestOcsProviderServerEnsureCreated(t *testing.T) {
@@ -360,6 +362,9 @@ func GetProviderAPIServerDeploymentForTest(instance *ocsv1.StorageCluster) *apps
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app": "ocsProviderApiServer",
+					},
+					Annotations: map[string]string{
+						secv1.RequiredSCCAnnotation: util.RestrictedV2SccName,
 					},
 				},
 				Spec: corev1.PodSpec{

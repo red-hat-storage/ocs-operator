@@ -8,6 +8,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
+	secv1 "github.com/openshift/api/security/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -46,6 +47,7 @@ func TestDeployMetricsExporterSetsTLSProfileEnvironment(t *testing.T) {
 	env := deployment.Spec.Template.Spec.Containers[0].Env
 	assert.Contains(t, env, corev1.EnvVar{Name: util.OperatorNamespaceEnvVar, Value: r.OperatorNamespace})
 	assert.Contains(t, env, corev1.EnvVar{Name: tlsProfileGenerationEnvName, Value: "7"})
+	assert.Equal(t, util.RestrictedV2SccName, deployment.Spec.Template.Annotations[secv1.RequiredSCCAnnotation])
 }
 
 func TestMetricsExporterCanGetTLSProfiles(t *testing.T) {

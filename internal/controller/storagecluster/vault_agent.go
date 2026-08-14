@@ -7,6 +7,8 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
+
+	secv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -251,6 +253,9 @@ func (r *StorageClusterReconciler) createVaultAgentDeployment(instance *ocsv1.St
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: vaultAgentLabels,
+					Annotations: map[string]string{
+						secv1.RequiredSCCAnnotation: util.RestrictedV2SccName,
+					},
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: VaultAgentSAName,
