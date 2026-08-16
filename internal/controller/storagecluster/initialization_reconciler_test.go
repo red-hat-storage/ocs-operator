@@ -333,6 +333,51 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 	return t, reconciler, cr, requestOCSInit
 }
 
+// initStorageClusterResourceCreateUpdateTestNoAssert is like initStorageClusterResourceCreateUpdateTest
+// but does not assert that the reconcile result is empty. Use when the reconcile is expected to
+// return a non-zero result (e.g. RequeueAfter for NVMe-oF pool readiness).
+func initStorageClusterResourceCreateUpdateTestNoAssert(t *testing.T, runtimeObjs []client.Object,
+	customSpec *api.StorageClusterSpec) (*testing.T, *StorageClusterReconciler,
+	*api.StorageCluster, reconcile.Request) {
+	cr := createDefaultStorageCluster()
+	if customSpec != nil {
+		_ = mergo.Merge(&cr.Spec, customSpec)
+	}
+	requestOCSInit := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "ocsinit",
+			Namespace: "",
+		},
+	}
+
+	rtObjsToCreateReconciler := []runtime.Object{&nbv1.NooBaa{}}
+	if runtimeObjs != nil {
+		tbd := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rook-ceph-tools",
+			},
+		}
+		rtObjsToCreateReconciler = append(rtObjsToCreateReconciler, tbd)
+	}
+	reconciler := createFakeInitializationStorageClusterReconciler(
+		t, rtObjsToCreateReconciler...)
+
+	_ = reconciler.Create(context.TODO(), cr)
+	for _, rtObj := range runtimeObjs {
+		_ = reconciler.Create(context.TODO(), rtObj)
+	}
+
+	err := os.Setenv("OPERATOR_NAMESPACE", cr.Namespace)
+	assert.NoError(t, err)
+	err = os.Setenv(util.DesiredCephxKeyGenEnvVarName, "2")
+	assert.NoError(t, err)
+	_, err = reconciler.Reconcile(context.TODO(), requestOCSInit)
+	assert.NoError(t, err)
+	err = os.Setenv("WATCH_NAMESPACE", cr.Namespace)
+	assert.NoError(t, err)
+	return t, reconciler, cr, requestOCSInit
+}
+
 func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *StorageClusterReconciler {
 	sc := &api.StorageCluster{}
 	scheme := createFakeScheme(t)
@@ -478,7 +523,7 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		createOdfVolumeGroupSnapshotClassCRD(),
 		createRookCephOperatorCSV(sc.Namespace),
 	)
-	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc, &cephv1.CephBlockPool{}).Build()
 
 	r := &StorageClusterReconciler{
 		Client:            client,

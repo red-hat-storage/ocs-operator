@@ -16,6 +16,33 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+// setNVMeOFMetadataPoolReady sets the .nvmeof metadata pool status to Ready,
+// simulating Rook having finished creating the pool in RADOS.
+func setNVMeOFMetadataPoolReady(t *testing.T, reconciler *StorageClusterReconciler, request reconcile.Request) {
+	pool := &cephv1.CephBlockPool{}
+	request.Name = nvmeofMetadataPoolName
+	err := reconciler.Get(context.TODO(), request.NamespacedName, pool)
+	assert.NoError(t, err)
+
+	if pool.Status == nil {
+		pool.Status = &cephv1.CephBlockPoolStatus{}
+	}
+	pool.Status.Phase = cephv1.ConditionReady
+	err = reconciler.Status().Update(context.TODO(), pool)
+	assert.NoError(t, err)
+}
+
+// initStorageClusterResourceCreateUpdateTestWithRequeue is like initStorageClusterResourceCreateUpdateTest
+// but expects the reconcile to return a RequeueAfter (e.g. waiting for pool readiness).
+func initStorageClusterResourceCreateUpdateTestWithRequeue(t *testing.T, runtimeObjs []client.Object,
+	customSpec *api.StorageClusterSpec) (*testing.T, *StorageClusterReconciler, *api.StorageCluster, reconcile.Request) {
+	t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestNoAssert(t, runtimeObjs, customSpec)
+	result, err := reconciler.Reconcile(context.TODO(), request)
+	assert.NoError(t, err)
+	assert.NotZero(t, result.RequeueAfter, "expected requeue while waiting for metadata pool")
+	return t, reconciler, cr, request
+}
+
 func TestCephNVMeOF(t *testing.T) {
 	var objects []client.Object
 	nvmeofSpec := &api.StorageClusterSpec{
@@ -24,10 +51,16 @@ func TestCephNVMeOF(t *testing.T) {
 			GatewayInstances: 2,
 		},
 	}
-	t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, objects, nvmeofSpec)
+	t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithRequeue(t, objects, nvmeofSpec)
 
 	assertNVMeOFBlockPool(t, reconciler, cr, request)
 	assertNVMeOFMetadataBlockPool(t, reconciler, cr, request)
+
+	setNVMeOFMetadataPoolReady(t, reconciler, request)
+	result, err := reconciler.Reconcile(context.TODO(), request)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{}, result)
+
 	assertNVMeOFGateway(t, reconciler, cr, request)
 }
 
@@ -40,12 +73,17 @@ func TestCephNVMeOFCustomGroupAndInstances(t *testing.T) {
 			GatewayInstances: 4,
 		},
 	}
-	t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, objects, nvmeofSpec)
+	t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTestWithRequeue(t, objects, nvmeofSpec)
+
+	setNVMeOFMetadataPoolReady(t, reconciler, request)
+	result, err := reconciler.Reconcile(context.TODO(), request)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{}, result)
 
 	gwName := util.GenerateNameForCephNVMeOFGateway(cr)
 	actualGW := &cephv1.CephNVMeOFGateway{}
 	request.Name = gwName
-	err := reconciler.Get(context.TODO(), request.NamespacedName, actualGW)
+	err = reconciler.Get(context.TODO(), request.NamespacedName, actualGW)
 	assert.NoError(t, err)
 	assert.Equal(t, "group-b", actualGW.Spec.Group)
 	assert.Equal(t, 4, actualGW.Spec.Instances)

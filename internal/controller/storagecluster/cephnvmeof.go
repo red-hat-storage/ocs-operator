@@ -2,6 +2,7 @@ package storagecluster
 
 import (
 	"cmp"
+	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
@@ -16,7 +17,9 @@ import (
 )
 
 const (
-	defaultNVMeOFGatewayGroup = "group-a"
+	defaultNVMeOFGatewayGroup    = "group-a"
+	nvmeofMetadataPoolName       = "builtin-nvmeof"
+	nvmeofPoolReadyRequeuePeriod = 5 * time.Second
 )
 
 type ocsCephNVMeOF struct{}
@@ -32,11 +35,38 @@ func (obj *ocsCephNVMeOF) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.S
 		return reconcile.Result{}, nil
 	}
 
+	ready, err := obj.isNVMeOFMetadataPoolReady(r, sc)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	if !ready {
+		r.Log.Info("Waiting for .nvmeof metadata pool to be ready before creating CephNVMeOFGateway.")
+		return reconcile.Result{RequeueAfter: nvmeofPoolReadyRequeuePeriod}, nil
+	}
+
 	if res, err := obj.ensureNVMeOFGateway(r, sc); err != nil || !res.IsZero() {
 		return res, err
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// isNVMeOFMetadataPoolReady checks whether the .nvmeof metadata CephBlockPool is in Ready phase.
+// This prevents creating the CephNVMeOFGateway before the pool exists in RADOS,
+// avoiding transient CrashLoopBackOff on gateway pods during initial deployment.
+func (obj *ocsCephNVMeOF) isNVMeOFMetadataPoolReady(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (bool, error) {
+	pool := &cephv1.CephBlockPool{}
+	pool.Name = nvmeofMetadataPoolName
+	pool.Namespace = sc.Namespace
+
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(pool), pool); err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return pool.Status != nil && pool.Status.Phase == cephv1.ConditionReady, nil
 }
 
 // ensureDeleted deletes NVMe-oF backend resources owned by the StorageCluster.
