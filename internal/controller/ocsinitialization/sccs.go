@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	cephcsi "github.com/ceph/ceph-csi/api/deploy/ocp"
 	secv1 "github.com/openshift/api/security/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -44,7 +43,6 @@ func (r *OCSInitializationReconciler) ensureSCCs(initialData *ocsv1.OCSInitializ
 func getAllSCCs(namespace string) []*secv1.SecurityContextConstraints {
 	return []*secv1.SecurityContextConstraints{
 		newRookCephSCC(namespace),
-		newRookCephCSISCC(namespace),
 	}
 }
 
@@ -53,16 +51,5 @@ func newRookCephSCC(namespace string) *secv1.SecurityContextConstraints {
 	// host networking could still be enabled in the cluster for prototyping
 	scc.AllowHostNetwork = true
 	scc.AllowHostPorts = true
-	return scc
-}
-
-func newRookCephCSISCC(namespace string) *secv1.SecurityContextConstraints {
-	rookValues := cephcsi.SecurityContextConstraintsValues{
-		Namespace: namespace,
-		Deployer:  "rook",
-	}
-
-	scc, _ := cephcsi.NewSecurityContextConstraints(rookValues)
-
 	return scc
 }
