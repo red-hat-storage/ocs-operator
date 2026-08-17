@@ -1,6 +1,6 @@
 # Build stage 1
 
-FROM quay.io/ceph/ceph:v18 AS updated_base
+FROM quay.io/ceph/ceph:v20 AS updated_base
 
 # TODO: remove the following cmd, when issues
 # https://github.com/ceph/ceph-container/issues/2034
@@ -43,7 +43,7 @@ COPY . .
 
 ARG LDFLAGS
 
-RUN go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o metrics-exporter ./metrics/main.go
+RUN go build -ldflags "$LDFLAGS" -tags netgo,osusergo,${CEPH_VERSION} -o metrics-exporter ./metrics/main.go
 
 # Build stage 2
 
