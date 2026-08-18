@@ -326,6 +326,52 @@ func TestAppendVolumeAttributesClassKubeResources(t *testing.T) {
 	}
 }
 
+func TestCheckClientPreConditions(t *testing.T) {
+	logger := klog.Background()
+
+	consumerWithVersion := func(clientVersion string) *ocsv1a1.StorageConsumer {
+		return &ocsv1a1.StorageConsumer{
+			Status: ocsv1a1.StorageConsumerStatus{
+				Client: &ocsv1a1.ClientStatus{
+					OperatorVersion: clientVersion,
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name          string
+		serverVersion string
+		clientVersion string
+		expected      bool
+	}{
+		{name: "server and client both 5.0", serverVersion: "5.0.0", clientVersion: "5.0.0", expected: true},
+		{name: "server and client both 5.1", serverVersion: "5.1.0", clientVersion: "5.1.0", expected: true},
+		{name: "server and client both 4.22", serverVersion: "4.22.0", clientVersion: "4.22.0", expected: true},
+		{name: "server and client both 4.23", serverVersion: "4.23.0", clientVersion: "4.23.0", expected: true},
+		{name: "server 5.0 ahead of client 4.22", serverVersion: "5.0.0", clientVersion: "4.22.0", expected: true},
+		{name: "server 5.0 ahead of client 4.23", serverVersion: "5.0.0", clientVersion: "4.23.0", expected: true},
+		{name: "server 5.1 ahead of client 5.0", serverVersion: "5.1.0", clientVersion: "5.0.0", expected: true},
+		{name: "server 5.1 ahead of client 4.22", serverVersion: "5.1.0", clientVersion: "4.22.0", expected: true},
+		{name: "server 4.23 ahead of client 4.22", serverVersion: "4.23.0", clientVersion: "4.22.0", expected: true},
+		{name: "client 5.1 ahead of server 5.0", serverVersion: "5.0.0", clientVersion: "5.1.0", expected: false},
+		{name: "client 4.23 ahead of server 4.22", serverVersion: "4.22.0", clientVersion: "4.23.0", expected: false},
+		{name: "client 5.0 ahead of server 4.22", serverVersion: "4.22.0", clientVersion: "5.0.0", expected: false},
+		{name: "client 5.0 ahead of server 4.23", serverVersion: "4.23.0", clientVersion: "5.0.0", expected: false},
+		{name: "client 5.1 ahead of server 4.23", serverVersion: "4.23.0", clientVersion: "5.1.0", expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := checkClientPreConditions(consumerWithVersion(tt.clientVersion), tt.serverVersion, logger)
+			if got != tt.expected {
+				t.Fatalf("checkClientPreConditions(server=%s, client=%s) = %v, want %v",
+					tt.serverVersion, tt.clientVersion, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestGetDesiredClientState(t *testing.T) {
 	ctx := context.Background()
 	consumerUID := "test-consumer-uid-123"

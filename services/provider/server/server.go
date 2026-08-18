@@ -3039,7 +3039,8 @@ func checkClientPreConditions(consumer *ocsv1alpha1.StorageConsumer, ocsOpVersio
 
 	ocsOpSemver := semver.MustParse(ocsOpVersion)
 	clientOpSemver := semver.MustParse(clientOpVersion)
-	if ocsOpSemver.Major < clientOpSemver.Major || ocsOpSemver.Minor < clientOpSemver.Minor {
+	if ocsOpSemver.Major < clientOpSemver.Major ||
+		(ocsOpSemver.Major == clientOpSemver.Major && ocsOpSemver.Minor < clientOpSemver.Minor) {
 		logger.Error(fmt.Errorf("failed precondition"), "client version is ahead of server version")
 		return false
 	}
