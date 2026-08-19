@@ -590,8 +590,8 @@ spec:
       expr: |
         (
           sum by (instance, device) (
-            rate(node_network_receive_bytes_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap).*"}[5m])
-          + rate(node_network_transmit_bytes_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap).*"}[5m])
+            rate(node_network_receive_bytes_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap|[0-9a-f]{12}).*"}[5m])
+          + rate(node_network_transmit_bytes_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap|[0-9a-f]{12}).*"}[5m])
           )
         )
         /
@@ -605,7 +605,7 @@ spec:
         component: odf
       annotations:
         summary: "ODF node NIC bandwidth > 90% saturation"
-        description: "Node {{ $labels.instance }} interface {{ $labels.device }} is at {{ printf \"%.0f\" $value }}% bandwidth utilization. May impact Ceph performance."
+        description: "Node {{ $labels.instance }} interface {{ $labels.device }} is at {{ $value | humanizePercentage }} bandwidth utilization. May impact Ceph performance."
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFNodeNICBandwidthSaturation.md
 
     - alert: ODFDiskUtilizationHigh
