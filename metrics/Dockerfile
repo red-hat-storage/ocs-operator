@@ -39,11 +39,22 @@ ENV GOROOT=${GOROOT} \
 
 WORKDIR /workspace
 
+# Cache module downloads in a separate layer.
+COPY go.mod go.sum go.work ./
+COPY api/go.mod api/go.sum ./api/
+COPY metrics/go.mod metrics/go.sum ./metrics/
+COPY services/provider/api/go.mod services/provider/api/go.sum ./services/provider/api/
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go work sync && \
+    go mod download
+
 COPY . .
 
 ARG LDFLAGS
 
-RUN go build -ldflags "$LDFLAGS" -tags netgo,osusergo,${CEPH_VERSION} -o metrics-exporter ./metrics/main.go
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go build -ldflags "$LDFLAGS" -tags netgo,osusergo,${CEPH_VERSION} -o metrics-exporter ./metrics/main.go
 
 # Build stage 2
 
