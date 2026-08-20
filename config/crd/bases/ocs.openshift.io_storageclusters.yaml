@@ -4072,6 +4072,9 @@ spec:
                     description: DisableBlackboxExporter disables deployment of Blackbox
                       Exporter for network health checks
                     type: boolean
+                  enableCephMetricsTLS:
+                    description: EnableCephMetricsTLS enables HTTPS for the Ceph mgr prometheus metrics endpoint.
+                    type: boolean
                   excludedAlerts:
                     description: |-
                       ExcludedAlerts lists alerts to exclude from ODF health score calculation.

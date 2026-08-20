@@ -551,6 +551,9 @@ type MonitoringSpec struct {
 	// DisableBlackboxExporter disables deployment of Blackbox Exporter for network health checks
 	// +optional
 	DisableBlackboxExporter bool `json:"disableBlackboxExporter,omitempty"`
+	// EnableCephMetricsTLS enables HTTPS for the Ceph mgr prometheus metrics endpoint.
+	// +optional
+	EnableCephMetricsTLS bool `json:"enableCephMetricsTLS,omitempty"`
 	// ExcludedAlerts lists alerts to exclude from ODF health score calculation.
 	// Alerts still fire in Prometheus but are excluded from health score.
 	// +optional

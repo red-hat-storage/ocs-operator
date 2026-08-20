@@ -413,6 +413,10 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return reconcile.Result{}, err
 	}
 
+	if err := r.reconcileCephMetricsTLS(context.TODO(), sc); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
