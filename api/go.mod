@@ -2,6 +2,11 @@ module github.com/red-hat-storage/ocs-operator/api/v4
 
 go 1.26.5
 
+replace (
+	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook
+	github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260819094936-40cab6eb0ee7 // rook downstream replace
+)
+
 require (
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20260729204503-d5bbdd7ce6a4
 	github.com/openshift/api v0.0.0-20260416105050-3c6b218b8a80
@@ -75,7 +80,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.32.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.92.0 // indirect
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.93.0 // indirect
 	github.com/prometheus/client_golang v1.24.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.70.0 // indirect
@@ -118,10 +123,6 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
-
-replace github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook
-
-replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260805051950-73bd6cc64015
 
 exclude (
 	// This tag doesn't exist, but is imported by github.com/portworx/sched-ops.
