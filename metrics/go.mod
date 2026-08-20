@@ -37,7 +37,7 @@ require (
 	github.com/rook/rook v1.20.0-alpha.0.0.20260707223529-6c2a3a5f2b08
 	github.com/rook/rook/pkg/apis v0.0.0-20260707223529-6c2a3a5f2b08
 	github.com/spf13/pflag v1.0.10
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/sync v0.22.0
 	k8s.io/api v0.36.3
