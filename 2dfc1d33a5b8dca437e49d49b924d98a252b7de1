@@ -1,0 +1,2 @@
+{"id":"3f3e56cd-c640-4e06-9520-e0b0d198a64e","ts":"2026-09-01T10:30:39.616Z","path":"/Users/obnox/go/src/github.com/red-hat-storage/ocs-operator/rbac/rook-ceph-metrics-role.yaml","version":"1.0.0","taskID":"4d1b681a-d1a0-4688-8b2e-793837ddc309"}
+{"id":"15f6376d-5f03-4c8e-a7a2-8c1c6bc98c38","ts":"2026-09-01T10:31:07.250Z","path":"/Users/obnox/go/src/github.com/red-hat-storage/ocs-operator/rbac/rook-monitor-mgr-role_binding.yaml","version":"1.0.0","taskID":"4d1b681a-d1a0-4688-8b2e-793837ddc309"}
