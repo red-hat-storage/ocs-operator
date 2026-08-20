@@ -6,7 +6,9 @@ import (
 	"os"
 
 	openshiftv1 "github.com/openshift/api/template/v1"
+	secv1 "github.com/openshift/api/security/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -160,6 +162,11 @@ func newExtendClusterJob(sc *ocsv1.StorageCluster, jobTemplateName string, cephC
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						secv1.RequiredSCCAnnotation: util.RestrictedV2SccName,
+					},
+				},
 				Spec: corev1.PodSpec{
 
 					InitContainers: []corev1.Container{
@@ -277,6 +284,11 @@ func newosdCleanUpJob(sc *ocsv1.StorageCluster, jobTemplateName string, cephComm
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						secv1.RequiredSCCAnnotation: util.RookCephSccName,
+					},
+				},
 				Spec: corev1.PodSpec{
 					RestartPolicy:      corev1.RestartPolicyNever,
 					ServiceAccountName: "rook-ceph-system",

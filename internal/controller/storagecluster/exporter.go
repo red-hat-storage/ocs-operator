@@ -12,6 +12,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
 	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
+	secv1 "github.com/openshift/api/security/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -598,11 +599,16 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 				},
 			},
 		}
+		if currentDep.Spec.Template.Annotations == nil {
+			currentDep.Spec.Template.Annotations = make(map[string]string)
+		}
 		if multusNetwork != "" {
-			if currentDep.Spec.Template.Annotations == nil {
-				currentDep.Spec.Template.Annotations = make(map[string]string)
-			}
 			currentDep.Spec.Template.Annotations["k8s.v1.cni.cncf.io/networks"] = multusNetwork
+		}
+		if hostNetwork {
+			currentDep.Spec.Template.Annotations[secv1.RequiredSCCAnnotation] = util.HostNetworkV2SccName
+		} else {
+			currentDep.Spec.Template.Annotations[secv1.RequiredSCCAnnotation] = util.RestrictedV2SccName
 		}
 		return nil
 	}); err != nil {

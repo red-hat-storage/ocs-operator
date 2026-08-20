@@ -7,6 +7,7 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 
+	secv1 "github.com/openshift/api/security/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/api/core/v1"
@@ -39,6 +40,9 @@ func (r *StorageClusterReconciler) newCephNFSInstances(initData *ocsv1.StorageCl
 					// pods using NFS volumes.
 					PriorityClassName: systemClusterCritical,
 					LogLevel:          initData.Spec.NFS.LogLevel,
+					Annotations: map[string]string{
+						secv1.RequiredSCCAnnotation: util.RookCephSccName,
+					},
 				},
 			},
 		},

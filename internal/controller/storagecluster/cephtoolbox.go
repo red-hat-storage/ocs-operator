@@ -10,6 +10,8 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 
+	secv1 "github.com/openshift/api/security/v1"
+
 	nadclientset "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -114,6 +116,9 @@ func newToolsDeployment(namespace string, tolerations []corev1.Toleration, nodeA
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app": "rook-ceph-tools",
+					},
+					Annotations: map[string]string{
+						secv1.RequiredSCCAnnotation: util.RookCephSccName,
 					},
 				},
 				Spec: corev1.PodSpec{

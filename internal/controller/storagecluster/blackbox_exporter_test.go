@@ -11,6 +11,7 @@ import (
 	fakeclientset "github.com/openshift/client-go/security/clientset/versioned/fake"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -139,7 +140,9 @@ func TestCreateBlackboxDeployment(t *testing.T) {
 		},
 	}
 
-	err := reconciler.createBlackboxDeployment(context.TODO(), instance, map[string]string{})
+	err := reconciler.createBlackboxDeployment(context.TODO(), instance, map[string]string{
+		securityv1.RequiredSCCAnnotation: util.OdfBlackboxSccName,
+	})
 	require.NoError(t, err)
 
 	deployment := &appsv1.Deployment{}
@@ -148,6 +151,8 @@ func TestCreateBlackboxDeployment(t *testing.T) {
 		Name:      blackboxExporterName,
 	}, deployment)
 	require.NoError(t, err)
+
+	assert.Equal(t, util.OdfBlackboxSccName, deployment.Spec.Template.Annotations[securityv1.RequiredSCCAnnotation])
 
 	container := deployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "quay.io/prometheus/blackbox-exporter:v0.25.0", container.Image)

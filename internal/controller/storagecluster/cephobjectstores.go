@@ -10,6 +10,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
+	secv1 "github.com/openshift/api/security/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -231,6 +232,9 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 					// set PriorityClassName for the rgw pods
 					PriorityClassName: systemClusterCritical,
 					Labels:            cephv1.Labels{defaults.ODFResourceProfileKey: initData.Spec.ResourceProfile},
+					Annotations: map[string]string{
+						secv1.RequiredSCCAnnotation: util.RookCephSccName,
+					},
 				},
 			},
 		},

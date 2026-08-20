@@ -566,6 +566,7 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 				rookCephv1.KeyMonitoring:   getCephClusterMonitoringLabels(*sc),
 				rookCephv1.KeyCephExporter: getCephClusterMonitoringLabels(*sc),
 			},
+			Annotations: util.GetRookCephDaemonSCCAnnotations(),
 			CSI: rookCephv1.CSIDriverSpec{
 				ReadAffinity: util.GetReadAffinityOptions(sc),
 				CephFS: rookCephv1.CSICephFSSpec{
@@ -759,6 +760,7 @@ func newExternalCephCluster(sc *ocsv1.StorageCluster, monitoringIP, monitoringPo
 				rookCephv1.KeyMonitoring:   getCephClusterMonitoringLabels(*sc),
 				rookCephv1.KeyCephExporter: getCephClusterMonitoringLabels(*sc),
 			},
+			Annotations:  util.GetRookCephDaemonSCCAnnotations(),
 			LogCollector: logCollector,
 			CSI: rookCephv1.CSIDriverSpec{
 				ReadAffinity: util.GetReadAffinityOptions(sc),
