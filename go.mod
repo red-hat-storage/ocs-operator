@@ -2,11 +2,12 @@ module github.com/red-hat-storage/ocs-operator/v4
 
 go 1.26.5
 
-replace github.com/red-hat-storage/ocs-operator/api/v4 => ./api
-
-replace github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api
-
-replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260805051950-73bd6cc64015
+replace (
+	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook
+	github.com/red-hat-storage/ocs-operator/api/v4 => ./api // local replace
+	github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api // local replace
+	github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260819094936-40cab6eb0ee7 // rook downstream replace
+)
 
 require (
 	dario.cat/mergo v1.0.2
@@ -28,8 +29,8 @@ require (
 	github.com/operator-framework/api v0.45.0
 	github.com/operator-framework/operator-lib v0.19.0
 	github.com/operator-framework/operator-lifecycle-manager v0.46.0
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.92.0
-	github.com/prometheus-operator/prometheus-operator/pkg/client v0.92.0
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.93.0
+	github.com/prometheus-operator/prometheus-operator/pkg/client v0.93.0
 	github.com/prometheus/common v0.70.0
 	github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20260409102146-bd705f8eebd0
 	github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20260416061305-2878a3b403e6
@@ -156,10 +157,6 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.0 // indirect
 )
-
-replace github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook
-
-replace k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.35.4
 
 exclude (
 	// This tag doesn't exist, but is imported by github.com/portworx/sched-ops.

@@ -760,11 +760,11 @@ github.com/pquerna/cachecontrol v0.0.0-20171018203845-0dec1b30a021/go.mod h1:prY
 github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35/go.mod h1:prYjPmNq4d1NPVmpShWobRqXY3q7Vp+80DqgxxUrUIA=
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.44.1/go.mod h1:3WYi4xqXxGGXWDdQIITnLNmuDzO5n6wYva9spVhR4fg=
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.46.0/go.mod h1:3WYi4xqXxGGXWDdQIITnLNmuDzO5n6wYva9spVhR4fg=
-github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.92.0 h1:cgcHnhpMbk86QzIe23vwUiIUNBB0kftdOA9JJA83ASA=
-github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.92.0/go.mod h1:eGo3VN8Kq5Fd0M7Cdx0oqbIxo753t99ojUZFVQkO1UM=
+github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.93.0 h1:ZIouJCjC8R/XHxzGpOw+/czH9pVzg6wteYhLjJ80XGQ=
+github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.93.0/go.mod h1:rZ+wRKDneCC/jJk24Mdb+6bAc6y/UjRliuMz6U20s6Y=
 github.com/prometheus-operator/prometheus-operator/pkg/client v0.46.0/go.mod h1:k4BrWlVQQsvBiTcDnKEMgyh/euRxyxgrHdur/ZX/sdA=
-github.com/prometheus-operator/prometheus-operator/pkg/client v0.92.0 h1:OEJlebqYEuIOfJmRr55IugEj4u2nTeFhJq6e/OdUnAI=
-github.com/prometheus-operator/prometheus-operator/pkg/client v0.92.0/go.mod h1:NFyA0IHOnOyj2B8vR8x9vyFgZUn/P1Efrn0D+I+0RD4=
+github.com/prometheus-operator/prometheus-operator/pkg/client v0.93.0 h1:PhWdtSu3FcxnFdKs5dDZcP46KMECEakbU84pYyaCfr4=
+github.com/prometheus-operator/prometheus-operator/pkg/client v0.93.0/go.mod h1:fB1KXTlb9KLoUNoSlr53X6GYqabLX7onZruX5vQVSgI=
 github.com/prometheus/client_golang v0.9.0/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.3/go.mod h1:/TN21ttK/J9q6uSwhBd54HahCDft0ttaMvbicHlPoso=
@@ -800,8 +800,8 @@ github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20260416061305-2878a3b
 github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20260416061305-2878a3b403e6/go.mod h1:a/v1+t6Fof8ffU6NMV11V4rL2dCwiUbix869gTlbJXk=
 github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd65 h1:Ie0cAiC3lrzy6S5vZ7tKCs3SjAAIs3wFbNJkGrx6tXg=
 github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd65/go.mod h1:jBStZ67yVkhiTlaIB/cqm7DI0BvVp6ynTFUs7BzlAVc=
-github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260805051950-73bd6cc64015 h1:fy4QimkVFkxnaUWJoxaQbeQ478f1lRhyIdgaKklb/zw=
-github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260805051950-73bd6cc64015/go.mod h1:79nbfxfJ+jQZKPvj2ZPvULSP5g+hEpXA0sj63m42GBA=
+github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260819094936-40cab6eb0ee7 h1:UvM4a+k4u93X46S+yC0sL3rp+dnTA+BRvrAsI8naSSs=
+github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260819094936-40cab6eb0ee7/go.mod h1:79nbfxfJ+jQZKPvj2ZPvULSP5g+hEpXA0sj63m42GBA=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-charset v0.0.0-20180617210344-2471d30d28b4/go.mod h1:qgYeAmZ5ZIpBWTGllZSQnw97Dj+woV0toclVaRGI8pc=
