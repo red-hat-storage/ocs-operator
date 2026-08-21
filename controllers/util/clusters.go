@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -156,4 +157,11 @@ func (c *Clusters) HasMultipleStorageClustersWithSameName(name string) bool {
 	}
 
 	return count > 1
+}
+
+func isMultus(nwSpec *rookCephv1.NetworkSpec) bool {
+	if nwSpec != nil {
+		return nwSpec.IsMultus()
+	}
+	return false
 }
