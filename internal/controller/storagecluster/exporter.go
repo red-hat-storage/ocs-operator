@@ -3,16 +3,20 @@ package storagecluster
 import (
 	"context"
 	"fmt"
+	"strconv"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
+	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
+	secv1 "github.com/openshift/api/security/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -25,16 +29,17 @@ import (
 )
 
 const (
-	metricsExporterName     = "ocs-metrics-exporter"
-	prometheusRoleName      = "ocs-metrics-svc"
-	metricsExporterRoleName = metricsExporterName
-	metricsMainPort         = 8443
-	metricsSelfPort         = 9443
-	portMetricsMain         = "https-main"
-	portMetricsSelf         = "https-self"
-	metricsPath             = "/metrics"
-	scrapeInterval          = "1m"
-	tlsCertPath             = "/etc/tls/private"
+	metricsExporterName         = "ocs-metrics-exporter"
+	prometheusRoleName          = "ocs-metrics-svc"
+	metricsExporterRoleName     = metricsExporterName
+	metricsMainPort             = 8443
+	metricsSelfPort             = 9443
+	portMetricsMain             = "https-main"
+	portMetricsSelf             = "https-self"
+	metricsPath                 = "/metrics"
+	scrapeInterval              = "1m"
+	tlsCertPath                 = "/etc/tls/private"
+	tlsProfileGenerationEnvName = "TLS_PROFILE_GENERATION"
 
 	componentLabel = "app.kubernetes.io/component"
 	nameLabel      = "app.kubernetes.io/name"
@@ -49,7 +54,7 @@ var exporterLabels = map[string]string{
 // enableMetricsExporter starts the metrics exporter deployment
 // and the needed services.
 func (r *StorageClusterReconciler) enableMetricsExporter(
-	ctx context.Context, instance *ocsv1.StorageCluster) error {
+	ctx context.Context, instance *ocsv1.StorageCluster, tlsProfile *ocstlsv1.TLSProfile) error {
 	// create the needed serviceaccount
 	if err := createMetricsExporterServiceAccount(ctx, r, instance); err != nil {
 		r.Log.Error(err, "unable to create serviceaccount for ocs metrics exporter")
@@ -97,8 +102,22 @@ func (r *StorageClusterReconciler) enableMetricsExporter(
 		return err
 	}
 
+	// Create the network policy for the metrics exporter only when not on host network.
+	// NetworkPolicy operates at the CNI layer and has no effect on host-networked pods.
+	if !util.ShouldUseHostNetworking(instance) {
+		if err := createMetricsExporterNetworkPolicy(ctx, r, instance); err != nil {
+			r.Log.Error(err, "failed to create networkpolicy for metrics exporter")
+			return err
+		}
+	} else {
+		if err := deleteMetricsExporterNetworkPolicy(ctx, r, instance); err != nil {
+			r.Log.Error(err, "failed to delete networkpolicy for metrics exporter on host network")
+			return err
+		}
+	}
+
 	// create the metrics exporter deployment
-	if err := deployMetricsExporter(ctx, r, instance); err != nil {
+	if err := deployMetricsExporter(ctx, r, instance, tlsProfile); err != nil {
 		r.Log.Error(err, "failed to create ocs-metric-exporter deployment")
 		return err
 	}
@@ -196,6 +215,86 @@ func createMetricsExporterService(ctx context.Context, r *StorageClusterReconcil
 		return nil, fmt.Errorf("failed to update service %v. %v", namespacedName, err)
 	}
 	return service, nil
+}
+
+// createMetricsExporterNetworkPolicy creates the NetworkPolicy for the metrics exporter
+func createMetricsExporterNetworkPolicy(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+	networkPolicy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      metricsExporterName,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, networkPolicy, func() error {
+		networkPolicy.Labels = map[string]string{
+			componentLabel: exporterLabels[componentLabel],
+			nameLabel:      exporterLabels[nameLabel],
+			versionLabel:   version.Version,
+		}
+		if err := controllerutil.SetControllerReference(instance, networkPolicy, r.Scheme); err != nil {
+			return err
+		}
+
+		networkPolicy.Spec = networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					nameLabel: metricsExporterName,
+				},
+			},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					From: []networkingv1.NetworkPolicyPeer{
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": "openshift-monitoring",
+								},
+							},
+						},
+					},
+					Ports: []networkingv1.NetworkPolicyPort{
+						{
+							Protocol: ptr.To(corev1.ProtocolTCP),
+							Port:     ptr.To(intstr.FromInt32(metricsMainPort)),
+						},
+						{
+							Protocol: ptr.To(corev1.ProtocolTCP),
+							Port:     ptr.To(intstr.FromInt32(metricsSelfPort)),
+						},
+					},
+				},
+			},
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to create/update NetworkPolicy for metrics exporter: %v", err)
+	}
+
+	r.Log.Info("Successfully created/updated NetworkPolicy for metrics exporter", "Namespace", instance.Namespace, "Name", metricsExporterName)
+	return nil
+}
+
+// deleteMetricsExporterNetworkPolicy removes the NetworkPolicy if it exists.
+// Called when the exporter switches to host networking, where NetworkPolicy has no effect.
+func deleteMetricsExporterNetworkPolicy(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+	networkPolicy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      metricsExporterName,
+			Namespace: instance.Namespace,
+		},
+	}
+	err := r.Delete(ctx, networkPolicy)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete NetworkPolicy for metrics exporter: %v", err)
+	}
+	return nil
 }
 
 func getMetricsExporterServiceMonitor(instance *ocsv1.StorageCluster) *monitoringv1.ServiceMonitor {
@@ -324,7 +423,7 @@ func createMetricsExporterServiceMonitor(ctx context.Context, r *StorageClusterR
 	return serviceMonitor, nil
 }
 
-func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster) error {
+func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, instance *ocsv1.StorageCluster, tlsProfile *ocstlsv1.TLSProfile) error {
 	alertManagerURL := "https://alertmanager-main.openshift-monitoring.svc.cluster.local:9094"
 
 	currentDep := &appsv1.Deployment{
@@ -407,8 +506,12 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 							return args
 						}(),
 						Command: []string{"/usr/local/bin/metrics-exporter"},
-						Image:   r.images.OCSMetricsExporter,
-						Name:    metricsExporterName,
+						Env: []corev1.EnvVar{
+							{Name: util.OperatorNamespaceEnvVar, Value: r.OperatorNamespace},
+							{Name: tlsProfileGenerationEnvName, Value: strconv.FormatInt(tlsProfile.Generation, 10)},
+						},
+						Image: r.images.OCSMetricsExporter,
+						Name:  metricsExporterName,
 						Ports: []corev1.ContainerPort{
 							{
 								Name:          portMetricsMain,
@@ -496,11 +599,16 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 				},
 			},
 		}
+		if currentDep.Spec.Template.Annotations == nil {
+			currentDep.Spec.Template.Annotations = make(map[string]string)
+		}
 		if multusNetwork != "" {
-			if currentDep.Spec.Template.Annotations == nil {
-				currentDep.Spec.Template.Annotations = make(map[string]string)
-			}
 			currentDep.Spec.Template.Annotations["k8s.v1.cni.cncf.io/networks"] = multusNetwork
+		}
+		if hostNetwork {
+			currentDep.Spec.Template.Annotations[secv1.RequiredSCCAnnotation] = util.HostNetworkV2SccName
+		} else {
+			currentDep.Spec.Template.Annotations[secv1.RequiredSCCAnnotation] = util.RestrictedV2SccName
 		}
 		return nil
 	}); err != nil {
@@ -690,6 +798,11 @@ func updateMetricsExporterClusterRoles(ctx context.Context, r *StorageClusterRec
 				Resources: []string{"csiaddonsnodes"},
 				Verbs:     []string{"get", "list"},
 			},
+			{
+				APIGroups: []string{"ocs.openshift.io"},
+				Resources: []string{"tlsprofiles"},
+				Verbs:     []string{"get"},
+			},
 		}
 
 		return nil
@@ -846,7 +959,7 @@ func createMetricsExporterRoles(ctx context.Context, r *StorageClusterReconciler
 			},
 			{
 				APIGroups: []string{"ceph.rook.io"},
-				Resources: []string{"cephobjectstores", "cephclusters", "cephblockpools", "cephrbdmirrors", "cephblockpoolradosnamespaces", "cephfilesystemsubvolumegroups"},
+				Resources: []string{"cephobjectstores", "cephclusters", "cephblockpools", "cephrbdmirrors", "cephblockpoolradosnamespaces", "cephfilesystemsubvolumegroups", "cephfilesystems"},
 				Verbs:     []string{"get", "list", "watch"},
 			},
 			{
@@ -1050,6 +1163,15 @@ func (r *StorageClusterReconciler) createMetricsExporterCephClient(instance *ocs
 		if err := controllerutil.SetControllerReference(instance, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		cephClient.Spec.SecretName = cephClient.Name
 		cephClient.Spec.Caps = map[string]string{
 			"mon": "profile rbd, allow command 'osd blocklist'",

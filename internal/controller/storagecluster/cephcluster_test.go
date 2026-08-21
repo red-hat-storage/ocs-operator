@@ -16,6 +16,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
 	ocsutil "github.com/red-hat-storage/ocs-operator/v4/pkg/util"
+	"github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	tassert "github.com/stretchr/testify/assert"
 	"gotest.tools/v3/assert"
@@ -56,6 +57,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		},
 		{
 			label:            "Reconcile CephCluster not reporting state",
+			shouldCreate:     true,
 			cephClusterState: "",
 		},
 		{
@@ -89,12 +91,26 @@ func TestEnsureCephCluster(t *testing.T) {
 		sc := &ocsv1.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
+		sc.Status.DefaultCephDeviceClass = "ssd"
 
 		reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
 		expected := newCephCluster(reconciler, mockStorageCluster.DeepCopy(), nil)
 		expected.Spec.Network.IPFamily = rookCephv1.IPv4
 		expected.Status.State = c.cephClusterState
+		expected.Status.CephStatus = &rookCephv1.CephStatus{
+			Health: "HealthOK",
+		}
+
+		if c.shouldCreate {
+			majorAndMinorVersion, err := version.GetMajorAndMinorVersion()
+			assert.NilError(t, err)
+			ocsutil.AddAnnotation(expected, ocsutil.CreatedAtDfVersionLabelKey, majorAndMinorVersion)
+			ocsutil.AddAnnotation(expected, ocsutil.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		err := setCephXFeaturesSpec(expected, sc)
+		assert.NilError(t, err)
 
 		if !c.shouldCreate {
 			createErr := reconciler.Create(context.TODO(), expected)
@@ -126,7 +142,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		}
 
 		var obj ocsCephCluster
-		_, err := obj.ensureCreated(reconciler, sc)
+		_, err = obj.ensureCreated(reconciler, sc)
 		assert.NilError(t, err)
 
 		actual := &rookCephv1.CephCluster{}
@@ -135,6 +151,17 @@ func TestEnsureCephCluster(t *testing.T) {
 		assert.Equal(t, expected.Name, actual.Name)
 		assert.Equal(t, expected.Namespace, actual.Namespace)
 		assert.DeepEqual(t, expected.Spec, actual.Spec)
+		if c.shouldCreate {
+			majorAndMinorVersion, err := version.GetMajorAndMinorVersion()
+			assert.NilError(t, err)
+			assert.Equal(t, actual.GetAnnotations()[ocsutil.CreatedAtDfVersionLabelKey], majorAndMinorVersion)
+			assert.Equal(t, actual.GetAnnotations()[ocsutil.CreatedWithCephXFeaturesAnnotationKey], "")
+		} else {
+			_, exists := actual.GetAnnotations()[ocsutil.CreatedAtDfVersionLabelKey]
+			assert.Assert(t, !exists)
+			_, exists = actual.GetAnnotations()[ocsutil.CreatedWithCephXFeaturesAnnotationKey]
+			assert.Assert(t, !exists)
+		}
 
 		expectedConditions := []conditionsv1.Condition{}
 		if c.cephClusterState == "" {
@@ -178,7 +205,77 @@ func TestEnsureCephCluster(t *testing.T) {
 	}
 }
 
+func TestSetCephXFeaturesSpec(t *testing.T) {
+	t.Setenv(ocsutil.DesiredCephxKeyGenEnvVarName, "2")
+	cases := []struct {
+		label                  string
+		cephXAnnotation        bool
+		storageClusterCephXGen uint32
+		expectedCephX          rookCephv1.ClusterCephxConfig
+	}{
+		{
+			label: "without CephX feature annotation",
+			expectedCephX: rookCephv1.ClusterCephxConfig{
+				AllowedCiphers: []rookCephv1.CephxKeyType{rookCephv1.CephxKeyTypeAes, rookCephv1.CephxKeyTypeAes256k},
+				Daemon: rookCephv1.CephxConfig{
+					KeyRotationPolicy: rookCephv1.KeyGenerationCephxKeyRotationPolicy,
+					KeyGeneration:     2,
+				},
+			},
+		},
+		{
+			label:                  "with key generation in StorageCluster spec",
+			storageClusterCephXGen: 3,
+			expectedCephX: rookCephv1.ClusterCephxConfig{
+				AllowedCiphers: []rookCephv1.CephxKeyType{rookCephv1.CephxKeyTypeAes, rookCephv1.CephxKeyTypeAes256k},
+				Daemon: rookCephv1.CephxConfig{
+					KeyRotationPolicy: rookCephv1.KeyGenerationCephxKeyRotationPolicy,
+					KeyGeneration:     3,
+				},
+			},
+		},
+		{
+			label:           "with CephX feature annotation",
+			cephXAnnotation: true,
+			expectedCephX: rookCephv1.ClusterCephxConfig{
+				AllowedCiphers: []rookCephv1.CephxKeyType{rookCephv1.CephxKeyTypeAes, rookCephv1.CephxKeyTypeAes256k},
+				RBDMirrorPeer: rookCephv1.CephxConfig{
+					KeyType: rookCephv1.CephxKeyTypeAes,
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.label, func(t *testing.T) {
+
+			sc := &ocsv1.StorageCluster{}
+			mockStorageCluster.DeepCopyInto(sc)
+			if c.storageClusterCephXGen > 0 {
+				sc.Spec.ManagedResources.CephCluster.CephSecurity = &ocsv1.CephClusterSecurity{
+					CephX: rookCephv1.ClusterCephxConfig{
+						Daemon: rookCephv1.CephxConfig{
+							KeyGeneration: c.storageClusterCephXGen,
+						},
+					},
+				}
+			}
+
+			cephCluster := &rookCephv1.CephCluster{}
+			if c.cephXAnnotation {
+				ocsutil.AddAnnotation(cephCluster, ocsutil.CreatedWithCephXFeaturesAnnotationKey, "")
+			}
+
+			err := setCephXFeaturesSpec(cephCluster, sc)
+			assert.NilError(t, err)
+
+			assert.DeepEqual(t, c.expectedCephX, cephCluster.Spec.Security.CephX)
+		})
+	}
+}
+
 func TestCephClusterMonTimeout(t *testing.T) {
+	testSkipPrometheusRules = true
 	// cases for testing
 	cases := []struct {
 		label    string
@@ -201,8 +298,11 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		sc := &ocsv1.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
+		sc.Status.DefaultCephDeviceClass = "ssd"
 
-		reconciler := createFakeStorageClusterReconciler(t, mockCephCluster.DeepCopy(), networkConfig)
+		mockCC := mockCephCluster.DeepCopy()
+		mockCC.Status.CephStatus = &rookCephv1.CephStatus{Health: "HEALTH_OK"}
+		reconciler := createFakeStorageClusterReconciler(t, mockCC, networkConfig)
 		var obj ocsCephCluster
 		_, err := obj.ensureCreated(reconciler, sc)
 		assert.NilError(t, err)
@@ -1789,11 +1889,13 @@ func TestEnsureRDRMigration(t *testing.T) {
 	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
+	sc.Status.DefaultCephDeviceClass = "ssd"
 	reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
 	expected := newCephCluster(reconciler, mockStorageCluster.DeepCopy(), nil)
 
 	expected.Spec.Storage.Store.Type = string(rookCephv1.StoreTypeBlueStoreRDR)
+	expected.Status.CephStatus = &rookCephv1.CephStatus{Health: "HEALTH_OK"}
 	err := reconciler.Create(context.TODO(), expected)
 	assert.NilError(t, err)
 

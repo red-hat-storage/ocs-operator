@@ -1,0 +1,33 @@
+#################################################################################################################
+# NetworkPolicy definitions for the ocs-metrics-exporter operand pod.
+# This policy restricts ingress to only the monitoring namespace.
+# Egress is left unrestricted (default-open) because the exporter needs access to the
+# host-networked API server (impossible to target with selectors) and to cross-namespace
+# ClusterIP services (AlertManager) whose DNAT evaluation under OVN-Kubernetes makes
+# selector-based egress rules unreliable.
+#
+# This file is for manual testing only and is expected to be identical to the policy generated
+# by the operator in exporter.go (createMetricsExporterNetworkPolicy).
+#################################################################################################################
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ocs-metrics-exporter
+  namespace: openshift-storage # namespace:cluster
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ocs-metrics-exporter
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow OpenShift Monitoring (Prometheus) to scrape metrics from the exporter
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-monitoring
+      ports:
+        - protocol: TCP
+          port: 8443
+        - protocol: TCP
+          port: 9443

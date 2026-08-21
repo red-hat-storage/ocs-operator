@@ -14,6 +14,36 @@ var (
 				corev1.ResourceStorage: resource.MustParse("50Gi"),
 			},
 		},
+		"ocs-provider-server": {
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("10m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("50m"),
+				corev1.ResourceMemory: resource.MustParse("512Mi"),
+			},
+		},
+		"ocs-metrics-exporter": {
+			Requests: corev1.ResourceList{
+				"memory": resource.MustParse("250Mi"),
+				"cpu":    resource.MustParse("50m"),
+			},
+			Limits: corev1.ResourceList{
+				"memory": resource.MustParse("1.5Gi"),
+				"cpu":    resource.MustParse("1"),
+			},
+		},
+		"odf-blackbox-exporter": {
+			Requests: corev1.ResourceList{
+				"memory": resource.MustParse("50Mi"),
+				"cpu":    resource.MustParse("10m"),
+			},
+			Limits: corev1.ResourceList{
+				"memory": resource.MustParse("50Mi"),
+				"cpu":    resource.MustParse("100m"),
+			},
+		},
 		"nfs": {
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("3"),
@@ -34,26 +64,6 @@ var (
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
-		"ocs-metrics-exporter": {
-			Requests: corev1.ResourceList{
-				"memory": resource.MustParse("250Mi"),
-				"cpu":    resource.MustParse("100m"),
-			},
-			Limits: corev1.ResourceList{
-				"memory": resource.MustParse("1.5Gi"),
-				"cpu":    resource.MustParse("1"),
-			},
-		},
-		"odf-blackbox-exporter": {
-			Requests: corev1.ResourceList{
-				"memory": resource.MustParse("50Mi"),
-				"cpu":    resource.MustParse("100m"),
-			},
-			Limits: corev1.ResourceList{
-				"memory": resource.MustParse("50Mi"),
-				"cpu":    resource.MustParse("100m"),
-			},
-		},
 		"vault-agent": {
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("50m"),
@@ -62,26 +72,6 @@ var (
 			Limits: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("100m"),
 				corev1.ResourceMemory: resource.MustParse("128Mi"),
-			},
-		},
-		"kube-rbac-proxy-main": {
-			Requests: corev1.ResourceList{
-				"memory": resource.MustParse("40Mi"),
-				"cpu":    resource.MustParse("50m"),
-			},
-			Limits: corev1.ResourceList{
-				"memory": resource.MustParse("40Mi"),
-				"cpu":    resource.MustParse("50m"),
-			},
-		},
-		"kube-rbac-proxy-self": {
-			Requests: corev1.ResourceList{
-				"memory": resource.MustParse("40Mi"),
-				"cpu":    resource.MustParse("50m"),
-			},
-			Limits: corev1.ResourceList{
-				"memory": resource.MustParse("40Mi"),
-				"cpu":    resource.MustParse("50m"),
 			},
 		},
 		"crashcollector": {
@@ -112,16 +102,6 @@ var (
 			Limits: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("0.05"),
 				corev1.ResourceMemory: resource.MustParse("128Mi"),
-			},
-		},
-		"ocs-provider-server": {
-			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("10m"),
-				corev1.ResourceMemory: resource.MustParse("128Mi"),
-			},
-			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("50m"),
-				corev1.ResourceMemory: resource.MustParse("512Mi"),
 			},
 		},
 		"mgr-sidecar": {
@@ -361,12 +341,6 @@ var (
 				corev1.ResourceMemory: resource.MustParse("100Mi"),
 			},
 		},
-		"kube-rbac-proxy-main": {
-			Requests: corev1.ResourceList{
-				"memory": resource.MustParse("40Mi"),
-				"cpu":    resource.MustParse("50m"),
-			},
-		},
 		"ocs-provider-server": {
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("10m"),
@@ -404,6 +378,16 @@ var (
 	}
 
 	MonitoringResources = map[string]corev1.ResourceRequirements{
+		"kube-rbac-proxy": {
+			Requests: corev1.ResourceList{
+				"memory": resource.MustParse("40Mi"),
+				"cpu":    resource.MustParse("50m"),
+			},
+			Limits: corev1.ResourceList{
+				"memory": resource.MustParse("40Mi"),
+				"cpu":    resource.MustParse("50m"),
+			},
+		},
 		"alertmanager": {
 			Requests: corev1.ResourceList{
 				"cpu":    resource.MustParse("100m"),

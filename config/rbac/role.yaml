@@ -124,6 +124,7 @@ rules:
   - cephclusters
   - cephfilesystems
   - cephnfses
+  - cephnvmeofgateways
   - cephobjectstores
   - cephobjectstoreusers
   - cephrbdmirrors
@@ -250,6 +251,17 @@ rules:
   - prometheuses/api
   verbs:
   - get
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
 - apiGroups:
   - noobaa.io
   resources:

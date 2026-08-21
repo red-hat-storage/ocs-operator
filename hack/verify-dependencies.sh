@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-paths=('go.mod' 'go.sum' 'api/go.mod' 'api/go.sum' 'metrics/go.mod' 'metrics/go.sum' 'services/provider/api/go.mod' 'services/provider/api/go.sum' 'vendor/')
+paths=('go.mod' 'go.sum' 'api/go.mod' 'api/go.sum' 'metrics/go.mod' 'metrics/go.sum' 'services/provider/api/go.mod' 'services/provider/api/go.sum')
 
 if [[ -n "$(git status --porcelain "${paths[@]}")" ]]; then
 	git diff -u "${paths[@]}"

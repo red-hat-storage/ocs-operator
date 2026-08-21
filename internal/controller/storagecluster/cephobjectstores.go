@@ -10,6 +10,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
+	secv1 "github.com/openshift/api/security/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -24,7 +25,7 @@ import (
 const (
 	enableRGWAnnotation         = "ocs.openshift.io/enable-rgw"
 	enableRGWAutoscaleAnnotation = "ocs.openshift.io/enable-rgw-autoscale"
-	stsKeyLen                    = 16 // 16 alphanumeric characters for STS key
+	stsKeyLen                    = 32 // 32 hex characters for STS key
 )
 
 func shouldSkipObjectStore(sc *ocsv1.StorageCluster) (bool, error) {
@@ -231,6 +232,9 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 					// set PriorityClassName for the rgw pods
 					PriorityClassName: systemClusterCritical,
 					Labels:            cephv1.Labels{defaults.ODFResourceProfileKey: initData.Spec.ResourceProfile},
+					Annotations: map[string]string{
+						secv1.RequiredSCCAnnotation: util.RookCephSccName,
+					},
 				},
 			},
 		},
@@ -405,8 +409,8 @@ func getRGWSecurePort(sc *ocsv1.StorageCluster) int32 {
 // RGW requires the STS key to be alphanumeric (letters and numbers only)
 // Returns a 16-character alphanumeric string suitable for use as rgw_sts_key
 func generateRandomSTSKey() (string, error) {
-	// Character set: alphanumeric only (a-z, A-Z, 0-9)
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	// Character set: hexadecimal [a-f0-9]
+	const charset = "abcdef0123456789"
 	const charsetLen = len(charset)
 
 	// Generate random alphanumeric string
@@ -474,7 +478,19 @@ func (r *StorageClusterReconciler) setSTSOptions(obj *cephv1.CephObjectStore, sc
 			return fmt.Errorf("failed to get STS secret: %w", err)
 		}
 	} else {
-		r.Log.Info("STS secret already exists for CephObjectStore.", "Secret", klog.KRef(secret.Namespace, secret.Name), "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
+		existingKey, ok := existingSecret.Data[secretKeyName]
+		if !ok || len(existingKey) != len(stsKey) {
+			r.Log.Info("Rotating STS secret for CephObjectStore.",
+				"Secret", klog.KRef(secret.Namespace, secret.Name), "CephObjectStore", klog.KRef(obj.Namespace, obj.Name),
+				"CurrentKeyLength", len(existingKey), "NewKeyLength", len(stsKey),
+			)
+			existingSecret.Data[secretKeyName] = []byte(stsKey)
+			if err := r.Update(context.TODO(), existingSecret); err != nil {
+				return fmt.Errorf("failed to update STS secret with rotated key: %w", err)
+			}
+		} else {
+			r.Log.Info("STS secret already exists for CephObjectStore.", "Secret", klog.KRef(secret.Namespace, secret.Name), "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
+		}
 	}
 
 	// Set rgw_sts_key in RgwConfigFromSecret with SecretKeySelector

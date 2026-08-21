@@ -1067,3 +1067,143 @@ func TestGetTopologyConstrainedPoolsExternalMode(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateExternalStorageClusterSecret(t *testing.T) {
+	reconciler := createFakeInitializationStorageClusterReconciler(t)
+	namespace := ""
+	objectKey := types.NamespacedName{Name: "test-secret", Namespace: namespace}
+
+	objectMeta := metav1.ObjectMeta{Name: "test-secret", Namespace: namespace}
+
+	t.Run("create secret when not found", func(t *testing.T) {
+		sec := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-secret",
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"csi.rook.io/driver": "rbd",
+				},
+			},
+			Data: map[string][]byte{
+				"userID":  []byte("csi-rbd-node"),
+				"userKey": []byte("somekey=="),
+			},
+		}
+		found := &corev1.Secret{ObjectMeta: objectMeta}
+		err := reconciler.createExternalStorageClusterSecret(sec, found, objectKey)
+		assert.NoError(t, err)
+
+		actual := &corev1.Secret{}
+		err = reconciler.Get(context.TODO(), objectKey, actual)
+		assert.NoError(t, err)
+		assert.Equal(t, sec.Data, actual.Data)
+		assert.Equal(t, sec.Annotations, actual.Annotations)
+	})
+
+	t.Run("no update when data and annotations match", func(t *testing.T) {
+		sec := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-secret",
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"csi.rook.io/driver": "rbd",
+				},
+			},
+			Data: map[string][]byte{
+				"userID":  []byte("csi-rbd-node"),
+				"userKey": []byte("somekey=="),
+			},
+		}
+		found := &corev1.Secret{ObjectMeta: objectMeta}
+		err := reconciler.createExternalStorageClusterSecret(sec, found, objectKey)
+		assert.NoError(t, err)
+		assert.Equal(t, sec.Data, found.Data)
+		assert.Equal(t, sec.Annotations["csi.rook.io/driver"], found.Annotations["csi.rook.io/driver"])
+	})
+
+	t.Run("update when data changes", func(t *testing.T) {
+		sec := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-secret",
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"csi.rook.io/driver": "rbd",
+				},
+			},
+			Data: map[string][]byte{
+				"userID":  []byte("csi-rbd-node"),
+				"userKey": []byte("newkey=="),
+			},
+		}
+		found := &corev1.Secret{ObjectMeta: objectMeta}
+		err := reconciler.createExternalStorageClusterSecret(sec, found, objectKey)
+		assert.NoError(t, err)
+
+		actual := &corev1.Secret{}
+		err = reconciler.Get(context.TODO(), objectKey, actual)
+		assert.NoError(t, err)
+		assert.Equal(t, []byte("newkey=="), actual.Data["userKey"])
+	})
+
+	t.Run("update when annotations change", func(t *testing.T) {
+		sec := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-secret",
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"csi.rook.io/driver": "cephfs",
+					"new-annotation":     "new-value",
+				},
+			},
+			Data: map[string][]byte{
+				"userID":  []byte("csi-rbd-node"),
+				"userKey": []byte("newkey=="),
+			},
+		}
+		found := &corev1.Secret{ObjectMeta: objectMeta}
+		err := reconciler.createExternalStorageClusterSecret(sec, found, objectKey)
+		assert.NoError(t, err)
+
+		actual := &corev1.Secret{}
+		err = reconciler.Get(context.TODO(), objectKey, actual)
+		assert.NoError(t, err)
+		assert.Equal(t, "cephfs", actual.Annotations["csi.rook.io/driver"])
+		assert.Equal(t, "new-value", actual.Annotations["new-annotation"])
+	})
+
+	t.Run("initialize annotations on found secret with nil annotations", func(t *testing.T) {
+		nilAnnotationSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "nil-annotation-secret",
+				Namespace: namespace,
+			},
+			Data: map[string][]byte{
+				"key": []byte("value"),
+			},
+		}
+		err := reconciler.Create(context.TODO(), nilAnnotationSecret)
+		assert.NoError(t, err)
+
+		sec := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "nil-annotation-secret",
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"csi.rook.io/driver": "rbd",
+				},
+			},
+			Data: map[string][]byte{
+				"key": []byte("value"),
+			},
+		}
+		nilKey := types.NamespacedName{Name: "nil-annotation-secret", Namespace: namespace}
+		found := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "nil-annotation-secret", Namespace: namespace}}
+		err = reconciler.createExternalStorageClusterSecret(sec, found, nilKey)
+		assert.NoError(t, err)
+
+		actual := &corev1.Secret{}
+		err = reconciler.Get(context.TODO(), nilKey, actual)
+		assert.NoError(t, err)
+		assert.Equal(t, "rbd", actual.Annotations["csi.rook.io/driver"])
+	})
+}

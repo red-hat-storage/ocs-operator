@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +23,8 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/provider/server"
+
+	secv1 "github.com/openshift/api/security/v1"
 )
 
 func TestOcsProviderServerEnsureCreated(t *testing.T) {
@@ -193,7 +196,67 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
 		expectedService := GetClusterIPProviderAPIServerServiceForTest(instance)
 		assert.Equal(t, expectedService.Spec, service.Spec)
+
+		networkPolicy := &networkingv1.NetworkPolicy{}
+		networkPolicy.Name = ocsProviderServerName
+		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(networkPolicy), networkPolicy))
+		expectedNetworkPolicy := getProviderAPIServerNetworkPolicy(instance)
+		assert.Equal(t, expectedNetworkPolicy.Spec, networkPolicy.Spec)
 	})
+
+	t.Run("NetworkPolicy is not created when ProviderAPIServerServiceType is not ClusterIP", func(t *testing.T) {
+
+		r, instance := createSetupForOcsProviderTest(t, corev1.ServiceTypeLoadBalancer)
+
+		obj := &ocsProviderServer{}
+		res, err := obj.ensureCreated(r, instance)
+		assert.NoError(t, err)
+		assert.False(t, res.IsZero())
+
+		service := &corev1.Service{}
+		service.Name = ocsProviderServerName
+		service.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
+			{
+				Hostname: "fake",
+			},
+		}
+		err = r.Status().Update(context.TODO(), service)
+		assert.NoError(t, err)
+
+		res, err = obj.ensureCreated(r, instance)
+		assert.NoError(t, err)
+		assert.False(t, res.IsZero())
+
+		deployment := &appsv1.Deployment{}
+		deployment.Name = ocsProviderServerName
+		deployment.Status.AvailableReplicas = 1
+		err = r.Status().Update(context.TODO(), deployment)
+		assert.NoError(t, err)
+
+		res, err = obj.ensureCreated(r, instance)
+		assert.NoError(t, err)
+		assert.True(t, res.IsZero())
+
+		networkPolicy := &networkingv1.NetworkPolicy{}
+		networkPolicy.Name = ocsProviderServerName
+		assert.True(t, errors.IsNotFound(r.Get(context.TODO(), client.ObjectKeyFromObject(networkPolicy), networkPolicy)))
+	})
+
+	t.Run("NetworkPolicy is not created when service type is not ClusterIP after being created", func(t *testing.T) {
+
+		r, instance := createSetupForOcsProviderTest(t, corev1.ServiceTypeLoadBalancer)
+
+		obj := &ocsProviderServer{}
+		res, err := obj.createNetworkPolicy(r, instance)
+		assert.NoError(t, err)
+		assert.True(t, res.IsZero())
+
+		networkPolicy := &networkingv1.NetworkPolicy{}
+		networkPolicy.Name = ocsProviderServerName
+		networkPolicy.Namespace = instance.Namespace
+		assert.True(t, errors.IsNotFound(r.Get(context.TODO(), client.ObjectKeyFromObject(networkPolicy), networkPolicy)))
+	})
+
 
 }
 
@@ -215,15 +278,17 @@ func TestOcsProviderServerEnsureDeleted(t *testing.T) {
 
 func assertNotFoundProviderResources(t *testing.T, cli client.Client) {
 
-	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-	}
+	deployment := &appsv1.Deployment{}
+	deployment.Name = ocsProviderServerName
 	assert.True(t, errors.IsNotFound(cli.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment)))
 
-	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-	}
+	service := &corev1.Service{}
+	service.Name = ocsProviderServerName
 	assert.True(t, errors.IsNotFound(cli.Get(context.TODO(), client.ObjectKeyFromObject(service), service)))
+
+	networkPolicy := &networkingv1.NetworkPolicy{}
+	networkPolicy.Name = ocsProviderServerName
+	assert.True(t, errors.IsNotFound(cli.Get(context.TODO(), client.ObjectKeyFromObject(networkPolicy), networkPolicy)))
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
@@ -264,6 +329,7 @@ func createSetupForOcsProviderTest(t *testing.T, providerAPIServerServiceType co
 		Client:   fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node, clientConfigMap).Build(),
 		Scheme:   scheme,
 		Log:      logf.Log.WithName("controller_storagecluster_test"),
+		ctx:      context.TODO(),
 	}
 
 	instance := &ocsv1.StorageCluster{
@@ -296,6 +362,9 @@ func GetProviderAPIServerDeploymentForTest(instance *ocsv1.StorageCluster) *apps
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app": "ocsProviderApiServer",
+					},
+					Annotations: map[string]string{
+						secv1.RequiredSCCAnnotation: util.RestrictedV2SccName,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -445,3 +514,4 @@ func GetClusterIPProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster)
 		},
 	}
 }
+

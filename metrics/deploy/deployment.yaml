@@ -15,6 +15,8 @@ spec:
       app.kubernetes.io/name: ocs-metrics-exporter
   template:
     metadata:
+      annotations:
+        openshift.io/required-scc: restricted-v2
       labels:
         app.kubernetes.io/component: ocs-metrics-exporter
         app.kubernetes.io/name: ocs-metrics-exporter
@@ -41,6 +43,11 @@ spec:
           initialDelaySeconds: 15
         image: quay.io/ocs-dev/ocs-operator
         name: ocs-metrics-exporter
+        env:
+        - name: OPERATOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         ports:
           - name: https-main
             containerPort: 8443

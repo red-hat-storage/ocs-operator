@@ -5,7 +5,9 @@ import (
 	"os"
 
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	secv1 "github.com/openshift/api/security/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -33,6 +35,11 @@ var PrometheusSpecTemplate = promv1.PrometheusSpec{
 		ServiceMonitorSelector: &metav1.LabelSelector{},
 		ListenLocal:            true,
 		Resources:              defaults.MonitoringResources["prometheus"],
+		PodMetadata: &promv1.EmbeddedObjectMetadata{
+			Annotations: map[string]string{
+				secv1.RequiredSCCAnnotation: util.NonRootV2SccName,
+			},
+		},
 		Containers: []corev1.Container{{
 			Name:  "kube-rbac-proxy",
 			Image: os.Getenv("KUBE_RBAC_PROXY_IMAGE"),

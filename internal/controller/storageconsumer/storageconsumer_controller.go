@@ -271,6 +271,25 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 			}
 		}
 
+		if availableServices.NVMeOF {
+			if err := r.reconcileCephClientNvmeofProvisioner(
+				util.GenerateCsiNvmeofProvisionerCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
+				util.GenerateNameForNVMeOFBlockPool(storageCluster),
+				consumerConfigMap,
+				csiCephUserCurrGen,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+			if err := r.reconcileCephClientNvmeofNode(
+				util.GenerateCsiNvmeofNodeCephClientName(csiCephUserCurrGen, r.storageConsumer.UID),
+				util.GenerateNameForNVMeOFBlockPool(storageCluster),
+				consumerConfigMap,
+				csiCephUserCurrGen,
+			); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
 		if isPrimaryConsumer {
 			if availableServices.Rbd {
 				if err := r.reconcileCephRadosNamespace(
@@ -640,6 +659,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDProvisioner(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
 			radosNamespaceName = "''"
@@ -673,6 +701,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDNode(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
 			radosNamespaceName = "''"
@@ -706,6 +743,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		cephClient.Spec.SecretName = cephClientName
 		cephClient.Spec.Caps = map[string]string{
@@ -737,6 +783,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		cephClient.Spec.SecretName = cephClientName
 		cephClient.Spec.Caps = map[string]string{
@@ -769,6 +824,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientNfsProvisioner(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		cephClient.Spec.SecretName = cephClientName
 		cephClient.Spec.Caps = map[string]string{
@@ -801,6 +865,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientNfsNode(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		cephClient.Spec.SecretName = cephClientName
 		cephClient.Spec.Caps = map[string]string{
@@ -808,6 +881,66 @@ func (r *StorageConsumerReconciler) reconcileCephClientNfsNode(
 			"mgr": "allow rw",
 			"osd": fmt.Sprintf("allow rw tag cephfs *=%s", cephFileSystemName),
 			"mds": fmt.Sprintf("allow rw path=/volumes/%s", subVolumeGroupName),
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *StorageConsumerReconciler) reconcileCephClientNvmeofProvisioner(
+	cephClientName string,
+	poolName string,
+	additionalOwner client.Object,
+	csiCephUserGeneration int64,
+) error {
+	cephClient := &rookCephv1.CephClient{}
+	cephClient.Name = cephClientName
+	cephClient.Namespace = r.namespace
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cephClient, func() error {
+		if err := controllerutil.SetControllerReference(r.storageConsumer, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
+		cephClient.Spec.SecretName = cephClientName
+		cephClient.Spec.Caps = map[string]string{
+			"mon": "profile rbd, allow command 'osd blocklist'",
+			"mgr": "allow rw",
+			"osd": fmt.Sprintf("profile rbd pool=%s", poolName),
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *StorageConsumerReconciler) reconcileCephClientNvmeofNode(
+	cephClientName string,
+	poolName string,
+	additionalOwner client.Object,
+	csiCephUserGeneration int64,
+) error {
+	cephClient := &rookCephv1.CephClient{}
+	cephClient.Name = cephClientName
+	cephClient.Namespace = r.namespace
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cephClient, func() error {
+		if err := controllerutil.SetControllerReference(r.storageConsumer, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
+			return err
+		}
+		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
+		cephClient.Spec.SecretName = cephClientName
+		cephClient.Spec.Caps = map[string]string{
+			"mon": "profile rbd",
+			"mgr": "allow rw",
+			"osd": fmt.Sprintf("profile rbd pool=%s", poolName),
 		}
 		return nil
 	}); err != nil {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"runtime"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
@@ -141,9 +140,6 @@ func getNooBaaPerformanceProfile(sc *ocsv1.StorageCluster) nbv1.PerformanceProfi
 	profile := nbv1.PerformanceProfileDefault
 	if sc.Spec.MultiCloudGateway != nil && sc.Spec.MultiCloudGateway.PerformanceProfile != "" {
 		profile = sc.Spec.MultiCloudGateway.PerformanceProfile
-	}
-	if profile == nbv1.PerformanceProfileDefault && runtime.GOARCH == IbmZCpuArch {
-		return nbv1.PerformanceProfileDefaultIBMZ
 	}
 	return profile
 }

@@ -42,8 +42,6 @@ deps-update:
 	cd services/provider/api && go mod tidy
 	@echo "Running go work sync"
 	go work sync
-	@echo "Running go work vendor"
-	go work vendor
 	@echo "Done"
 
 
@@ -61,23 +59,23 @@ ocs-metrics-exporter: build
 	@echo "Building the ocs-metrics-exporter image"
 	hack/build-metrics-exporter.sh
 
-# Build the devel container with ceph C headers for metrics exporter
-.metrics-devel-container-id: metrics/Dockerfile.devel
+# Build the metrics builder with ceph C headers for go-ceph CGO
+.metrics-devel-container-id: metrics/Dockerfile
 	@test -n "$(CONTAINER_CMD)" || { echo "podman or docker not found"; exit 1; }
 	[ ! -f .metrics-devel-container-id ] || $(CONTAINER_CMD) rmi $(METRICS_DEVEL_IMAGE) 2>/dev/null || true
 	$(RM) .metrics-devel-container-id
-	$(CONTAINER_CMD) build --build-arg GOARCH=$(GOARCH) -t $(METRICS_DEVEL_IMAGE) -f metrics/Dockerfile.devel .
+	$(CONTAINER_CMD) build --target builder --build-arg GO_ARCH=$(GOARCH) -t $(METRICS_DEVEL_IMAGE) -f metrics/Dockerfile .
 	$(CONTAINER_CMD) inspect -f '{{.Id}}' $(METRICS_DEVEL_IMAGE) > .metrics-devel-container-id
 
-# Build metrics exporter inside a container (provides ceph C headers for go-ceph CGO)
+# Build metrics exporter inside a container
 containerized-metrics-build: .metrics-devel-container-id
 	$(CONTAINER_CMD) run --rm -v $(CURDIR):/workspace $(METRICS_DEVEL_IMAGE) \
-		go build -mod=vendor ./metrics/...
+		sh -c 'go build -tags "$$CEPH_VERSION" ./metrics/...'
 
 # Run metrics exporter tests inside a container
 containerized-metrics-test: .metrics-devel-container-id
 	$(CONTAINER_CMD) run --rm -v $(CURDIR):/workspace $(METRICS_DEVEL_IMAGE) \
-		go test -mod=vendor -v -cover ./metrics/...
+		sh -c 'go test -tags "$$CEPH_VERSION" -v -cover ./metrics/...'
 
 gen-protobuf:
 	@echo "Generating protobuf files for gRPC services"

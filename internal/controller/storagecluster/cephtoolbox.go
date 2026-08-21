@@ -10,6 +10,8 @@ import (
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 
+	secv1 "github.com/openshift/api/security/v1"
+
 	nadclientset "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -115,6 +117,9 @@ func newToolsDeployment(namespace string, tolerations []corev1.Toleration, nodeA
 					Labels: map[string]string{
 						"app": "rook-ceph-tools",
 					},
+					Annotations: map[string]string{
+						secv1.RequiredSCCAnnotation: util.RookCephSccName,
+					},
 				},
 				Spec: corev1.PodSpec{
 					DNSPolicy:          corev1.DNSClusterFirstWithHostNet,
@@ -140,15 +145,6 @@ func newToolsDeployment(namespace string, tolerations []corev1.Toleration, nodeA
 										},
 									},
 								},
-								{
-									Name: "ROOK_CEPH_SECRET",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
-											Key:                  "ceph-secret",
-										},
-									},
-								},
 							},
 							SecurityContext: &corev1.SecurityContext{
 								RunAsNonRoot: ptr.To(true),
@@ -158,6 +154,7 @@ func newToolsDeployment(namespace string, tolerations []corev1.Toleration, nodeA
 							VolumeMounts: []corev1.VolumeMount{
 								{Name: "ceph-config", MountPath: "/etc/ceph"},
 								{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
+								{Name: "ceph-admin-secret", MountPath: "/var/lib/rook-ceph-mon", ReadOnly: true},
 							},
 						},
 					},
@@ -174,6 +171,18 @@ func newToolsDeployment(namespace string, tolerations []corev1.Toleration, nodeA
 								},
 							},
 						},
+						},
+						{
+							Name: "ceph-admin-secret",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "rook-ceph-mon",
+									Optional:   ptr.To(false),
+									Items: []corev1.KeyToPath{
+										{Key: "ceph-secret", Path: "secret.keyring"},
+									},
+								},
+							},
 						},
 					},
 				},

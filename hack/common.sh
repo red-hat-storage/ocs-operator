@@ -9,7 +9,7 @@ HOST_OS="$(go env GOHOSTOS)"
 HOST_ARCH="$(go env GOHOSTARCH)"
 
 # Current DEV version of the CSV
-DEFAULT_CSV_VERSION="4.23.0"
+DEFAULT_CSV_VERSION="5.0.0"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
 VERSION="${VERSION:-${CSV_VERSION}}"
 LDFLAGS="-X github.com/red-hat-storage/ocs-operator/v4/version.Version=${CSV_VERSION}"
@@ -22,10 +22,10 @@ OCS_FINAL_DIR="deploy/ocs-operator/manifests"
 BUNDLEMANIFESTS_DIR="rbac"
 
 # External images used in CSV generation
-LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-0768135c3" # Using downstream rook image as it contains downstream-only changes
-LATEST_CEPH_IMAGE="quay.io/ceph/ceph:v20.2.2" # Ref-https://github.com/rook/rook/blob/master/deploy/examples/images.txt#L3
-LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20260714"
-LATEST_NOOBAA_DB_IMAGE="quay.io/sclorg/postgresql-15-c9s" # Ref-https://github.com/noobaa/noobaa-operator/blob/5da5c26e9f126c488445d7d9f9326cf676bdd0ea/pkg/options/options.go#L73-L75
+LATEST_ROOK_IMAGE="quay.io/ocs-dev/rook-ceph:vmaster-63ab719e7" # Using downstream rook image as it contains downstream-only changes
+LATEST_CEPH_IMAGE=quay.io/ceph/ceph:v20.2.4
+LATEST_NOOBAA_CORE_IMAGE="quay.io/noobaa/noobaa-core:master-20260729"
+LATEST_NOOBAA_DB_IMAGE="quay.io/sclorg/postgresql-16-c9s" # Ref-https://github.com/noobaa/noobaa-operator/blob/d5bbdd7ce6a4bf15528e9e6b412e04b54e88472e/pkg/options/options.go#L70-L72
 KUBE_RBAC_PROXY_FULL_IMAGE_NAME="gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1"
 LATEST_MUST_GATHER_IMAGE="quay.io/ocs-dev/ocs-must-gather:latest"
 LATEST_BLACKBOX_EXPORTER_IMAGE="quay.io/prometheus/blackbox-exporter:latest"
@@ -44,13 +44,13 @@ METRICS_EXPORTER_FULL_IMAGE_NAME="${METRICS_EXPORTER_FULL_IMAGE_NAME:=${IMAGE_RE
 BUNDLE_FULL_IMAGE_NAME="${BUNDLE_FULL_IMAGE_NAME:=${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${OPERATOR_BUNDLE_IMAGE_NAME}:${IMAGE_TAG}}"
 
 # Bundle images of Dependencies of OCS Operator
-NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20260714"
-ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-0768135c3"
-OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-6f2a746"
+NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20260723"
+ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-63ab719e7"
+OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-9834eff"
 OCS_TLS_PROFILE_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-tls-profiles-bundle:main-9fd1952"
 # Below bundles are dependencies of ocs-client-operator, Ref- https://github.com/red-hat-storage/ocs-client-operator/blob/main/bundle/metadata/dependencies.yaml
 CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME="quay.io/csiaddons/k8s-bundle:v0.14.0"
-CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:main-ad13551"
+CEPH_CSI_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/cephcsi-operator-bundle:main-fb44aa5"
 RECIPE_BUNDLE_FULL_IMAGE_NAME="quay.io/ramendr/recipe-bundle:latest"
 SNAPSHOT_CONTROLLER_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/snapshot-controller-bundle:main-dfea221"
 
@@ -91,3 +91,5 @@ PROTOC_GEN_GO_GRPC="${GRPC_BIN}/protoc-gen-go-grpc"
 
 # gRPC services
 SERVICES=("provider")
+
+DESIRED_CEPHX_KEY_GEN="${DESIRED_CEPHX_KEY_GEN:-2}"

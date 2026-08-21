@@ -27,9 +27,11 @@ import (
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,12 +82,12 @@ func (r *StorageClusterReconciler) deployBlackboxExporter(ctx context.Context, i
 	}
 
 	// Build Multus annotation for Blackbox (attach to same networks as Ceph cluster)
-	var podAnnotations map[string]string
+	podAnnotations := map[string]string{
+		securityv1.RequiredSCCAnnotation: util.OdfBlackboxSccName,
+	}
 	multusValue := buildMultusAnnotation(cephClusterNetwork, instance.Namespace)
 	if multusValue != "" {
-		podAnnotations = map[string]string{
-			"k8s.v1.cni.cncf.io/networks": multusValue,
-		}
+		podAnnotations["k8s.v1.cni.cncf.io/networks"] = multusValue
 		r.Log.Info("Attaching Blackbox to Ceph cluster network", "networks", cephClusterNetwork)
 	}
 
@@ -109,6 +111,10 @@ func (r *StorageClusterReconciler) deployBlackboxExporter(ctx context.Context, i
 		r.Log.Error(err, "unable to create service for blackbox metrics exporter")
 		return err
 	}
+	if err := r.createBlackboxNetworkPolicy(ctx, instance); err != nil {
+		r.Log.Error(err, "unable to create networkpolicy for blackbox metrics exporter")
+		return err
+	}
 	if err := r.createBlackboxProbe(ctx, instance, cephClusterNetwork); err != nil {
 		r.Log.Error(err, "unable to create probe for blackbox metrics exporter")
 		return err
@@ -123,6 +129,7 @@ func (r *StorageClusterReconciler) deleteBlackboxExporter(ctx context.Context, i
 	// Namespaced resources to delete using cached client
 	resources := []client.Object{
 		&monitoringv1.Probe{ObjectMeta: metav1.ObjectMeta{Name: blackboxExporterName, Namespace: instance.Namespace}},
+		&networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: blackboxExporterName, Namespace: instance.Namespace}},
 		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: blackboxExporterName, Namespace: instance.Namespace}},
 		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: blackboxExporterName, Namespace: instance.Namespace}},
 		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: blackboxConfigMapName, Namespace: instance.Namespace}},
@@ -688,6 +695,94 @@ func (r *StorageClusterReconciler) createBlackboxService(ctx context.Context, in
 		r.Log.Info("Updated Service", "Service", actual.Name)
 	}
 
+	return nil
+}
+
+// createBlackboxNetworkPolicy creates or updates the NetworkPolicy for the blackbox exporter.
+func (r *StorageClusterReconciler) createBlackboxNetworkPolicy(ctx context.Context, instance *ocsv1.StorageCluster) error {
+	networkPolicy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      blackboxExporterName,
+			Namespace: instance.Namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, networkPolicy, func() error {
+		networkPolicy.Labels = blackboxExporterLabels
+		if err := controllerutil.SetControllerReference(instance, networkPolicy, r.Scheme); err != nil {
+			return err
+		}
+
+		networkPolicy.Spec = networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: blackboxExporterLabels,
+			},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+				networkingv1.PolicyTypeEgress,
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					// Allow Prometheus (openshift-monitoring) to scrape probe results
+					From: []networkingv1.NetworkPolicyPeer{
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": "openshift-monitoring",
+								},
+							},
+						},
+					},
+					Ports: []networkingv1.NetworkPolicyPort{
+						{
+							Protocol: ptr.To(corev1.ProtocolTCP),
+							Port:     ptr.To(intstr.FromInt32(blackboxPortNumber)),
+						},
+					},
+				},
+			},
+			Egress: []networkingv1.NetworkPolicyEgressRule{
+				{
+					// Allow ICMP to Ceph OSD and MON pods for latency probing.
+					// No ports field: NetworkPolicy port rules only support TCP/UDP/SCTP,
+					// so omitting ports allows all protocols including ICMP.
+					To: []networkingv1.NetworkPolicyPeer{
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": instance.Namespace,
+								},
+							},
+							PodSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"app": "rook-ceph-osd",
+								},
+							},
+						},
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": instance.Namespace,
+								},
+							},
+							PodSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"app": "rook-ceph-mon",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create/update NetworkPolicy for blackbox exporter: %v", err)
+	}
+
+	r.Log.Info("Successfully created/updated NetworkPolicy for blackbox exporter", "Namespace", instance.Namespace, "Name", blackboxExporterName)
 	return nil
 }
 

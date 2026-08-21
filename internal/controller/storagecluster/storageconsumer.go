@@ -142,12 +142,15 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 			resourceMap.ReplaceRbdClientProfileName("openshift-storage")
 			resourceMap.ReplaceCephFsClientProfileName("openshift-storage")
 			resourceMap.ReplaceNfsClientProfileName("openshift-storage")
+			resourceMap.ReplaceNvmeofClientProfileName("openshift-storage")
 			resourceMap.ReplaceCsiRbdNodeCephUserName("rook-csi-rbd-node")
 			resourceMap.ReplaceCsiRbdProvisionerCephUserName("rook-csi-rbd-provisioner")
 			resourceMap.ReplaceCsiCephFsNodeCephUserName("rook-csi-cephfs-node")
 			resourceMap.ReplaceCsiCephFsProvisionerCephUserName("rook-csi-cephfs-provisioner")
 			resourceMap.ReplaceCsiNfsNodeCephUserName("rook-csi-nfs-node")
 			resourceMap.ReplaceCsiNfsProvisionerCephUserName("rook-csi-nfs-provisioner")
+			resourceMap.ReplaceCsiNvmeofNodeCephUserName("rook-csi-nvmeof-node")
+			resourceMap.ReplaceCsiNvmeofProvisionerCephUserName("rook-csi-nvmeof-provisioner")
 		} else {
 			backwardCompatibleInfo := &util.BackwardCompatabilityInfo{}
 			if err := json.Unmarshal([]byte(backwardCompatibleValue), backwardCompatibleInfo); err != nil {
@@ -248,6 +251,10 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 		storageClassNames[util.GenerateNameForCephNetworkFilesystemStorageClass(storageCluster)] = true
 	}
 
+	if storageCluster.Spec.NVMeOF != nil && storageCluster.Spec.NVMeOF.Enable {
+		storageClassNames[util.GenerateNameForNVMeOFStorageClass(storageCluster)] = true
+	}
+
 	if storageCluster.Spec.Encryption.StorageClass && storageCluster.Spec.Encryption.KeyManagementService.Enable {
 		storageClassNames[util.GenerateNameForEncryptedCephBlockPoolStorageClass(storageCluster)] = true
 	}
@@ -260,9 +267,13 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 	}); err != nil {
 		return nil, err
 	}
+	nvmeofEnabled := storageCluster.Spec.NVMeOF != nil && storageCluster.Spec.NVMeOF.Enable
 	for idx := range storageClassesInCluster.Items {
 		sc := &storageClassesInCluster.Items[idx]
 		if slices.Contains(util.SupportedCsiDrivers, sc.Provisioner) {
+			if sc.Provisioner == util.NVMeOFDriverName && !nvmeofEnabled {
+				continue
+			}
 			storageClassNames[sc.Name] = true
 		}
 	}

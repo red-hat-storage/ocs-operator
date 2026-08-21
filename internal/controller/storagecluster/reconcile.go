@@ -97,11 +97,12 @@ const (
 var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclusters;cephblockpools;cephfilesystems;cephnfses;cephobjectstores;cephobjectstoreusers;cephrbdmirrors;cephblockpoolradosnamespaces,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclusters;cephblockpools;cephfilesystems;cephnfses;cephobjectstores;cephobjectstoreusers;cephrbdmirrors;cephblockpoolradosnamespaces;cephnvmeofgateways,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=noobaa.io,resources=noobaas,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=watch;create;update;delete;get;list
 // +kubebuilder:rbac:groups=core,resources=pods;services;serviceaccounts;endpoints;persistentvolumes;persistentvolumeclaims;events;configmaps;secrets;nodes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;delete;update
 // +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=alertmanagers/api,verbs=get;create
 // +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors;probes;prometheusrules,verbs=get;list;watch;create;update;delete
@@ -524,6 +525,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				&ocsCephFilesystems{},
 				&ocsCephNFS{},
 				&ocsCephNFSService{},
+				&ocsCephNVMeOF{},
 				&ocsVaultAgent{},
 				&ocsCephObjectStores{tlsProfile},
 				&ocsCephObjectStoreUsers{},
@@ -727,7 +729,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				ReconcileStrategy: string(ReconcileStrategyUnknown),
 			}
 		}
-		if err := r.enableMetricsExporter(ctx, instance); err != nil {
+		if err := r.enableMetricsExporter(ctx, instance, tlsProfile); err != nil {
 			r.Log.Error(err, "Failed to reconcile metrics exporter.")
 			return reconcile.Result{}, err
 		}
@@ -1062,7 +1064,8 @@ func getUnsupportedClientsCount(r *StorageClusterReconciler, namespace string) (
 	var count int
 	providerVersion, _ := semver.Make(version.Version)
 	for idx := range scList.Items {
-		if scList.Items[idx].Status.Client != nil {
+		// Local client operator subscription is managed by ODF operator; exclude it from this check.
+		if scList.Items[idx].GetName() != defaults.LocalStorageConsumerName && scList.Items[idx].Status.Client != nil {
 			clientVersion, err := semver.Make(scList.Items[idx].Status.Client.OperatorVersion)
 			if err == nil {
 				if providerVersion.Major != clientVersion.Major || providerVersion.Minor > clientVersion.Minor {

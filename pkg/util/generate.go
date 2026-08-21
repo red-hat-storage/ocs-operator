@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -44,6 +45,37 @@ func GenerateNameForNonResilientCephBlockPool(storageClusterName, failureDomainV
 
 func GenerateNameForCephNFSBlockPool(initData *ocsv1.StorageCluster) string {
 	return fmt.Sprintf("%s-builtin-pool", GenerateNameForCephNFS(initData))
+}
+
+func GenerateNameForNVMeOFBlockPool(storageCluster *ocsv1.StorageCluster) string {
+	return fmt.Sprintf("%s-nvmeof", storageCluster.Name)
+}
+
+func GenerateNameForCephNVMeOFGateway(storageCluster *ocsv1.StorageCluster) string {
+	return "nvmeof-gw"
+}
+
+func GenerateNVMeOFSubsystemNQN(namespace string) string {
+	return fmt.Sprintf("nqn.2025-08.io.ceph.rook:%s", namespace)
+}
+
+type nvmeofListener struct {
+	Hostname string `json:"hostname"`
+}
+
+func GenerateNVMeOFListeners(gwName string, instances int) string {
+	listeners := make([]nvmeofListener, instances)
+	for i := range listeners {
+		suffix := string(rune('a' + i))
+		listeners[i] = nvmeofListener{
+			Hostname: fmt.Sprintf("rook-ceph-nvmeof-%s-%s", gwName, suffix),
+		}
+	}
+	data, err := json.Marshal(listeners)
+	if err != nil {
+		panic(fmt.Sprintf("failed to marshal NVMeOF listeners: %v", err))
+	}
+	return string(data)
 }
 
 func GenerateNameForCephFilesystem(storageClusterName string) string {

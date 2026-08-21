@@ -85,7 +85,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/red-hat-storage/ocs-operator
     support: Red Hat
-  name: ocs-operator.v4.23.0
+  name: ocs-operator.v5.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -280,6 +280,7 @@ spec:
           - cephclusters
           - cephfilesystems
           - cephnfses
+          - cephnvmeofgateways
           - cephobjectstores
           - cephobjectstoreusers
           - cephrbdmirrors
@@ -406,6 +407,17 @@ spec:
           - prometheuses/api
           verbs:
           - get
+        - apiGroups:
+          - networking.k8s.io
+          resources:
+          - networkpolicies
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
         - apiGroups:
           - noobaa.io
           resources:
@@ -662,6 +674,8 @@ spec:
             type: Recreate
           template:
             metadata:
+              annotations:
+                openshift.io/required-scc: restricted-v2
               labels:
                 name: ocs-operator
             spec:
@@ -746,4 +760,4 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Red Hat
-  version: 4.23.0
+  version: 5.0.0

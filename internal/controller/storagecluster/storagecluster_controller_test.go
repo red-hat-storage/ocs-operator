@@ -38,6 +38,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -718,9 +719,12 @@ func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
 	cc := &rookCephv1.CephCluster{}
 	mockCephCluster.DeepCopyInto(cc)
 	cc.Status.State = rookCephv1.ClusterStateCreated
+	cc.Status.CephStatus = &rookCephv1.CephStatus{
+		Health: "HealthOK",
+	}
 	sc := &api.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
-
+	sc.Status.DefaultCephDeviceClass = "ssd"
 	reconciler := createFakeStorageClusterReconciler(t, sc, cc, nodeList, networkConfig)
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
@@ -946,8 +950,13 @@ func TestStorageClusterInitConditions(t *testing.T) {
 	nodeList := &corev1.NodeList{}
 	mockNodeList.DeepCopyInto(nodeList)
 	cc.Status.State = rookCephv1.ClusterStateCreated
+	cc.Status.CephStatus = &rookCephv1.CephStatus{
+		Health: "HealthOK",
+	}
 
-	reconciler := createFakeStorageClusterReconciler(t, mockStorageCluster.DeepCopy(), cc, nodeList, networkConfig)
+	sc := mockStorageCluster.DeepCopy()
+	sc.Status.DefaultCephDeviceClass = "ssd"
+	reconciler := createFakeStorageClusterReconciler(t, sc, cc, nodeList, networkConfig)
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -1040,7 +1049,7 @@ func assertExpectedCondition(t *testing.T, conditions []conditionsv1.Condition) 
 		conditionsv1.ConditionAvailable:   corev1.ConditionFalse,
 		conditionsv1.ConditionProgressing: corev1.ConditionTrue,
 		conditionsv1.ConditionDegraded:    corev1.ConditionFalse,
-		conditionsv1.ConditionUpgradeable: corev1.ConditionUnknown,
+		conditionsv1.ConditionUpgradeable: corev1.ConditionFalse,
 		api.ConditionVersionMismatch:      corev1.ConditionFalse,
 	}
 	for cType, status := range expectedConditions {
@@ -1118,6 +1127,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 
 	_ = os.Setenv(providerAPIServerImage, "fake-image")
 	_ = os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
+	_ = os.Setenv(statusutil.DesiredCephxKeyGenEnvVarName, "2")
 
 	ocsProviderServiceDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName, Namespace: namespace},
@@ -1265,6 +1275,11 @@ func createFakeScheme(t *testing.T) *runtime.Scheme {
 	err = appsv1.AddToScheme(scheme)
 	if err != nil {
 		assert.Fail(t, "failed to add appsv1 scheme")
+	}
+
+	err = networkingv1.AddToScheme(scheme)
+	if err != nil {
+		assert.Fail(t, "failed to add networkingv1 scheme")
 	}
 
 	err = quotav1.AddToScheme(scheme)

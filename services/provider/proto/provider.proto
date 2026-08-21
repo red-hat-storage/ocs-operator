@@ -121,6 +121,11 @@ message NfsDriverRequirements {
     optional bool ctrlPluginHostNetwork = 1;
 }
 
+message NvmeofDriverRequirements {
+    // hostNetwork setting for controller plugin
+    optional bool ctrlPluginHostNetwork = 1;
+}
+
 // GetDesiredClientStateResponse holds the response for the GetDesiredClientState API request
 message GetDesiredClientStateResponse{
     // Note: kubeResources name is reserved till 4.20
@@ -143,6 +148,7 @@ message GetDesiredClientStateResponse{
     optional RbdDriverRequirements rbdDriverRequirements = 7;
     optional CephFsDriverRequirements CephFsDriverRequirements = 8;
     optional NfsDriverRequirements NfsDriverRequirements = 9;
+    optional NvmeofDriverRequirements NvmeofDriverRequirements = 10;
 }
 
 

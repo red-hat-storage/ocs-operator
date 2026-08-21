@@ -4,13 +4,24 @@ FROM docker.io/library/golang:1.26 AS builder
 
 WORKDIR /workspace
 
+# Cache module downloads in a separate layer.
+COPY go.mod go.sum go.work ./
+COPY api/go.mod api/go.sum ./api/
+COPY metrics/go.mod metrics/go.sum ./metrics/
+COPY services/provider/api/go.mod services/provider/api/go.sum ./services/provider/api/
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go work sync && \
+    go mod download
+
 COPY . .
 
 ARG LDFLAGS
 
-RUN go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o ocs-operator cmd/main.go
-RUN go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o provider-api services/provider/main.go
-RUN go build -tags netgo,osusergo -o onboarding-validation-keys-gen onboarding-validation-keys-generator/main.go
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o ocs-operator cmd/main.go && \
+    go build -ldflags "$LDFLAGS" -tags netgo,osusergo -o provider-api services/provider/main.go && \
+    go build -tags netgo,osusergo -o onboarding-validation-keys-gen onboarding-validation-keys-generator/main.go
 
 # Build stage 2
 
