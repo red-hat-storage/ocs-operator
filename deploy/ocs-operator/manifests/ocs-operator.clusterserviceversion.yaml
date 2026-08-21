@@ -558,6 +558,7 @@ spec:
           verbs:
           - get
           - list
+          - watch
         - apiGroups:
           - snapshot.storage.k8s.io
           resources:
@@ -565,13 +566,16 @@ spec:
           verbs:
           - get
           - list
+          - watch
         - apiGroups:
           - groupsnapshot.storage.k8s.io
+          - groupsnapshot.storage.openshift.io
           resources:
           - volumegroupsnapshotclasses
           verbs:
           - get
           - list
+          - watch
         serviceAccountName: ocs-provider-server
       - rules:
         - apiGroups:
