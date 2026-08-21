@@ -228,7 +228,7 @@ func (r *StorageClusterReconciler) createBlackboxSCC(ctx context.Context, instan
 		AllowedCapabilities:  []corev1.Capability{"NET_RAW"},
 		AllowedUnsafeSysctls: []string{"net.ipv4.ping_group_range"},
 		SeccompProfiles:      []string{"runtime/default"},
-		Priority:             ptr.To[int32](10),
+		Priority:             ptr.To[int32](0),
 	}
 	actual, err := r.SecurityClient.SecurityContextConstraints().Get(ctx, desired.Name, metav1.GetOptions{})
 	if err != nil {
