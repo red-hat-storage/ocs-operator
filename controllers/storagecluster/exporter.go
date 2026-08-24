@@ -8,6 +8,7 @@ import (
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/defaults"
+	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	"github.com/red-hat-storage/ocs-operator/v4/version"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -324,6 +325,16 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 			Namespace: instance.Namespace,
 		},
 	}
+
+	var multusNetwork string
+	if util.IsMultus(instance.Spec.Network) {
+		var err error
+		multusNetwork, err = getMultusPublicNetwork(instance)
+		if err != nil {
+			return err
+		}
+	}
+
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, currentDep, func() error {
 		if currentDep.ObjectMeta.CreationTimestamp.IsZero() {
 			// Selector is immutable. Inject it only while creating new object.
@@ -523,6 +534,12 @@ func deployMetricsExporter(ctx context.Context, r *StorageClusterReconciler, ins
 					NodeAffinity: getPlacement(instance, defaults.MetricsExporterKey).NodeAffinity,
 				},
 			},
+		}
+		if multusNetwork != "" {
+			if currentDep.Spec.Template.Annotations == nil {
+				currentDep.Spec.Template.Annotations = make(map[string]string)
+			}
+			currentDep.Spec.Template.Annotations["k8s.v1.cni.cncf.io/networks"] = multusNetwork
 		}
 		return nil
 	}); err != nil {
