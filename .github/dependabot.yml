@@ -5,11 +5,11 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: daily
+      interval: weekly
+      day: monday
     open-pull-requests-limit: 5
     cooldown:
-      semver-minor-days: 3
-      semver-patch-days: 3
+      default-days: 7
     # Only propose updates for direct requires; transitive bumps land via make deps-update.
     allow:
       - dependency-type: direct
@@ -49,7 +49,7 @@ updates:
         applies-to: security-updates
         patterns:
           - "*"
-    # To skip deps pinned to untagged pseudo versions , list them here.
+    # To skip deps pinned to untagged pseudo versions, list them here.
     ignore:
       # Local workspace modules (replaced in go.mod / go.work)
       - dependency-name: "github.com/red-hat-storage/ocs-operator/api/v4"
