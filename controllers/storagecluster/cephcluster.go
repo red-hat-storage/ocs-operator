@@ -80,7 +80,6 @@ const (
 	networkProvider           = "multus"
 	publicNetworkSelectorKey  = "public"
 	clusterNetworkSelectorKey = "cluster"
-	deviceClassPlacementKey   = "device-class"
 )
 
 const (
@@ -869,30 +868,8 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 		count, replica := countAndReplicaOf(&ds)
 		for i := range replica {
 			// Default placements for osd and prepareosd
-			defaultPlacement := GetPlacement(sc, "osd")
-			defaultPreparePlacement := GetPlacement(sc, "prepareosd")
-
-			// Annotation crushDeviceClass ensures osd with different CRUSH device class than the one detected by Ceph
-			crushDeviceClass := ds.DeviceType
-			if ds.DeviceClass != "" {
-				crushDeviceClass = ds.DeviceClass
-			}
-
-			annotations := map[string]string{
-				"crushDeviceClass": crushDeviceClass,
-			}
-			// create a device class match expression
-			deviceClassMatchExpression := metav1.LabelSelectorRequirement{
-				Key:      deviceClassPlacementKey,
-				Operator: metav1.LabelSelectorOpIn,
-				Values:   []string{crushDeviceClass},
-			}
-			// append the device class match expression to the topology spread constraints
-			// we are appending to the first topology spread constraint as the first one will have topologyKey as failureDomain
-			placement := *defaultPlacement.DeepCopy()
-			placement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions = append(placement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions, deviceClassMatchExpression)
-			preparePlacement := *defaultPreparePlacement.DeepCopy()
-			preparePlacement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions = append(preparePlacement.TopologySpreadConstraints[0].LabelSelector.MatchExpressions, deviceClassMatchExpression)
+			placement := GetPlacement(sc, "osd")
+			preparePlacement := GetPlacement(sc, "prepareosd")
 
 			switch {
 			case !isPlacementEmpty(ds.Placement) && !isPlacementEmpty(ds.PreparePlacement):
@@ -912,6 +889,15 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 				// If none of osd or prepareosd placements are specified, use their defaults
 			}
 
+			// Annotation crushDeviceClass ensures osd with different CRUSH device class than the one detected by Ceph
+			crushDeviceClass := ds.DeviceType
+			if ds.DeviceClass != "" {
+				crushDeviceClass = ds.DeviceClass
+			}
+
+			annotations := map[string]string{
+				"crushDeviceClass": crushDeviceClass,
+			}
 			// Annotation crushInitialWeight is an optional, explicit weight to set upon OSD's init (as float, in TiB units).
 			// ROOK & Ceph do not want any (optional) Ti[B] suffix, so trim it here.
 			// If not set, Ceph will define OSD's weight based on its capacity.
