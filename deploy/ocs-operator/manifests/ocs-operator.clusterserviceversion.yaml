@@ -710,17 +710,17 @@ spec:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 - name: KUBE_RBAC_PROXY_IMAGE
-                  value: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
+                  value: ghcr.io/kube-rbac-proxy/kube-rbac-proxy:v0.22.1
                 - name: OCS_METRICS_EXPORTER_IMAGE
                   value: quay.io/ocs-dev/ocs-metrics-exporter:latest
                 - name: BLACKBOX_EXPORTER_IMAGE
                   value: quay.io/prometheus/blackbox-exporter:latest
                 - name: ROOK_CEPH_IMAGE
-                  value: quay.io/ocs-dev/rook-ceph:vmaster-63ab719e7
+                  value: quay.io/ocs-dev/rook-ceph:vmaster-855ce45bb
                 - name: CEPH_IMAGE
                   value: quay.io/ceph/ceph:v20.2.4
                 - name: NOOBAA_CORE_IMAGE
-                  value: quay.io/noobaa/noobaa-core:master-20260729
+                  value: quay.io/noobaa/noobaa-core:master-20260820
                 - name: NOOBAA_DB_IMAGE
                   value: quay.io/sclorg/postgresql-16-c9s
                 - name: PROVIDER_API_SERVER_IMAGE
@@ -815,7 +815,7 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: quay.io/ocs-dev/rook-ceph:vmaster-63ab719e7
+  - image: quay.io/ocs-dev/rook-ceph:vmaster-855ce45bb
     name: rook-container
   - image: quay.io/ceph/ceph:v20.2.4
     name: ceph-container
@@ -825,6 +825,6 @@ spec:
     name: ocs-metrics-exporter
   - image: quay.io/prometheus/blackbox-exporter:latest
     name: blackbox-exporter
-  - image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
+  - image: ghcr.io/kube-rbac-proxy/kube-rbac-proxy:v0.22.1
     name: kube-rbac-proxy
   version: 5.0.0
