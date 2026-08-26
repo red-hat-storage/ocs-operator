@@ -61,7 +61,6 @@ updates:
       - dependency-name: "github.com/kube-object-storage/lib-bucket-provisioner"
       - dependency-name: "github.com/noobaa/noobaa-operator/v5"
       - dependency-name: "github.com/openshift/api"
-      - dependency-name: "github.com/openshift/build-machinery-go"
       - dependency-name: "github.com/openshift/client-go"
       - dependency-name: "github.com/openshift/custom-resource-status"
       - dependency-name: "github.com/red-hat-storage/external-snapshotter/client/v8"

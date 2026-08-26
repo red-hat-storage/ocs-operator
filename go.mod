@@ -6,25 +6,24 @@ replace (
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook
 	github.com/red-hat-storage/ocs-operator/api/v4 => ./api // local replace
 	github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api // local replace
-	github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260819094936-40cab6eb0ee7 // rook downstream replace
+	github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260821085641-855ce45bbaaa // rook downstream replace
 )
 
 require (
 	dario.cat/mergo v1.0.2
 	github.com/blang/semver/v4 v4.0.0
-	github.com/ceph/ceph-csi-operator/api v0.0.0-20260720045108-15b278476fc9
+	github.com/ceph/ceph-csi-operator/api v0.0.0-20260824100041-eb31eefc32bf
 	github.com/csi-addons/kubernetes-csi-addons v0.14.0
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
 	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.6.0
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20260729204503-d5bbdd7ce6a4
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20260823065117-0e4d1eff6a6f
 	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/onsi/gomega v1.42.1
-	github.com/openshift/api v0.0.0-20260416105050-3c6b218b8a80
-	github.com/openshift/build-machinery-go v0.0.0-20251023084048-5d77c1a5e5af
-	github.com/openshift/client-go v0.0.0-20260330134249-7e1499aaacd7
+	github.com/openshift/api v0.0.0-20260810132456-8f52beb625b5
+	github.com/openshift/client-go v0.0.0-20260810202730-ddca5e0b7146
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
 	github.com/operator-framework/api v0.45.0
 	github.com/operator-framework/operator-lib v0.19.0
@@ -32,24 +31,24 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.93.1
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.93.1
 	github.com/prometheus/common v0.70.1
-	github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20260409102146-bd705f8eebd0
+	github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20260821074411-26525d9a5c22
 	github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20260416061305-2878a3b403e6
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-00010101000000-000000000000
 	github.com/red-hat-storage/ocs-operator/services/provider/api/v4 v4.0.0-00010101000000-000000000000
 	github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd65
 	github.com/rook/rook/pkg/apis v0.0.0-20260707223529-6c2a3a5f2b08
-	github.com/stretchr/testify v1.12.0
+	github.com/stretchr/testify v1.12.1
 	go.uber.org/multierr v1.11.0
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
-	google.golang.org/grpc v1.83.0
+	google.golang.org/grpc v1.83.1
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/v3 v3.5.2
-	k8s.io/api v0.36.3
-	k8s.io/apiextensions-apiserver v0.36.3
-	k8s.io/apimachinery v0.36.3
-	k8s.io/client-go v0.36.3
+	k8s.io/api v0.36.4
+	k8s.io/apiextensions-apiserver v0.36.4
+	k8s.io/apimachinery v0.36.4
+	k8s.io/client-go v0.36.4
 	k8s.io/klog/v2 v2.140.0
-	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2
+	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
 	open-cluster-management.io/api v1.3.0
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/yaml v1.6.0
@@ -147,11 +146,11 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/apiserver v0.36.3 // indirect
-	k8s.io/component-base v0.36.3 // indirect
+	k8s.io/apiserver v0.36.4 // indirect
+	k8s.io/component-base v0.36.4 // indirect
 	k8s.io/kube-aggregator v0.36.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20260603220949-865597e52e25 // indirect
-	k8s.io/streaming v0.36.3 // indirect
+	k8s.io/streaming v0.36.4 // indirect
 	sigs.k8s.io/container-object-storage-interface-api v0.1.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect

@@ -4,16 +4,16 @@ go 1.26.5
 
 replace (
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook
-	github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260819094936-40cab6eb0ee7 // rook downstream replace
+	github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260821085641-855ce45bbaaa // rook downstream replace
 )
 
 require (
-	github.com/noobaa/noobaa-operator/v5 v5.0.0-20260729204503-d5bbdd7ce6a4
-	github.com/openshift/api v0.0.0-20260416105050-3c6b218b8a80
+	github.com/noobaa/noobaa-operator/v5 v5.0.0-20260823065117-0e4d1eff6a6f
+	github.com/openshift/api v0.0.0-20260810132456-8f52beb625b5
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
 	github.com/rook/rook/pkg/apis v0.0.0-20260707223529-6c2a3a5f2b08
-	k8s.io/api v0.36.3
-	k8s.io/apimachinery v0.36.3
+	k8s.io/api v0.36.4
+	k8s.io/apimachinery v0.36.4
 )
 
 require (
@@ -88,7 +88,7 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	github.com/stretchr/testify v1.12.0 // indirect
+	github.com/stretchr/testify v1.12.1 // indirect
 	github.com/thoas/go-funk v0.9.3 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
@@ -106,16 +106,16 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
-	google.golang.org/grpc v1.83.0 // indirect
+	google.golang.org/grpc v1.83.1 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/apiextensions-apiserver v0.36.3 // indirect
-	k8s.io/client-go v0.36.3 // indirect
+	k8s.io/apiextensions-apiserver v0.36.4 // indirect
+	k8s.io/client-go v0.36.4 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260603220949-865597e52e25 // indirect
-	k8s.io/streaming v0.36.3 // indirect
-	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2 // indirect
+	k8s.io/streaming v0.36.4 // indirect
+	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3 // indirect
 	sigs.k8s.io/container-object-storage-interface-api v0.1.0 // indirect
 	sigs.k8s.io/controller-runtime v0.24.1 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
