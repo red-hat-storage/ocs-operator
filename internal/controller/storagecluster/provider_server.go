@@ -451,17 +451,6 @@ func getProviderAPIServerNetworkPolicy(instance *ocsv1.StorageCluster) *networki
 						},
 					},
 				},
-				{
-					// Allow cross-cluster peering via Submariner/Globalnet.
-					// Traffic from remote clusters arrives with GlobalNet CIDR
-					// source IPs that don't match any namespaceSelector.
-					Ports: []networkingv1.NetworkPolicyPort{
-						{
-							Protocol: ptr.To(corev1.ProtocolTCP),
-							Port:     ptr.To(intstr.FromInt32(ocsProviderServicePort)),
-						},
-					},
-				},
 			},
 		},
 	}
