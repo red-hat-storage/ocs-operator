@@ -85,7 +85,7 @@ jobs:
           echo "target_go=${version}" >>"${GITHUB_OUTPUT}"
 
       - name: Checkout ${{ matrix.branch }}
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5 (Node 24)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v5 (Node 24)
         with:
           ref: ${{ matrix.branch }}
           fetch-depth: 1
@@ -178,7 +178,7 @@ jobs:
 
       - name: Set up Go ${{ steps.probe.outputs.target_go }}
         if: steps.compare.outputs.should_bump == 'true' && steps.bump.outputs.changed == 'true'
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0 (Node 24)
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.3.0 (Node 24)
         with:
           go-version: ${{ steps.probe.outputs.target_go }}
           cache: false
