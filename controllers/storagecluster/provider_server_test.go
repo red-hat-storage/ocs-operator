@@ -274,6 +274,30 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 		networkPolicy.Namespace = instance.Namespace
 		assert.True(t, errors.IsNotFound(r.Get(context.TODO(), client.ObjectKeyFromObject(networkPolicy), networkPolicy)))
 	})
+
+	t.Run("NetworkPolicy is not created when StorageClusterPeer exists", func(t *testing.T) {
+
+		r, instance := createSetupForOcsProviderTest(t, true, corev1.ServiceTypeClusterIP)
+
+		peer := &ocsv1.StorageClusterPeer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-peer",
+				Namespace: instance.Namespace,
+			},
+		}
+		assert.NoError(t, r.Create(context.TODO(), peer))
+
+		obj := &ocsProviderServer{}
+		res, err := obj.createNetworkPolicy(r, instance)
+		assert.NoError(t, err)
+		assert.True(t, res.IsZero())
+
+		networkPolicy := &networkingv1.NetworkPolicy{}
+		networkPolicy.Name = ocsProviderServerName
+		networkPolicy.Namespace = instance.Namespace
+		assert.True(t, errors.IsNotFound(r.Get(context.TODO(), client.ObjectKeyFromObject(networkPolicy), networkPolicy)))
+	})
+
 }
 
 func TestOcsProviderServerEnsureDeleted(t *testing.T) {
