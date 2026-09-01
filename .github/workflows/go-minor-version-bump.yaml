@@ -90,6 +90,7 @@ jobs:
           ref: ${{ matrix.branch }}
           fetch-depth: 1
           path: work
+          persist-credentials: false
 
       - name: Compare versions
         id: compare
@@ -236,8 +237,6 @@ jobs:
 
           fork_owner="${FORK_REPO%%/*}"
           fork_url="https://x-access-token:${GH_PAT}@github.com/${FORK_REPO}.git"
-
-          git config --unset-all http.https://github.com/.extraheader
 
           git push "${fork_url}" "HEAD:refs/heads/${HEAD_BRANCH}" --force
 
