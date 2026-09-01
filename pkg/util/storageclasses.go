@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	ErrUnsupportedProvisioner = errors.New("unsupportedProvisioner")
+	ErrUnsupportedDriver = errors.New("unsupportedDriver")
 )
 
 func GenerateNameForCephBlockPoolStorageClass(storageCluster *ocsv1.StorageCluster) string {
@@ -544,7 +544,7 @@ func StorageClassFromExisting(
 	case NoobaaProvisionerName:
 		return storageClass, nil
 	default:
-		return nil, ErrUnsupportedProvisioner
+		return nil, ErrUnsupportedDriver
 	}
 
 	params["clusterID"] = clientProfileName
