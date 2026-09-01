@@ -70,7 +70,7 @@ func VolumeGroupReplicationClassFromTemplate(
 		AddLabel(vgrc, ramenDRStorageIDLabelKey, rbdStorageId)
 		AddLabel(vgrc, ramenDRGroupReplicationIDLabelKey, groupReplicationID)
 	default:
-		return nil, fmt.Errorf("unsupported Provisioner for VolumeGroupReplicationClass")
+		return nil, ErrUnsupportedDriver
 	}
 	return vgrc, nil
 }
