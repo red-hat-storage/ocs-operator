@@ -20,7 +20,7 @@ github.com/davecgh/go-spew/spew
 ## explicit; go 1.13
 github.com/emicklei/go-restful/v3
 github.com/emicklei/go-restful/v3/log
-# github.com/go-jose/go-jose/v3 v3.0.3
+# github.com/go-jose/go-jose/v3 v3.0.5
 ## explicit; go 1.12
 github.com/go-jose/go-jose/v3
 github.com/go-jose/go-jose/v3/cipher
