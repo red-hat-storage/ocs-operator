@@ -76,7 +76,15 @@ func (o *ocsProviderServer) createNetworkPolicy(r *StorageClusterReconciler, ins
 		return reconcile.Result{}, err
 	}
 
-	if desiredService.Spec.Type != corev1.ServiceTypeClusterIP {
+	// Cross-cluster DR traffic via Submariner/Globalnet cannot match any
+	// namespaceSelector, so the NetworkPolicy must not exist when a peer is present.
+	hasPeers, err := hasStorageClusterPeers(r, instance.Namespace)
+	if err != nil {
+		r.Log.Error(err, "Failed to list StorageClusterPeer resources")
+		return reconcile.Result{}, err
+	}
+
+	if desiredService.Spec.Type != corev1.ServiceTypeClusterIP || hasPeers {
 		if networkPolicy.UID != "" {
 			if err := r.Delete(r.ctx, networkPolicy); err != nil {
 				r.Log.Error(err, "Failed to delete networkpolicy", "Name", networkPolicy.Name)
@@ -88,16 +96,24 @@ func (o *ocsProviderServer) createNetworkPolicy(r *StorageClusterReconciler, ins
 
 	desiredNetworkPolicy := getProviderAPIServerNetworkPolicy(instance)
 
-	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, networkPolicy, func() error {
+	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, networkPolicy, func() error {
 		networkPolicy.Spec = desiredNetworkPolicy.Spec
 		return controllerutil.SetControllerReference(instance, networkPolicy, r.Client.Scheme())
-	})
-	if err != nil {
+	}); err != nil {
 		r.Log.Error(err, "Failed to create/update networkpolicy", "Name", desiredNetworkPolicy.Name)
 		return reconcile.Result{}, err
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func hasStorageClusterPeers(r *StorageClusterReconciler, namespace string) (bool, error) {
+	peerList := &metav1.PartialObjectMetadataList{}
+	peerList.SetGroupVersionKind(ocsv1.GroupVersion.WithKind("StorageClusterPeerList"))
+	if err := r.List(r.ctx, peerList, client.InNamespace(namespace), client.Limit(1)); err != nil {
+		return false, err
+	}
+	return len(peerList.Items) > 0, nil
 }
 
 func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
