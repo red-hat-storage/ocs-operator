@@ -1,7 +1,12 @@
 approvers:
-  - weirdwiz
+  - yati1998
+  - Madhu-1
+  - bipuladh
+  - SanjalKatiyar
 reviewers:
-  - weirdwiz
   - aruniiird
   - yati1998
+  - Madhu-1
+  - bipuladh
+  - SanjalKatiyar
 component: ocs-metrics-exporter
