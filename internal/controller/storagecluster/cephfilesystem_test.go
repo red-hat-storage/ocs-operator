@@ -99,6 +99,9 @@ func TestCephFileSystemDataPools(t *testing.T) {
 		DeviceClass:        mocksc.Status.DefaultCephDeviceClass,
 		FailureDomain:      getFailureDomain(mocksc),
 		Replicated:         generateCephReplicatedSpec(mocksc, poolTypeData),
+		Parameters: map[string]string{
+			"target_size_ratio": "0",
+		},
 	}
 
 	var cases = []struct {
@@ -222,6 +225,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 						EnableCrushUpdates: ptr.To(true),
 						Replicated:         defaultPoolSpec.Replicated,
 						FailureDomain:      defaultPoolSpec.FailureDomain,
+						Parameters:         defaultPoolSpec.Parameters,
 					},
 				},
 				{
@@ -231,6 +235,7 @@ func TestCephFileSystemDataPools(t *testing.T) {
 						EnableCrushUpdates: ptr.To(true),
 						Replicated:         defaultPoolSpec.Replicated,
 						FailureDomain:      defaultPoolSpec.FailureDomain,
+						Parameters:         defaultPoolSpec.Parameters,
 					},
 				},
 			},
