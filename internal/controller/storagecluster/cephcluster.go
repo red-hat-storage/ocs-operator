@@ -1607,6 +1607,12 @@ func setDefaultDataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageClus
 			poolSpec.Replicated.ReplicasPerFailureDomain = defaultReplicatedSpec.ReplicasPerFailureDomain
 		}
 	}
+	if _, ok := poolSpec.Parameters["target_size_ratio"]; !ok && poolSpec.Replicated.TargetSizeRatio == 0 {
+		if poolSpec.Parameters == nil {
+			poolSpec.Parameters = make(map[string]string)
+		}
+		poolSpec.Parameters["target_size_ratio"] = "0"
+	}
 }
 
 func generateCephReplicatedSpec(initData *ocsv1.StorageCluster, poolType string) rookCephv1.ReplicatedSpec {
