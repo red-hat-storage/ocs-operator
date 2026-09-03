@@ -9,6 +9,17 @@ RUN dnf -y reinstall https://download.ceph.com/rpm-${CEPH_VERSION}/el9/noarch/ce
     && ( dnf config-manager --disable tcmu-runner,tcmu-runner-source,tcmu-runner-noarch,ceph-iscsi,ganesha || true ) \
     && true
 
+# TODO: remove this once the ceph base image includes urllib3>=2.6.3 and requests>=2.32.0
+# CVE-2025-66471: urllib3 Streaming API improperly handles highly compressed data
+# CVE-2026-21441: Decompression-bomb safeguard bypass when following HTTP redirects
+# Both vulnerabilities allow decompression bombs causing memory exhaustion and DoS
+# Also upgrade requests to a version compatible with urllib3 2.x
+RUN dnf -y install --nodocs python3-pip \
+    && pip3 install --upgrade "urllib3>=2.6.3" "requests>=2.32.0" \
+    && dnf -y remove python3-pip \
+    && dnf clean all \
+    && rm -rf /var/cache/yum
+
 FROM updated_base AS builder
 
 ARG GOROOT=/usr/local/go
