@@ -668,7 +668,8 @@ spec:
     - alert: ODFNodeLatencyHighOnOSDNodes
       expr: |
         count(
-          max_over_time(
+          quantile_over_time(
+              0.95,
               probe_icmp_duration_seconds{phase="rtt",
               job=~"probe/.*/odf-blackbox-exporter",
               daemon_type="osd"
@@ -685,14 +686,15 @@ spec:
         severity: warning
         component: odf
       annotations:
-        summary: "High ICMP latency (>10ms) detected on {{ $value }} ODF OSD node(s)"
-        description: "{{ $value }} OSD node(s) have max ICMP RTT latency > 10ms over the last 24h. This may impact Ceph performance. Query 'max_over_time(probe_icmp_duration_seconds{phase=\"rtt\",job=\"odf-blackbox-exporter\",daemon_type=\"osd\"}[24h:]) > 0.010' to see affected nodes."
+        summary: "High network latency detected on {{ $value }} OSD node(s)"
+        description: "There are {{ $value }} OSD node(s) where 5% of all network pings over the last 24 hours took longer than 10ms to complete. Latency like this can slow down Ceph storage operations such as write acknowledgements and data replication. Run 'quantile_over_time(0.95, probe_icmp_duration_seconds{phase=\"rtt\",job=\"odf-blackbox-exporter\",daemon_type=\"osd\"}[24h:]) > 0.010' to see which nodes are affected."
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFNodeLatencyHighOnOSDNodes.md
 
     - alert: ODFNodeLatencyHighOnNonOSDNodes
       expr: |
         count(
-          max_over_time(
+          quantile_over_time(
+              0.95,
               probe_icmp_duration_seconds{phase="rtt",
               job=~"probe/.*/odf-blackbox-exporter",
               daemon_type="mon"
@@ -709,8 +711,8 @@ spec:
         severity: warning
         component: odf
       annotations:
-        summary: "High ICMP latency (>100ms) detected on {{ $value }} ODF non-OSD node(s)"
-        description: "{{ $value }} non-OSD node(s) have max ICMP RTT latency > 100ms over the last 24h. Investigate network health. Query 'max_over_time(probe_icmp_duration_seconds{phase=\"rtt\",job=\"odf-blackbox-exporter\",daemon_type=\"mon\"}[24h:]) > 0.100' to see affected nodes."
+        summary: "High network latency detected on {{ $value }} non-OSD node(s)"
+        description: "There are {{ $value }} non-OSD node(s) (e.g. Ceph mon) where 5% of all network pings over the last 24 hours took longer than 100ms to complete. This can point to a network problem affecting cluster communication. Run 'quantile_over_time(0.95, probe_icmp_duration_seconds{phase=\"rtt\",job=\"odf-blackbox-exporter\",daemon_type=\"mon\"}[24h:]) > 0.100' to see which nodes are affected."
         runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFNodeLatencyHighOnNonOSDNodes.md
 
     - alert: ODFNodeMTULessThan9000
