@@ -51,6 +51,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -573,6 +575,10 @@ func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
 	opts = append(opts, grpc.Creds(creds))
 	grpcServer := grpc.NewServer(opts...)
 	pb.RegisterOCSProviderServer(grpcServer, s)
+
+	healthServer := health.NewServer()
+	healthpb.RegisterHealthServer(grpcServer, healthServer)
+	defer healthServer.Shutdown()
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcServer)
 	err = grpcServer.Serve(lis)

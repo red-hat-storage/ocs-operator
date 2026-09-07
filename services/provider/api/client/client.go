@@ -13,13 +13,15 @@ import (
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 type OCSProviderClient struct {
-	Client     pb.OCSProviderClient
-	clientConn *grpc.ClientConn
-	timeout    time.Duration
+	Client       pb.OCSProviderClient
+	healthClient healthpb.HealthClient
+	clientConn   *grpc.ClientConn
+	timeout      time.Duration
 }
 
 // NewProviderClient creates a client to talk to the external OCS storage provider server
@@ -37,10 +39,36 @@ func NewProviderClient(ctx context.Context, serverAddr string, timeout time.Dura
 		return nil, fmt.Errorf("failed to dial: %v", err)
 	}
 
+	healthClient := healthpb.NewHealthClient(conn)
+
 	return &OCSProviderClient{
-		Client:     pb.NewOCSProviderClient(conn),
-		clientConn: conn,
-		timeout:    timeout}, nil
+		Client:       pb.NewOCSProviderClient(conn),
+		healthClient: healthClient,
+		clientConn:   conn,
+		timeout:      timeout}, nil
+}
+
+// CheckConnection validates connectivity to the provider server using gRPC health check.
+// This is useful for DR/mirroring scenarios where upfront connectivity validation is critical.
+// Returns an error if the server is not reachable or not healthy.
+func (cc *OCSProviderClient) CheckConnection(ctx context.Context) error {
+	if cc.Client == nil || cc.clientConn == nil {
+		return fmt.Errorf("provider client is closed")
+	}
+
+	healthCtx, cancel := context.WithTimeout(ctx, cc.timeout)
+	defer cancel()
+
+	resp, err := cc.healthClient.Check(healthCtx, &healthpb.HealthCheckRequest{})
+	if err != nil {
+		return fmt.Errorf("health check failed: %v", err)
+	}
+
+	if resp.GetStatus() != healthpb.HealthCheckResponse_SERVING {
+		return fmt.Errorf("health check failed: %v", resp.GetStatus())
+	}
+
+	return nil
 }
 
 // Close closes the gRPC connection of the external OCS storage provider client
