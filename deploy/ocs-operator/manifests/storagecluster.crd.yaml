@@ -127,8 +127,8 @@ spec:
                               * An existing PVC (PersistentVolumeClaim)
                               If the provisioner or an external controller can support the specified data source,
                               it will create a new volume based on the contents of the specified data source.
-                              When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
-                              and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+                              dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be
+                              copied to dataSource when dataSourceRef.namespace is not specified.
                               If the namespace is specified, then dataSourceRef will not be copied to dataSource.
                             properties:
                               apiGroup:
@@ -171,7 +171,6 @@ spec:
                                 specified.
                               * While dataSource only allows local objects, dataSourceRef allows objects
                                 in any namespaces.
-                              (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
                               (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
                             properties:
                               apiGroup:
@@ -454,6 +453,54 @@ spec:
                               currentVolumeAttributesClassName is the current name of the VolumeAttributesClass the PVC is using.
                               When unset, there is no VolumeAttributeClass applied to this PersistentVolumeClaim
                             type: string
+                          healthStatus:
+                            description: |-
+                              healthStatus contains the latest controller-reported health information
+                              for the volume bound to this claim.
+                            properties:
+                              healthConditions:
+                                description: |-
+                                  conditions is the set of adverse conditions reported by
+                                  the CSI controller plugin. An empty list means no adverse condition.
+                                  At most 16 conditions may be reported.
+                                items:
+                                  description: VolumeHealthCondition represents an
+                                    adverse health condition reported for a volume.
+                                  properties:
+                                    message:
+                                      description: |-
+                                        message is a human-readable description.
+                                        Maximum permitted length of a message is 1024 bytes.
+                                      type: string
+                                    reason:
+                                      description: |-
+                                        reason is a brief CamelCase machine-parseable reason.
+                                        Together with status it forms the unique identity of a condition entry.
+                                        Maximum permitted length of a reason is 256 bytes.
+                                      type: string
+                                    status:
+                                      description: |-
+                                        status is the machine-parseable health category.
+                                        Possible values:
+                                        - "Inaccessible": the volume cannot be accessed.
+                                        - "DataLoss": data loss has been detected on the volume.
+                                        - "Degraded": the volume is functioning with reduced capability.
+                                      type: string
+                                  required:
+                                  - reason
+                                  - status
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                - status
+                                - reason
+                                x-kubernetes-list-type: map
+                              lastTransitionTime:
+                                description: lastTransitionTime is when the current
+                                  set of conditions first appeared.
+                                format: date-time
+                                type: string
+                            type: object
                           modifyVolumeStatus:
                             description: |-
                               ModifyVolumeStatus represents the status object of ControllerModifyVolume operation.
@@ -1162,6 +1209,13 @@ spec:
                                     grpc:
                                       description: GRPC specifies a GRPC HealthCheckRequest.
                                       properties:
+                                        mode:
+                                          description: |-
+                                            mode specifies the connection mode for the gRPC health probe.
+                                            Set to "TLS" to use TLS without certificate verification.
+                                            Set to "Plaintext" to use a plaintext (insecure) connection explicitly.
+                                            If not specified, the probe uses a plaintext (insecure) connection.
+                                          type: string
                                         port:
                                           description: Port number of the gRPC service.
                                             Number must be in the range 1 to 65535.
@@ -1221,6 +1275,11 @@ spec:
                                             Number must be in the range 1 to 65535.
                                             Name must be an IANA_SVC_NAME.
                                           x-kubernetes-int-or-string: true
+                                        protocol:
+                                          description: |-
+                                            Protocol selects the wire protocol for the probe connection.
+                                            Nil defaults to HTTP/1.1.
+                                          type: string
                                         scheme:
                                           description: |-
                                             Scheme to use for connecting to the host.
@@ -1355,6 +1414,13 @@ spec:
                                     grpc:
                                       description: GRPC specifies a GRPC HealthCheckRequest.
                                       properties:
+                                        mode:
+                                          description: |-
+                                            mode specifies the connection mode for the gRPC health probe.
+                                            Set to "TLS" to use TLS without certificate verification.
+                                            Set to "Plaintext" to use a plaintext (insecure) connection explicitly.
+                                            If not specified, the probe uses a plaintext (insecure) connection.
+                                          type: string
                                         port:
                                           description: Port number of the gRPC service.
                                             Number must be in the range 1 to 65535.
@@ -1414,6 +1480,11 @@ spec:
                                             Number must be in the range 1 to 65535.
                                             Name must be an IANA_SVC_NAME.
                                           x-kubernetes-int-or-string: true
+                                        protocol:
+                                          description: |-
+                                            Protocol selects the wire protocol for the probe connection.
+                                            Nil defaults to HTTP/1.1.
+                                          type: string
                                         scheme:
                                           description: |-
                                             Scheme to use for connecting to the host.
@@ -2682,8 +2753,8 @@ spec:
                                   * An existing PVC (PersistentVolumeClaim)
                                   If the provisioner or an external controller can support the specified data source,
                                   it will create a new volume based on the contents of the specified data source.
-                                  When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
-                                  and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+                                  dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be
+                                  copied to dataSource when dataSourceRef.namespace is not specified.
                                   If the namespace is specified, then dataSourceRef will not be copied to dataSource.
                                 properties:
                                   apiGroup:
@@ -2728,7 +2799,6 @@ spec:
                                     specified.
                                   * While dataSource only allows local objects, dataSourceRef allows objects
                                     in any namespaces.
-                                  (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
                                   (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
                                 properties:
                                   apiGroup:
@@ -3022,6 +3092,55 @@ spec:
                                   currentVolumeAttributesClassName is the current name of the VolumeAttributesClass the PVC is using.
                                   When unset, there is no VolumeAttributeClass applied to this PersistentVolumeClaim
                                 type: string
+                              healthStatus:
+                                description: |-
+                                  healthStatus contains the latest controller-reported health information
+                                  for the volume bound to this claim.
+                                properties:
+                                  healthConditions:
+                                    description: |-
+                                      conditions is the set of adverse conditions reported by
+                                      the CSI controller plugin. An empty list means no adverse condition.
+                                      At most 16 conditions may be reported.
+                                    items:
+                                      description: VolumeHealthCondition represents
+                                        an adverse health condition reported for a
+                                        volume.
+                                      properties:
+                                        message:
+                                          description: |-
+                                            message is a human-readable description.
+                                            Maximum permitted length of a message is 1024 bytes.
+                                          type: string
+                                        reason:
+                                          description: |-
+                                            reason is a brief CamelCase machine-parseable reason.
+                                            Together with status it forms the unique identity of a condition entry.
+                                            Maximum permitted length of a reason is 256 bytes.
+                                          type: string
+                                        status:
+                                          description: |-
+                                            status is the machine-parseable health category.
+                                            Possible values:
+                                            - "Inaccessible": the volume cannot be accessed.
+                                            - "DataLoss": data loss has been detected on the volume.
+                                            - "Degraded": the volume is functioning with reduced capability.
+                                          type: string
+                                      required:
+                                      - reason
+                                      - status
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-map-keys:
+                                    - status
+                                    - reason
+                                    x-kubernetes-list-type: map
+                                  lastTransitionTime:
+                                    description: lastTransitionTime is when the current
+                                      set of conditions first appeared.
+                                    format: date-time
+                                    type: string
+                                type: object
                               modifyVolumeStatus:
                                 description: |-
                                   ModifyVolumeStatus represents the status object of ControllerModifyVolume operation.
@@ -3710,8 +3829,8 @@ spec:
                           * An existing PVC (PersistentVolumeClaim)
                           If the provisioner or an external controller can support the specified data source,
                           it will create a new volume based on the contents of the specified data source.
-                          When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
-                          and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+                          dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be
+                          copied to dataSource when dataSourceRef.namespace is not specified.
                           If the namespace is specified, then dataSourceRef will not be copied to dataSource.
                         properties:
                           apiGroup:
@@ -3754,7 +3873,6 @@ spec:
                             specified.
                           * While dataSource only allows local objects, dataSourceRef allows objects
                             in any namespaces.
-                          (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
                           (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
                         properties:
                           apiGroup:
@@ -4034,6 +4152,54 @@ spec:
                           currentVolumeAttributesClassName is the current name of the VolumeAttributesClass the PVC is using.
                           When unset, there is no VolumeAttributeClass applied to this PersistentVolumeClaim
                         type: string
+                      healthStatus:
+                        description: |-
+                          healthStatus contains the latest controller-reported health information
+                          for the volume bound to this claim.
+                        properties:
+                          healthConditions:
+                            description: |-
+                              conditions is the set of adverse conditions reported by
+                              the CSI controller plugin. An empty list means no adverse condition.
+                              At most 16 conditions may be reported.
+                            items:
+                              description: VolumeHealthCondition represents an adverse
+                                health condition reported for a volume.
+                              properties:
+                                message:
+                                  description: |-
+                                    message is a human-readable description.
+                                    Maximum permitted length of a message is 1024 bytes.
+                                  type: string
+                                reason:
+                                  description: |-
+                                    reason is a brief CamelCase machine-parseable reason.
+                                    Together with status it forms the unique identity of a condition entry.
+                                    Maximum permitted length of a reason is 256 bytes.
+                                  type: string
+                                status:
+                                  description: |-
+                                    status is the machine-parseable health category.
+                                    Possible values:
+                                    - "Inaccessible": the volume cannot be accessed.
+                                    - "DataLoss": data loss has been detected on the volume.
+                                    - "Degraded": the volume is functioning with reduced capability.
+                                  type: string
+                              required:
+                              - reason
+                              - status
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - status
+                            - reason
+                            x-kubernetes-list-type: map
+                          lastTransitionTime:
+                            description: lastTransitionTime is when the current set
+                              of conditions first appeared.
+                            format: date-time
+                            type: string
+                        type: object
                       modifyVolumeStatus:
                         description: |-
                           ModifyVolumeStatus represents the status object of ControllerModifyVolume operation.
@@ -6204,8 +6370,8 @@ spec:
                                 * An existing PVC (PersistentVolumeClaim)
                                 If the provisioner or an external controller can support the specified data source,
                                 it will create a new volume based on the contents of the specified data source.
-                                When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
-                                and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+                                dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be
+                                copied to dataSource when dataSourceRef.namespace is not specified.
                                 If the namespace is specified, then dataSourceRef will not be copied to dataSource.
                               properties:
                                 apiGroup:
@@ -6250,7 +6416,6 @@ spec:
                                   specified.
                                 * While dataSource only allows local objects, dataSourceRef allows objects
                                   in any namespaces.
-                                (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
                                 (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
                               properties:
                                 apiGroup:
@@ -6540,6 +6705,54 @@ spec:
                                 currentVolumeAttributesClassName is the current name of the VolumeAttributesClass the PVC is using.
                                 When unset, there is no VolumeAttributeClass applied to this PersistentVolumeClaim
                               type: string
+                            healthStatus:
+                              description: |-
+                                healthStatus contains the latest controller-reported health information
+                                for the volume bound to this claim.
+                              properties:
+                                healthConditions:
+                                  description: |-
+                                    conditions is the set of adverse conditions reported by
+                                    the CSI controller plugin. An empty list means no adverse condition.
+                                    At most 16 conditions may be reported.
+                                  items:
+                                    description: VolumeHealthCondition represents
+                                      an adverse health condition reported for a volume.
+                                    properties:
+                                      message:
+                                        description: |-
+                                          message is a human-readable description.
+                                          Maximum permitted length of a message is 1024 bytes.
+                                        type: string
+                                      reason:
+                                        description: |-
+                                          reason is a brief CamelCase machine-parseable reason.
+                                          Together with status it forms the unique identity of a condition entry.
+                                          Maximum permitted length of a reason is 256 bytes.
+                                        type: string
+                                      status:
+                                        description: |-
+                                          status is the machine-parseable health category.
+                                          Possible values:
+                                          - "Inaccessible": the volume cannot be accessed.
+                                          - "DataLoss": data loss has been detected on the volume.
+                                          - "Degraded": the volume is functioning with reduced capability.
+                                        type: string
+                                    required:
+                                    - reason
+                                    - status
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-map-keys:
+                                  - status
+                                  - reason
+                                  x-kubernetes-list-type: map
+                                lastTransitionTime:
+                                  description: lastTransitionTime is when the current
+                                    set of conditions first appeared.
+                                  format: date-time
+                                  type: string
+                              type: object
                             modifyVolumeStatus:
                               description: |-
                                 ModifyVolumeStatus represents the status object of ControllerModifyVolume operation.
@@ -6665,8 +6878,8 @@ spec:
                                 * An existing PVC (PersistentVolumeClaim)
                                 If the provisioner or an external controller can support the specified data source,
                                 it will create a new volume based on the contents of the specified data source.
-                                When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
-                                and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+                                dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be
+                                copied to dataSource when dataSourceRef.namespace is not specified.
                                 If the namespace is specified, then dataSourceRef will not be copied to dataSource.
                               properties:
                                 apiGroup:
@@ -6711,7 +6924,6 @@ spec:
                                   specified.
                                 * While dataSource only allows local objects, dataSourceRef allows objects
                                   in any namespaces.
-                                (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
                                 (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
                               properties:
                                 apiGroup:
@@ -7001,6 +7213,54 @@ spec:
                                 currentVolumeAttributesClassName is the current name of the VolumeAttributesClass the PVC is using.
                                 When unset, there is no VolumeAttributeClass applied to this PersistentVolumeClaim
                               type: string
+                            healthStatus:
+                              description: |-
+                                healthStatus contains the latest controller-reported health information
+                                for the volume bound to this claim.
+                              properties:
+                                healthConditions:
+                                  description: |-
+                                    conditions is the set of adverse conditions reported by
+                                    the CSI controller plugin. An empty list means no adverse condition.
+                                    At most 16 conditions may be reported.
+                                  items:
+                                    description: VolumeHealthCondition represents
+                                      an adverse health condition reported for a volume.
+                                    properties:
+                                      message:
+                                        description: |-
+                                          message is a human-readable description.
+                                          Maximum permitted length of a message is 1024 bytes.
+                                        type: string
+                                      reason:
+                                        description: |-
+                                          reason is a brief CamelCase machine-parseable reason.
+                                          Together with status it forms the unique identity of a condition entry.
+                                          Maximum permitted length of a reason is 256 bytes.
+                                        type: string
+                                      status:
+                                        description: |-
+                                          status is the machine-parseable health category.
+                                          Possible values:
+                                          - "Inaccessible": the volume cannot be accessed.
+                                          - "DataLoss": data loss has been detected on the volume.
+                                          - "Degraded": the volume is functioning with reduced capability.
+                                        type: string
+                                    required:
+                                    - reason
+                                    - status
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-map-keys:
+                                  - status
+                                  - reason
+                                  x-kubernetes-list-type: map
+                                lastTransitionTime:
+                                  description: lastTransitionTime is when the current
+                                    set of conditions first appeared.
+                                  format: date-time
+                                  type: string
+                              type: object
                             modifyVolumeStatus:
                               description: |-
                                 ModifyVolumeStatus represents the status object of ControllerModifyVolume operation.
@@ -9449,8 +9709,8 @@ spec:
                                 * An existing PVC (PersistentVolumeClaim)
                                 If the provisioner or an external controller can support the specified data source,
                                 it will create a new volume based on the contents of the specified data source.
-                                When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
-                                and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+                                dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be
+                                copied to dataSource when dataSourceRef.namespace is not specified.
                                 If the namespace is specified, then dataSourceRef will not be copied to dataSource.
                               properties:
                                 apiGroup:
@@ -9495,7 +9755,6 @@ spec:
                                   specified.
                                 * While dataSource only allows local objects, dataSourceRef allows objects
                                   in any namespaces.
-                                (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
                                 (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
                               properties:
                                 apiGroup:
@@ -9785,6 +10044,54 @@ spec:
                                 currentVolumeAttributesClassName is the current name of the VolumeAttributesClass the PVC is using.
                                 When unset, there is no VolumeAttributeClass applied to this PersistentVolumeClaim
                               type: string
+                            healthStatus:
+                              description: |-
+                                healthStatus contains the latest controller-reported health information
+                                for the volume bound to this claim.
+                              properties:
+                                healthConditions:
+                                  description: |-
+                                    conditions is the set of adverse conditions reported by
+                                    the CSI controller plugin. An empty list means no adverse condition.
+                                    At most 16 conditions may be reported.
+                                  items:
+                                    description: VolumeHealthCondition represents
+                                      an adverse health condition reported for a volume.
+                                    properties:
+                                      message:
+                                        description: |-
+                                          message is a human-readable description.
+                                          Maximum permitted length of a message is 1024 bytes.
+                                        type: string
+                                      reason:
+                                        description: |-
+                                          reason is a brief CamelCase machine-parseable reason.
+                                          Together with status it forms the unique identity of a condition entry.
+                                          Maximum permitted length of a reason is 256 bytes.
+                                        type: string
+                                      status:
+                                        description: |-
+                                          status is the machine-parseable health category.
+                                          Possible values:
+                                          - "Inaccessible": the volume cannot be accessed.
+                                          - "DataLoss": data loss has been detected on the volume.
+                                          - "Degraded": the volume is functioning with reduced capability.
+                                        type: string
+                                    required:
+                                    - reason
+                                    - status
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-map-keys:
+                                  - status
+                                  - reason
+                                  x-kubernetes-list-type: map
+                                lastTransitionTime:
+                                  description: lastTransitionTime is when the current
+                                    set of conditions first appeared.
+                                  format: date-time
+                                  type: string
+                              type: object
                             modifyVolumeStatus:
                               description: |-
                                 ModifyVolumeStatus represents the status object of ControllerModifyVolume operation.
