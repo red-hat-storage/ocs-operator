@@ -63,7 +63,7 @@ require (
 	github.com/cloudnative-pg/cnpg-i v0.5.0 // indirect
 	github.com/cloudnative-pg/machinery v0.4.0 // indirect
 	github.com/containernetworking/cni v1.3.0 // indirect
-	github.com/csi-addons/kubernetes-csi-addons v0.14.0 // indirect
+	github.com/csi-addons/kubernetes-csi-addons v0.15.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
