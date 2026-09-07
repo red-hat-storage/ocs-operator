@@ -1,6 +1,6 @@
 module github.com/red-hat-storage/ocs-operator/v4
 
-go 1.26.5
+go 1.26.7
 
 replace (
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook

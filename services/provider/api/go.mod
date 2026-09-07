@@ -1,6 +1,6 @@
 module github.com/red-hat-storage/ocs-operator/services/provider/api/v4
 
-go 1.26.5
+go 1.26.7
 
 require (
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20260823065117-0e4d1eff6a6f
