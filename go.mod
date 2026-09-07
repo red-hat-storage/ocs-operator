@@ -13,7 +13,7 @@ require (
 	dario.cat/mergo v1.0.2
 	github.com/blang/semver/v4 v4.0.0
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20260824100041-eb31eefc32bf
-	github.com/csi-addons/kubernetes-csi-addons v0.14.0
+	github.com/csi-addons/kubernetes-csi-addons v0.15.0
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
