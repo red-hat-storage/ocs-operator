@@ -57,6 +57,7 @@ func TestEnsureCephCluster(t *testing.T) {
 		},
 		{
 			label:            "Reconcile CephCluster not reporting state",
+			shouldCreate:     true,
 			cephClusterState: "",
 		},
 		{
@@ -90,12 +91,16 @@ func TestEnsureCephCluster(t *testing.T) {
 		sc := &ocsv1.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
+		sc.Status.DefaultCephDeviceClass = "ssd"
 
 		reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
 		expected := newCephCluster(reconciler, mockStorageCluster.DeepCopy(), nil)
 		expected.Spec.Network.IPFamily = rookCephv1.IPv4
 		expected.Status.State = c.cephClusterState
+		expected.Status.CephStatus = &rookCephv1.CephStatus{
+			Health: "HealthOK",
+		}
 
 		if c.shouldCreate {
 			majorAndMinorVersion, err := version.GetMajorAndMinorVersion()
@@ -270,6 +275,7 @@ func TestSetCephXFeaturesSpec(t *testing.T) {
 }
 
 func TestCephClusterMonTimeout(t *testing.T) {
+	testSkipPrometheusRules = true
 	// cases for testing
 	cases := []struct {
 		label    string
@@ -292,8 +298,11 @@ func TestCephClusterMonTimeout(t *testing.T) {
 		sc := &ocsv1.StorageCluster{}
 		mockStorageCluster.DeepCopyInto(sc)
 		sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
+		sc.Status.DefaultCephDeviceClass = "ssd"
 
-		reconciler := createFakeStorageClusterReconciler(t, mockCephCluster.DeepCopy(), networkConfig)
+		mockCC := mockCephCluster.DeepCopy()
+		mockCC.Status.CephStatus = &rookCephv1.CephStatus{Health: "HEALTH_OK"}
+		reconciler := createFakeStorageClusterReconciler(t, mockCC, networkConfig)
 		var obj ocsCephCluster
 		_, err := obj.ensureCreated(reconciler, sc)
 		assert.NilError(t, err)
@@ -1880,11 +1889,13 @@ func TestEnsureRDRMigration(t *testing.T) {
 	sc := &ocsv1.StorageCluster{}
 	mockStorageCluster.DeepCopyInto(sc)
 	sc.Status.Images.Ceph = &ocsv1.ComponentImageStatus{}
+	sc.Status.DefaultCephDeviceClass = "ssd"
 	reconciler := createFakeStorageClusterReconciler(t, networkConfig)
 
 	expected := newCephCluster(reconciler, mockStorageCluster.DeepCopy(), nil)
 
 	expected.Spec.Storage.Store.Type = string(rookCephv1.StoreTypeBlueStoreRDR)
+	expected.Status.CephStatus = &rookCephv1.CephStatus{Health: "HEALTH_OK"}
 	err := reconciler.Create(context.TODO(), expected)
 	assert.NilError(t, err)
 

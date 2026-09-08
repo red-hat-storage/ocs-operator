@@ -402,6 +402,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		sc.Status.DefaultCephDeviceClass = determineDefaultCephDeviceClass(found.Status.CephStorage.DeviceClasses, sc.Spec.ManagedResources.CephNonResilientPools.Enable, sc.Status.FailureDomainValues)
 	}
 
+	if !sc.Spec.ExternalStorage.Enable && (found.Status.CephStatus == nil || sc.Status.DefaultCephDeviceClass == "") {
+		r.Log.Info("Waiting on CephCluster to initialise device classes.", "CephCluster", klog.KRef(found.Namespace, found.Name))
+		return reconcile.Result{}, fmt.Errorf("CephCluster didn't initialise the device class ")
+	}
+
 	// Update the currentMonCount field in StoragCluster status from the cephCluster CR
 	if !sc.Spec.ExternalStorage.Enable {
 		sc.Status.CurrentMonCount = cephCluster.Spec.Mon.Count
