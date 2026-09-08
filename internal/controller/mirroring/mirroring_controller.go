@@ -290,6 +290,11 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 		if err != nil {
 			r.log.Error(err, "failed to create a new provider client")
 			errorOccurred = true
+		} else if err = ocsClient.CheckConnection(r.ctx); err != nil {
+			r.log.Error(err, "failed to create a new provider client")
+			errorOccurred = true
+			ocsClient.Close()
+			ocsClient = nil
 		}
 
 		if ocsClient != nil {
