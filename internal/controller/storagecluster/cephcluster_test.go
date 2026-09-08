@@ -2623,6 +2623,43 @@ func TestSetDefaultDataPoolSpec(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "target_size_ratio already set",
+			pool: rookCephv1.PoolSpec{
+				Parameters: map[string]string{
+					"target_size_ratio": "0.5",
+				},
+			},
+			sc: baseSC.DeepCopy(),
+			expects: rookCephv1.PoolSpec{
+				EnableCrushUpdates: ptr.To(true),
+				DeviceClass:        "ssd",
+				FailureDomain:      "host",
+				Replicated:         generateCephReplicatedSpec(baseSC, "data"),
+				Parameters: map[string]string{
+					"target_size_ratio": "0.5",
+				},
+			},
+		},
+		{
+			name: "Replicated targetSizeRatio set",
+			pool: rookCephv1.PoolSpec{
+				Replicated: rookCephv1.ReplicatedSpec{
+					TargetSizeRatio: 0.2,
+				},
+			},
+			sc: baseSC.DeepCopy(),
+			expects: rookCephv1.PoolSpec{
+				EnableCrushUpdates: ptr.To(true),
+				DeviceClass:        "ssd",
+				FailureDomain:      "host",
+				Replicated: rookCephv1.ReplicatedSpec{
+					Size:                     generateCephReplicatedSpec(baseSC, "data").Size,
+					ReplicasPerFailureDomain: generateCephReplicatedSpec(baseSC, "data").ReplicasPerFailureDomain,
+					TargetSizeRatio:          0.2,
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -2640,6 +2677,13 @@ func TestSetDefaultDataPoolSpec(t *testing.T) {
 			assert.Equal(t, pool.FailureDomain, c.expects.FailureDomain)
 			assert.DeepEqual(t, pool.Replicated, c.expects.Replicated)
 			assert.DeepEqual(t, pool.ErasureCoded, c.expects.ErasureCoded)
+			if c.expects.Parameters != nil {
+				assert.DeepEqual(t, c.expects.Parameters, pool.Parameters)
+			} else if c.expects.Replicated.TargetSizeRatio != 0 {
+				assert.Equal(t, 0, len(pool.Parameters))
+			} else {
+				assert.DeepEqual(t, map[string]string{"target_size_ratio": "0"}, pool.Parameters)
+			}
 		})
 	}
 }

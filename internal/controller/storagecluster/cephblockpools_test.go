@@ -68,7 +68,10 @@ func assertCephBlockPools(t *testing.T, reconciler *StorageClusterReconciler, cr
 				EnableCrushUpdates: ptr.To(true),
 				FailureDomain:      getFailureDomain(cr),
 				Replicated:         generateCephReplicatedSpec(cr, poolTypeData),
-				EnableRBDStats:     true,
+				Parameters: map[string]string{
+					"target_size_ratio": "0",
+				},
+				EnableRBDStats: true,
 			},
 		},
 	}
