@@ -681,26 +681,27 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			}
 		}
 	} else {
-		// If any component operator reports negatively we want to write that to
-		// the instance while preserving it's lastTransitionTime.
-		// For example, consider the resource has the Available condition
-		// type with type "False". When reconciling the resource we would
-		// add it to the in-memory representation of OCS's conditions (r.conditions)
-		// and here we are simply writing it back to the server.
+
+		// Component mappers only emit negatives
+		// Without clearing unreported types, old errors can remain on status.
+		// Example: Ceph recovered but Noobaa is still Progressing.
+		// Reset healthy defaults for types not in r.conditions.
+		// Then apply the negatives from this reconcile.
+		// This clears recovered conditions while keeping active failures.
+
+		reason := ocsv1.ReconcileCompleted
+		message := ocsv1.ReconcileCompletedMessage
+		util.ResetUnreportedStandardConditions(&instance.Status.Conditions, r.conditions, reason, message)
+
+		// Merge negatives from r.conditions and write them back to the server.
+		// SetStatusCondition does not change lastTransitionTime if the status value is unchanged.
 		// One shortcoming is that only one failure of a particular condition can be
 		// captured at one time (ie. if resource1 and resource2 are both reporting !Available,
 		// you will only see resource2q as it updates last).
+
 		for _, condition := range r.conditions {
 			conditionsv1.SetStatusCondition(&instance.Status.Conditions, condition)
 		}
-		reason := ocsv1.ReconcileCompleted
-		message := ocsv1.ReconcileCompletedMessage
-		conditionsv1.SetStatusCondition(&instance.Status.Conditions, conditionsv1.Condition{
-			Type:    ocsv1.ConditionReconcileComplete,
-			Status:  corev1.ConditionTrue,
-			Reason:  reason,
-			Message: message,
-		})
 
 		// If for any reason we marked ourselves !upgradeable...then unset readiness
 		if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
