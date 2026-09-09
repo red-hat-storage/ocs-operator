@@ -1,4 +1,4 @@
-# Weekly Go minor version bump from OpenShift golang-builder images.
+# Weekly Go patch version bump from OpenShift golang-builder images.
 #
 # Required repository secrets:
 #   REDHAT_REGISTRY_USER      - service account username for registry.redhat.io (e.g. NNNNNNN|name)
@@ -14,7 +14,7 @@
 #   PR instead of opening a duplicate.
 #
 # Triggers: weekly schedule and workflow_dispatch.
-name: Go minor version bump
+name: Go patch version bump
 
 on:
   schedule:
@@ -23,7 +23,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: go-minor-version-bump
+  group: go-patch-version-bump
   cancel-in-progress: true
 
 permissions:
