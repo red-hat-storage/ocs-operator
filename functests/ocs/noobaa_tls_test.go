@@ -132,6 +132,30 @@ func (obj *NooBaaTLS) restoreOriginalState() error {
 	return obj.deleteTLSProfile()
 }
 
+func (obj *NooBaaTLS) addFailureReport() {
+	nb := &nbv1.NooBaa{}
+	nbErr := obj.client.Get(context.TODO(), client.ObjectKey{
+		Name:      "noobaa",
+		Namespace: obj.namespace,
+	}, nb)
+
+	profile := &ocstlsv1.TLSProfile{}
+	profileErr := obj.client.Get(context.TODO(), client.ObjectKey{
+		Name:      defaults.TLSProfileName,
+		Namespace: obj.namespace,
+	}, profile)
+
+	ginkgo.AddReportEntry("NooBaa TLS state", fmt.Sprintf(
+		"NooBaa get error: %v\nNooBaa resource version: %q\nAPIServerSecurity: %#v\nTLSProfile get error: %v\nTLSProfile generation: %d\nTLSProfile spec: %#v",
+		nbErr,
+		nb.ResourceVersion,
+		nb.Spec.Security.APIServerSecurity,
+		profileErr,
+		profile.Generation,
+		profile.Spec,
+	))
+}
+
 func (obj *NooBaaTLS) waitForNooBaaReconcile(expectedVersion *nbv1.TLSProtocolVersion, expectedCiphers []string) {
 	gomega.Eventually(func() error {
 		nb := &nbv1.NooBaa{}
@@ -147,15 +171,17 @@ func (obj *NooBaaTLS) waitForNooBaaReconcile(expectedVersion *nbv1.TLSProtocolVe
 			if expectedVersion == nil {
 				return nil
 			}
-			return fmt.Errorf("NooBaa APIServerSecurity is nil, expected TLS configuration")
+			return fmt.Errorf("NooBaa APIServerSecurity is nil, expected TLS configuration (resourceVersion=%q)", nb.ResourceVersion)
 		}
 
 		if expectedVersion == nil {
-			return fmt.Errorf("NooBaa has TLS configuration but none was expected")
+			return fmt.Errorf("NooBaa has TLS configuration but none was expected (resourceVersion=%q, security=%#v)",
+				nb.ResourceVersion, nb.Spec.Security.APIServerSecurity)
 		}
 
 		if nb.Spec.Security.APIServerSecurity.TLSMinVersion == nil {
-			return fmt.Errorf("TLSMinVersion is nil")
+			return fmt.Errorf("TLSMinVersion is nil (resourceVersion=%q, security=%#v)",
+				nb.ResourceVersion, nb.Spec.Security.APIServerSecurity)
 		}
 		if *nb.Spec.Security.APIServerSecurity.TLSMinVersion != *expectedVersion {
 			return fmt.Errorf("TLSMinVersion mismatch: got %v, expected %v",
@@ -163,8 +189,9 @@ func (obj *NooBaaTLS) waitForNooBaaReconcile(expectedVersion *nbv1.TLSProtocolVe
 		}
 
 		if len(nb.Spec.Security.APIServerSecurity.TLSCiphers) != len(expectedCiphers) {
-			return fmt.Errorf("TLSCiphers count mismatch: got %d, expected %d",
-				len(nb.Spec.Security.APIServerSecurity.TLSCiphers), len(expectedCiphers))
+			return fmt.Errorf("TLSCiphers count mismatch: got %d, expected %d (resourceVersion=%q, ciphers=%v)",
+				len(nb.Spec.Security.APIServerSecurity.TLSCiphers), len(expectedCiphers),
+				nb.ResourceVersion, nb.Spec.Security.APIServerSecurity.TLSCiphers)
 		}
 
 		cipherMap := make(map[string]bool)
@@ -173,7 +200,8 @@ func (obj *NooBaaTLS) waitForNooBaaReconcile(expectedVersion *nbv1.TLSProtocolVe
 		}
 		for _, expectedCipher := range expectedCiphers {
 			if !cipherMap[expectedCipher] {
-				return fmt.Errorf("expected cipher %s not found in NooBaa TLSCiphers", expectedCipher)
+				return fmt.Errorf("expected cipher %s not found in NooBaa TLSCiphers (resourceVersion=%q, ciphers=%v)",
+					expectedCipher, nb.ResourceVersion, nb.Spec.Security.APIServerSecurity.TLSCiphers)
 			}
 		}
 
@@ -201,6 +229,9 @@ func NooBaaTLSTest() {
 	ginkgo.AfterEach(func() {
 		if ginkgo.CurrentSpecReport().Failed() {
 			tests.SuiteFailed = tests.SuiteFailed || true
+			if tlsObj != nil {
+				tlsObj.addFailureReport()
+			}
 		}
 
 		if tlsObj != nil {
