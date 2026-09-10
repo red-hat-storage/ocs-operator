@@ -39,13 +39,101 @@ type StorageAutoscalerReconciler struct {
 
 // SetupWithManager sets up the reconciler with the manager
 func (r *StorageAutoscalerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// get the eventCh from the storage autoscaler scraper
+	generationChanged := builder.WithPredicates(predicate.GenerationChangedPredicate{})
+
+	// Updates enqueue only when spec.resourceProfile changes.
+	resourceProfileChanged := predicate.Funcs{
+		GenericFunc: func(event.GenericEvent) bool {
+			return false
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldSC, oldOk := e.ObjectOld.(*ocsv1.StorageCluster)
+			newSC, newOk := e.ObjectNew.(*ocsv1.StorageCluster)
+			if !oldOk || !newOk {
+				return false
+			}
+			return oldSC.Spec.ResourceProfile != newSC.Spec.ResourceProfile
+		},
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ocsv1.StorageAutoScaler{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&ocsv1.StorageAutoScaler{}, generationChanged).
+		// Reconcile autoscalers when StorageCluster.spec.resourceProfile
+		// changes (for example lean -> balanced).
+		Watches(
+			&ocsv1.StorageCluster{},
+			handler.EnqueueRequestsFromMapFunc(r.mapStorageClusterToAutoScalers),
+			builder.WithPredicates(resourceProfileChanged),
+		).
+		// Reconcile sibling autoscalers when one is created or deleted so a
+		// previously Invalid CR can recover after a duplicate is removed.
+		Watches(
+			&ocsv1.StorageAutoScaler{},
+			handler.EnqueueRequestsFromMapFunc(r.mapStorageAutoScalerToSiblings),
+			generationChanged,
+		).
+		// get the eventCh from the storage autoscaler scraper
 		// watch for generic events to trigger the reconcile
 		WatchesRawSource(source.Channel(r.EventCh,
 			&handler.EnqueueRequestForObject{},
 		)).Complete(r)
+}
+
+// mapStorageClusterToAutoScalers enqueues StorageAutoScalers that reference the StorageCluster.
+func (r *StorageAutoscalerReconciler) mapStorageClusterToAutoScalers(ctx context.Context, obj client.Object) []reconcile.Request {
+	storageAutoScalerList := &ocsv1.StorageAutoScalerList{}
+	if err := r.List(ctx, storageAutoScalerList, client.InNamespace(obj.GetNamespace())); err != nil {
+		r.Log.Error(err, "failed to list storage autoscalers for storagecluster watch", "storageCluster", obj.GetName())
+		return nil
+	}
+
+	requests := make([]reconcile.Request, 0)
+	for i := range storageAutoScalerList.Items {
+		storageAutoScaler := &storageAutoScalerList.Items[i]
+		if storageAutoScaler.Spec.StorageCluster.Name != obj.GetName() {
+			continue
+		}
+		requests = append(requests, reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      storageAutoScaler.Name,
+				Namespace: storageAutoScaler.Namespace,
+			},
+		})
+	}
+	return requests
+}
+
+// mapStorageAutoScalerToSiblings enqueues other StorageAutoScalers that share the
+// same storage cluster and device class. The object that triggered the event is
+// already enqueued by For(), so it is skipped here.
+func (r *StorageAutoscalerReconciler) mapStorageAutoScalerToSiblings(ctx context.Context, obj client.Object) []reconcile.Request {
+	storageAutoScaler, ok := obj.(*ocsv1.StorageAutoScaler)
+	if !ok {
+		return nil
+	}
+
+	storageAutoScalerList := &ocsv1.StorageAutoScalerList{}
+	if err := r.List(ctx, storageAutoScalerList, client.InNamespace(storageAutoScaler.Namespace)); err != nil {
+		r.Log.Error(err, "failed to list storage autoscalers for sibling watch", "storageAutoScaler", storageAutoScaler.Name)
+		return nil
+	}
+
+	requests := make([]reconcile.Request, 0)
+	for i := range storageAutoScalerList.Items {
+		sibling := &storageAutoScalerList.Items[i]
+		if sibling.Name == storageAutoScaler.Name {
+			continue
+		}
+		if sibling.Spec.StorageCluster.Name == storageAutoScaler.Spec.StorageCluster.Name && sibling.Spec.DeviceClass == storageAutoScaler.Spec.DeviceClass {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      sibling.Name,
+					Namespace: sibling.Namespace,
+				},
+			})
+		}
+	}
+	return requests
 }
 
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=prometheuses/api,resourceNames=k8s,verbs=get
@@ -264,7 +352,7 @@ func (r *StorageAutoscalerReconciler) detectInvalidState(ctx context.Context, st
 		return true, nil
 	}
 
-	r.Log.Info("storage autoscaler is in invalid state", "namespace", storageAutoScaler.Namespace, "name", storageAutoScaler.Name)
+	r.Log.Info("storage autoscaler is in valid state", "namespace", storageAutoScaler.Namespace, "name", storageAutoScaler.Name)
 	return false, nil
 }
 
