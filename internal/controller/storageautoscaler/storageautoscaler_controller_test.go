@@ -11,7 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func TestCalculateExpectedOsdSizeAndCount(t *testing.T) {
@@ -530,4 +533,108 @@ func TestDetectInvalidState(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, invalid)
 	})
+}
+
+func TestRecoverFromInvalidState(t *testing.T) {
+	t.Run("duplicate autoscaler deleted", func(t *testing.T) {
+		storageautoscaler := newTestStorageAutoScaler("autoscaler", "ssd")
+		storageautoscaler2 := newTestStorageAutoScaler("autoscaler2", "ssd")
+		storagecluster := newTestStorageCluster()
+		r := newTestReconciler(t, storageautoscaler, storageautoscaler2, storagecluster)
+
+		invalid, err := r.detectInvalidState(context.TODO(), storageautoscaler2, storagecluster, "namespace")
+		assert.NoError(t, err)
+		assert.True(t, invalid)
+		assert.Equal(t, ocsv1.StorageAutoScalerPhaseInvalid, storageautoscaler2.Status.Phase)
+
+		assert.NoError(t, r.Delete(context.TODO(), storageautoscaler))
+
+		invalid, err = r.detectInvalidState(context.TODO(), storageautoscaler2, storagecluster, "namespace")
+		assert.NoError(t, err)
+		assert.False(t, invalid)
+
+		assertPhaseNotStarted(t, r, storageautoscaler2.Name)
+	})
+
+	t.Run("resource profile changed from lean to balanced", func(t *testing.T) {
+		storageautoscaler := newTestStorageAutoScaler("autoscaler", "ssd")
+		storagecluster := newTestStorageCluster()
+		storagecluster.Spec.ResourceProfile = "lean"
+		r := newTestReconciler(t, storageautoscaler, storagecluster)
+
+		invalid, err := r.detectInvalidState(context.TODO(), storageautoscaler, storagecluster, "namespace")
+		assert.NoError(t, err)
+		assert.True(t, invalid)
+		assert.Equal(t, ocsv1.StorageAutoScalerPhaseInvalid, storageautoscaler.Status.Phase)
+
+		storagecluster.Spec.ResourceProfile = "balanced"
+		assert.NoError(t, r.Update(context.TODO(), storagecluster))
+
+		invalid, err = r.detectInvalidState(context.TODO(), storageautoscaler, storagecluster, "namespace")
+		assert.NoError(t, err)
+		assert.False(t, invalid)
+
+		assertPhaseNotStarted(t, r, storageautoscaler.Name)
+	})
+}
+
+func assertPhaseNotStarted(t *testing.T, r *StorageAutoscalerReconciler, name string) {
+	t.Helper()
+	_, _ = r.Reconcile(context.TODO(), reconcile.Request{
+		NamespacedName: types.NamespacedName{Name: name, Namespace: "namespace"},
+	})
+
+	updated := &ocsv1.StorageAutoScaler{}
+	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: "namespace"}, updated))
+	assert.Equal(t, ocsv1.StorageAutoScalerPhaseNotStarted, updated.Status.Phase)
+	assert.Nil(t, updated.Status.Error)
+}
+
+func newTestStorageAutoScaler(name, deviceClass string) *ocsv1.StorageAutoScaler {
+	return &ocsv1.StorageAutoScaler{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "namespace",
+		},
+		Spec: ocsv1.StorageAutoScalerSpec{
+			DeviceClass: deviceClass,
+			StorageCluster: v1.LocalObjectReference{
+				Name: "storagecluster",
+			},
+		},
+	}
+}
+
+func newTestStorageCluster() *ocsv1.StorageCluster {
+	return &ocsv1.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "storagecluster",
+			Namespace: "namespace",
+		},
+		Spec: ocsv1.StorageClusterSpec{},
+	}
+}
+
+func newTestReconciler(t *testing.T, objs ...client.Object) *StorageAutoscalerReconciler {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	assert.NoError(t, ocsv1.AddToScheme(scheme))
+	assert.NoError(t, storagev1.AddToScheme(scheme))
+
+	runtimeObjs := make([]runtime.Object, len(objs))
+	for i, obj := range objs {
+		runtimeObjs[i] = obj
+	}
+
+	builder := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(runtimeObjs...)
+	for _, obj := range objs {
+		if _, ok := obj.(*ocsv1.StorageAutoScaler); ok {
+			builder = builder.WithStatusSubresource(&ocsv1.StorageAutoScaler{})
+			break
+		}
+	}
+
+	return &StorageAutoscalerReconciler{
+		Client: builder.Build(),
+	}
 }
