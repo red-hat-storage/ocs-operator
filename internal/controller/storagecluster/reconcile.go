@@ -838,6 +838,12 @@ func (r *StorageClusterReconciler) validateStorageDeviceSets(sc *ocsv1.StorageCl
 				return fmt.Errorf("failed to validate DeviceType %q: no Device of this type", ds.DeviceType)
 			}
 		}
+		if len(ds.StorageClassDeviceSetIndices) > 0 {
+			_, replica := countAndReplicaOf(&ds)
+			if len(ds.StorageClassDeviceSetIndices) != replica {
+				return fmt.Errorf("failed to validate StorageDeviceSet %d: storageClassDeviceSetIndices length %d must match replica %d", i, len(ds.StorageClassDeviceSetIndices), replica)
+			}
+		}
 	}
 
 	return nil

@@ -887,6 +887,10 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 
 		count, replica := countAndReplicaOf(&ds)
 		for i := range replica {
+			index := i
+			if len(ds.StorageClassDeviceSetIndices) > 0 {
+				index = ds.StorageClassDeviceSetIndices[i]
+			}
 			// Annotation crushDeviceClass ensures osd with different CRUSH device class than the one detected by Ceph
 			crushDeviceClass := ds.DeviceType
 			if ds.DeviceClass != "" {
@@ -946,7 +950,7 @@ func newStorageClassDeviceSets(sc *ocsv1.StorageCluster) []rookCephv1.StorageCla
 			ds.DataPVCTemplate.Annotations = annotations
 
 			set := rookCephv1.StorageClassDeviceSet{
-				Name:             fmt.Sprintf("%s-%d", ds.Name, i),
+				Name:             fmt.Sprintf("%s-%d", ds.Name, index),
 				Count:            count,
 				Resources:        resources,
 				Placement:        placement,
