@@ -9388,6 +9388,15 @@ spec:
                             More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                           type: object
                       type: object
+                    storageClassDeviceSetIndices:
+                      description: |-
+                        StorageClassDeviceSetIndices optionally specifies the suffix indices
+                        used for StorageClassDeviceSet names. When unset, indices default to 0..Replica-1.
+                        Useful when after scale down events, the remaining replicas are not in the simple form (0..Replica-1).
+                      items:
+                        type: integer
+                      minItems: 1
+                      type: array
                     walPVCTemplate:
                       description: PersistentVolumeClaim is a user's request for and
                         claim to a persistent volume
@@ -9823,6 +9832,10 @@ spec:
                   - dataPVCTemplate
                   - name
                   type: object
+                  x-kubernetes-validations:
+                  - message: storageClassDeviceSetIndices length must match replica
+                    rule: '!has(self.storageClassDeviceSetIndices) || size(self.storageClassDeviceSetIndices)
+                      == 0 || size(self.storageClassDeviceSetIndices) == self.replica'
                 type: array
             type: object
           status:
