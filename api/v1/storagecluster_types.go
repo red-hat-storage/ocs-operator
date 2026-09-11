@@ -316,6 +316,57 @@ type ManageCephObjectStores struct {
 	MetadataPoolSpec *rookCephv1.PoolSpec `json:"metadataPoolSpec,omitempty"`
 	// DataPoolSpec specifies the pool specification for the default cephObjectStore data pool
 	DataPoolSpec *rookCephv1.PoolSpec `json:"dataPoolSpec,omitempty"`
+
+	// Hosting modifies advanced RGW object store hosting options.
+	// +optional
+	Hosting CephObjectStoreHostingSpec `json:"hosting,omitempty"`
+}
+
+// ObjectVirtualHostingMode represents a mode for object store virtual hosting.
+type ObjectVirtualHostingMode string
+
+const (
+	// DisabledObjectVirtualHostingMode disables object virtual hosting.
+	DisabledObjectVirtualHostingMode ObjectVirtualHostingMode = "Disabled"
+	// HeadlessServiceObjectVirtualHostingMode uses a headless service architecture to allow for
+	// virtual-host-style S3 access. Additional DNS setup (required) must be configured separately.
+	// This is not guaranteed to support host network environments.
+	HeadlessServiceObjectVirtualHostingMode ObjectVirtualHostingMode = "HeadlessService"
+)
+
+// ObjectRouteWildcardOption represents an option for configuring Route wildcarding.
+type ObjectRouteWildcardOption string
+
+const (
+	// DisabledObjectRouteWildcardOption disables wildcarding on object Routes.
+	DisabledObjectRouteWildcardOption ObjectRouteWildcardOption = "Disabled"
+
+	// EnabledObjectRouteWildcardOption enables wildcarding on object Routes.
+	// This requires OpenShift support.
+	EnabledObjectRouteWildcardOption ObjectRouteWildcardOption = "Enabled"
+)
+
+type CephObjectStoreHostingSpec struct {
+	// VirtualHostingMode allows virtual-host-style access to be provided for the object store S3
+	// service.
+	// Options:
+	//  - Disabled : Do not enable virtual-host-style access.
+	//  - HeadlessService : Configure a headless service to support virtual hosting. Additional DNS
+	//    setup (required) must be configured separately.
+	// +kubebuilder:validation:Enum=Disabled;HeadlessService
+	// +required
+	VirtualHostingMode ObjectVirtualHostingMode `json:"virtualHostingMode,omitempty"`
+
+	// RouteWildcards specifies whether whether Routes (if enabled) should enable wildcarding.
+	// Wildcarding is necessary to support S3 vhost-style access for S3 clients using Route endpoint(s).
+	// In order for Routes to support vhost-style access, the OpenShift cluster must be configured
+	// to support Route wildcards. Route clients must use legacy path-style access when disabled.
+	// Options:
+	//  - Disabled (default) : Do not enable wildcarding on Routes.
+	//  - Enabled : Enabled wildcarding on Routes
+	// +kubebuilder:validation:Enum=Enabled;Disabled
+	// +optional
+	RouteWildcards ObjectRouteWildcardOption `json:"routeWildcards,omitempty"`
 }
 
 // ManageCephObjectStoreUsers defines how to reconcile CephObjectStoreUsers
