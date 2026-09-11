@@ -1026,6 +1026,26 @@ func TestStorageClassDeviceSetCreationForArbiter(t *testing.T) {
 
 }
 
+func TestStorageClassDeviceSetIndices(t *testing.T) {
+	sc := &ocsv1.StorageCluster{}
+	deviceSet := mockDeviceSets[0]
+	deviceSet.Replica = 3
+	deviceSet.StorageClassDeviceSetIndices = []int{3, 4, 5}
+	sc.Spec.StorageDeviceSets = []ocsv1.StorageDeviceSet{deviceSet}
+	sc.Status.FailureDomainKey = corev1.LabelHostname
+
+	actual := newStorageClassDeviceSets(sc)
+	assert.Equal(t, 3, len(actual))
+	expectedNames := []string{
+		"mock-sds-3",
+		"mock-sds-4",
+		"mock-sds-5",
+	}
+	for i, scds := range actual {
+		assert.Equal(t, expectedNames[i], scds.Name)
+	}
+}
+
 func TestNewCephDaemonResources(t *testing.T) {
 
 	cases := []struct {
