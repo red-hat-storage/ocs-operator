@@ -55,7 +55,7 @@ metadata:
       ]
     capabilities: Deep Insights
     categories: Storage
-    containerImage: quay.io/ocs-dev/ocs-operator:latest
+    containerImage: quay.io/brgardne/ocs-operator:latest
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     external.features.ocs.openshift.io/supported-platforms: '["BareMetal", "None",
@@ -724,16 +724,16 @@ spec:
                 - name: NOOBAA_DB_IMAGE
                   value: quay.io/sclorg/postgresql-16-c9s
                 - name: PROVIDER_API_SERVER_IMAGE
-                  value: quay.io/ocs-dev/ocs-operator:latest
+                  value: quay.io/brgardne/ocs-operator:latest
                 - name: ONBOARDING_VALIDATION_KEYS_GENERATOR_IMAGE
-                  value: quay.io/ocs-dev/ocs-operator:latest
+                  value: quay.io/brgardne/ocs-operator:latest
                 - name: DESIRED_CEPHX_KEY_GEN
                   value: "2"
                 - name: OPERATOR_NAMESPACE
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: quay.io/ocs-dev/ocs-operator:latest
+                image: quay.io/brgardne/ocs-operator:latest
                 imagePullPolicy: Always
                 livenessProbe:
                   failureThreshold: 3
