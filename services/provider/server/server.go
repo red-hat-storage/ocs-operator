@@ -50,6 +50,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -128,6 +129,13 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 		Scheme: scheme,
 		Cache: &client.CacheOptions{
 			Reader: cache,
+			DisableFor: []client.Object{
+				&storagev1.StorageClass{},
+				&snapapi.VolumeSnapshotClass{},
+				&groupsnapapi.VolumeGroupSnapshotClass{},
+				&replicationv1alpha1.VolumeReplicationClass{},
+				&replicationv1alpha1.VolumeGroupReplicationClass{},
+			},
 		},
 	})
 	if err != nil {
@@ -1599,7 +1607,7 @@ func (s *OCSProviderServer) appendCephClientSecretKubeResource(
 	cephUserSecret.Namespace = consumer.Namespace
 
 	if err := s.client.Get(ctx, client.ObjectKeyFromObject(cephUserSecret), cephUserSecret); err != nil {
-		return kubeResources, fmt.Errorf("failed to get %s secret. %v", cephUserSecret, err)
+		return nil, fmt.Errorf("failed to get %s secret. %v", cephUserSecret, err)
 	}
 
 	cephUserSecret.Name = destSecretName
@@ -1694,7 +1702,7 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 		}
 	}
 
-	resources := getKubeResourcesForClass(
+	resources, err := getKubeResourcesForClass(
 		consumer.Spec.StorageClasses,
 		"StorageClass",
 		func(scName string) (client.Object, error) {
@@ -1714,6 +1722,9 @@ func (s *OCSProviderServer) appendStorageClassKubeResources(
 			}
 		},
 	)
+	if err != nil {
+		return nil, err
+	}
 	kubeResources = append(kubeResources, resources...)
 
 	return kubeResources, nil
@@ -1759,7 +1770,7 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 		}
 	}
 
-	resources := getKubeResourcesForClass(
+	resources, err := getKubeResourcesForClass(
 		consumer.Spec.VolumeSnapshotClasses,
 		"VolumeSnapshotClass",
 		func(vscName string) (client.Object, error) {
@@ -1779,6 +1790,9 @@ func (s *OCSProviderServer) appendVolumeSnapshotClassKubeResources(
 			}
 		},
 	)
+	if err != nil {
+		return nil, err
+	}
 	kubeResources = append(kubeResources, resources...)
 
 	return kubeResources, nil
@@ -1817,7 +1831,7 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 		}
 	}
 
-	resources := getKubeResourcesForClass(
+	resources, err := getKubeResourcesForClass(
 		consumer.Spec.VolumeGroupSnapshotClasses,
 		"VolumeGroupSnapshotClass",
 		func(vgscName string) (client.Object, error) {
@@ -1837,6 +1851,9 @@ func (s *OCSProviderServer) appendVolumeGroupSnapshotClassKubeResources(
 			}
 		},
 	)
+	if err != nil {
+		return nil, err
+	}
 	kubeResources = append(kubeResources, resources...)
 
 	return kubeResources, nil
@@ -1948,7 +1965,7 @@ func (s *OCSProviderServer) appendClientProfileMappingKubeResources(
 ) ([]client.Object, error) {
 	cbpList := &rookCephv1.CephBlockPoolList{}
 	if err := s.client.List(ctx, cbpList, client.InNamespace(s.namespace)); err != nil {
-		return kubeResources, fmt.Errorf("failed to list cephBlockPools in namespace. %v", err)
+		return nil, fmt.Errorf("failed to list cephBlockPools in namespace. %v", err)
 	}
 	blockPoolMapping := []csiopv1a1.BlockPoolIdPair{}
 	for i := range cbpList.Items {
@@ -2084,7 +2101,7 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 	classList []T,
 	classDisplayName string,
 	genClassKubeObjFn func(string) (client.Object, error),
-) []client.Object {
+) ([]client.Object, error) {
 	classNameMapping := map[string]string{}
 	for i := len(classList) - 1; i >= 0; i-- {
 		src := classList[i].GetName()
@@ -2105,13 +2122,16 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 		if srcKubeObj = srcClassCache[srcName]; srcKubeObj == nil {
 			var err error
 			srcKubeObj, err = genClassKubeObjFn(srcName)
-			if kerrors.IsNotFound(err) {
+
+			if meta.IsNoMatchError(err) {
 				klog.Warningf("%s with name %s doesn't exist in the cluster", classDisplayName, srcName)
-			} else if errors.Is(err, util.UnsupportedProvisioner) {
-				klog.Warningf("Encountered unsupported provisioner in %s: %s", classDisplayName, srcName)
-			} else if errors.Is(err, util.UnsupportedDriver) {
-				klog.Warningf("Encountered unsupported driver in %s: %s", classDisplayName, srcName)
-			} else if reflect.ValueOf(srcKubeObj).IsNil() {
+			} else if kerrors.IsNotFound(err) {
+				klog.Warningf("%s with name %s doesn't exist in the cluster", classDisplayName, srcName)
+			} else if errors.Is(err, util.ErrUnsupportedDriver) {
+				klog.Warningf("Encountered unsupported driver/provisioner in %s: %s", classDisplayName, srcName)
+			} else if err != nil {
+				return nil, err
+			} else if srcKubeObj == nil || reflect.ValueOf(srcKubeObj).IsNil() {
 				klog.Warningf("The name %s does not points to a builtin or an existing %s, skipping", classDisplayName, srcName)
 			} else if srcKubeObj.GetLabels()[util.ExternalClassLabelKey] == "true" {
 				klog.Warningf("The %s is an external %s, skipping", srcName, classDisplayName)
@@ -2125,7 +2145,7 @@ func getKubeResourcesForClass[T CommonClassSpecAccessors](
 			kubeResources = append(kubeResources, distKubeObj)
 		}
 	}
-	return kubeResources
+	return kubeResources, nil
 }
 
 func checkClientPreConditions(consumer *ocsv1alpha1.StorageConsumer, ocsOpVersion string) bool {
