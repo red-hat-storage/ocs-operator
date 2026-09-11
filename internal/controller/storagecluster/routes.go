@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -207,6 +208,10 @@ func (r *StorageClusterReconciler) newCephRGWRoutes(initData *ocsv1.StorageClust
 	}
 
 	for _, obj := range ret {
+		if initData.Spec.ManagedResources.CephObjectStores.Hosting.RouteWildcards == ocsv1.EnabledObjectRouteWildcardOption {
+			obj.Spec.WildcardPolicy = routev1.WildcardPolicySubdomain
+		}
+
 		err := controllerutil.SetControllerReference(initData, obj, r.Scheme)
 		if err != nil {
 			r.Log.Error(err, "Failed to set ControllerReference for Ceph RGW Route", "CephRGWRoute", klog.KRef(obj.Namespace, obj.Name))
@@ -243,5 +248,37 @@ func (r *StorageClusterReconciler) deleteHttpRoute(sc *ocsv1.StorageCluster) err
 
 // generateNameForCephObjectStoreService is temporary - we should ideally get this name from rook
 func generateNameForCephObjectStoreService(initData *ocsv1.StorageCluster) string {
+	if cephObjectUseHeadlessService(initData) {
+		return headlessServiceName
+	}
 	return fmt.Sprintf("%s-%s", "rook-ceph-rgw", util.GenerateNameForCephObjectStore(initData))
+}
+
+// Return Route endpoints from RGW routes. If Routes don't yet have endpoints, return true to
+// ask the caller to retry later.
+func (r *StorageClusterReconciler) getRouteEndpoints(initData *ocsv1.StorageCluster) ([]string, bool, error) {
+	routes, err := r.newCephRGWRoutes(initData)
+	if err != nil {
+		return nil, false, err
+	}
+
+	endpoints := []string{}
+
+	for _, route := range routes {
+		liveRoute := &routev1.Route{}
+		if err := r.Get(r.ctx, client.ObjectKeyFromObject(route), liveRoute); err != nil {
+			return nil, false, err
+		}
+
+		if len(route.Status.Ingress) == 0 {
+			r.Log.Info("Route does not have an endpoint assigned.", "Route", klog.KRef(route.Namespace, route.Name))
+			return nil, true, nil // should retry
+		}
+
+		for _, ing := range route.Status.Ingress {
+			endpoints = append(endpoints, ing.Host)
+		}
+	}
+
+	return endpoints, false, nil
 }

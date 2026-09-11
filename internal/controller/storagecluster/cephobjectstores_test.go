@@ -53,7 +53,7 @@ func TestCephObjectStores(t *testing.T) {
 }
 
 func assertCephObjectStores(t *testing.T, reconciler *StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
-	expectedCos, err := reconciler.newCephObjectStoreInstances(cr, nil, nil)
+	expectedCos, err := reconciler.newCephObjectStoreInstances(cr, nil, nil, nil)
 	assert.NoError(t, err)
 
 	actualCos := &cephv1.CephObjectStore{
@@ -83,7 +83,7 @@ func assertCephObjectStores(t *testing.T, reconciler *StorageClusterReconciler, 
 	assert.Equal(t, len(expectedCos[0].OwnerReferences), 1)
 
 	cr.Spec.ManagedResources.CephObjectStores.GatewayInstances = 2
-	expectedCos, _ = reconciler.newCephObjectStoreInstances(cr, nil, nil)
+	expectedCos, _ = reconciler.newCephObjectStoreInstances(cr, nil, nil, nil)
 	assert.Equal(t, expectedCos[0].Spec.Gateway.Instances, int32(2))
 }
 
@@ -104,7 +104,7 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_RGW_AUTH_METHOD": "agent",
 			},
 		}
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, cephObjectStores[0].Spec.Security)
 		s3 := cephObjectStores[0].Spec.Security.ServerSideEncryptionS3
@@ -125,7 +125,7 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_RGW_AUTH_METHOD": "agent",
 			},
 		}
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil, nil)
 		assert.NoError(t, err)
 		assert.Nil(t, cephObjectStores[0].Spec.Security)
 	})
@@ -138,7 +138,7 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_RGW_AUTH_METHOD": "token",
 			},
 		}
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, cephObjectStores[0].Spec.Security)
 		// SSE-KMS should be configured
@@ -156,7 +156,7 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_ADDR":   "https://vault.example.com:8200",
 			},
 		}
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil, nil)
 		assert.NoError(t, err)
 		// Security is always set (for DEFAULT TLS groups), but KMS fields must be empty
 		assert.NotNil(t, cephObjectStores[0].Spec.Security)
@@ -172,13 +172,13 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_RGW_AUTH_METHOD": "kubernetes",
 			},
 		}
-		_, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
+		_, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "kubernetes")
 	})
 
 	t.Run("No RGW encryption when KMS ConfigMap is nil", func(t *testing.T) {
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, nil, nil)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, nil, nil, nil)
 		assert.NoError(t, err)
 		// Security is always set (for DEFAULT TLS groups), but KMS fields must be empty
 		assert.NotNil(t, cephObjectStores[0].Spec.Security)
@@ -513,7 +513,7 @@ func TestNewCephObjectStoreInstancesWithSTS(t *testing.T) {
 	reconciler := createFakeStorageClusterReconciler(t, objects...)
 
 	// Create CephObjectStore instances
-	cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil, nil)
+	cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil, nil, nil)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, cephObjectStores)
 
@@ -576,7 +576,7 @@ func TestRGWTLSConfig(t *testing.T) {
 			[]ocstlsv1.TLSCipherSuite{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
 			[]ocstlsv1.TLSGroupName{"secp256r1", "secp384r1"},
 		)
-		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, stores[0].Spec.Security)
 		// TLS 1.2 must set Ciphers field (not CipherSuites)
@@ -596,7 +596,7 @@ func TestRGWTLSConfig(t *testing.T) {
 			[]ocstlsv1.TLSCipherSuite{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384"},
 			[]ocstlsv1.TLSGroupName{"X25519"},
 		)
-		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, stores[0].Spec.Security)
 		// TLS 1.3 must set CipherSuites field (not Ciphers)
@@ -615,7 +615,7 @@ func TestRGWTLSConfig(t *testing.T) {
 			[]ocstlsv1.TLSCipherSuite{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"},
 			[]ocstlsv1.TLSGroupName{"secp256r1"},
 		)
-		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, stores[0].Spec.Security)
 		assert.Equal(t, []string{"DEFAULT"}, stores[0].Spec.Security.TlsGroups)
@@ -623,7 +623,7 @@ func TestRGWTLSConfig(t *testing.T) {
 	})
 
 	t.Run("Nil TLS profile sets DEFAULT groups and clears ciphers", func(t *testing.T) {
-		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, nil)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, stores[0].Spec.Security)
 		assert.Nil(t, stores[0].Spec.Security.Ciphers)
@@ -639,7 +639,7 @@ func TestRGWTLSConfig(t *testing.T) {
 			[]ocstlsv1.TLSCipherSuite{"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
 			[]ocstlsv1.TLSGroupName{"secp384r1"},
 		)
-		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, stores[0].Spec.Security)
 		assert.Contains(t, stores[0].Spec.Security.Ciphers, "ECDHE-RSA-AES256-GCM-SHA384")
