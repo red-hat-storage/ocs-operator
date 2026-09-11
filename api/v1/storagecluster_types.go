@@ -359,6 +359,7 @@ type ExternalStorageClusterSpec struct {
 
 // StorageDeviceSet defines a set of storage devices.
 // It configures the StorageClassDeviceSets field in Rook-Ceph.
+// +kubebuilder:validation:XValidation:rule="!has(self.storageClassDeviceSetIndices) || size(self.storageClassDeviceSetIndices) == 0 || size(self.storageClassDeviceSetIndices) == self.replica",message="storageClassDeviceSetIndices length must match replica"
 type StorageDeviceSet struct {
 	Name string `json:"name"`
 	// Count is the number of devices in each StorageClassDeviceSet
@@ -370,6 +371,13 @@ type StorageDeviceSet struct {
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	Replica int `json:"replica,omitempty"`
+
+	// StorageClassDeviceSetIndices optionally specifies the suffix indices
+	// used for StorageClassDeviceSet names. When unset, indices default to 0..Replica-1.
+	// Useful when after scale down events, the remaining replicas are not in the simple form (0..Replica-1).
+	// +kubebuilder:validation:MinItems=1
+	// +optional
+	StorageClassDeviceSetIndices []int `json:"storageClassDeviceSetIndices,omitempty"`
 
 	// DeviceType is the value of device type in
 	// this StorageDeviceSet. It can have one of the
