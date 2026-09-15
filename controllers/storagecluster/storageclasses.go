@@ -335,6 +335,8 @@ func newCephBlockPoolVirtualizationStorageClassConfiguration(initData *ocsv1.Sto
 	meta.Annotations["storageclass.kubevirt.io/is-default-virt-class"] = "true"
 	// remove the default storageClass annotation as it's not meant for the virtualization storageClass
 	delete(meta.Annotations, defaultStorageClassAnnotation)
+	// disable reclaimspace for virt storageClass to prevent sparsify operations from blacklisting the kRBD clients (VMs)
+	delete(meta.Annotations, "reclaimspace.csiaddons.openshift.io/schedule")
 	virtualizationStorageClassConfig.storageClass.Parameters["mounter"] = "rbd"
 	virtualizationStorageClassConfig.storageClass.Parameters["mapOptions"] = "krbd:rxbounce"
 	return virtualizationStorageClassConfig
