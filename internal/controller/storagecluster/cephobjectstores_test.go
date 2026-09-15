@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -429,6 +431,54 @@ func TestSetSTSOptions(t *testing.T) {
 	})
 }
 
+func TestUnsetSTSOptions(t *testing.T) {
+	sc := &api.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-storagecluster",
+			Namespace: "test-namespace",
+		},
+		Spec: api.StorageClusterSpec{
+			ManagedResources: api.ManagedResourcesSpec{
+				CephObjectStores: api.ManageCephObjectStores{
+					EnableSTS: false,
+				},
+			},
+		},
+	}
+
+	reconciler := createFakeStorageClusterReconciler(t, sc)
+
+	cos := &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-objectstore",
+			Namespace: sc.Namespace,
+		},
+		Spec: cephv1.ObjectStoreSpec{
+			Gateway: cephv1.GatewaySpec{},
+		},
+	}
+
+	err := reconciler.setSTSOptions(cos, sc)
+	require.NoError(t, err)
+
+	err = reconciler.unsetSTSOptions(cos)
+	require.NoError(t, err)
+
+	assert.Equal(t, "false", cos.Spec.Gateway.RgwCommandFlags["rgw_s3_auth_use_sts"])
+	_, exists := cos.Spec.Gateway.RgwConfigFromSecret["rgw_sts_key"]
+	assert.False(t, exists)
+
+	secret := &corev1.Secret{}
+	err = reconciler.Get(context.TODO(), types.NamespacedName{
+		Name:      "sts-key-test-objectstore",
+		Namespace: sc.Namespace,
+	}, secret)
+	assert.True(t, errors.IsNotFound(err))
+
+	err = reconciler.unsetSTSOptions(cos)
+	assert.NoError(t, err)
+}
+
 func TestSetSTSOptionsIdempotency(t *testing.T) {
 	// Setup test environment
 	var objects []runtime.Object
@@ -537,6 +587,43 @@ func TestNewCephObjectStoreInstancesWithSTS(t *testing.T) {
 	}, secret)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, secret.Data["rgw_sts_key"])
+}
+
+func TestNewCephObjectStoreInstancesWithoutSTS(t *testing.T) {
+	platform.SetFakePlatformInstanceForTesting(true, configv1.BareMetalPlatformType)
+	defer platform.UnsetFakePlatformInstanceForTesting()
+
+	sc := &api.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-storagecluster",
+			Namespace: "test-namespace",
+		},
+		Spec: api.StorageClusterSpec{
+			ManagedResources: api.ManagedResourcesSpec{
+				CephObjectStores: api.ManageCephObjectStores{
+					EnableSTS: false,
+				},
+			},
+		},
+	}
+
+	reconciler := createFakeStorageClusterReconciler(t, sc)
+
+	cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil, nil)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, cephObjectStores)
+
+	cos := cephObjectStores[0]
+	assert.Equal(t, "false", cos.Spec.Gateway.RgwCommandFlags["rgw_s3_auth_use_sts"])
+	_, exists := cos.Spec.Gateway.RgwConfigFromSecret["rgw_sts_key"]
+	assert.False(t, exists)
+
+	secret := &corev1.Secret{}
+	err = reconciler.Get(context.TODO(), types.NamespacedName{
+		Name:      fmt.Sprintf("sts-key-%s", cos.Name),
+		Namespace: sc.Namespace,
+	}, secret)
+	assert.True(t, errors.IsNotFound(err))
 }
 
 func makeTLSProfile(selector ocstlsv1.Selector, version ocstlsv1.TLSProtocolVersion, ciphers []ocstlsv1.TLSCipherSuite, groups []ocstlsv1.TLSGroupName) *ocstlsv1.TLSProfile {

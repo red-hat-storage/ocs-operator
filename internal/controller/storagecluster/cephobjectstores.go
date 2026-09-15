@@ -320,12 +320,15 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			obj.Spec.Gateway.ReadAffinity = &cephv1.RgwReadAffinity{Type: "localize"}
 		}
 
-		// Enable STS for RGW via rgwCommandFlags and rgwSecretConfig
+		// Enable or disable STS for RGW via rgwCommandFlags and rgwSecretConfig
 		if initData.Spec.ManagedResources.CephObjectStores.EnableSTS {
 			if err := r.setSTSOptions(obj, initData); err != nil {
 				r.Log.Error(err, "Failed to set STS options for CephObjectStore.", "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
 				return nil, err
 			}
+		} else if err := r.unsetSTSOptions(obj); err != nil {
+			r.Log.Error(err, "Failed to unset STS options for CephObjectStore.", "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
+			return nil, err
 		}
 
 		if obj.Spec.Security == nil {
@@ -502,6 +505,34 @@ func (r *StorageClusterReconciler) setSTSOptions(obj *cephv1.CephObjectStore, sc
 			Name: secretName,
 		},
 		Key: secretKeyName,
+	}
+
+	return nil
+}
+
+// unsetSTSOptions disables STS for RGW and removes the STS key secret.
+func (r *StorageClusterReconciler) unsetSTSOptions(obj *cephv1.CephObjectStore) error {
+	if _, present := obj.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS]; present {
+		obj.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS] = "false"
+	}
+
+	if obj.Spec.Gateway.RgwConfigFromSecret != nil {
+		delete(obj.Spec.Gateway.RgwConfigFromSecret, "rgw_sts_key")
+	}
+
+	secretName := fmt.Sprintf("sts-key-%s", obj.Name)
+	secret := &corev1.Secret{}
+	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: obj.Namespace}, secret)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to get STS secret: %w", err)
+	}
+
+	r.Log.Info("Deleting STS secret for CephObjectStore.", "Secret", klog.KRef(secret.Namespace, secret.Name), "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
+	if err := r.Delete(context.TODO(), secret); err != nil {
+		return fmt.Errorf("failed to delete STS secret: %w", err)
 	}
 
 	return nil
