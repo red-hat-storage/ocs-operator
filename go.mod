@@ -30,7 +30,7 @@ require (
 	github.com/operator-framework/operator-lifecycle-manager v0.46.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.93.1
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.93.1
-	github.com/prometheus/common v0.70.1
+	github.com/prometheus/common v0.71.0
 	github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20260821074411-26525d9a5c22
 	github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20260416061305-2878a3b403e6
 	github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-00010101000000-000000000000
@@ -118,7 +118,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.24.1 // indirect
-	github.com/prometheus/client_model v0.6.2 // indirect
+	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
