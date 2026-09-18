@@ -3461,6 +3461,38 @@ spec:
                         type: integer
                       hostNetwork:
                         type: boolean
+                      hosting:
+                        description: Hosting modifies advanced RGW object store hosting
+                          options.
+                        properties:
+                          routeWildcards:
+                            description: |-
+                              RouteWildcards specifies whether whether Routes (if enabled) should enable wildcarding.
+                              Wildcarding is necessary to support S3 vhost-style access for S3 clients using Route endpoint(s).
+                              In order for Routes to support vhost-style access, the OpenShift cluster must be configured
+                              to support Route wildcards. Route clients must use legacy path-style access when disabled.
+                              Options:
+                               - Disabled (default) : Do not enable wildcarding on Routes.
+                               - Enabled : Enabled wildcarding on Routes
+                            enum:
+                            - Enabled
+                            - Disabled
+                            type: string
+                          virtualHostingMode:
+                            description: |-
+                              VirtualHostingMode allows virtual-host-style access to be provided for the object store S3
+                              service.
+                              Options:
+                               - Disabled : Do not enable virtual-host-style access.
+                               - HeadlessService : Configure a headless service to support virtual hosting. Additional DNS
+                                 setup (required) must be configured separately.
+                            enum:
+                            - Disabled
+                            - HeadlessService
+                            type: string
+                        required:
+                        - virtualHostingMode
+                        type: object
                       metadataPoolSpec:
                         description: MetadataPoolSpec specifies the pool specification
                           for the default cephObjectStore metadata pool

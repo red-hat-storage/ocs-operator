@@ -690,7 +690,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: quay.io/ocs-dev/ocs-operator:latest
+                image: quay.io/brgardne/ocs-operator:latest
                 imagePullPolicy: Always
                 livenessProbe:
                   failureThreshold: 3
