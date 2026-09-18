@@ -1,9 +1,16 @@
 package storagecluster
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"maps"
+	"math/big"
 	"strconv"
+	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
@@ -13,6 +20,7 @@ import (
 	ocsclientv1a1 "github.com/red-hat-storage/ocs-client-operator/api/v1alpha1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -28,6 +36,8 @@ const (
 	disableS3EndpointProxyKey = "disableS3EndpointProxy"
 	// cephNetworkAnnotationKey is the annotation key used to store network details used by ceph
 	cniNetworksAnnotationKey = "k8s.v1.cni.cncf.io/networks"
+	// clientCertSecretName is the name of the secret containing the mTLS client certificate
+	clientCertSecretName = "ocs-internal-client-certificate"
 )
 
 type storageClient struct{}
@@ -40,9 +50,25 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 		return reconcile.Result{}, err
 	}
 
+	clientCertSecret := &corev1.Secret{}
+	clientCertSecret.Name = clientCertSecretName
+	clientCertSecret.Namespace = storagecluster.Namespace
+
+	err := r.Get(r.ctx, client.ObjectKeyFromObject(clientCertSecret), clientCertSecret)
+
+	if err != nil && !kerrors.IsNotFound(err) {
+		return reconcile.Result{}, fmt.Errorf("failed to check client cert: %v", err)
+	}
+
+	if kerrors.IsNotFound(err) || !s.isClientCertValid(clientCertSecret) {
+		if err := s.generateClientCertificate(r, storagecluster, clientCertSecret); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
 	storageClient := &ocsclientv1a1.StorageClient{}
 	storageClient.Name = storagecluster.Name
-	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
+	_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, storageClient, func() error {
 		if storageClient.Status.ConsumerID == "" {
 			localStorageConsumer := &ocsv1a1.StorageConsumer{}
 			localStorageConsumer.Name = defaults.LocalStorageConsumerName
@@ -95,6 +121,13 @@ func (s *storageClient) ensureDeleted(r *StorageClusterReconciler, storagecluste
 		return ctrl.Result{}, fmt.Errorf("failed to get storageclient %s: %v", storageClient.Name, err)
 	} else if storageClient.UID == "" {
 		return reconcile.Result{}, nil
+	}
+
+	certSecret := &corev1.Secret{}
+	certSecret.Name = clientCertSecretName
+	certSecret.Namespace = storagecluster.Namespace
+	if err := r.Delete(r.ctx, certSecret); client.IgnoreNotFound(err) != nil {
+		r.Log.Error(err, "Failed to delete client cert secret")
 	}
 
 	if err := r.Delete(r.ctx, storageClient); err != nil {
@@ -165,4 +198,92 @@ func getCephNetworkAnnotationValue(cephNetworkSpec *rookCephv1.NetworkSpec, scNa
 		return "", err
 	}
 	return nwAnnotation, nil
+}
+
+// isClientCertValid checks if the client certificate in the secret is still valid
+func (s *storageClient) isClientCertValid(secret *corev1.Secret) bool {
+	certPEM := secret.Data["tls.crt"]
+	if certPEM == nil {
+		return false
+	}
+
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		return false
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return false
+	}
+
+	// Check expiry (30 day renewal window)
+	now := time.Now()
+	renewalThreshold := cert.NotAfter.Add(-30 * 24 * time.Hour)
+
+	if now.Before(cert.NotBefore) || now.After(renewalThreshold) {
+		return false
+	}
+
+	for _, eku := range cert.ExtKeyUsage {
+		if eku == x509.ExtKeyUsageClientAuth {
+			return true
+		}
+	}
+
+	return false
+}
+
+// generateClientCertificate creates a new self-signed client certificate for mTLS
+func (s *storageClient) generateClientCertificate(r *StorageClusterReconciler, storagecluster *ocsv1.StorageCluster, clientCertSecret *corev1.Secret) error {
+	client_name := fmt.Sprintf("ocs-client-%d", time.Now().Unix())
+	r.Log.Info("Generating client certificate", "client_name", client_name)
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return fmt.Errorf("failed to generate key: %v", err)
+	}
+
+	serialNumber, _ := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+
+	certTemplate := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName: client_name,
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().AddDate(1, 0, 0),
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		return fmt.Errorf("failed to create certificate: %v", err)
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+	})
+
+	_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, clientCertSecret, func() error {
+		if clientCertSecret.Data == nil {
+			clientCertSecret.Data = make(map[string][]byte)
+		}
+		clientCertSecret.Type = corev1.SecretTypeTLS
+		clientCertSecret.Data["tls.crt"] = certPEM
+		clientCertSecret.Data["tls.key"] = keyPEM
+		clientCertSecret.Data["ca.crt"] = certPEM
+
+		return controllerutil.SetOwnerReference(storagecluster, clientCertSecret, r.Scheme)
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to create client cert secret: %v", err)
+	}
+
+	r.Log.Info("Client certificate created", "client_name", client_name)
+	return nil
 }
