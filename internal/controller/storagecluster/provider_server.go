@@ -1,9 +1,11 @@
 package storagecluster
 
 import (
+	"crypto/x509"
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 
 	"go.uber.org/multierr"
@@ -39,6 +41,9 @@ const (
 	ocsProviderServiceNodePort = int32(31659)
 
 	ocsProviderCertSecretName = ocsProviderServerName + "-cert"
+
+	clientCertValidity      = util.SelfSignedCertValidity
+	clientCertRenewalWindow = 7 * 24 * time.Hour
 )
 
 type ocsProviderServer struct{}
@@ -50,6 +55,10 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 	}
 
 	if res, err := o.createNetworkPolicy(r, instance); err != nil || !res.IsZero() {
+		return res, err
+	}
+
+	if res, err := o.createClientCertAndCA(r, instance); err != nil || !res.IsZero() {
 		return res, err
 	}
 
@@ -546,4 +555,96 @@ func (o *ocsProviderServer) createJob(r *StorageClusterReconciler, instance *ocs
 
 	r.Log.Info("Job is running as desired")
 	return reconcile.Result{}, nil
+}
+
+func (o *ocsProviderServer) createClientCertAndCA(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	secret := &corev1.Secret{}
+	secret.Name = defaults.LocalStorageClientCertSecret
+	secret.Namespace = instance.Namespace
+
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(secret), secret); client.IgnoreNotFound(err) != nil {
+		r.Log.Error(err, "Failed to get client cert secret", "Name", secret.Name)
+		return reconcile.Result{}, err
+	}
+
+	if secret.UID == "" {
+		if err := o.populateClientCertSecret(r, instance, secret); err != nil {
+			return reconcile.Result{}, err
+		}
+		if err := r.Create(r.ctx, secret); err != nil {
+			if errors.IsAlreadyExists(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+			r.Log.Error(err, "Failed to create client cert secret", "Name", secret.Name)
+			return reconcile.Result{}, err
+		}
+	} else if clientCertNeedsRenewal(secret) {
+		if err := o.populateClientCertSecret(r, instance, secret); err != nil {
+			return reconcile.Result{}, err
+		}
+		if err := r.Update(r.ctx, secret); err != nil {
+			r.Log.Error(err, "Failed to update client cert secret", "Name", secret.Name)
+			return reconcile.Result{}, err
+		}
+	}
+
+	caCert := secret.Data["tls.crt"]
+	if len(caCert) == 0 {
+		return reconcile.Result{}, fmt.Errorf("client cert secret %s has no tls.crt", defaults.LocalStorageClientCertSecret)
+	}
+	cm := &corev1.ConfigMap{}
+	cm.Name = defaults.LocalStorageClientCAConfigMap
+	cm.Namespace = instance.Namespace
+	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, cm, func() error {
+		if cm.Data == nil {
+			cm.Data = make(map[string]string)
+		}
+		cm.Data["ca.crt"] = string(caCert)
+		return controllerutil.SetControllerReference(instance, cm, r.Client.Scheme())
+	}); err != nil {
+		r.Log.Error(err, "Failed to ensure client CA configmap", "Name", cm.Name)
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
+}
+
+// populateClientCertSecret generates a fresh self-signed client cert with a unique identity.
+func (o *ocsProviderServer) populateClientCertSecret(r *StorageClusterReconciler, instance *ocsv1.StorageCluster, secret *corev1.Secret) error {
+	clientCN := fmt.Sprintf("%s-%x", defaults.LocalStorageClientCNPrefix, util.FnvHash(strconv.FormatInt(time.Now().UnixNano(), 10)))
+
+	keyUsage := x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
+	extKeyUsage := []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+	keyPEM, certPEM, err := util.GetSelfSignedCert(clientCN, keyUsage, extKeyUsage)
+	if err != nil {
+		return fmt.Errorf("failed to generate client certificate: %v", err)
+	}
+
+	if secret.Data == nil {
+		secret.Data = make(map[string][]byte)
+	}
+	secret.Data["tls.key"] = keyPEM
+	secret.Data["tls.crt"] = certPEM
+
+	if secret.Annotations == nil {
+		secret.Annotations = make(map[string]string)
+	}
+	secret.Annotations[defaults.CertExpiryAnnotation] = time.Now().Add(clientCertValidity).Format(time.RFC3339)
+	secret.Annotations[defaults.CertIdentityAnnotation] = clientCN
+
+	secret.Type = corev1.SecretTypeTLS
+
+	if err := controllerutil.SetControllerReference(instance, secret, r.Client.Scheme()); err != nil {
+		return err
+	}
+	r.Log.Info("Generated client certificate", "Name", secret.Name, "Identity", clientCN)
+	return nil
+}
+
+// clientCertNeedsRenewal reports whether the cert secret must be regenerated, based on the expiry annotation.
+func clientCertNeedsRenewal(secret *corev1.Secret) bool {
+	expiry, err := time.Parse(time.RFC3339, secret.Annotations[defaults.CertExpiryAnnotation])
+	if err != nil {
+		return true
+	}
+	return time.Now().After(expiry.Add(-clientCertRenewalWindow))
 }

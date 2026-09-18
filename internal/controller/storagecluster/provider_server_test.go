@@ -17,6 +17,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -348,10 +349,20 @@ func createSetupForOcsProviderTest(t *testing.T, providerAPIServerServiceType co
 
 	r := &StorageClusterReconciler{
 		recorder: reporter,
-		Client:   fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node, clientConfigMap).Build(),
-		Scheme:   scheme,
-		Log:      logf.Log.WithName("controller_storagecluster_test"),
-		ctx:      context.TODO(),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node, clientConfigMap).
+			// The fake client does not assign a UID on Create (the real apiserver does). Set one so
+			// code that detects object existence via UID behaves as it would against a real cluster.
+			WithInterceptorFuncs(interceptor.Funcs{
+				Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+					if obj.GetUID() == "" {
+						obj.SetUID("fake-uid")
+					}
+					return c.Create(ctx, obj, opts...)
+				},
+			}).Build(),
+		Scheme: scheme,
+		Log:    logf.Log.WithName("controller_storagecluster_test"),
+		ctx:    context.TODO(),
 	}
 
 	instance := &ocsv1.StorageCluster{
@@ -536,4 +547,3 @@ func GetClusterIPProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster)
 		},
 	}
 }
-

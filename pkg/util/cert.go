@@ -3,9 +3,15 @@ package util
 import (
 	"cmp"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
+	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -13,6 +19,44 @@ import (
 )
 
 const defaultProviderServerSAN = "ocs-provider-server.openshift-storage.svc"
+
+// SelfSignedCertValidity is the lifetime of certificates produced by GetSelfSignedCert.
+const SelfSignedCertValidity = 47 * 24 * time.Hour
+
+// GetSelfSignedCert generates a self-signed CA certificate and private key.
+func GetSelfSignedCert(cn string, keyUsage x509.KeyUsage, extKeyUsage []x509.ExtKeyUsage) (keyPEM, certPEM []byte, err error) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate private key: %v", err)
+	}
+
+	template := &x509.Certificate{
+		Subject: pkix.Name{
+			CommonName: cn,
+		},
+		DNSNames:              []string{cn},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(SelfSignedCertValidity),
+		KeyUsage:              keyUsage,
+		ExtKeyUsage:           extKeyUsage,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &priv.PublicKey, priv)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create certificate: %v", err)
+	}
+	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	privBytes, err := x509.MarshalECPrivateKey(priv)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal private key: %v", err)
+	}
+	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes})
+
+	return keyPEM, certPEM, nil
+}
 
 // LoadPeerTLSConfig loads the mTLS certificates configured on a StorageClusterPeer and returns a *tls.Config ready for the provider client.
 func LoadPeerTLSConfig(

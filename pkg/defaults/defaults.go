@@ -32,6 +32,13 @@ const (
 	KMSConfigMapName = "ocs-kms-connection-details"
 	// Name of the TLSProfile to watch for applying TLS configuration
 	TLSProfileName = "ocs-tls-profile"
+	// LocalStorageClientCertSecret is the name of the secret containing the client certificate
+	LocalStorageClientCertSecret = "ocs-internal-client-certificate"
+	// LocalStorageClientCNPrefix is the common name prefix for the local storage client certificate;
+	// a unix timestamp is appended to form a unique per-generation client identity (ocs-client-<unix>)
+	LocalStorageClientCNPrefix = "ocs-client"
+	// CertExpiryAnnotation is the annotation key for certificate expiry date
+	CertExpiryAnnotation = "cert.ocs.openshift.io/expiry-date"
 )
 
 var (
