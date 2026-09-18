@@ -103,6 +103,35 @@ func SetCompleteCondition(conditions *[]conditionsv1.Condition, reason string, m
 	})
 }
 
+// ResetUnreportedConditionsToHealthy clears stale conditions from the StorageCluster status.
+// Since only unhealthy conditions are reported during reconciliation, recovered components
+// no longer report a condition, which can leave previous errors in the status.
+// This resets unreported condition types to their healthy defaults while preserving
+// conditions that are still being reported as unhealthy.
+func ResetUnreportedConditionsToHealthy(statusConditions *[]conditionsv1.Condition, unhealthyConditions []conditionsv1.Condition, reason string, message string) {
+	reportedUnhealthyTypes := make(map[conditionsv1.ConditionType]struct{}, len(unhealthyConditions))
+	for _, condition := range unhealthyConditions {
+		reportedUnhealthyTypes[condition.Type] = struct{}{}
+	}
+
+	resetIfNotReported := func(conditionType conditionsv1.ConditionType, healthyStatus corev1.ConditionStatus) {
+		if _, reported := reportedUnhealthyTypes[conditionType]; reported {
+			return
+		}
+		conditionsv1.SetStatusCondition(statusConditions, conditionsv1.Condition{
+			Type:    conditionType,
+			Status:  healthyStatus,
+			Reason:  reason,
+			Message: message,
+		})
+	}
+
+	resetIfNotReported(ocsv1.ConditionReconcileComplete, corev1.ConditionTrue)
+	resetIfNotReported(conditionsv1.ConditionAvailable, corev1.ConditionTrue)
+	resetIfNotReported(conditionsv1.ConditionProgressing, corev1.ConditionFalse)
+	resetIfNotReported(conditionsv1.ConditionDegraded, corev1.ConditionFalse)
+}
+
 // MapCephClusterNegativeConditions maps the status states from CephCluster resource into ocs status conditions.
 // This will only look for negative conditions: !Available, Degraded, Progressing
 func MapCephClusterNegativeConditions(conditions *[]conditionsv1.Condition, found *cephv1.CephCluster) {
