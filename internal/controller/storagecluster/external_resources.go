@@ -46,6 +46,8 @@ const (
 	enableRbdDriverKey                          = "enableRbdDriver"
 	enableCephfsDriverKey                       = "enableCephFsDriver"
 	enableNfsDriverKey                          = "enableNfsDriver"
+	controllerModifySecretNameKey               = "csi.storage.k8s.io/controller-modify-secret-name"
+	controllerModifySecretNamespaceKey          = "csi.storage.k8s.io/controller-modify-secret-namespace"
 )
 
 // store the name of the rados-namespace
@@ -488,6 +490,12 @@ func (r *StorageClusterReconciler) createExternalStorageClusterResources(instanc
 		// whose parameters have to be updated
 		for k, v := range d.Data {
 			scc.storageClass.Parameters[k] = v
+		}
+		// The external cluster resources JSON supplies controller-modify-secret name
+		// but not its namespace, set the namespace here match the other CSI secrets.
+		// Do this only if the secret name is present.
+		if _, ok := scc.storageClass.Parameters[controllerModifySecretNameKey]; ok {
+			scc.storageClass.Parameters[controllerModifySecretNamespaceKey] = instance.Namespace
 		}
 		if d.Name == cephRbdStorageClassName {
 			maps.Copy(rbdSCParameters, scc.storageClass.Parameters)
