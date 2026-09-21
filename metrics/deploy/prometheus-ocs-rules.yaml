@@ -732,16 +732,27 @@ spec:
     - alert: ODFNodeNICBandwidthSaturation
       expr: |
         (
-          sum by (instance, device) (
-            rate(node_network_receive_bytes_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap|[0-9a-f]{12}).*"}[5m])
-          + rate(node_network_transmit_bytes_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap|[0-9a-f]{12}).*"}[5m])
+          (
+            sum by (instance, device) (
+              rate(node_network_receive_bytes_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap|genev_sys|ovs-system|br-|ovn|[0-9a-f]{12}).*"}[5m])
+            + rate(node_network_transmit_bytes_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap|genev_sys|ovs-system|br-|ovn|[0-9a-f]{12}).*"}[5m])
+            )
           )
+          /
+          sum by (instance, device) (
+            node_network_speed_bytes
+          )
+          > 0.90
         )
-        /
-        sum by (instance, device) (
-          node_network_speed_bytes
+        or
+        (
+          sum by (instance, device) (
+            rate(node_network_receive_drop_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap|genev_sys|ovs-system|br-|ovn|[0-9a-f]{12}).*"}[5m])
+          + rate(node_network_transmit_drop_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap|genev_sys|ovs-system|br-|ovn|[0-9a-f]{12}).*"}[5m])
+          + rate(node_network_receive_errs_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap|genev_sys|ovs-system|br-|ovn|[0-9a-f]{12}).*"}[5m])
+          + rate(node_network_transmit_errs_total{job="node-exporter", device!~"^(veth|docker|flannel|cali|tun|tap|genev_sys|ovs-system|br-|ovn|[0-9a-f]{12}).*"}[5m])
+          ) > 0
         )
-        > 0.90
       for: 5m
       labels:
         severity: warning
