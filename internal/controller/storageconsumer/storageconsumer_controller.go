@@ -376,11 +376,16 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 				return reconcile.Result{}, fmt.Errorf("failed to annotate CephFilesystemSubVolumeGroup: %v", err)
 			}
 
-			account := &rookCephv1.CephObjectStoreAccount{}
-			account.Name = consumerResources.GetRGWAccountName()
-			account.Namespace = r.namespace
-			if err := r.Patch(r.ctx, account, annotationPatch); client.IgnoreNotFound(err) != nil {
-				return reconcile.Result{}, fmt.Errorf("failed to annotate CephObjectStoreAccount: %v", err)
+			// The RGW account only exists when RGW account support was enabled for
+			// this consumer, so skip patching the account when the name is not set
+			// in the configmap
+			if accountName := consumerResources.GetRGWAccountName(); accountName != "" {
+				account := &rookCephv1.CephObjectStoreAccount{}
+				account.Name = accountName
+				account.Namespace = r.namespace
+				if err := r.Patch(r.ctx, account, annotationPatch); client.IgnoreNotFound(err) != nil {
+					return reconcile.Result{}, fmt.Errorf("failed to annotate CephObjectStoreAccount: %v", err)
+				}
 			}
 		}
 
