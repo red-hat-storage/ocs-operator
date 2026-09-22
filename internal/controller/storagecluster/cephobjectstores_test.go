@@ -302,7 +302,7 @@ func TestSetSTSOptions(t *testing.T) {
 				// Verify rgwCommandFlags is set
 				if tc.expectRgwConfig {
 					assert.NotNil(t, cos.Spec.Gateway.RgwCommandFlags)
-					assert.Equal(t, "true", cos.Spec.Gateway.RgwCommandFlags["rgw_s3_auth_use_sts"])
+					assert.Equal(t, "true", cos.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS])
 				}
 
 				// Verify secret was created
@@ -319,7 +319,7 @@ func TestSetSTSOptions(t *testing.T) {
 					assert.Equal(t, corev1.SecretTypeOpaque, secret.Type)
 
 					// Verify secret contains the STS key
-					stsKey, exists := secret.Data["rgw_sts_key"]
+					stsKey, exists := secret.Data[rgwSTSKey]
 					assert.True(t, exists)
 					assert.NotEmpty(t, stsKey)
 					initialKey = stsKey
@@ -336,10 +336,10 @@ func TestSetSTSOptions(t *testing.T) {
 				// Verify RgwConfigFromSecret is set
 				if tc.expectSecretRef {
 					assert.NotNil(t, cos.Spec.Gateway.RgwConfigFromSecret)
-					secretSelector, exists := cos.Spec.Gateway.RgwConfigFromSecret["rgw_sts_key"]
+					secretSelector, exists := cos.Spec.Gateway.RgwConfigFromSecret[rgwSTSKey]
 					assert.True(t, exists)
 					assert.Equal(t, "sts-key-test-objectstore", secretSelector.Name)
-					assert.Equal(t, "rgw_sts_key", secretSelector.Key)
+					assert.Equal(t, rgwSTSKey, secretSelector.Key)
 				}
 
 				if tc.expectSecret {
@@ -356,7 +356,7 @@ func TestSetSTSOptions(t *testing.T) {
 					require.NoError(t, err)
 					require.NotNil(t, secret)
 
-					currentKey := secret.Data["rgw_sts_key"]
+					currentKey := secret.Data[rgwSTSKey]
 					assert.Equal(t, initialKey, currentKey)
 				}
 			}
@@ -408,7 +408,7 @@ func TestSetSTSOptions(t *testing.T) {
 
 		// manually make changes to the secret to give it an older format
 		legacyKey := []byte("1234567890ZYXWVU") // 16 chars, non-hex, needs rotated
-		secret.Data["rgw_sts_key"] = legacyKey
+		secret.Data[rgwSTSKey] = legacyKey
 		err = reconciler.Update(context.TODO(), secret)
 		require.NoError(t, err)
 
@@ -423,7 +423,7 @@ func TestSetSTSOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, secret)
 
-		rotatedKey := secret.Data["rgw_sts_key"]
+		rotatedKey := secret.Data[rgwSTSKey]
 		assert.NotEqual(t, legacyKey, rotatedKey)
 		assert.Len(t, rotatedKey, 32)
 		// Test_generateRandomSTSKey() ensures the generated key charset is expected. We just need
@@ -464,8 +464,8 @@ func TestUnsetSTSOptions(t *testing.T) {
 	err = reconciler.unsetSTSOptions(cos)
 	require.NoError(t, err)
 
-	assert.Equal(t, "false", cos.Spec.Gateway.RgwCommandFlags["rgw_s3_auth_use_sts"])
-	_, exists := cos.Spec.Gateway.RgwConfigFromSecret["rgw_sts_key"]
+	assert.Equal(t, "false", cos.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS])
+	_, exists := cos.Spec.Gateway.RgwConfigFromSecret[rgwSTSKey]
 	assert.False(t, exists)
 
 	secret := &corev1.Secret{}
@@ -521,7 +521,7 @@ func TestSetSTSOptionsIdempotency(t *testing.T) {
 		Namespace: sc.Namespace,
 	}, secret1)
 	assert.NoError(t, err)
-	originalKey := string(secret1.Data["rgw_sts_key"])
+	originalKey := string(secret1.Data[rgwSTSKey])
 
 	// Call setSTSOptions second time (should be idempotent)
 	err = reconciler.setSTSOptions(cos, sc)
@@ -534,7 +534,7 @@ func TestSetSTSOptionsIdempotency(t *testing.T) {
 		Namespace: sc.Namespace,
 	}, secret2)
 	assert.NoError(t, err)
-	currentKey := string(secret2.Data["rgw_sts_key"])
+	currentKey := string(secret2.Data[rgwSTSKey])
 
 	// The key should remain the same (idempotent behavior)
 	assert.Equal(t, originalKey, currentKey, "Secret key should not change on subsequent calls")
@@ -570,13 +570,13 @@ func TestNewCephObjectStoreInstancesWithSTS(t *testing.T) {
 	// Verify STS configuration is applied
 	cos := cephObjectStores[0]
 	assert.NotNil(t, cos.Spec.Gateway.RgwCommandFlags)
-	assert.Equal(t, "true", cos.Spec.Gateway.RgwCommandFlags["rgw_s3_auth_use_sts"])
+	assert.Equal(t, "true", cos.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS])
 
 	assert.NotNil(t, cos.Spec.Gateway.RgwConfigFromSecret)
-	secretSelector, exists := cos.Spec.Gateway.RgwConfigFromSecret["rgw_sts_key"]
+	secretSelector, exists := cos.Spec.Gateway.RgwConfigFromSecret[rgwSTSKey]
 	assert.True(t, exists)
 	assert.Contains(t, secretSelector.Name, "sts-key-")
-	assert.Equal(t, "rgw_sts_key", secretSelector.Key)
+	assert.Equal(t, rgwSTSKey, secretSelector.Key)
 
 	// Verify the secret was created
 	secretName := secretSelector.Name
@@ -586,7 +586,7 @@ func TestNewCephObjectStoreInstancesWithSTS(t *testing.T) {
 		Namespace: sc.Namespace,
 	}, secret)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, secret.Data["rgw_sts_key"])
+	assert.NotEmpty(t, secret.Data[rgwSTSKey])
 }
 
 func TestNewCephObjectStoreInstancesWithoutSTS(t *testing.T) {
@@ -614,8 +614,9 @@ func TestNewCephObjectStoreInstancesWithoutSTS(t *testing.T) {
 	assert.NotEmpty(t, cephObjectStores)
 
 	cos := cephObjectStores[0]
-	assert.Equal(t, "false", cos.Spec.Gateway.RgwCommandFlags["rgw_s3_auth_use_sts"])
-	_, exists := cos.Spec.Gateway.RgwConfigFromSecret["rgw_sts_key"]
+	_, flagPresent := cos.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS]
+	assert.False(t, flagPresent, "rgw_s3_auth_use_sts should not be injected when STS was never enabled")
+	_, exists := cos.Spec.Gateway.RgwConfigFromSecret[rgwSTSKey]
 	assert.False(t, exists)
 
 	secret := &corev1.Secret{}
