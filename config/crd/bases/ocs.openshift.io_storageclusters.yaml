@@ -902,7 +902,7 @@ spec:
                                     snapshot scheduling settings of a mirrored pool
                                   properties:
                                     interval:
-                                      description: Interval represent the periodicity
+                                      description: Interval represents the periodicity
                                         of the snapshot.
                                       type: string
                                     path:
@@ -1951,7 +1951,7 @@ spec:
                                       snapshot scheduling settings of a mirrored pool
                                     properties:
                                       interval:
-                                        description: Interval represent the periodicity
+                                        description: Interval represents the periodicity
                                           of the snapshot.
                                         type: string
                                       path:
@@ -2214,7 +2214,7 @@ spec:
                                     snapshot scheduling settings of a mirrored pool
                                   properties:
                                     interval:
-                                      description: Interval represent the periodicity
+                                      description: Interval represents the periodicity
                                         of the snapshot.
                                       type: string
                                     path:
@@ -2482,7 +2482,7 @@ spec:
                                     snapshot scheduling settings of a mirrored pool
                                   properties:
                                     interval:
-                                      description: Interval represent the periodicity
+                                      description: Interval represents the periodicity
                                         of the snapshot.
                                       type: string
                                     path:
@@ -3327,7 +3327,7 @@ spec:
                                     snapshot scheduling settings of a mirrored pool
                                   properties:
                                     interval:
-                                      description: Interval represent the periodicity
+                                      description: Interval represents the periodicity
                                         of the snapshot.
                                       type: string
                                     path:
@@ -3604,7 +3604,7 @@ spec:
                                     snapshot scheduling settings of a mirrored pool
                                   properties:
                                     interval:
-                                      description: Interval represent the periodicity
+                                      description: Interval represents the periodicity
                                         of the snapshot.
                                       type: string
                                     path:
@@ -4854,7 +4854,7 @@ spec:
                                 scheduling settings of a mirrored pool
                               properties:
                                 interval:
-                                  description: Interval represent the periodicity
+                                  description: Interval represents the periodicity
                                     of the snapshot.
                                   type: string
                                 path:
