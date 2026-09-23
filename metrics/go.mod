@@ -7,7 +7,7 @@ replace (
 	github.com/red-hat-storage/ocs-operator/api/v4 => ../api // local replace
 	github.com/red-hat-storage/ocs-operator/v4 => ../ // local replace
 	github.com/rook/rook => github.com/red-hat-storage/rook v1.1.0-beta.0.0.20260821085641-855ce45bbaaa // rook downstream replace
-	github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260821085641-855ce45bbaaa // rook downstream replace
+	github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260928042633-98958013cea1 // rook downstream replace
 )
 
 exclude (

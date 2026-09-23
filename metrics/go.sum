@@ -829,8 +829,8 @@ github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd
 github.com/red-hat-storage/ocs-tls-profiles/api v0.0.0-20260427105901-0c5f6d8fcd65/go.mod h1:jBStZ67yVkhiTlaIB/cqm7DI0BvVp6ynTFUs7BzlAVc=
 github.com/red-hat-storage/rook v1.1.0-beta.0.0.20260821085641-855ce45bbaaa h1:64rYXswETbYXy0nDd40Sdxmdb73zemrdpXsseqV1a/s=
 github.com/red-hat-storage/rook v1.1.0-beta.0.0.20260821085641-855ce45bbaaa/go.mod h1:QZN19zGflUoIs1dbi5ta4EeTgtd+4DbowUyNnV96Xmo=
-github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260821085641-855ce45bbaaa h1:hqIRkpFIzvl/9gZ8R5f1mRwTkKwGam4nPJtTR/gjwkg=
-github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260821085641-855ce45bbaaa/go.mod h1:79nbfxfJ+jQZKPvj2ZPvULSP5g+hEpXA0sj63m42GBA=
+github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260928042633-98958013cea1 h1:PfJzDF/YK2fDX7hU/FaBXD+Q/J0CbGdWhqSSUyvGoYU=
+github.com/red-hat-storage/rook/pkg/apis v0.0.0-20260928042633-98958013cea1/go.mod h1:gu9nBzjqYQuvEIActE40PyU8YoRS7Rgm49l4dntW7Mk=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-charset v0.0.0-20180617210344-2471d30d28b4/go.mod h1:qgYeAmZ5ZIpBWTGllZSQnw97Dj+woV0toclVaRGI8pc=
