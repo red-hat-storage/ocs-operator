@@ -418,6 +418,10 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return reconcile.Result{}, err
 	}
 
+	if err := r.reconcileCephMetricsTLS(context.TODO(), sc); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -532,8 +536,9 @@ func newCephCluster(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, kmsCo
 				SSL:     sc.Spec.ManagedResources.CephDashboard.SSL,
 			},
 			Monitoring: rookCephv1.MonitoringSpec{
-				Enabled:  true,
-				Interval: &metav1.Duration{Duration: 30 * time.Second},
+				Enabled:    true,
+				Interval:   &metav1.Duration{Duration: 30 * time.Second},
+				MetricsTLS: metricsTLSSpecForCluster(sc),
 			},
 			Storage: rookCephv1.StorageScopeSpec{
 				AllowDeviceClassUpdate:       sc.Spec.ManagedResources.CephCluster.AllowDeviceClassUpdate,

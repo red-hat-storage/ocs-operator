@@ -101,6 +101,12 @@ type StorageClusterSpec struct {
 	// +optional
 	EnableCephTools bool `json:"enableCephTools,omitempty"`
 
+	// EnableRookServicesTLS turns on HTTPS for all supported Rook-Ceph service
+	// metrics endpoints (e.g. rook-ceph-mgr) using OpenShift service-serving
+	// certificates. Defaults to false.
+	// +optional
+	EnableRookServicesTLS bool `json:"enableRookServicesTLS,omitempty"`
+
 	// Logging represents loggings settings
 	// +optional
 	// +nullable
