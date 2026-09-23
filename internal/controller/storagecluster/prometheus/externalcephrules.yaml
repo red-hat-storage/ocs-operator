@@ -12,6 +12,7 @@ spec:
     rules:
     - alert: PersistentVolumeUsageNearFull
       annotations:
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/PersistentVolumeUsageNearFull.md
         description: PVC {{ $labels.persistentvolumeclaim }} utilization has crossed 75%. Free up some space or expand the PVC.
         message: PVC {{ $labels.persistentvolumeclaim }} is nearing full. Data deletion or PVC expansion is required.
         severity_level: warning
@@ -25,6 +26,7 @@ spec:
         severity: warning
     - alert: PersistentVolumeUsageCritical
       annotations:
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/PersistentVolumeUsageCritical.md
         description: PVC {{ $labels.persistentvolumeclaim }} utilization has crossed 85%. Free up some space or expand the PVC immediately.
         message: PVC {{ $labels.persistentvolumeclaim }} is critically full. Data deletion or PVC expansion is required.
         severity_level: error
