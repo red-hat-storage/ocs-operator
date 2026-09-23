@@ -61,6 +61,13 @@ type StorageConsumerSpec struct {
 	NetworkFenceClasses []NetworkFenceClassesSpec `json:"networkFenceClasses,omitempty"`
 	// +optional
 	VolumeAttributesClasses []VolumeAttributesClassesSpec `json:"volumeAttributesClasses,omitempty"`
+	// ClientCAConfigMap references a configmap containing the CA certificate used to validate client certificates.
+	// The configmap must contain a key named "ca.crt" with the PEM-encoded CA certificate.
+	// +optional
+	ClientCAConfigMap corev1.LocalObjectReference `json:"clientCAConfigMap,omitempty"`
+	// ClientSAN specifies the expected DNS Subject Alternative Name (SAN) in the client certificate.
+	// +optional
+	ClientSAN string `json:"clientSAN,omitempty"`
 }
 
 type CommonClassSpec struct {
