@@ -49,7 +49,7 @@ patch_ocs_client_operator_config_configmap() {
 # This ensures that we don't face issues related to OCP catalogsources with below error
 # It is safe to disable these catalogsources as we are not using them anywhere
 # ERROR: "failed to list bundles: rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing: dial tcp 172.30.172.195:50051: connect: connection refused"
-oc patch operatorhub.config.openshift.io/cluster -p='{"spec":{"sources":[{"disabled":true,"name":"community-operators"},{"disabled":true,"name":"redhat-marketplace"},{"disabled":true,"name":"redhat-operators"},{"disabled":true,"name":"certified-operators"}]}}' --type=merge
+# oc patch operatorhub.config.openshift.io/cluster -p='{"spec":{"sources":[{"disabled":true,"name":"community-operators"},{"disabled":true,"name":"redhat-marketplace"},{"disabled":true,"name":"redhat-operators"},{"disabled":true,"name":"certified-operators"}]}}' --type=merge
 
 "$OPERATOR_SDK" run bundle "$ROOK_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
 "$OPERATOR_SDK" run bundle "$NOOBAA_BUNDLE_FULL_IMAGE_NAME" --timeout=10m --security-context-config restricted -n "$INSTALL_NAMESPACE"
