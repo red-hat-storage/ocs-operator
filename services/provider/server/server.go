@@ -7,6 +7,7 @@ import (
 	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -267,7 +268,13 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 	if err := s.client.Get(ctx, client.ObjectKeyFromObject(storageConsumer), storageConsumer); err != nil {
 		logger.Error(err, "Failed to get StorageConsumer referred by the supplied token", "storageConsumerName", storageConsumer.Name)
 		return nil, status.Errorf(codes.Internal, "failed to get storageconsumer. %v", err)
-	} else if storageConsumer.Spec.Enable {
+	}
+
+	if err := s.authenticateConsumer(ctx, storageConsumer); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
+
+	if storageConsumer.Spec.Enable {
 		if storageConsumer.Status.Client != nil && storageConsumer.Status.Client.ID == req.ClientID {
 			fillStorageClientInfo(&storageConsumer.Status, req)
 			if err := s.client.Status().Update(ctx, storageConsumer); err != nil {
@@ -309,15 +316,17 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 // GetDesiredClientState RPC call to generate the desired state of the client
 func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.GetDesiredClientStateRequest) (*pb.GetDesiredClientStateResponse, error) {
 	logger := klog.FromContext(ctx).WithName("GetDesiredClientState").WithValues("consumer", req.StorageConsumerUUID)
-	logger.Info("Starting GetDesiredClientState RPC", "request", req)
-
-	// Get storage consumer resource using UUID
 	consumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
 	if err != nil {
 		logger.Error(err, "failed to get consumer")
 		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer")
 	}
 
+	if err := s.authenticateConsumer(ctx, consumer); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
+
+	logger.Info("Starting GetDesiredClientState RPC", "request", req)
 	logger.Info("Found StorageConsumer for GetDesiredClientState", "StorageConsumer", consumer.Name)
 	if !checkClientPreConditions(consumer, ocsVersion.Version, logger) {
 		return nil, status.Error(codes.FailedPrecondition, "client operator does not meet version requirements")
@@ -556,9 +565,18 @@ func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.G
 
 // OffboardConsumer RPC call to delete the StorageConsumer CR
 func (s *OCSProviderServer) OffboardConsumer(ctx context.Context, req *pb.OffboardConsumerRequest) (*pb.OffboardConsumerResponse, error) {
+	consumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer")
+	}
+
+	if err := s.authenticateConsumer(ctx, consumer); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
+
 	logger := klog.FromContext(ctx).WithName("OffboardConsumer").WithValues("consumer", req.StorageConsumerUUID)
 	logger.Info("Starting OffboardConsumer RPC", "request", req)
-	err := s.consumerManager.ClearClientInformation(ctx, req.StorageConsumerUUID)
+	err = s.consumerManager.ClearClientInformation(ctx, req.StorageConsumerUUID)
 	if err != nil {
 		logger.Error(err, "failed to clear client information")
 		return nil, status.Errorf(codes.Internal, "failed to offboard storageConsumer with the provided UUID. %v", err)
@@ -576,11 +594,18 @@ func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
 
 	certFile := ProviderCertsMountPoint + "/tls.crt"
 	keyFile := ProviderCertsMountPoint + "/tls.key"
-	creds, sslErr := credentials.NewServerTLSFromFile(certFile, keyFile)
+	serverCert, sslErr := tls.LoadX509KeyPair(certFile, keyFile)
 	if sslErr != nil {
 		log.Log.Error(sslErr, "failed loading certificates")
 		os.Exit(1)
 	}
+
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+		ClientAuth:   tls.RequestClientCert,
+	}
+
+	creds := credentials.NewTLS(tlsConfig)
 
 	opts = append(opts, grpc.Creds(creds))
 	grpcServer := grpc.NewServer(opts...)
@@ -729,6 +754,16 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 	logger := klog.FromContext(ctx).WithName("ReportStatus").WithValues("consumer", req.StorageConsumerUUID)
 	logger.Info("Processing status report", "request", req)
 
+	storageConsumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		logger.Error(err, "Failed to get StorageConsumer resource")
+		return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer resource: %v", err)
+	}
+
+	if err := s.authenticateConsumer(ctx, storageConsumer); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
+
 	if req.ClientOperatorVersion == "" {
 		req.ClientOperatorVersion = notAvailable
 	} else {
@@ -754,12 +789,6 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		}
 		logger.Error(err, "Failed to update consumer status")
 		return nil, status.Errorf(codes.Internal, "Failed to update lastHeartbeat payload in the storageConsumer resource: %v", err)
-	}
-
-	storageConsumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
-	if err != nil {
-		logger.Error(err, "Failed to get StorageConsumer resource")
-		return nil, status.Errorf(codes.Internal, "Failed to get storageConsumer resource: %v", err)
 	}
 
 	channelName, err := s.getOCSSubscriptionChannel(ctx)
@@ -1178,6 +1207,15 @@ func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.Peer
 }
 
 func (s *OCSProviderServer) RequestMaintenanceMode(ctx context.Context, req *pb.RequestMaintenanceModeRequest) (*pb.RequestMaintenanceModeResponse, error) {
+	consumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer")
+	}
+
+	if err := s.authenticateConsumer(ctx, consumer); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
+
 	logger := klog.FromContext(ctx).WithName("RequestMaintenanceMode").WithValues("consumer", req.StorageConsumerUUID)
 	logger.Info("Starting RequestMaintenanceMode RPC", "request", req)
 
@@ -3101,6 +3139,10 @@ func (s *OCSProviderServer) Notify(ctx context.Context, req *pb.NotifyRequest) (
 		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer: storageConsumerUUID=%s", req.StorageConsumerUUID)
 	}
 
+	if err := s.authenticateConsumer(ctx, storageConsumer); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
+
 	switch ifaces.NotifyReason(req.Reason) {
 	case ifaces.NotifyReasonObcCreated:
 		obc := &nbv1.ObjectBucketClaim{}
@@ -3272,6 +3314,10 @@ func (s *OCSProviderServer) GetClientAlerts(ctx context.Context, req *pb.GetClie
 	if err != nil {
 		logger.Error(err, "Failed to get StorageConsumer")
 		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer: storageConsumerUUID=%s", req.StorageConsumerUUID)
+	}
+
+	if err := s.authenticateConsumer(ctx, storageConsumer); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
 	}
 
 	alerts, err := s.alertStore.getAlertsForConsumer(storageConsumer.Name)

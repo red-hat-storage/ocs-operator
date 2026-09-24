@@ -61,6 +61,10 @@ type StorageConsumerSpec struct {
 	NetworkFenceClasses []NetworkFenceClassesSpec `json:"networkFenceClasses,omitempty"`
 	// +optional
 	VolumeAttributesClasses []VolumeAttributesClassesSpec `json:"volumeAttributesClasses,omitempty"`
+	// +optional
+	ClientCA corev1.LocalObjectReference `json:"clientCA,omitempty"`
+	// +optional
+	ClientSAN string `json:"clientSAN,omitempty"`
 }
 
 type CommonClassSpec struct {
