@@ -3,6 +3,7 @@ package storagecluster
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -300,7 +302,7 @@ func TestSetSTSOptions(t *testing.T) {
 				// Verify rgwCommandFlags is set
 				if tc.expectRgwConfig {
 					assert.NotNil(t, cos.Spec.Gateway.RgwCommandFlags)
-					assert.Equal(t, "true", cos.Spec.Gateway.RgwCommandFlags["rgw_s3_auth_use_sts"])
+					assert.Equal(t, "true", cos.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS])
 				}
 
 				// Verify secret was created
@@ -317,7 +319,7 @@ func TestSetSTSOptions(t *testing.T) {
 					assert.Equal(t, corev1.SecretTypeOpaque, secret.Type)
 
 					// Verify secret contains the STS key
-					stsKey, exists := secret.Data["rgw_sts_key"]
+					stsKey, exists := secret.Data[rgwSTSKey]
 					assert.True(t, exists)
 					assert.NotEmpty(t, stsKey)
 					initialKey = stsKey
@@ -334,10 +336,10 @@ func TestSetSTSOptions(t *testing.T) {
 				// Verify RgwConfigFromSecret is set
 				if tc.expectSecretRef {
 					assert.NotNil(t, cos.Spec.Gateway.RgwConfigFromSecret)
-					secretSelector, exists := cos.Spec.Gateway.RgwConfigFromSecret["rgw_sts_key"]
+					secretSelector, exists := cos.Spec.Gateway.RgwConfigFromSecret[rgwSTSKey]
 					assert.True(t, exists)
 					assert.Equal(t, "sts-key-test-objectstore", secretSelector.Name)
-					assert.Equal(t, "rgw_sts_key", secretSelector.Key)
+					assert.Equal(t, rgwSTSKey, secretSelector.Key)
 				}
 
 				if tc.expectSecret {
@@ -354,7 +356,7 @@ func TestSetSTSOptions(t *testing.T) {
 					require.NoError(t, err)
 					require.NotNil(t, secret)
 
-					currentKey := secret.Data["rgw_sts_key"]
+					currentKey := secret.Data[rgwSTSKey]
 					assert.Equal(t, initialKey, currentKey)
 				}
 			}
@@ -406,7 +408,7 @@ func TestSetSTSOptions(t *testing.T) {
 
 		// manually make changes to the secret to give it an older format
 		legacyKey := []byte("1234567890ZYXWVU") // 16 chars, non-hex, needs rotated
-		secret.Data["rgw_sts_key"] = legacyKey
+		secret.Data[rgwSTSKey] = legacyKey
 		err = reconciler.Update(context.TODO(), secret)
 		require.NoError(t, err)
 
@@ -421,12 +423,60 @@ func TestSetSTSOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, secret)
 
-		rotatedKey := secret.Data["rgw_sts_key"]
+		rotatedKey := secret.Data[rgwSTSKey]
 		assert.NotEqual(t, legacyKey, rotatedKey)
 		assert.Len(t, rotatedKey, 32)
 		// Test_generateRandomSTSKey() ensures the generated key charset is expected. We just need
 		// to ensure the key is rotated in this check, and length check ensures it's integrated.
 	})
+}
+
+func TestUnsetSTSOptions(t *testing.T) {
+	sc := &api.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-storagecluster",
+			Namespace: "test-namespace",
+		},
+		Spec: api.StorageClusterSpec{
+			ManagedResources: api.ManagedResourcesSpec{
+				CephObjectStores: api.ManageCephObjectStores{
+					EnableSTS: false,
+				},
+			},
+		},
+	}
+
+	reconciler := createFakeStorageClusterReconciler(t, sc)
+
+	cos := &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-objectstore",
+			Namespace: sc.Namespace,
+		},
+		Spec: cephv1.ObjectStoreSpec{
+			Gateway: cephv1.GatewaySpec{},
+		},
+	}
+
+	err := reconciler.setSTSOptions(cos, sc)
+	require.NoError(t, err)
+
+	err = reconciler.unsetSTSOptions(cos)
+	require.NoError(t, err)
+
+	assert.Equal(t, "false", cos.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS])
+	_, exists := cos.Spec.Gateway.RgwConfigFromSecret[rgwSTSKey]
+	assert.False(t, exists)
+
+	secret := &corev1.Secret{}
+	err = reconciler.Get(context.TODO(), types.NamespacedName{
+		Name:      "sts-key-test-objectstore",
+		Namespace: sc.Namespace,
+	}, secret)
+	assert.True(t, errors.IsNotFound(err))
+
+	err = reconciler.unsetSTSOptions(cos)
+	assert.NoError(t, err)
 }
 
 func TestSetSTSOptionsIdempotency(t *testing.T) {
@@ -471,7 +521,7 @@ func TestSetSTSOptionsIdempotency(t *testing.T) {
 		Namespace: sc.Namespace,
 	}, secret1)
 	assert.NoError(t, err)
-	originalKey := string(secret1.Data["rgw_sts_key"])
+	originalKey := string(secret1.Data[rgwSTSKey])
 
 	// Call setSTSOptions second time (should be idempotent)
 	err = reconciler.setSTSOptions(cos, sc)
@@ -484,7 +534,7 @@ func TestSetSTSOptionsIdempotency(t *testing.T) {
 		Namespace: sc.Namespace,
 	}, secret2)
 	assert.NoError(t, err)
-	currentKey := string(secret2.Data["rgw_sts_key"])
+	currentKey := string(secret2.Data[rgwSTSKey])
 
 	// The key should remain the same (idempotent behavior)
 	assert.Equal(t, originalKey, currentKey, "Secret key should not change on subsequent calls")
@@ -520,13 +570,13 @@ func TestNewCephObjectStoreInstancesWithSTS(t *testing.T) {
 	// Verify STS configuration is applied
 	cos := cephObjectStores[0]
 	assert.NotNil(t, cos.Spec.Gateway.RgwCommandFlags)
-	assert.Equal(t, "true", cos.Spec.Gateway.RgwCommandFlags["rgw_s3_auth_use_sts"])
+	assert.Equal(t, "true", cos.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS])
 
 	assert.NotNil(t, cos.Spec.Gateway.RgwConfigFromSecret)
-	secretSelector, exists := cos.Spec.Gateway.RgwConfigFromSecret["rgw_sts_key"]
+	secretSelector, exists := cos.Spec.Gateway.RgwConfigFromSecret[rgwSTSKey]
 	assert.True(t, exists)
 	assert.Contains(t, secretSelector.Name, "sts-key-")
-	assert.Equal(t, "rgw_sts_key", secretSelector.Key)
+	assert.Equal(t, rgwSTSKey, secretSelector.Key)
 
 	// Verify the secret was created
 	secretName := secretSelector.Name
@@ -536,7 +586,45 @@ func TestNewCephObjectStoreInstancesWithSTS(t *testing.T) {
 		Namespace: sc.Namespace,
 	}, secret)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, secret.Data["rgw_sts_key"])
+	assert.NotEmpty(t, secret.Data[rgwSTSKey])
+}
+
+func TestNewCephObjectStoreInstancesWithoutSTS(t *testing.T) {
+	platform.SetFakePlatformInstanceForTesting(true, configv1.BareMetalPlatformType)
+	defer platform.UnsetFakePlatformInstanceForTesting()
+
+	sc := &api.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-storagecluster",
+			Namespace: "test-namespace",
+		},
+		Spec: api.StorageClusterSpec{
+			ManagedResources: api.ManagedResourcesSpec{
+				CephObjectStores: api.ManageCephObjectStores{
+					EnableSTS: false,
+				},
+			},
+		},
+	}
+
+	reconciler := createFakeStorageClusterReconciler(t, sc)
+
+	cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil, nil)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, cephObjectStores)
+
+	cos := cephObjectStores[0]
+	_, flagPresent := cos.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS]
+	assert.False(t, flagPresent, "rgw_s3_auth_use_sts should not be injected when STS was never enabled")
+	_, exists := cos.Spec.Gateway.RgwConfigFromSecret[rgwSTSKey]
+	assert.False(t, exists)
+
+	secret := &corev1.Secret{}
+	err = reconciler.Get(context.TODO(), types.NamespacedName{
+		Name:      fmt.Sprintf("sts-key-%s", cos.Name),
+		Namespace: sc.Namespace,
+	}, secret)
+	assert.True(t, errors.IsNotFound(err))
 }
 
 func makeTLSProfile(selector ocstlsv1.Selector, version ocstlsv1.TLSProtocolVersion, ciphers []ocstlsv1.TLSCipherSuite, groups []ocstlsv1.TLSGroupName) *ocstlsv1.TLSProfile {
