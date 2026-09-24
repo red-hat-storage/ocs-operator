@@ -7,6 +7,7 @@ import (
 	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -576,11 +577,18 @@ func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
 
 	certFile := ProviderCertsMountPoint + "/tls.crt"
 	keyFile := ProviderCertsMountPoint + "/tls.key"
-	creds, sslErr := credentials.NewServerTLSFromFile(certFile, keyFile)
+	serverCert, sslErr := tls.LoadX509KeyPair(certFile, keyFile)
 	if sslErr != nil {
 		log.Log.Error(sslErr, "failed loading certificates")
 		os.Exit(1)
 	}
+
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+		ClientAuth:   tls.RequestClientCert,
+	}
+
+	creds := credentials.NewTLS(tlsConfig)
 
 	opts = append(opts, grpc.Creds(creds))
 	grpcServer := grpc.NewServer(opts...)
