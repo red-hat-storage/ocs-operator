@@ -16,6 +16,11 @@ import (
 	klog "k8s.io/klog/v2"
 )
 
+const (
+	// SkipClientCertValidation annotation disables client certificate validation
+	SkipClientCertValidation = "ocs.openshift.io/disable-client-cert-validation"
+)
+
 // validateCACert checks that the CA certificate is valid and has CA properties
 func validateCACert(caCert []byte) error {
 	block, _ := pem.Decode(caCert)
@@ -75,6 +80,13 @@ func validateClientCert(caCert []byte, clientCert *x509.Certificate, expectedSAN
 // authenticateConsumer validates the client certificate against the Client CA and SAN stored in the respective StorageConsumer resource
 func (s *OCSProviderServer) authenticateConsumer(ctx context.Context, consumer *ocsv1alpha1.StorageConsumer) error {
 	logger := klog.FromContext(ctx)
+
+	if val, exists := consumer.Annotations[SkipClientCertValidation]; exists && val == "true" {
+		logger.Info("WARNING: Client certificate validation disabled by annotation",
+			"consumer", consumer.Name,
+			"annotation", SkipClientCertValidation)
+		return nil
+	}
 
 	// Extract client certificate from gRPC context
 	p, ok := peer.FromContext(ctx)
