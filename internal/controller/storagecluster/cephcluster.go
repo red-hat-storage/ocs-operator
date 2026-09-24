@@ -408,7 +408,9 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 
 	if !sc.Spec.ExternalStorage.Enable && (found.Status.CephStatus == nil || sc.Status.DefaultCephDeviceClass == "") {
 		r.Log.Info("Waiting on CephCluster to initialise device classes.", "CephCluster", klog.KRef(found.Namespace, found.Name))
-		return reconcile.Result{}, fmt.Errorf("CephCluster didn't initialise the device class ")
+		// Requeue instead of returning an error so StorageCluster stays Progressing
+		// while device classes come up, rather than reporting Error phase on status
+		return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 
 	// Update the currentMonCount field in StoragCluster status from the cephCluster CR
