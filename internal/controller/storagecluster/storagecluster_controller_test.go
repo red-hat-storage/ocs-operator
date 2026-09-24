@@ -704,10 +704,13 @@ func TestNonWatchedReconcileWithNoCephClusterType(t *testing.T) {
 		},
 	}
 
+	t.Setenv("OPERATOR_NAMESPACE", cr.Namespace)
 	reconciler := createFakeStorageClusterReconciler(t, cr, nodeList, networkConfig)
+	reconciler.OperatorNamespace = cr.Namespace
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
-	assert.Equal(t, reconcile.Result{}, result)
+	// CephCluster is created and reconcile requeues until device classes are ready
+	assert.Equal(t, reconcile.Result{RequeueAfter: 5 * time.Second}, result)
 }
 
 func TestNonWatchedReconcileWithTheCephClusterType(t *testing.T) {
@@ -1447,7 +1450,8 @@ func TestStorageClusterOnMultus(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, reconcile.Result{}, result)
+				// CephCluster is created and reconcile requeues until device classes are ready
+				assert.Equal(t, reconcile.Result{RequeueAfter: 5 * time.Second}, result)
 				assertCephClusterNetwork(t, reconciler, c.cr, request)
 			}
 		}
