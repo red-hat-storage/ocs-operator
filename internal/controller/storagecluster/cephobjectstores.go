@@ -23,9 +23,11 @@ import (
 )
 
 const (
-	enableRGWAnnotation         = "ocs.openshift.io/enable-rgw"
+	enableRGWAnnotation          = "ocs.openshift.io/enable-rgw"
 	enableRGWAutoscaleAnnotation = "ocs.openshift.io/enable-rgw-autoscale"
 	stsKeyLen                    = 32 // 32 hex characters for STS key
+	rgwS3AuthUseSTS              = "rgw_s3_auth_use_sts"
+	rgwSTSKey                    = "rgw_sts_key"
 )
 
 func shouldSkipObjectStore(sc *ocsv1.StorageCluster) (bool, error) {
@@ -320,12 +322,15 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			obj.Spec.Gateway.ReadAffinity = &cephv1.RgwReadAffinity{Type: "localize"}
 		}
 
-		// Enable STS for RGW via rgwCommandFlags and rgwSecretConfig
+		// Enable or disable STS for RGW via rgwCommandFlags and rgwSecretConfig
 		if initData.Spec.ManagedResources.CephObjectStores.EnableSTS {
 			if err := r.setSTSOptions(obj, initData); err != nil {
 				r.Log.Error(err, "Failed to set STS options for CephObjectStore.", "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
 				return nil, err
 			}
+		} else if err := r.unsetSTSOptions(obj); err != nil {
+			r.Log.Error(err, "Failed to unset STS options for CephObjectStore.", "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
+			return nil, err
 		}
 
 		if obj.Spec.Security == nil {
@@ -437,11 +442,10 @@ func (r *StorageClusterReconciler) setSTSOptions(obj *cephv1.CephObjectStore, sc
 	if obj.Spec.Gateway.RgwCommandFlags == nil {
 		obj.Spec.Gateway.RgwCommandFlags = make(map[string]string)
 	}
-	obj.Spec.Gateway.RgwCommandFlags["rgw_s3_auth_use_sts"] = "true"
+	obj.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS] = "true"
 
 	// Create secret for STS key
 	secretName := fmt.Sprintf("sts-key-%s", obj.Name)
-	secretKeyName := "rgw_sts_key"
 
 	// Generate a cryptographically secure random STS key (16 bytes = 128 bits)
 	stsKey, err := generateRandomSTSKey()
@@ -456,7 +460,7 @@ func (r *StorageClusterReconciler) setSTSOptions(obj *cephv1.CephObjectStore, sc
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{
-			secretKeyName: []byte(stsKey),
+			rgwSTSKey: []byte(stsKey),
 		},
 	}
 
@@ -478,13 +482,13 @@ func (r *StorageClusterReconciler) setSTSOptions(obj *cephv1.CephObjectStore, sc
 			return fmt.Errorf("failed to get STS secret: %w", err)
 		}
 	} else {
-		existingKey, ok := existingSecret.Data[secretKeyName]
+		existingKey, ok := existingSecret.Data[rgwSTSKey]
 		if !ok || len(existingKey) != len(stsKey) {
 			r.Log.Info("Rotating STS secret for CephObjectStore.",
 				"Secret", klog.KRef(secret.Namespace, secret.Name), "CephObjectStore", klog.KRef(obj.Namespace, obj.Name),
 				"CurrentKeyLength", len(existingKey), "NewKeyLength", len(stsKey),
 			)
-			existingSecret.Data[secretKeyName] = []byte(stsKey)
+			existingSecret.Data[rgwSTSKey] = []byte(stsKey)
 			if err := r.Update(context.TODO(), existingSecret); err != nil {
 				return fmt.Errorf("failed to update STS secret with rotated key: %w", err)
 			}
@@ -497,11 +501,39 @@ func (r *StorageClusterReconciler) setSTSOptions(obj *cephv1.CephObjectStore, sc
 	if obj.Spec.Gateway.RgwConfigFromSecret == nil {
 		obj.Spec.Gateway.RgwConfigFromSecret = make(map[string]corev1.SecretKeySelector)
 	}
-	obj.Spec.Gateway.RgwConfigFromSecret["rgw_sts_key"] = corev1.SecretKeySelector{
+	obj.Spec.Gateway.RgwConfigFromSecret[rgwSTSKey] = corev1.SecretKeySelector{
 		LocalObjectReference: corev1.LocalObjectReference{
 			Name: secretName,
 		},
-		Key: secretKeyName,
+		Key: rgwSTSKey,
+	}
+
+	return nil
+}
+
+// unsetSTSOptions disables STS for RGW and removes the STS key secret.
+func (r *StorageClusterReconciler) unsetSTSOptions(obj *cephv1.CephObjectStore) error {
+	if _, present := obj.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS]; present {
+		obj.Spec.Gateway.RgwCommandFlags[rgwS3AuthUseSTS] = "false"
+	}
+
+	if obj.Spec.Gateway.RgwConfigFromSecret != nil {
+		delete(obj.Spec.Gateway.RgwConfigFromSecret, rgwSTSKey)
+	}
+
+	secretName := fmt.Sprintf("sts-key-%s", obj.Name)
+	secret := &corev1.Secret{}
+	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: obj.Namespace}, secret)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to get STS secret: %w", err)
+	}
+
+	r.Log.Info("Deleting STS secret for CephObjectStore.", "Secret", klog.KRef(secret.Namespace, secret.Name), "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
+	if err := r.Delete(context.TODO(), secret); err != nil {
+		return fmt.Errorf("failed to delete STS secret: %w", err)
 	}
 
 	return nil
