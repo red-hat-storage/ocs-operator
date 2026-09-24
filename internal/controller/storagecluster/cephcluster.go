@@ -290,7 +290,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			reason := "CephClusterStatus"
 			message := "CephCluster resource is not reporting status"
 			util.MapCephClusterNoConditions(&r.conditions, reason, message)
-			return reconcile.Result{}, nil
+			// Requeue after creating the CephCluster so the remaining conditions are
+			// evaluated in the next reconcile before proceeding with other resources.
+			// Returning an empty result would allow the current reconciliation flow to
+			// continue without re-evaluating those conditions.
+			return reconcile.Result{RequeueAfter: time.Second * time.Duration(0)}, nil
 		}
 		r.Log.Error(err, "Unable to fetch CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
 		return reconcile.Result{}, err
