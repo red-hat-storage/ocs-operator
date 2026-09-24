@@ -316,6 +316,21 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 	reconciler := createFakeInitializationStorageClusterReconciler(
 		t, rtObjsToCreateReconciler...)
 
+	// Pre-seed a ready CephCluster so reconcile does not requeue waiting for
+	// device classes (which would stop creation of dependent resources).
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: util.GenerateNameForCephCluster(cr),
+		},
+		Status: cephv1.ClusterStatus{
+			CephStatus: &cephv1.CephStatus{Health: "HEALTH_OK"},
+			CephStorage: &cephv1.CephStorage{
+				DeviceClasses: []cephv1.DeviceClasses{{Name: "ssd"}},
+			},
+		},
+	}
+	assert.NoError(t, reconciler.Create(context.TODO(), cephCluster))
+
 	_ = reconciler.Create(context.TODO(), cr)
 	for _, rtObj := range runtimeObjs {
 		_ = reconciler.Create(context.TODO(), rtObj)
@@ -328,12 +343,15 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 	result, err := reconciler.Reconcile(context.TODO(), requestOCSInit)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
+	err = reconciler.Get(context.TODO(), requestOCSInit.NamespacedName, cr)
+	assert.NoError(t, err)
 	err = os.Setenv("WATCH_NAMESPACE", cr.Namespace)
 	assert.NoError(t, err)
 	return t, reconciler, cr, requestOCSInit
 }
 
 func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *StorageClusterReconciler {
+	testSkipPrometheusRules = true
 	sc := &api.StorageCluster{}
 	scheme := createFakeScheme(t)
 	cfs := &cephv1.CephFilesystem{
