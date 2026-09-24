@@ -1591,6 +1591,10 @@ func setDefaultDataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageClus
 	}
 	if poolSpec.DeviceClass == "" {
 		poolSpec.DeviceClass = sc.Status.DefaultCephDeviceClass
+		// set the default device class to `ssd`
+		if sc.Status.DefaultCephDeviceClass == "" {
+			poolSpec.DeviceClass = DeviceTypeSSD
+		}
 	}
 	if poolSpec.FailureDomain == "" {
 		poolSpec.FailureDomain = getFailureDomain(sc)
