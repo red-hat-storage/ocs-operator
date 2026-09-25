@@ -37,7 +37,7 @@ func newRookCephTools() (*RookCephTools, error) {
 func (rctObj *RookCephTools) patchStorageCluster(patch string) error {
 	init := &ocsv1.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-storagecluster",
+			Name:      "ocs-storagecluster",
 			Namespace: rctObj.namespace,
 		},
 	}
