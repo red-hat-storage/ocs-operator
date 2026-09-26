@@ -58,22 +58,7 @@ func (t *DeployManager) StartDefaultStorageCluster() error {
 
 // DefaultStorageCluster returns a default StorageCluster manifest
 func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
-	arbiter := ocsv1.ArbiterSpec{}
-	nodeTopologies := &ocsv1.NodeTopologyMap{}
-	if t.ArbiterEnabled() {
-		arbiter.Enable = true
-		nodeTopologies.ArbiterLocation = t.GetArbiterZone()
-	}
-
-	monQuantity, err := resource.ParseQuantity("10Gi")
-	if err != nil {
-		return nil, err
-	}
-	dataQuantity, err := resource.ParseQuantity("100Gi")
-	if err != nil {
-		return nil, err
-	}
-	storageClassName := "gp2-csi"
+	storageClassName := "gp3-csi"
 	blockVolumeMode := corev1.PersistentVolumeBlock
 	storageCluster := &ocsv1.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -81,57 +66,37 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 			Namespace: InstallNamespace,
 		},
 		Spec: ocsv1.StorageClusterSpec{
-			MonPVCTemplate: &corev1.PersistentVolumeClaim{
-				Spec: corev1.PersistentVolumeClaimSpec{
-					StorageClassName: &storageClassName,
-					AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-
-					Resources: corev1.VolumeResourceRequirements{
-						Requests: corev1.ResourceList{
-							"storage": monQuantity,
-						},
-					},
-				},
-			},
-			NFS: &ocsv1.NFSSpec{
-				Enable: true,
-			},
 			ResourceProfile: "lean",
 			StorageDeviceSets: []ocsv1.StorageDeviceSet{
 				{
-					Name:     "example-deviceset",
+					Name:     "gp3-csi",
 					Count:    1,
 					Replica:  t.getMinOSDsCount(),
 					Portable: true,
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("1"),
-							corev1.ResourceMemory: resource.MustParse("2Gi"),
-						},
-					},
-
 					DataPVCTemplate: corev1.PersistentVolumeClaim{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "data",
-						},
 						Spec: corev1.PersistentVolumeClaimSpec{
 							StorageClassName: &storageClassName,
 							AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 							VolumeMode:       &blockVolumeMode,
-
 							Resources: corev1.VolumeResourceRequirements{
 								Requests: corev1.ResourceList{
-									"storage": dataQuantity,
+									corev1.ResourceStorage: resource.MustParse("0.5Ti"),
 								},
 							},
 						},
 					},
 				},
 			},
-			NodeTopologies: nodeTopologies,
-			Arbiter:        arbiter,
 		},
 	}
+
+	if t.ArbiterEnabled() {
+		storageCluster.Spec.Arbiter = ocsv1.ArbiterSpec{Enable: true}
+		storageCluster.Spec.NodeTopologies = &ocsv1.NodeTopologyMap{
+			ArbiterLocation: t.GetArbiterZone(),
+		}
+	}
+
 	storageCluster.SetGroupVersionKind(schema.GroupVersionKind{Group: ocsv1.GroupVersion.Group, Kind: "StorageCluster", Version: ocsv1.GroupVersion.Version})
 
 	return storageCluster, nil
@@ -437,7 +402,7 @@ func (t *DeployManager) AddCustomStorageClassName(customSCNames map[string]strin
 		}
 	}
 
-	if sc.Spec.NFS.Enable {
+	if sc.Spec.NFS != nil && sc.Spec.NFS.Enable {
 		sc.Spec.NFS = &ocsv1.NFSSpec{
 			StorageClassName: customSCNames["NFS"],
 		}
@@ -475,7 +440,7 @@ func (t *DeployManager) VerifyStorageClassesExist(oldSC map[string]bool) (bool, 
 	if sc.Spec.ManagedResources.CephNonResilientPools.StorageClassName != "" {
 		expectedSC[sc.Spec.ManagedResources.CephNonResilientPools.StorageClassName] = true
 	}
-	if sc.Spec.NFS.StorageClassName != "" {
+	if sc.Spec.NFS != nil && sc.Spec.NFS.StorageClassName != "" {
 		expectedSC[sc.Spec.NFS.StorageClassName] = true
 	}
 	if sc.Spec.Encryption.StorageClassName != "" {
