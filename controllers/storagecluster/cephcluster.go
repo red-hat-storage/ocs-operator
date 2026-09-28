@@ -456,9 +456,11 @@ func newCephCluster(sc *ocsv1.StorageCluster, cephImage string, nodeCount int, s
 				"arbiter": getPlacement(sc, "arbiter"),
 			},
 			PriorityClassNames: rookCephv1.PriorityClassNamesSpec{
-				rookCephv1.KeyMgr: systemNodeCritical,
-				rookCephv1.KeyMon: systemNodeCritical,
-				rookCephv1.KeyOSD: systemNodeCritical,
+				rookCephv1.KeyMgr:            systemNodeCritical,
+				rookCephv1.KeyMon:            systemNodeCritical,
+				rookCephv1.KeyOSD:            systemNodeCritical,
+				rookCephv1.KeyCephExporter:   systemNodeCritical,
+				rookCephv1.KeyCrashCollector: systemNodeCritical,
 			},
 			Resources: newCephDaemonResources(sc),
 			ContinueUpgradeAfterChecksEvenIfNotHealthy: true,
@@ -955,10 +957,12 @@ func countAndReplicaOf(ds *ocsv1.StorageDeviceSet) (int, int) {
 func newCephDaemonResources(sc *ocsv1.StorageCluster) map[string]corev1.ResourceRequirements {
 	custom := sc.Spec.Resources
 	resources := map[string]corev1.ResourceRequirements{
-		"mon": defaults.DaemonResources["mon"],
-		"mgr": defaults.DaemonResources["mgr"],
-		"mds": defaults.DaemonResources["mds"],
-		"rgw": defaults.DaemonResources["rgw"],
+		"mon":            defaults.DaemonResources["mon"],
+		"mgr":            defaults.DaemonResources["mgr"],
+		"mds":            defaults.DaemonResources["mds"],
+		"rgw":            defaults.DaemonResources["rgw"],
+		"crashcollector": defaults.DaemonResources["crashcollector"],
+		"exporter":       defaults.DaemonResources["exporter"],
 	}
 	if arbiterEnabled(sc) {
 		resources["mgr-sidecar"] = defaults.DaemonResources["mgr-sidecar"]
