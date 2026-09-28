@@ -83,6 +83,8 @@ github.com/Azure/go-autorest/logger v0.2.0/go.mod h1:T9E3cAhj2VqvPOtCYAvby9aBXkZ
 github.com/Azure/go-autorest/logger v0.2.1/go.mod h1:T9E3cAhj2VqvPOtCYAvby9aBXkZmbF5NWuPV8+WeEW8=
 github.com/Azure/go-autorest/tracing v0.5.0/go.mod h1:r/s2XiOKccPW3HrqB+W0TQzfbtp2fGCgRFtBroKn4Dk=
 github.com/Azure/go-autorest/tracing v0.6.0/go.mod h1:+vhtPC754Xsa23ID7GlGsrdKBpUA79WCAKPPZVC2DeU=
+github.com/BlaineEXE/rook/pkg/apis v0.0.0-20260925202852-bf1d6d555d8b h1:xav5z/34s5OUBfH6xddhUlByHaYAiwRQ5mOwGWAgGaY=
+github.com/BlaineEXE/rook/pkg/apis v0.0.0-20260925202852-bf1d6d555d8b/go.mod h1:Fh1xIcIIJT9d0oZuFC2qtkd4CVExaNjRlwg5KZxBIwo=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/IBM/keyprotect-go-client v0.5.1/go.mod h1:5TwDM/4FRJq1ZOlwQL1xFahLWQ3TveR88VmL1u3njyI=
@@ -779,8 +781,6 @@ github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
 github.com/rook/rook v1.17.0-alpha.0.0.20250731081113-fd2b4333e8b5 h1:Gz9o/CKv3WIyfUGcsn1R/AKxcLd5zdxVRAzO68DVHLw=
 github.com/rook/rook v1.17.0-alpha.0.0.20250731081113-fd2b4333e8b5/go.mod h1:p9QEYfjygpw00DWRMLTG1tgRXixD7bBWZC84BFNBtn8=
-github.com/rook/rook/pkg/apis v0.0.0-20250915194743-ccbac6de987f h1:BpZOxn8JFxcIJlPbmEclU7nORL9TkdETQmOeUzI3Eg0=
-github.com/rook/rook/pkg/apis v0.0.0-20250915194743-ccbac6de987f/go.mod h1:EPni1SJWJROh+GSZUFm+n9lI5Q/KT4RLItrcrNqEnaE=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=

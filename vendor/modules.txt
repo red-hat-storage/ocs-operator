@@ -407,7 +407,7 @@ github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
 github.com/red-hat-storage/ocs-operator/services/provider/api/v4
 github.com/red-hat-storage/ocs-operator/services/provider/api/v4/client
 github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces
-# github.com/rook/rook/pkg/apis v0.0.0-20250915194743-ccbac6de987f
+# github.com/rook/rook/pkg/apis v0.0.0-20250915194743-ccbac6de987f => github.com/BlaineEXE/rook/pkg/apis v0.0.0-20260925202852-bf1d6d555d8b
 ## explicit; go 1.24.3
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
@@ -1229,3 +1229,4 @@ sigs.k8s.io/yaml/goyaml.v2
 # github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
 # github.com/go-jose/go-jose/v4 => github.com/openshift-sustaining/go-jose/v4 v4.0.5-cve-2026-34986
+# github.com/rook/rook/pkg/apis => github.com/BlaineEXE/rook/pkg/apis v0.0.0-20260925202852-bf1d6d555d8b

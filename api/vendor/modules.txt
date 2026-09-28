@@ -257,7 +257,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rook/rook/pkg/apis v0.0.0-20250915194743-ccbac6de987f
+# github.com/rook/rook/pkg/apis v0.0.0-20250915194743-ccbac6de987f => github.com/BlaineEXE/rook/pkg/apis v0.0.0-20260925202852-bf1d6d555d8b
 ## explicit; go 1.24.3
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
@@ -293,11 +293,11 @@ go.yaml.in/yaml/v2
 # go.yaml.in/yaml/v3 v3.0.4
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
-# golang.org/x/crypto v0.40.0
-## explicit; go 1.23.0
+# golang.org/x/crypto v0.45.0
+## explicit; go 1.24.0
 golang.org/x/crypto/pbkdf2
-# golang.org/x/net v0.42.0
-## explicit; go 1.23.0
+# golang.org/x/net v0.47.0
+## explicit; go 1.24.0
 golang.org/x/net/html
 golang.org/x/net/html/atom
 golang.org/x/net/http/httpguts
@@ -312,19 +312,19 @@ golang.org/x/net/websocket
 ## explicit; go 1.23.0
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sync v0.16.0
-## explicit; go 1.23.0
+# golang.org/x/sync v0.18.0
+## explicit; go 1.24.0
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.34.0
-## explicit; go 1.23.0
+# golang.org/x/sys v0.38.0
+## explicit; go 1.24.0
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.33.0
-## explicit; go 1.23.0
+# golang.org/x/term v0.37.0
+## explicit; go 1.24.0
 golang.org/x/term
-# golang.org/x/text v0.27.0
-## explicit; go 1.23.0
+# golang.org/x/text v0.31.0
+## explicit; go 1.24.0
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
@@ -889,3 +889,4 @@ sigs.k8s.io/yaml
 sigs.k8s.io/yaml/goyaml.v2
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
 # github.com/go-jose/go-jose/v4 => github.com/openshift-sustaining/go-jose/v4 v4.0.5-cve-2026-34986
+# github.com/rook/rook/pkg/apis => github.com/BlaineEXE/rook/pkg/apis v0.0.0-20260925202852-bf1d6d555d8b

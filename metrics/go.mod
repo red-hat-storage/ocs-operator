@@ -10,6 +10,8 @@ replace github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-o
 
 replace github.com/go-jose/go-jose/v4 => github.com/openshift-sustaining/go-jose/v4 v4.0.5-cve-2026-34986
 
+replace github.com/rook/rook/pkg/apis => github.com/BlaineEXE/rook/pkg/apis v0.0.0-20260925202852-bf1d6d555d8b
+
 exclude (
 	// This tag doesn't exist, but is imported by github.com/portworx/sched-ops.
 	github.com/kubernetes-incubator/external-storage v0.20.4-openstorage-rc2
