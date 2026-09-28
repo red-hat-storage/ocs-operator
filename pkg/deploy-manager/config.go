@@ -22,7 +22,7 @@ import (
 var InstallNamespace string
 
 // DefaultStorageClusterName is the name of the storage cluster the test suite installs
-const DefaultStorageClusterName = "test-storagecluster"
+const DefaultStorageClusterName = "ocs-storagecluster"
 
 // DefaultStorageClusterStorageSystemName is the name of the storage system owned by default storage cluster
 const DefaultStorageClusterStorageSystemName = "test-storage-system"
