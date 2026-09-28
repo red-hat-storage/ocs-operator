@@ -605,6 +605,12 @@ spec:
                   should be deployed.
                   Defaults to false
                 type: boolean
+              enableRookServicesTLS:
+                description: |-
+                  EnableRookServicesTLS turns on HTTPS for all supported Rook-Ceph service
+                  metrics endpoints (e.g. rook-ceph-mgr) using OpenShift service-serving
+                  certificates. Defaults to false.
+                type: boolean
               encryption:
                 description: |-
                   EncryptionSpec defines if encryption should be enabled for the Storage Cluster
@@ -902,7 +908,7 @@ spec:
                                     snapshot scheduling settings of a mirrored pool
                                   properties:
                                     interval:
-                                      description: Interval represent the periodicity
+                                      description: Interval represents the periodicity
                                         of the snapshot.
                                       type: string
                                     path:
@@ -1951,7 +1957,7 @@ spec:
                                       snapshot scheduling settings of a mirrored pool
                                     properties:
                                       interval:
-                                        description: Interval represent the periodicity
+                                        description: Interval represents the periodicity
                                           of the snapshot.
                                         type: string
                                       path:
@@ -2214,7 +2220,7 @@ spec:
                                     snapshot scheduling settings of a mirrored pool
                                   properties:
                                     interval:
-                                      description: Interval represent the periodicity
+                                      description: Interval represents the periodicity
                                         of the snapshot.
                                       type: string
                                     path:
@@ -2482,7 +2488,7 @@ spec:
                                     snapshot scheduling settings of a mirrored pool
                                   properties:
                                     interval:
-                                      description: Interval represent the periodicity
+                                      description: Interval represents the periodicity
                                         of the snapshot.
                                       type: string
                                     path:
@@ -3327,7 +3333,7 @@ spec:
                                     snapshot scheduling settings of a mirrored pool
                                   properties:
                                     interval:
-                                      description: Interval represent the periodicity
+                                      description: Interval represents the periodicity
                                         of the snapshot.
                                       type: string
                                     path:
@@ -3604,7 +3610,7 @@ spec:
                                     snapshot scheduling settings of a mirrored pool
                                   properties:
                                     interval:
-                                      description: Interval represent the periodicity
+                                      description: Interval represents the periodicity
                                         of the snapshot.
                                       type: string
                                     path:
@@ -4854,7 +4860,7 @@ spec:
                                 scheduling settings of a mirrored pool
                               properties:
                                 interval:
-                                  description: Interval represent the periodicity
+                                  description: Interval represents the periodicity
                                     of the snapshot.
                                   type: string
                                 path:
