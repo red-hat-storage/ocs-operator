@@ -4,7 +4,7 @@ go 1.26.7
 
 require (
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20260823065117-0e4d1eff6a6f
-	google.golang.org/grpc v1.83.2
+	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
 	k8s.io/apimachinery v0.37.0
 )
@@ -62,8 +62,6 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/thoas/go-funk v0.9.3 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	go.opentelemetry.io/otel v1.46.0 // indirect
-	go.opentelemetry.io/otel/sdk/metric v1.46.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
