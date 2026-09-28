@@ -111,7 +111,6 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 	return storageCluster, nil
 }
 
-
 // getStorageCluster retrieves the test suite storage cluster
 func (t *DeployManager) getStorageCluster() (*ocsv1.StorageCluster, error) {
 	sc := &ocsv1.StorageCluster{}
