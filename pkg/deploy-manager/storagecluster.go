@@ -68,6 +68,14 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 		},
 		Spec: ocsv1.StorageClusterSpec{
 			ResourceProfile: "lean",
+			// 4.20 e2e previously cleared NooBaa defaults via empty Spec.Resources.
+			// Lean does not include NooBaa, so getDaemonResources() falls back to
+			// DaemonResources unless these empty overrides are kept.
+			Resources: map[string]corev1.ResourceRequirements{
+				"noobaa-core":     {},
+				"noobaa-db":       {},
+				"noobaa-endpoint": {},
+			},
 			StorageDeviceSets: []ocsv1.StorageDeviceSet{
 				{
 					Name:     "gp3-csi",
