@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/blang/semver/v4"
@@ -43,7 +44,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,6 +65,12 @@ const (
 const (
 	monConfigMap = "rook-ceph-mon-endpoints"
 	monSecret    = "rook-ceph-mon"
+)
+
+var (
+	knownOcsInstalledCsvName        string
+	knownOcsSubscriptionChannelName string
+	ocsSubChannelAndCsvMutex        sync.Mutex
 )
 
 type OCSProviderServer struct {
@@ -857,9 +866,119 @@ func (s *OCSProviderServer) getOCSSubscriptionChannel(ctx context.Context) (stri
 		return sub.Spec.Package == "ocs-operator"
 	})
 	if subscription == nil {
-		return "", fmt.Errorf("unable to find ocs-operator subscription")
+		klog.Info("unable to find ocs-operator subscription")
+		return "", nil
 	}
-	return subscription.Spec.Channel, nil
+
+	ocsSubChannelAndCsvMutex.Lock()
+	defer ocsSubChannelAndCsvMutex.Unlock()
+
+	// If the installed CSV has changed then validate the current channel otherwise return the known valid channel
+	if subscription.Status.InstalledCSV != knownOcsInstalledCsvName {
+		ok, err := s.isSubscriptionChannelValid(ctx, subscription)
+		if err != nil || !ok {
+			return "", err
+		}
+		knownOcsInstalledCsvName = subscription.Status.InstalledCSV
+		knownOcsSubscriptionChannelName = subscription.Spec.Channel
+	}
+
+	return knownOcsSubscriptionChannelName, nil
+}
+
+func (s *OCSProviderServer) isSubscriptionChannelValid(ctx context.Context, subscription *opv1a1.Subscription) (bool, error) {
+	installedCSVName := subscription.Status.InstalledCSV
+	channelName := subscription.Spec.Channel
+	packageName := subscription.Spec.Package
+
+	// Check if the installed CSV of the subscription is in Succeeded phase
+	if installedCSVName == "" {
+		klog.Infof("subscription %q does not have an installed CSV", subscription.Name)
+		return false, nil
+	}
+	csv := &opv1a1.ClusterServiceVersion{}
+	err := s.client.Get(ctx, client.ObjectKey{Name: installedCSVName, Namespace: s.namespace}, csv)
+	if err != nil {
+		klog.Errorf("failed to get installed CSV %q: %v", installedCSVName, err)
+		return false, err
+	}
+	if csv.Status.Phase != opv1a1.CSVPhaseSucceeded {
+		klog.Infof("installed CSV %q is in phase %q, not Succeeded", csv.Name, csv.Status.Phase)
+		return false, nil
+	}
+
+	// Check if the installed CSV is the expected one for the channel from the package manifest
+	packageManifestList := &unstructured.UnstructuredList{}
+	packageManifestList.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "packages.operators.coreos.com",
+		Version: "v1",
+		Kind:    "PackageManifest",
+	})
+	err = s.client.List(
+		ctx,
+		packageManifestList,
+		client.InNamespace(s.namespace),
+		// Field match prone to future change, but better than processing hundreds of resources, consuming more CPU/memory
+		client.MatchingFields{"metadata.name": packageName},
+	)
+	if err != nil {
+		klog.Errorf("failed to list packageManifests for package %q: %v", packageName, err)
+		return false, err
+	}
+	var packageManifest *unstructured.Unstructured
+	for i := range packageManifestList.Items {
+		pm := &packageManifestList.Items[i]
+		labels := pm.GetLabels()
+		if labels["catalog"] == subscription.Spec.CatalogSource &&
+			labels["catalog-namespace"] == subscription.Spec.CatalogSourceNamespace {
+			packageManifest = pm
+			break
+		}
+	}
+	if packageManifest == nil {
+		klog.Errorf("PackageManifest %q not found for catalog %q in namespace %q",
+			packageName, subscription.Spec.CatalogSource, subscription.Spec.CatalogSourceNamespace)
+		return false, nil
+	}
+	channels, found, err := unstructured.NestedSlice(packageManifest.Object, "status", "channels")
+	if err != nil {
+		klog.Errorf("error getting channels from PackageManifest %q: %v", packageManifest.GetName(), err)
+		return false, err
+	}
+	if !found {
+		klog.Infof("channels not found in PackageManifest %q", packageManifest.GetName())
+		return false, nil
+	}
+	for _, ch := range channels {
+		chMap, ok := ch.(map[string]any)
+		if !ok {
+			continue
+		}
+		if chn, ok := chMap["name"].(string); !ok || chn != channelName {
+			continue
+		}
+		entries, ok := chMap["entries"].([]any)
+		if !ok {
+			klog.Infof("channel %q in PackageManifest %q has no entries", channelName, packageManifest.GetName())
+			return false, nil
+		}
+		for _, entry := range entries {
+			entryMap, ok := entry.(map[string]any)
+			if !ok {
+				continue
+			}
+			if entryCSVName, ok := entryMap["name"].(string); ok && entryCSVName == installedCSVName {
+				klog.Infof("subscription for %q with channel %q is valid with installed CSV %q",
+					subscription.Spec.Package, channelName, installedCSVName)
+				return true, nil
+			}
+		}
+		klog.Infof("installed CSV %q is not in channel %q entries in PackageManifest %q",
+			installedCSVName, channelName, packageManifest.GetName())
+		return false, nil
+	}
+	klog.Infof("channel %q not found in PackageManifest %q", channelName, packageManifest.GetName())
+	return false, nil
 }
 
 func extractMonitorIps(data string) ([]string, error) {
