@@ -14,18 +14,29 @@ import (
 
 const (
 	// component within the project/exporter
-	mirrorDaemonSubsystem = "mirror_daemon"
-	lvmOSD                = "lvm_osds"
+	mirrorDaemonSubsystem     = "mirror_daemon"
+	lvmOSD                    = "lvm_osds"
+	cephxKeyRotationSubsystem = "cephx_daemon_key_rotation"
+)
+
+// Daemon type constants for CephX key rotation
+const (
+	daemonMon = "mon"
+	daemonMgr = "mgr"
+	daemonOSD = "osd"
+	daemonMDS = "mds"
 )
 
 var _ prometheus.Collector = &CephClusterCollector{}
 
 // CephClusterCollector is a custom collector for CephCluster Custom Resource
 type CephClusterCollector struct {
-	MirrorDaemonCount *prometheus.Desc
-	LegacyOSD         *prometheus.Desc
-	Informer          cache.SharedIndexInformer
-	AllowedNamespaces []string
+	MirrorDaemonCount      *prometheus.Desc
+	LegacyOSD              *prometheus.Desc
+	KeyRotationMismatch    *prometheus.Desc
+	Informer               cache.SharedIndexInformer
+	CephFilesystemInformer cache.SharedIndexInformer
+	AllowedNamespaces      []string
 }
 
 // NewCephClusterCollector constructs a collector
@@ -35,8 +46,13 @@ func NewCephClusterCollector(opts *options.Options) *CephClusterCollector {
 		klog.Error(err)
 	}
 
-	lw := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephclusters", searchInNamespace(opts), fields.Everything())
-	sharedIndexInformer := cache.NewSharedIndexInformer(lw, &cephv1.CephCluster{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	// CephCluster informer
+	cephClusterLW := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephclusters", searchInNamespace(opts), fields.Everything())
+	cephClusterInformer := cache.NewSharedIndexInformer(cephClusterLW, &cephv1.CephCluster{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+
+	// CephFilesystem informer (for MDS key rotation status)
+	cephFilesystemLW := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephfilesystems", searchInNamespace(opts), fields.Everything())
+	cephFilesystemInformer := cache.NewSharedIndexInformer(cephFilesystemLW, &cephv1.CephFilesystem{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 
 	return &CephClusterCollector{
 		MirrorDaemonCount: prometheus.NewDesc(
@@ -51,20 +67,30 @@ func NewCephClusterCollector(opts *options.Options) *CephClusterCollector {
 			[]string{"ceph_cluster", "namespace"},
 			nil,
 		),
-		Informer:          sharedIndexInformer,
-		AllowedNamespaces: opts.AllowedNamespaces,
+		KeyRotationMismatch: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, cephxKeyRotationSubsystem, "mismatch"),
+			"Indicates if CephX key rotation has failed (1) or succeeded (0) for a daemon",
+			[]string{"daemon", "ceph_cluster", "namespace"},
+			nil,
+		),
+		Informer:               cephClusterInformer,
+		CephFilesystemInformer: cephFilesystemInformer,
+		AllowedNamespaces:      opts.AllowedNamespaces,
 	}
 }
 
-// Run starts CephClusters informer
+// Run starts CephCluster and CephFilesystem informers
 func (c *CephClusterCollector) Run(stopCh <-chan struct{}) {
 	go c.Informer.Run(stopCh)
+	go c.CephFilesystemInformer.Run(stopCh)
 }
 
 // Describe implements prometheus.Collector interface
 func (c *CephClusterCollector) Describe(ch chan<- *prometheus.Desc) {
 	ds := []*prometheus.Desc{
 		c.MirrorDaemonCount,
+		c.LegacyOSD,
+		c.KeyRotationMismatch,
 	}
 
 	for _, d := range ds {
@@ -75,11 +101,13 @@ func (c *CephClusterCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect implements prometheus.Collector interface
 func (c *CephClusterCollector) Collect(ch chan<- prometheus.Metric) {
 	cephClusterLister := cephv1listers.NewCephClusterLister(c.Informer.GetIndexer())
-	cephClusterListers := getAllCephClusters(cephClusterLister, c.AllowedNamespaces)
+	cephFilesystemLister := cephv1listers.NewCephFilesystemLister(c.CephFilesystemInformer.GetIndexer())
+	cephClusters := getAllCephClusters(cephClusterLister, c.AllowedNamespaces)
 
-	if len(cephClusterListers) > 0 {
-		c.collectMirrorinDaemonCount(cephClusterListers, ch)
-		c.collectLegacyOSDCount(cephClusterListers, ch)
+	if len(cephClusters) > 0 {
+		c.collectMirrorinDaemonCount(cephClusters, ch)
+		c.collectLegacyOSDCount(cephClusters, ch)
+		c.collectCephxKeyRotationStatus(cephClusters, cephFilesystemLister, ch)
 	}
 }
 
@@ -138,4 +166,89 @@ func (c *CephClusterCollector) collectLegacyOSDCount(cephClusters []*cephv1.Ceph
 				cephCluster.Namespace)
 		}
 	}
+}
+
+func (c *CephClusterCollector) collectCephxKeyRotationStatus(
+	cephClusters []*cephv1.CephCluster,
+	cephFilesystemLister cephv1listers.CephFilesystemLister,
+	ch chan<- prometheus.Metric,
+) {
+	for _, cephCluster := range cephClusters {
+		clusterName := cephCluster.Name
+		clusterNamespace := cephCluster.Namespace
+
+		// Check if status.KeyGeneration is behind spec.KeyGeneration for each daemon.
+		// We only alert when status < spec (rotation incomplete/failed).
+		// Status can legitimately exceed spec due to:
+		//   - Greenfield clusters: spec defaults to 0, but Rook initializes status to 1
+		//   - keyType changes: triggers rotation without changing keyGeneration spec
+		//   - Other internal rotations
+		desiredKeyGen := cephCluster.Spec.Security.CephX.Daemon.KeyGeneration
+		cephxStatus := cephCluster.Status.Cephx
+
+		// Check mon
+		monMismatch := c.checkKeyGenMismatch(desiredKeyGen, cephxStatus.Mon.KeyGeneration)
+		c.emitKeyRotationMetric(ch, daemonMon, clusterName, clusterNamespace, monMismatch)
+
+		// Check mgr
+		mgrMismatch := c.checkKeyGenMismatch(desiredKeyGen, cephxStatus.Mgr.KeyGeneration)
+		c.emitKeyRotationMetric(ch, daemonMgr, clusterName, clusterNamespace, mgrMismatch)
+
+		// Check osd
+		osdMismatch := c.checkKeyGenMismatch(desiredKeyGen, cephxStatus.OSD.KeyGeneration)
+		c.emitKeyRotationMetric(ch, daemonOSD, clusterName, clusterNamespace, osdMismatch)
+
+		// Check mds via CephFilesystems
+		mdsMismatch := c.checkMDSKeyRotation(cephFilesystemLister, clusterNamespace, desiredKeyGen)
+		c.emitKeyRotationMetric(ch, daemonMDS, clusterName, clusterNamespace, mdsMismatch)
+	}
+}
+
+func (c *CephClusterCollector) checkKeyGenMismatch(desired, actual uint32) float64 {
+	// Alert only when status is behind spec (rotation incomplete/failed).
+	// Status can legitimately exceed spec due to keyType changes or other rotations.
+	if actual < desired {
+		return 1
+	}
+	return 0
+}
+
+func (c *CephClusterCollector) checkMDSKeyRotation(
+	lister cephv1listers.CephFilesystemLister,
+	namespace string,
+	desiredKeyGen uint32,
+) float64 {
+	filesystems, err := lister.CephFilesystems(namespace).List(labels.Everything())
+	if err != nil {
+		klog.Errorf("couldn't list CephFilesystems in namespace %s: %v", namespace, err)
+		return 0
+	}
+	if len(filesystems) == 0 {
+		// No CephFilesystems, no mds to check
+		return 0
+	}
+
+	// If ANY CephFilesystem has status behind spec, return 1
+	for _, fs := range filesystems {
+		actualKeyGen := fs.Status.Cephx.Daemon.KeyGeneration
+		if actualKeyGen < desiredKeyGen {
+			return 1
+		}
+	}
+	return 0
+}
+
+func (c *CephClusterCollector) emitKeyRotationMetric(
+	ch chan<- prometheus.Metric,
+	daemon, clusterName, namespace string,
+	value float64,
+) {
+	ch <- prometheus.MustNewConstMetric(
+		c.KeyRotationMismatch,
+		prometheus.GaugeValue,
+		value,
+		daemon,
+		clusterName,
+		namespace,
+	)
 }
