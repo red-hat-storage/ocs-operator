@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
@@ -17,8 +18,10 @@ import (
 )
 
 const (
-	// DisableClientCertValidation annotation disables client certificate validation
+	// DisableClientCertValidation annotation disables client certificate validation for StorageConsumer
 	DisableClientCertValidation = "ocs.openshift.io/disable-client-cert-validation"
+	// DisablePeerCertValidation annotation disables client certificate validation for StorageClusterPeer
+	DisablePeerCertValidation = "ocs.openshift.io/disable-peer-cert-validation"
 )
 
 // validateCACert checks that the CA certificate is valid and has CA properties
@@ -147,4 +150,28 @@ func (s *OCSProviderServer) authenticateClientConnection(ctx context.Context, co
 	}
 
 	return s.validateConnection(ctx, consumer.Spec.ClientCASecret.Name, consumer.Spec.ClientSAN, consumer.Name)
+}
+
+// authenticatePeerConnection validates the client certificate against the Client CA and SAN stored in the respective StorageClusterPeer resource
+func (s *OCSProviderServer) authenticatePeerConnection(ctx context.Context, peer *ocsv1.StorageClusterPeer) error {
+	logger := klog.FromContext(ctx)
+
+	if val, exists := peer.Annotations[DisablePeerCertValidation]; exists && val == "true" {
+		logger.Info("Peer certificate validation explicitly disabled, skipping authentication",
+			"peer", peer.Name)
+		return nil
+	}
+
+	caSecretName := ""
+	if peer.Spec.ClientCASecret != nil {
+		caSecretName = peer.Spec.ClientCASecret.Name
+	}
+
+	if caSecretName == "" || peer.Spec.ClientSAN == "" {
+		logger.Info("Peer certificate validation not configured, skipping authentication",
+			"peer", peer.Name)
+		return nil
+	}
+
+	return s.validateConnection(ctx, caSecretName, peer.Spec.ClientSAN, peer.Name)
 }

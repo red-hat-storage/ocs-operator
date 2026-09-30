@@ -1198,6 +1198,10 @@ func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.Peer
 
 	logger.Info("Found StorageClusterPeer", "storageClusterPeer", storageClusterPeer.Name)
 
+	if err := s.authenticatePeerConnection(ctx, storageClusterPeer); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
+
 	if storageClusterPeer.Status.State != ocsv1.StorageClusterPeerStatePending && storageClusterPeer.Status.State != ocsv1.StorageClusterPeerStatePeered {
 		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer that meets all criteria")
 	}
@@ -1241,6 +1245,16 @@ func (s *OCSProviderServer) RequestMaintenanceMode(ctx context.Context, req *pb.
 func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.StorageClientsInfoRequest) (*pb.StorageClientsInfoResponse, error) {
 	logger := klog.FromContext(ctx).WithName("GetStorageClientsInfo")
 	logger.Info("Starting GetStorageClientsInfo RPC", "request", req)
+
+	storageClusterPeer, err := s.storageClusterPeerManager.GetByPeerStorageClusterUID(ctx, types.UID(req.StorageClusterUID))
+	if err != nil {
+		logger.Error(err, "failed to get storage cluster peer")
+		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer")
+	}
+
+	if err := s.authenticatePeerConnection(ctx, storageClusterPeer); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
 
 	response := &pb.StorageClientsInfoResponse{}
 
@@ -1324,6 +1338,16 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.BlockPoolsInfoRequest) (*pb.BlockPoolsInfoResponse, error) {
 	logger := klog.FromContext(ctx).WithName("GetBlockPoolsInfo")
 	logger.Info("Starting GetBlockPoolsInfo RPC", "request", req)
+
+	storageClusterPeer, err := s.storageClusterPeerManager.GetByPeerStorageClusterUID(ctx, types.UID(req.StorageClusterUID))
+	if err != nil {
+		logger.Error(err, "failed to get storage cluster peer")
+		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer")
+	}
+
+	if err := s.authenticatePeerConnection(ctx, storageClusterPeer); err != nil {
+		return nil, status.Errorf(codes.PermissionDenied, "%v", err)
+	}
 
 	response := &pb.BlockPoolsInfoResponse{}
 	for i := range req.BlockPoolNames {
