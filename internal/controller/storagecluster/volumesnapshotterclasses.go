@@ -64,7 +64,7 @@ func (r *StorageClusterReconciler) createSnapshotClasses(vsccs []SnapshotClassCo
 			existing.Parameters = desired.Parameters
 			return nil
 		})
-		if util.IsForbiddenError(err) {
+		if util.IsForbiddenError(err) || util.IsFieldImmutable(err) {
 			if err := r.Delete(r.ctx, existing); client.IgnoreNotFound(err) != nil {
 				return fmt.Errorf("failed to replace SnapshotClass %v: %v", existing.GetName(), err)
 			}
