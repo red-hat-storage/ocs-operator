@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -49,6 +50,30 @@ type StorageClusterPeerSpec struct {
 
 	// OnboardingToken holds an identity information required by the local ODF cluster to onboard.
 	OnboardingToken string `json:"onboardingToken"`
+
+	// ServerCAConfigMap selects the key in a configmap holding the PEM-encoded peer
+	// server CA certificate. Allows pointing at an existing CA bundle (e.g. an
+	// OpenShift-managed configmap) whose key is not "ca.crt".
+	// +optional
+	ServerCAConfigMap corev1.ConfigMapKeySelector `json:"serverCAConfigMap,omitempty"`
+
+	// ServerSAN specifies the expected DNS Subject Alternative Name (SAN) in the server certificate.
+	// +optional
+	ServerSAN string `json:"serverSAN,omitempty"`
+
+	// ClientCertSecret references a secret containing the client certificate.
+	// The secret must be of type kubernetes.io/tls with keys "tls.crt" and "tls.key".
+	// +optional
+	ClientCertSecret corev1.LocalObjectReference `json:"clientCertSecret,omitempty"`
+
+	// ClientCAConfigMap references a configmap containing the CA certificate used to validate client certificates.
+	// The configmap must contain a key named "ca.crt" with the PEM-encoded CA certificate.
+	// +optional
+	ClientCAConfigMap corev1.LocalObjectReference `json:"clientCAConfigMap,omitempty"`
+
+	// ClientSAN specifies the expected DNS Subject Alternative Name (SAN) in the client certificate.
+	// +optional
+	ClientSAN string `json:"clientSAN,omitempty"`
 }
 
 // StorageClusterPeerStatus defines the observed state of StorageClusterPeer

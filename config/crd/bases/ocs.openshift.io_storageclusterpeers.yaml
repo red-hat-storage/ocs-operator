@@ -43,9 +43,77 @@ spec:
               apiEndpoint:
                 description: ApiEndpoint is the URI of the ODF api server
                 type: string
+              clientCAConfigMap:
+                description: |-
+                  ClientCAConfigMap references a configmap containing the CA certificate used to validate client certificates.
+                  The configmap must contain a key named "ca.crt" with the PEM-encoded CA certificate.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              clientCertSecret:
+                description: |-
+                  ClientCertSecret references a secret containing the client certificate.
+                  The secret must be of type kubernetes.io/tls with keys "tls.crt" and "tls.key".
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              clientSAN:
+                description: ClientSAN specifies the expected DNS Subject Alternative
+                  Name (SAN) in the client certificate.
+                type: string
               onboardingToken:
                 description: OnboardingToken holds an identity information required
                   by the local ODF cluster to onboard.
+                type: string
+              serverCAConfigMap:
+                description: |-
+                  ServerCAConfigMap selects the key in a configmap holding the PEM-encoded peer
+                  server CA certificate. Allows pointing at an existing CA bundle (e.g. an
+                  OpenShift-managed configmap) whose key is not "ca.crt".
+                properties:
+                  key:
+                    description: |-
+                      The key to select from the ConfigMap's Data field.
+                      Keys in the BinaryData field are not currently propagated to container env vars.
+                    type: string
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                  optional:
+                    description: Specify whether the ConfigMap or its key must be
+                      defined
+                    type: boolean
+                required:
+                - key
+                type: object
+                x-kubernetes-map-type: atomic
+              serverSAN:
+                description: ServerSAN specifies the expected DNS Subject Alternative
+                  Name (SAN) in the server certificate.
                 type: string
             required:
             - apiEndpoint
