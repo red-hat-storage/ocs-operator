@@ -4,12 +4,14 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"hash/fnv"
 	"os"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 
+	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -227,4 +229,29 @@ func IsFieldImmutable(err error) bool {
 		}
 	}
 	return false
+}
+
+// GetGrpcStatus extracts the gRPC status from an error, unwrapping if necessary.
+// This handles both direct gRPC errors and wrapped gRPC errors (e.g., from fmt.Errorf with %w).
+// Returns the gRPC status and true if found, otherwise nil and false.
+func GetGrpcStatus(err error) (*status.Status, bool) {
+	if err == nil {
+		return nil, false
+	}
+
+	// Try direct extraction first
+	if st, ok := status.FromError(err); ok {
+		return st, true
+	}
+
+	// Unwrap and try again
+	unwrappedErr := stderrors.Unwrap(err)
+	for unwrappedErr != nil {
+		if st, ok := status.FromError(unwrappedErr); ok {
+			return st, true
+		}
+		unwrappedErr = stderrors.Unwrap(unwrappedErr)
+	}
+
+	return nil, false
 }
