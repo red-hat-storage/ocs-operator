@@ -7,7 +7,6 @@ import (
 	"maps"
 	"net"
 	"reflect"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -74,18 +73,6 @@ type StorageClassConfiguration struct {
 }
 
 type ocsExternalResources struct{}
-
-func checkEndpointReachable(endpoint string, timeout time.Duration) error {
-	rxp := regexp.MustCompile(`^http[s]?://`)
-	// remove any http or https protocols from the endpoint string
-	endpoint = rxp.ReplaceAllString(endpoint, "")
-	con, err := net.DialTimeout("tcp", endpoint, timeout)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = con.Close() }()
-	return nil
-}
 
 func parseMonitoringIPs(monIP string) []string {
 	return strings.Fields(strings.ReplaceAll(monIP, ",", " "))
