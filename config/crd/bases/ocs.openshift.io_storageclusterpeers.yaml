@@ -43,9 +43,62 @@ spec:
               apiEndpoint:
                 description: ApiEndpoint is the URI of the ODF api server
                 type: string
+              clientCASecret:
+                description: ClientCASecret references a secret containing the CA
+                  certificate used to validate incoming client certificates.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              clientCertSecret:
+                description: ClientCertSecret references a secret containing the client
+                  certificate.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              clientSAN:
+                description: ClientSAN is the expected client identity (SAN) in the
+                  peer client certificate.
+                type: string
               onboardingToken:
                 description: OnboardingToken holds an identity information required
                   by the local ODF cluster to onboard.
+                type: string
+              serverCASecret:
+                description: ServerCASecret references a secret containing the peer
+                  server CA certificate.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              serverName:
+                description: ServerName is the expected server identity (SAN) in the
+                  peer server certificate.
                 type: string
             required:
             - apiEndpoint
