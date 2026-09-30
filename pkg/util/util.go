@@ -207,9 +207,21 @@ func IsDefaultPoolErasureCodingEnabled(cephBlockpool ocsv1.ManageCephBlockPools)
 
 func IsForbiddenError(err error) bool {
 	statusErr, ok := err.(*errors.StatusError)
-	if ok {
+	if ok && statusErr.ErrStatus.Details != nil {
 		for i := range statusErr.ErrStatus.Details.Causes {
 			if statusErr.ErrStatus.Details.Causes[i].Type == metav1.CauseTypeForbidden {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func IsFieldImmutable(err error) bool {
+	statusErr, ok := err.(*errors.StatusError)
+	if ok && statusErr.ErrStatus.Details != nil {
+		for i := range statusErr.ErrStatus.Details.Causes {
+			if statusErr.ErrStatus.Details.Causes[i].Type == metav1.CauseTypeFieldValueInvalid {
 				return true
 			}
 		}
