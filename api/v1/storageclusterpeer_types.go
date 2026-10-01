@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -49,6 +50,26 @@ type StorageClusterPeerSpec struct {
 
 	// OnboardingToken holds an identity information required by the local ODF cluster to onboard.
 	OnboardingToken string `json:"onboardingToken"`
+
+	// ServerCASecret references a secret containing the peer server CA certificate.
+	// +optional
+	ServerCASecret *corev1.LocalObjectReference `json:"serverCASecret,omitempty"`
+
+	// ServerName is the expected server identity (SAN) in the peer server certificate.
+	// +optional
+	ServerName string `json:"serverName,omitempty"`
+
+	// ClientCertSecret references a secret containing the client certificate.
+	// +optional
+	ClientCertSecret *corev1.LocalObjectReference `json:"clientCertSecret,omitempty"`
+
+	// ClientCASecret references a secret containing the CA certificate used to validate incoming client certificates.
+	// +optional
+	ClientCASecret *corev1.LocalObjectReference `json:"clientCASecret,omitempty"`
+
+	// ClientSAN is the expected client identity (SAN) in the peer client certificate.
+	// +optional
+	ClientSAN string `json:"clientSAN,omitempty"`
 }
 
 // StorageClusterPeerStatus defines the observed state of StorageClusterPeer
