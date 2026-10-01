@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
@@ -229,6 +230,157 @@ func TestAuthenticateClientConnection(t *testing.T) {
 
 			err := server.authenticateClientConnection(ctx, tt.consumer)
 
+			if tt.expectedError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectedError && err != nil {
+				t.Errorf("Expected no error but got: %v", err)
+			}
+		})
+	}
+}
+
+// TestAuthenticatePeerConnection tests StorageClusterPeer client certificate authentication
+func TestAuthenticatePeerConnection(t *testing.T) {
+	// Generate test CA and client cert
+	caCert, caKey, caPEM, err := generateTestCA()
+	if err != nil {
+		t.Fatalf("Failed to generate test CA: %v", err)
+	}
+
+	expectedSAN := "test-peer.example.com"
+	clientCert, err := generateTestClientCert(caCert, caKey, expectedSAN)
+	if err != nil {
+		t.Fatalf("Failed to generate test client cert: %v", err)
+	}
+
+	tests := []struct {
+		name            string
+		peer            *ocsv1.StorageClusterPeer
+		caSecret        *corev1.Secret
+		peerCerts       []*x509.Certificate
+		expectedError   bool
+		skipPeerContext bool
+	}{
+		{
+			name: "secrets not configured - should skip authentication",
+			peer: &ocsv1.StorageClusterPeer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-peer",
+					Namespace: "test-namespace",
+				},
+				Spec: ocsv1.StorageClusterPeerSpec{
+					// No ClientCASecret or ClientSAN configured
+				},
+			},
+			expectedError: false,
+		},
+		{
+			name: "disable annotation set - should skip authentication",
+			peer: &ocsv1.StorageClusterPeer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-peer",
+					Namespace: "test-namespace",
+					Annotations: map[string]string{
+						DisablePeerCertValidation: "true",
+					},
+				},
+				Spec: ocsv1.StorageClusterPeerSpec{
+					ClientCASecret: &corev1.LocalObjectReference{Name: "test-ca-secret"},
+					ClientSAN:      expectedSAN,
+				},
+			},
+			expectedError: false,
+		},
+		{
+			name: "valid client certificate - should succeed",
+			peer: &ocsv1.StorageClusterPeer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-peer",
+					Namespace: "test-namespace",
+				},
+				Spec: ocsv1.StorageClusterPeerSpec{
+					ClientCASecret: &corev1.LocalObjectReference{Name: "test-ca-secret"},
+					ClientSAN:      expectedSAN,
+				},
+			},
+			caSecret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-ca-secret",
+					Namespace: "test-namespace",
+				},
+				Data: map[string][]byte{
+					"ca.crt": caPEM,
+				},
+			},
+			peerCerts:     []*x509.Certificate{clientCert},
+			expectedError: false,
+		},
+		{
+			name: "no client certificate provided - should fail",
+			peer: &ocsv1.StorageClusterPeer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-peer",
+					Namespace: "test-namespace",
+				},
+				Spec: ocsv1.StorageClusterPeerSpec{
+					ClientCASecret: &corev1.LocalObjectReference{Name: "test-ca-secret"},
+					ClientSAN:      expectedSAN,
+				},
+			},
+			caSecret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-ca-secret",
+					Namespace: "test-namespace",
+				},
+				Data: map[string][]byte{
+					"ca.crt": caPEM,
+				},
+			},
+			peerCerts:     nil,
+			expectedError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create fake client
+			scheme := runtime.NewScheme()
+			_ = corev1.AddToScheme(scheme)
+			_ = ocsv1.AddToScheme(scheme)
+
+			var objects []client.Object
+			if tt.caSecret != nil {
+				objects = append(objects, tt.caSecret)
+			}
+
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(objects...).
+				Build()
+
+			server := &OCSProviderServer{
+				client:    fakeClient,
+				namespace: "test-namespace",
+			}
+
+			// Create context with peer info
+			ctx := context.Background()
+			if !tt.skipPeerContext {
+				p := &peer.Peer{
+					AuthInfo: credentials.TLSInfo{
+						State: tls.ConnectionState{
+							PeerCertificates: tt.peerCerts,
+						},
+					},
+				}
+				ctx = peer.NewContext(ctx, p)
+			}
+
+			// Call authenticatePeerConnection
+			err := server.authenticatePeerConnection(ctx, tt.peer)
+
+			// Check result
 			if tt.expectedError && err == nil {
 				t.Errorf("Expected error but got none")
 			}
