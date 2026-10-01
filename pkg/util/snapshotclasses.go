@@ -2,7 +2,6 @@ package util
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	snapapi "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
@@ -18,10 +17,6 @@ const (
 	RbdSnapshotter    SnapshotterType = "rbd"
 	CephfsSnapshotter SnapshotterType = "cephfs"
 	NfsSnapshotter    SnapshotterType = "nfs"
-)
-
-var (
-	ErrUnsupportedDriver = errors.New("unsupportedDriver")
 )
 
 // GenerateNameForSnapshotClass function generates 'SnapshotClass' name.
