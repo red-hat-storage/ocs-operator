@@ -286,15 +286,32 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 			return ctrl.Result{}, fmt.Errorf("waiting for StorageClusterPeer %s to be in Peered state", storageClusterPeer.Name)
 		}
 
-		ocsClient, err = providerClient.NewProviderClient(r.ctx, storageClusterPeer.Spec.ApiEndpoint, util.OcsClientTimeout)
+		var serverCA, clientCert, clientKey []byte
+		serverCA, clientCert, clientKey, err = util.LoadPeerCertificates(r.ctx, r.Client, storageClusterPeer)
 		if err != nil {
-			r.log.Error(err, "failed to create a new provider client")
+			r.log.Error(err, "failed to load peer certificates")
 			errorOccurred = true
-		} else if err = ocsClient.CheckConnection(r.ctx); err != nil {
-			r.log.Error(err, "failed to create a new provider client")
-			errorOccurred = true
-			ocsClient.Close()
-			ocsClient = nil
+		}
+
+		if !errorOccurred {
+			ocsClient, err = providerClient.NewProviderClient(
+				r.ctx,
+				storageClusterPeer.Spec.ApiEndpoint,
+				util.OcsClientTimeout,
+				serverCA,
+				storageClusterPeer.Spec.ServerName,
+				clientCert,
+				clientKey,
+			)
+			if err != nil {
+				r.log.Error(err, "failed to create a new provider client")
+				errorOccurred = true
+			} else if err = ocsClient.CheckConnection(r.ctx); err != nil {
+				r.log.Error(err, "failed to create a new provider client")
+				errorOccurred = true
+				ocsClient.Close()
+				ocsClient = nil
+			}
 		}
 
 		if ocsClient != nil {

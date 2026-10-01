@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -24,10 +25,52 @@ type OCSProviderClient struct {
 	timeout      time.Duration
 }
 
-// NewProviderClient creates a client to talk to the external OCS storage provider server
-func NewProviderClient(ctx context.Context, serverAddr string, timeout time.Duration) (*OCSProviderClient, error) {
-	config := &tls.Config{
-		InsecureSkipVerify: true,
+// NewProviderClient creates a client to talk to the external OCS storage provider server.
+// Security configuration:
+//   - serverCA: CA certificate to validate server certificate (PEM encoded)
+//   - serverName: Expected server identity (SAN) in server certificate
+//   - clientCert/clientKey: Client certificate for mTLS authentication (PEM encoded)
+//
+// If serverCA is not provided, falls back to InsecureSkipVerify for backward compatibility.
+// For secure connections, provide at minimum serverCA. Adding serverName enables hostname verification.
+// For mTLS, provide all four parameters (serverCA, serverName, clientCert, clientKey).
+func NewProviderClient(
+	ctx context.Context,
+	serverAddr string,
+	timeout time.Duration,
+	serverCA []byte,
+	serverName string,
+	clientCert []byte,
+	clientKey []byte,
+) (*OCSProviderClient, error) {
+	hasClientCert := len(clientCert) > 0
+	hasClientKey := len(clientKey) > 0
+	if hasClientCert != hasClientKey {
+		return nil, fmt.Errorf("client certificate and key must both be provided or both be empty")
+	}
+
+	config := &tls.Config{}
+	if len(serverCA) > 0 {
+		certPool := x509.NewCertPool()
+		if !certPool.AppendCertsFromPEM(serverCA) {
+			return nil, fmt.Errorf("failed to parse server CA certificate")
+		}
+		config.RootCAs = certPool
+
+		if serverName != "" {
+			config.ServerName = serverName
+		}
+	} else {
+		// Insecure mode: skip server certificate validation (backward compatibility)
+		config.InsecureSkipVerify = true
+	}
+
+	if hasClientCert {
+		cert, err := tls.X509KeyPair(clientCert, clientKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load client certificate: %v", err)
+		}
+		config.Certificates = []tls.Certificate{cert}
 	}
 
 	opts := []grpc.DialOption{
