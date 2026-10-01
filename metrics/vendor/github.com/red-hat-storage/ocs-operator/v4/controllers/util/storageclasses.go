@@ -134,7 +134,6 @@ func NewDefaultVirtRbdStorageClass(
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
 				"description": "Provides RWO and RWX Block volumes suitable for Virtual Machine disks",
-				"reclaimspace.csiaddons.openshift.io/schedule": "@weekly",
 			},
 			Labels: map[string]string{},
 		},
