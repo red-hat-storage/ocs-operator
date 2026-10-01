@@ -100,7 +100,13 @@ Controller:
        
     1)  If the Osd size is less than maxOsdSize(default:8Tib), do vertical scaling by doubling the each osd sizes for that device class.
             
-    2)  If the Osd size is equal to maxOsdSize(default:8Tib), do a horizontal scaling, by adding 1 osd of maxOsdSize(default:8Tib) on each `storageDeviceSet`.
+    2)  If the Osd size is equal to maxOsdSize(default:8Tib), do a horizontal scaling, by adding x osd of maxOsdSize(default:8Tib) on each `storageDeviceSet`.   Calculation of x?
+    -   Calculate 10% of the current total storage capacity
+    -   Determine how many OSDs are needed to achieve this capacity increase 
+    -   Convert to device sets (accounting for replicas), with a minimum of 1 device set 
+    -   Check if adding the calculated device sets would exceed storageCapacityLimit 
+    -   If limit would be exceeded, calculate the maximum device sets that can be added without exceeding the limit 
+    -   If not even 1 device set can be added, mark limitReached as true and don't scale
    
 10) Calculate the `expectedStorageCapacity` based on expected size and count.
    
