@@ -31,6 +31,8 @@ import (
 
 	"github.com/go-logr/logr"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"go.uber.org/multierr"
+	"google.golang.org/grpc/codes"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,6 +55,8 @@ const (
 	clientIDIndexName               = "index:clientID"
 	storageClusterPeerAnnotationKey = "ocs.openshift.io/storage-cluster-peer"
 )
+
+var ErrNetwork = errors.New("network error")
 
 // MirroringReconciler reconciles a Mirroring fields for Ceph Object(s)
 type MirroringReconciler struct {
@@ -248,8 +252,6 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 	}
 
 	shouldMirror := clientMappingConfig.DeletionTimestamp.IsZero() && len(clientMappingConfig.Data) > 0
-	ocsClient := &providerClient.OCSProviderClient{}
-	var err error
 	errorOccurred := false
 
 	/*
@@ -262,7 +264,7 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 		- reconcile blockpools, radosnamespaces and storageconsumer (to disable mirroring)
 	*/
 
-	if errored := r.reconcileRbdMirror(clientMappingConfig, shouldMirror); errored {
+	if err := r.reconcileRbdMirror(clientMappingConfig, shouldMirror); err != nil {
 		errorOccurred = true
 	}
 
@@ -286,53 +288,74 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 			return ctrl.Result{}, fmt.Errorf("waiting for StorageClusterPeer %s to be in Peered state", storageClusterPeer.Name)
 		}
 
-		ocsClient, err = providerClient.NewProviderClient(r.ctx, storageClusterPeer.Spec.ApiEndpoint, util.OcsClientTimeout)
+		ocsClient, err := providerClient.NewProviderClient(r.ctx, storageClusterPeer.Spec.ApiEndpoint, util.OcsClientTimeout)
 		if err != nil {
 			r.log.Error(err, "failed to create a new provider client")
-			errorOccurred = true
-		} else if err = ocsClient.CheckConnection(r.ctx); err != nil {
-			r.log.Error(err, "failed to create a new provider client")
-			errorOccurred = true
-			ocsClient.Close()
-			ocsClient = nil
+			return ctrl.Result{}, err
+		}
+		defer ocsClient.Close()
+
+		if err = ocsClient.CheckConnection(r.ctx); err != nil {
+			// Check if the error is because CheckConnection (health check) is not implemented
+			// This can happen when connecting to older clusters (e.g., 4.22) that don't have this endpoint
+			if st, ok := util.GetGrpcStatus(err); ok && st.Code() == codes.Unimplemented {
+				r.log.Info("CheckConnection health check not implemented on remote cluster, proceeding with mirroring setup")
+				// Don't fail - the client connection is valid, just the health check endpoint is missing
+			} else {
+				// For other errors (timeout, unavailable, etc.), treat as connection failure
+				r.log.Error(err, "failed to check connection to peer cluster")
+				return ctrl.Result{}, err
+			}
 		}
 
-		if ocsClient != nil {
-			defer ocsClient.Close()
-			remoteClientInfoById := map[string]*pb.ClientInfo{}
-			remoteBlockPoolInfoByName := map[string]*pb.BlockPoolInfo{}
+		remoteClientInfoById := map[string]*pb.ClientInfo{}
+		remoteBlockPoolInfoByName := map[string]*pb.BlockPoolInfo{}
 
-			if errored := r.getBlockPoolsInfo(ocsClient, storageClusterPeer, cephBlockPoolsList, remoteBlockPoolInfoByName); errored {
-				errorOccurred = true
+		if err := r.getBlockPoolsInfo(ocsClient, storageClusterPeer, cephBlockPoolsList, remoteBlockPoolInfoByName); err != nil {
+			if errors.Is(err, ErrNetwork) {
+				return ctrl.Result{}, err
 			}
-
-			if errored := r.getStorageClientsInfo(ocsClient, storageClusterPeer, remoteClientIds, remoteClientInfoById); errored {
-				errorOccurred = true
-			}
-
-			if errored := r.reconcileBlockPoolMirroring(clientMappingConfig, cephBlockPoolsList, remoteBlockPoolInfoByName); errored {
-				errorOccurred = true
-			}
-
-			if errored := r.reconcileRadosNamespaceMirroring(clientMappingConfig, storageConsumerByName, remoteClientInfoById, remoteBlockPoolInfoByName); errored {
-				errorOccurred = true
-			}
-
-			if errored := r.reconcileStorageConsumer(storageConsumerList, clientMappingConfig, remoteClientInfoById); errored {
-				errorOccurred = true
-			}
+			errorOccurred = true
 		}
+
+		if err := r.getStorageClientsInfo(ocsClient, storageClusterPeer, remoteClientIds, remoteClientInfoById); err != nil {
+			if errors.Is(err, ErrNetwork) {
+				return ctrl.Result{}, err
+			}
+			errorOccurred = true
+		}
+
+		if err := r.reconcileBlockPoolMirroring(clientMappingConfig, cephBlockPoolsList, remoteBlockPoolInfoByName); err != nil {
+			errorOccurred = true
+		}
+
+		if err := r.reconcileRadosNamespaceMirroring(clientMappingConfig, storageConsumerByName, remoteClientInfoById, remoteBlockPoolInfoByName); err != nil {
+			errorOccurred = true
+		}
+
+		if err := r.reconcileStorageConsumer(storageConsumerList, clientMappingConfig, remoteClientInfoById); err != nil {
+			errorOccurred = true
+		}
+
+		if errorOccurred {
+			return ctrl.Result{}, fmt.Errorf("failed to reconcile StorageClientMapping")
+		}
+
 	} else {
-		if errored := r.reconcileBlockPoolMirroring(clientMappingConfig, cephBlockPoolsList, nil); errored {
+		if err := r.reconcileBlockPoolMirroring(clientMappingConfig, cephBlockPoolsList, nil); err != nil {
 			errorOccurred = true
 		}
 
-		if errored := r.reconcileRadosNamespaceMirroring(clientMappingConfig, storageConsumerByName, nil, nil); errored {
+		if err := r.reconcileRadosNamespaceMirroring(clientMappingConfig, storageConsumerByName, nil, nil); err != nil {
 			errorOccurred = true
 		}
 
-		if errored := r.reconcileStorageConsumer(storageConsumerList, clientMappingConfig, nil); errored {
+		if err := r.reconcileStorageConsumer(storageConsumerList, clientMappingConfig, nil); err != nil {
 			errorOccurred = true
+		}
+
+		if errorOccurred {
+			return ctrl.Result{}, fmt.Errorf("failed to reconcile StorageClientMapping")
 		}
 
 		if controllerutil.RemoveFinalizer(storageClusterPeer, mirroringFinalizer) {
@@ -342,6 +365,7 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from StorageClusterPeer: %v", err)
 			}
 		}
+
 		if controllerutil.RemoveFinalizer(clientMappingConfig, mirroringFinalizer) {
 			r.log.Info("removing finalizer from ConfigMap.")
 			if err := r.update(clientMappingConfig); err != nil {
@@ -349,10 +373,6 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer from ConfigMap: %v", err)
 			}
 		}
-	}
-
-	if errorOccurred {
-		return ctrl.Result{}, fmt.Errorf("failed to reconcile StorageClientMapping")
 	}
 
 	return ctrl.Result{}, nil
@@ -363,9 +383,9 @@ func (r *MirroringReconciler) getBlockPoolsInfo(
 	storageClusterPeer *ocsv1.StorageClusterPeer,
 	cephBlockPoolsList *rookCephv1.CephBlockPoolList,
 	remoteBlockPoolInfoByName map[string]*pb.BlockPoolInfo,
-) bool {
+) error {
 	blockPoolNames := []string{}
-	errorOccured := false
+	var combinedError error
 	for i := range cephBlockPoolsList.Items {
 		cephBlockPool := &cephBlockPoolsList.Items[i]
 		labels := cephBlockPool.GetLabels()
@@ -384,21 +404,22 @@ func (r *MirroringReconciler) getBlockPoolsInfo(
 		blockPoolNames,
 	)
 	if err != nil {
-		r.log.Error(err, "failed to get CephBlockPool(s) info from Peer")
-		return true
+		r.log.Error(err, "failed to get CephBlockPool(s) info from Peer, Requeuing")
+		return ErrNetwork
 	}
 
 	if response.Errors != nil {
 		for i := range response.Errors {
 			resp := response.Errors[i]
+			err := errors.New(resp.Message)
 			r.log.Error(
-				errors.New(resp.Message),
+				err,
 				"failed to get BlockPoolsInfo",
 				"CephBlockPool",
 				resp.BlockPoolName,
 			)
+			multierr.AppendInto(&combinedError, err)
 		}
-		errorOccured = true
 	}
 
 	for i := range response.BlockPoolsInfo {
@@ -406,7 +427,7 @@ func (r *MirroringReconciler) getBlockPoolsInfo(
 		remoteBlockPoolInfoByName[remoteBlockPoolInfo.BlockPoolName] = remoteBlockPoolInfo
 	}
 
-	return errorOccured
+	return combinedError
 }
 
 func (r *MirroringReconciler) getStorageClientsInfo(
@@ -414,39 +435,40 @@ func (r *MirroringReconciler) getStorageClientsInfo(
 	storageClusterPeer *ocsv1.StorageClusterPeer,
 	remoteClientIds []string,
 	remoteClientIdByClientInfo map[string]*pb.ClientInfo,
-) bool {
-	errorOccured := false
+) error {
+	var combinedError error
 	response, err := ocsClient.GetStorageClientsInfo(
 		r.ctx,
 		storageClusterPeer.Status.PeerInfo.StorageClusterUid,
 		remoteClientIds,
 	)
 	if err != nil {
-		r.log.Error(err, "failed to get StorageClient(s) info from Peer")
-		return true
+		r.log.Error(err, "failed to get StorageClient(s) info from Peer, Requeuing")
+		return ErrNetwork
 	}
 
 	if response.Errors != nil {
 		for i := range response.Errors {
 			resp := response.Errors[i]
+			err := errors.New(resp.Message)
 			r.log.Error(
-				errors.New(resp.Message),
+				err,
 				"failed to get StorageClientsInfo",
 				"StorageClient",
 				resp.ClientID,
 			)
+			multierr.AppendInto(&combinedError, err)
 		}
-		errorOccured = true
 	}
 
 	for i := range response.ClientsInfo {
 		remoteClientIdByClientInfo[response.ClientsInfo[i].ClientID] = response.ClientsInfo[i]
 	}
 
-	return errorOccured
+	return combinedError
 }
 
-func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.ConfigMap, shouldMirror bool) bool {
+func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.ConfigMap, shouldMirror bool) error {
 	rbdMirrorList := &rookCephv1.CephRBDMirrorList{}
 
 	if err := r.list(
@@ -455,13 +477,13 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 		client.Limit(2),
 	); err != nil {
 		r.log.Error(err, "Failed to list RBDMirror.")
-		return true
+		return err
 	} else if len(rbdMirrorList.Items) == 2 {
 		r.log.Error(fmt.Errorf("multiple RBDMirror present in the cluster"), "more than 1 CephRBDMirror present in the cluster")
-		return true
+		return fmt.Errorf("multiple RBDMirror present in the cluster")
 	} else if len(rbdMirrorList.Items) == 1 && rbdMirrorList.Items[0].Name != util.CephRBDMirrorName {
 		r.log.Error(fmt.Errorf("RBDMirror name mismatch"), "RBDMirror with a different name is present in the cluster")
-		return true
+		return fmt.Errorf("RBDMirror name mismatch")
 	}
 
 	rbdMirror := &rookCephv1.CephRBDMirror{}
@@ -474,13 +496,13 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 		client.MatchingFields{util.AnnotationIndexName: util.RequestMaintenanceModeAnnotation},
 	); err != nil {
 		r.log.Error(err, "failed to list StorageConsumer(s)")
-		return true
+		return err
 	}
 
 	storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, clientMappingConfig.Namespace)
 	if err != nil {
 		r.log.Error(err, "failed to get StorageCluster")
-		return true
+		return err
 	}
 
 	maintenanceModeRequested := len(storageConsumers.Items) >= 1
@@ -496,12 +518,12 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 		})
 		if err != nil {
 			r.log.Error(err, "Failed to create/update the CephRBDMirror", "CephRBDMirror", rbdMirror.Name)
-			return true
+			return err
 		}
 	} else {
 		if err := r.delete(rbdMirror); err != nil {
 			r.log.Error(err, "failed to delete CephRBDMirror", "CephRBDMirror", rbdMirror.Name)
-			return true
+			return err
 		}
 	}
 
@@ -511,7 +533,7 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 			r.log.Info("Adding maintenance mode annotation to StorageCluster", "StorageCluster", storageCluster.Name)
 			if err := r.update(storageCluster); err != nil {
 				r.log.Error(err, "failed to add maintenance mode annotation to StorageCluster", "StorageCluster", storageCluster.Name)
-				return true
+				return err
 			}
 		}
 	} else if _, exists := annotations[util.InMaintenanceModeAnnotation]; exists {
@@ -519,20 +541,19 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 		delete(annotations, util.InMaintenanceModeAnnotation)
 		if err := r.update(storageCluster); err != nil {
 			r.log.Error(err, "failed to remove maintenance mode annotation from StorageCluster", "StorageCluster", storageCluster.Name)
-			return true
+			return err
 		}
 	}
 
-	return false
+	return nil
 }
 
 func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 	clientMappingConfig *corev1.ConfigMap,
 	cephBlockPoolsList *rookCephv1.CephBlockPoolList,
 	remoteBlockPoolInfoByName map[string]*pb.BlockPoolInfo,
-) bool {
-	errorOccurred := false
-
+) error {
+	var combinedErr error
 	for i := range cephBlockPoolsList.Items {
 		cephBlockPool := &cephBlockPoolsList.Items[i]
 
@@ -567,7 +588,7 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 				})
 				if err != nil {
 					r.log.Error(err, "failed to create/update mirroring secret", "Secret", secretName)
-					errorOccurred = true
+					multierr.AppendInto(&combinedErr, err)
 					continue
 				}
 
@@ -585,7 +606,7 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 					fmt.Errorf("peer's CephBlockPool mirroring token is not generated"),
 					"Re-queuing as peer's CephBlockPool mirroring token is not generated",
 				)
-				errorOccurred = true
+				multierr.AppendInto(&combinedErr, fmt.Errorf("peer's CephBlockPool mirroring token is not generated"))
 			}
 		}
 
@@ -596,11 +617,11 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 				"CephBlockPool",
 				cephBlockPool.Name,
 			)
-			errorOccurred = true
+			multierr.AppendInto(&combinedErr, err)
 		}
 	}
 
-	return errorOccurred
+	return combinedErr
 }
 
 func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
@@ -608,15 +629,14 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 	storageConsumerByName map[string]*ocsv1alpha1.StorageConsumer,
 	remoteClientInfoById map[string]*pb.ClientInfo,
 	remoteBlockPoolInfoByName map[string]*pb.BlockPoolInfo,
-) bool {
-	errorOccurred := false
-
+) error {
 	radosNamespaceList := &rookCephv1.CephBlockPoolRadosNamespaceList{}
 	if err := r.list(radosNamespaceList, client.InNamespace(clientMappingConfig.Namespace)); err != nil {
 		r.log.Error(err, "Failed to list CephBlockPools")
-		return true
+		return err
 	}
 
+	var combinedErr error
 	for i := range radosNamespaceList.Items {
 		rns := &radosNamespaceList.Items[i]
 		consumerIndex := slices.IndexFunc(
@@ -655,20 +675,19 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 				"CephBlockPoolRadosNamespace",
 				rns.Name,
 			)
-			errorOccurred = true
+			multierr.AppendInto(&combinedErr, err)
 		}
 	}
 
-	return errorOccurred
+	return combinedErr
 }
 
 func (r *MirroringReconciler) reconcileStorageConsumer(
 	storageConsumerList *ocsv1alpha1.StorageConsumerList,
 	clientMappingConfig *corev1.ConfigMap,
 	remoteClientInfoById map[string]*pb.ClientInfo,
-) bool {
-	errorOccurred := false
-
+) error {
+	var combinedErr error
 	for i := range storageConsumerList.Items {
 		consumer := &storageConsumerList.Items[i]
 		var clientInfo *pb.ClientInfo
@@ -700,11 +719,11 @@ func (r *MirroringReconciler) reconcileStorageConsumer(
 					"StorageConsumer",
 					client.ObjectKeyFromObject(consumer),
 				)
-				errorOccurred = true
+				multierr.AppendInto(&combinedErr, err)
 			}
 		}
 	}
-	return errorOccurred
+	return combinedErr
 }
 
 func (r *MirroringReconciler) get(obj client.Object) error {

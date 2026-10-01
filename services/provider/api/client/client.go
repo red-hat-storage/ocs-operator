@@ -61,11 +61,11 @@ func (cc *OCSProviderClient) CheckConnection(ctx context.Context) error {
 
 	resp, err := cc.healthClient.Check(healthCtx, &healthpb.HealthCheckRequest{})
 	if err != nil {
-		return fmt.Errorf("health check failed: %v", err)
+		return fmt.Errorf("health check failed: %w", err)
 	}
 
 	if resp.GetStatus() != healthpb.HealthCheckResponse_SERVING {
-		return fmt.Errorf("health check failed: %v", resp.GetStatus())
+		return fmt.Errorf("health check status not serving: %v", resp.GetStatus())
 	}
 
 	return nil
