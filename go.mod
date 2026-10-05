@@ -28,8 +28,8 @@ require (
 	github.com/operator-framework/api v0.45.0
 	github.com/operator-framework/operator-lib v0.19.0
 	github.com/operator-framework/operator-lifecycle-manager v0.46.0
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.94.0
-	github.com/prometheus-operator/prometheus-operator/pkg/client v0.94.0
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.94.1
+	github.com/prometheus-operator/prometheus-operator/pkg/client v0.94.1
 	github.com/prometheus/common v0.71.0
 	github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20260821074411-26525d9a5c22
 	github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20260416061305-2878a3b403e6

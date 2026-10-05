@@ -27,7 +27,7 @@ require (
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20260420161730-5164e3746489
 	github.com/oklog/run v1.2.0
 	github.com/operator-framework/api v0.45.0
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.94.0
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.94.1
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.3
 	github.com/prometheus/common v0.71.0
