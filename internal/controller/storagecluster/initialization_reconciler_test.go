@@ -401,6 +401,12 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		},
 	}
 
+	csrbd := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ocsinit-ceph-rbd",
+		},
+	}
+
 	workerNode := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "workerNode",
@@ -477,6 +483,7 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		mockNodeList.DeepCopy(),
 		consumer,
 		cbp,
+		csrbd,
 		cfs,
 		clientConfigMap,
 		cnfs,
