@@ -1167,6 +1167,11 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 			Phase: rookCephv1.ConditionType(api.PhaseReady),
 		},
 	}
+	csrbd := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-ceph-rbd", name),
+		},
+	}
 	verOcs, err := semver.Make(ocsversion.Version)
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse version: %v", err))
@@ -1226,6 +1231,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 		createStorageClientCRD(),
 		consumer,
 		cbp,
+		csrbd,
 		cfs,
 		rookCephMonSecret,
 		csv,
