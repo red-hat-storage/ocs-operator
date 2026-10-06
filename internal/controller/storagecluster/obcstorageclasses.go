@@ -14,6 +14,10 @@ type obcStorageClasses struct{}
 var _ resourceManager = &obcStorageClasses{}
 
 func (s *obcStorageClasses) ensureCreated(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
+	reconcileStrategy := ReconcileStrategy(storageCluster.Spec.ManagedResources.CephObjectStores.ReconcileStrategy)
+	if reconcileStrategy == ReconcileStrategyIgnore {
+		return ctrl.Result{}, nil
+	}
 
 	if skip, err := platform.PlatformsShouldSkipObjectStore(); err != nil {
 		r.Log.Error(err, "failed to identify if ObjectStore SC should be created")
