@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	v1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -13,6 +14,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,14 +58,6 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 			SelfLink:  "/api/v1/namespaces/openshift-storage/noobaa/noobaa",
 		},
 	}
-
-	cephCluster := cephv1.CephCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      util.GenerateNameForCephClusterFromString(namespacedName.Name),
-			Namespace: namespacedName.Namespace,
-		},
-	}
-	cephCluster.Status.State = cephv1.ClusterStateCreated
 
 	addressableStorageClass := defaultStorageClass
 
@@ -110,8 +104,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 	for _, c := range cases {
 		reconciler := getReconciler(t, &nbv1.NooBaa{})
 		reconciler.Log = noobaaReconcileTestLogger
-		err := reconciler.Create(context.TODO(), cephCluster.DeepCopy())
-		assert.NoError(t, err)
+		assert.NoError(t, createNoobaaDBStorageClass(&reconciler, &c.sc))
 
 		if c.isCreate {
 			err := reconciler.Get(context.TODO(), namespacedName, &c.noobaa)
@@ -120,7 +113,7 @@ func TestEnsureNooBaaSystem(t *testing.T) {
 			err := reconciler.Create(context.TODO(), &c.noobaa)
 			assert.NoError(t, err)
 		}
-		_, err = obj.ensureCreated(&reconciler, &sc)
+		_, err := obj.ensureCreated(&reconciler, &sc)
 		assert.NoError(t, err)
 
 		_ = reconciler.Get(context.TODO(), namespacedName, &noobaa)
@@ -167,14 +160,9 @@ func TestNooBaaSkipUnskip(t *testing.T) {
 			},
 		}
 
-		cephCluster := cephv1.CephCluster{}
-		cephCluster.Name = util.GenerateNameForCephClusterFromString(sc.Name)
-		cephCluster.Namespace = sc.Namespace
-		cephCluster.Status.State = cephv1.ClusterStateCreated
-		err := reconciler.Create(context.TODO(), &cephCluster)
-		assert.NoError(t, err)
+		assert.NoError(t, createNoobaaDBStorageClass(&reconciler, &sc))
 
-		_, err = obj.ensureCreated(&reconciler, &sc)
+		_, err := obj.ensureCreated(&reconciler, &sc)
 		assert.NoError(t, err)
 
 		noobaa := &nbv1.NooBaa{}
@@ -260,15 +248,9 @@ func TestNooBaaReconcileStrategy(t *testing.T) {
 
 		reconciler := getReconciler(t, &nbv1.NooBaa{})
 		reconciler.Log = noobaaReconcileTestLogger
+		assert.NoError(t, createNoobaaDBStorageClass(&reconciler, &c.sc))
 
-		cephCluster := cephv1.CephCluster{}
-		cephCluster.Name = util.GenerateNameForCephClusterFromString(namespacedName.Name)
-		cephCluster.Namespace = namespacedName.Namespace
-		cephCluster.Status.State = cephv1.ClusterStateCreated
-		err := reconciler.Create(context.TODO(), &cephCluster)
-		assert.NoError(t, err)
-
-		_, err = obj.ensureCreated(&reconciler, &c.sc)
+		_, err := obj.ensureCreated(&reconciler, &c.sc)
 		assert.NoError(t, err)
 
 		_, err = obj.ensureCreated(&reconciler, &c.sc)
@@ -643,6 +625,7 @@ func TestSetNooBaaDesiredStatePreservesDBConf(t *testing.T) {
 }
 
 func TestNoobaaSystemInExternalClusterMode(t *testing.T) {
+	t.Setenv("OPERATOR_NAMESPACE", "")
 	request := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "ocsinit",
@@ -670,52 +653,81 @@ func assertNoobaaResource(t *testing.T, reconciler *StorageClusterReconciler) {
 	err := reconciler.Get(context.TODO(), request.NamespacedName, cr)
 	assert.NoError(t, err)
 
-	// get the ceph cluster
-	request.Name = util.GenerateNameForCephCluster(cr)
-	foundCeph := &cephv1.CephCluster{}
-	err = reconciler.Get(context.TODO(), request.NamespacedName, foundCeph)
-	assert.NoError(t, err)
-
-	// set the state to 'ClusterStateConnecting' (to mock a state where external cluster is still trying to connect)
-	foundCeph.Status.State = cephv1.ClusterStateConnecting
-	err = reconciler.Update(context.TODO(), foundCeph)
-	assert.NoError(t, err)
-	// calling 'ensureNoobaaSystem()' function and the expectation is that 'Noobaa' system is not be created
+	assert.NoError(t, createNoobaaDBStorageClass(reconciler, cr))
 	_, err = obj.ensureCreated(reconciler, cr)
 	assert.NoError(t, err)
 	fNoobaa := &nbv1.NooBaa{}
 	request.Name = "noobaa"
-	// expectation is not to get any Noobaa object
 	err = reconciler.Get(context.TODO(), request.NamespacedName, fNoobaa)
-	assert.Error(t, err)
+	assert.NoError(t, err)
+}
 
-	// now setting the state to 'ClusterStateConnected' (to mock a successful external cluster connection)
-	foundCeph.Status.State = cephv1.ClusterStateConnected
-	err = reconciler.Update(context.TODO(), foundCeph)
-	assert.NoError(t, err)
-	// call 'ensureNoobaaSystem()' to make sure it takes appropriate action
-	// when ceph cluster is connected to an external cluster
-	_, err = obj.ensureCreated(reconciler, cr)
-	assert.NoError(t, err)
-	fNoobaa = &nbv1.NooBaa{}
-	request.Name = "noobaa"
-	// expectation is to get an appropriate Noobaa object
-	err = reconciler.Get(context.TODO(), request.NamespacedName, fNoobaa)
-	assert.NoError(t, err)
+func TestNooBaaWaitsForStorageClass(t *testing.T) {
+	sc := v1.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "noobaa",
+			Namespace: "openshift-storage",
+		},
+		Status: v1.StorageClusterStatus{
+			Images: v1.ImagesStatus{
+				NooBaaCore: &v1.ComponentImageStatus{},
+				NooBaaDB:   &v1.ComponentImageStatus{},
+			},
+		},
+	}
+	t.Run("does not create NooBaa when StorageClass is missing", func(t *testing.T) {
+		reconciler := getReconciler(t, &nbv1.NooBaa{})
+
+		var obj ocsNoobaaSystem
+		result, err := obj.ensureCreated(&reconciler, &sc)
+		assert.NoError(t, err)
+		assert.Equal(t, reconcile.Result{RequeueAfter: 5 * time.Second}, result)
+
+		noobaa := &nbv1.NooBaa{}
+		err = reconciler.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
+		assert.True(t, errors.IsNotFound(err))
+	})
+
+	t.Run("creates NooBaa when StorageClass exists", func(t *testing.T) {
+		reconciler := getReconciler(t, &nbv1.NooBaa{})
+		assert.NoError(t, createNoobaaDBStorageClass(&reconciler, &sc))
+
+		var obj ocsNoobaaSystem
+		_, err := obj.ensureCreated(&reconciler, &sc)
+		assert.NoError(t, err)
+
+		noobaa := &nbv1.NooBaa{}
+		err = reconciler.Get(context.TODO(), types.NamespacedName{Name: "noobaa", Namespace: sc.Namespace}, noobaa)
+		assert.NoError(t, err)
+	})
 }
 
 func getReconciler(t *testing.T, objs ...runtime.Object) StorageClusterReconciler {
 	registerObjs := []runtime.Object{&v1.StorageCluster{}}
 	registerObjs = append(registerObjs, objs...)
-	sc := &v1.StorageCluster{}
 	scheme := createFakeScheme(t)
-	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(registerObjs...).WithStatusSubresource(sc).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(registerObjs...).WithStatusSubresource(&v1.StorageCluster{}).Build()
 
 	return StorageClusterReconciler{
 		Scheme:            scheme,
 		Client:            client,
 		OperatorNamespace: "openshift-storage",
+		Log:               noobaaReconcileTestLogger,
 	}
+}
+
+func createNoobaaDBStorageClass(r *StorageClusterReconciler, sc *v1.StorageCluster) error {
+	storageClassName := util.GenerateNameForCephBlockPoolStorageClass(sc)
+	if sc.Spec.MultiCloudGateway != nil && sc.Spec.MultiCloudGateway.DbStorageClassName != "" {
+		storageClassName = sc.Spec.MultiCloudGateway.DbStorageClassName
+	}
+	err := r.Create(context.TODO(), &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{Name: storageClassName},
+	})
+	if errors.IsAlreadyExists(err) {
+		return nil
+	}
+	return err
 }
 
 func TestNoobaaKMSConfiguration(t *testing.T) {
@@ -824,6 +836,10 @@ func assertNoobaaKMSConfiguration(t *testing.T, kmsArgs struct {
 	}
 	if err != nil {
 		t.Errorf("CephCluster error: %v, %v", err, kmsArgs.testLabel)
+		t.FailNow()
+	}
+	if err := createNoobaaDBStorageClass(reconciler, cr); err != nil {
+		t.Errorf("Unable to create NooBaa backing storage: %v, %v", err, kmsArgs.testLabel)
 		t.FailNow()
 	}
 
