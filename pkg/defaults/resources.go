@@ -31,7 +31,7 @@ var (
 			},
 			Limits: corev1.ResourceList{
 				"memory": resource.MustParse("1.5Gi"),
-				"cpu":    resource.MustParse("1"),
+				"cpu":    resource.MustParse("999m"),
 			},
 		},
 		"odf-blackbox-exporter": {
@@ -46,21 +46,21 @@ var (
 		},
 		"nfs": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("3"),
+				corev1.ResourceCPU:    resource.MustParse("2999m"),
 				corev1.ResourceMemory: resource.MustParse("8Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("3"),
+				corev1.ResourceCPU:    resource.MustParse("2999m"),
 				corev1.ResourceMemory: resource.MustParse("8Gi"),
 			},
 		},
 		"rbd-mirror": {
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("999m"),
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("999m"),
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
@@ -133,7 +133,7 @@ var (
 				corev1.ResourceMemory: resource.MustParse("1Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("999m"),
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
@@ -159,21 +159,21 @@ var (
 		},
 		"mds": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("999m"),
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("999m"),
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
 		"rgw": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("999m"),
 				corev1.ResourceMemory: resource.MustParse("1Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("999m"),
 				corev1.ResourceMemory: resource.MustParse("1Gi"),
 			},
 		},
@@ -182,51 +182,51 @@ var (
 	BalancedDaemonResources = map[string]corev1.ResourceRequirements{
 		"mgr": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("999m"),
 				corev1.ResourceMemory: resource.MustParse("1.5Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceCPU:    resource.MustParse("1999m"),
 				corev1.ResourceMemory: resource.MustParse("3Gi"),
 			},
 		},
 		"mon": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("999m"),
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceCPU:    resource.MustParse("999m"),
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
 		"osd": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceCPU:    resource.MustParse("1999m"),
 				corev1.ResourceMemory: resource.MustParse("5Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceCPU:    resource.MustParse("1999m"),
 				corev1.ResourceMemory: resource.MustParse("5Gi"),
 			},
 		},
 		"mds": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceCPU:    resource.MustParse("1999m"),
 				corev1.ResourceMemory: resource.MustParse("6Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceCPU:    resource.MustParse("1999m"),
 				corev1.ResourceMemory: resource.MustParse("6Gi"),
 			},
 		},
 		"rgw": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceCPU:    resource.MustParse("1999m"),
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceCPU:    resource.MustParse("1999m"),
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 		},
@@ -239,7 +239,7 @@ var (
 				corev1.ResourceMemory: resource.MustParse("2Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("3"),
+				corev1.ResourceCPU:    resource.MustParse("2999m"),
 				corev1.ResourceMemory: resource.MustParse("4Gi"),
 			},
 		},
@@ -255,31 +255,31 @@ var (
 		},
 		"osd": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("4"),
+				corev1.ResourceCPU:    resource.MustParse("3999m"),
 				corev1.ResourceMemory: resource.MustParse("8Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("4"),
+				corev1.ResourceCPU:    resource.MustParse("3999m"),
 				corev1.ResourceMemory: resource.MustParse("8Gi"),
 			},
 		},
 		"mds": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("3"),
+				corev1.ResourceCPU:    resource.MustParse("2999m"),
 				corev1.ResourceMemory: resource.MustParse("8Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("3"),
+				corev1.ResourceCPU:    resource.MustParse("2999m"),
 				corev1.ResourceMemory: resource.MustParse("8Gi"),
 			},
 		},
 		"rgw": {
 			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceCPU:    resource.MustParse("1999m"),
 				corev1.ResourceMemory: resource.MustParse("4Gi"),
 			},
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceCPU:    resource.MustParse("1999m"),
 				corev1.ResourceMemory: resource.MustParse("4Gi"),
 			},
 		},
