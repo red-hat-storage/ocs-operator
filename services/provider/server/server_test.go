@@ -157,10 +157,11 @@ func newTestProviderServer(t *testing.T, objs ...client.Object) *OCSProviderServ
 		WithIndex(&ocsv1a1.StorageConsumer{}, util.ObjectUidIndexName, util.ObjectUidIndexFieldFunc).
 		Build()
 	return &OCSProviderServer{
-		client:          fakeClient,
-		scheme:          scheme,
-		consumerManager: createTestConsumerManager(fakeClient),
-		namespace:       testNamespace,
+		client:                    fakeClient,
+		scheme:                    scheme,
+		consumerManager:           createTestConsumerManager(fakeClient),
+		storageClusterPeerManager: newStorageClusterPeerManager(fakeClient, testNamespace),
+		namespace:                 testNamespace,
 	}
 }
 
@@ -1672,11 +1673,30 @@ func TestGetRGWCredentialsResourceVersion(t *testing.T) {
 
 func TestGetBlockPoolsInfo(t *testing.T) {
 	ctx := context.Background()
+	testStorageClusterUID := "test-storage-cluster-uid"
+
+	// Create test peer without mTLS config (auth will skip)
+	testPeer := &ocsv1.StorageClusterPeer{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-peer",
+			Namespace: testNamespace,
+			UID:       "test-peer-uid",
+		},
+		Spec: ocsv1.StorageClusterPeerSpec{
+			// No ClientCASecret/ClientSAN - authentication will skip
+		},
+		Status: ocsv1.StorageClusterPeerStatus{
+			PeerInfo: &ocsv1.PeerInfo{
+				StorageClusterUid: testStorageClusterUID,
+			},
+		},
+	}
 
 	t.Run("empty request returns empty response", func(t *testing.T) {
-		srv := newTestProviderServer(t)
+		srv := newTestProviderServer(t, testPeer)
 		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
-			BlockPoolNames: []string{},
+			StorageClusterUID: testStorageClusterUID,
+			BlockPoolNames:    []string{},
 		})
 		assert.NoError(t, err)
 		assert.NotNil(t, resp)
@@ -1685,9 +1705,10 @@ func TestGetBlockPoolsInfo(t *testing.T) {
 	})
 
 	t.Run("block pool not found is skipped", func(t *testing.T) {
-		srv := newTestProviderServer(t)
+		srv := newTestProviderServer(t, testPeer)
 		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
-			BlockPoolNames: []string{"non-existent-pool"},
+			StorageClusterUID: testStorageClusterUID,
+			BlockPoolNames:    []string{"non-existent-pool"},
 		})
 		assert.NoError(t, err)
 		assert.Empty(t, resp.BlockPoolsInfo)
@@ -1704,9 +1725,10 @@ func TestGetBlockPoolsInfo(t *testing.T) {
 				PoolID: 42,
 			},
 		}
-		srv := newTestProviderServer(t, pool)
+		srv := newTestProviderServer(t, testPeer, pool)
 		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
-			BlockPoolNames: []string{"pool-no-mirror"},
+			StorageClusterUID: testStorageClusterUID,
+			BlockPoolNames:    []string{"pool-no-mirror"},
 		})
 		assert.NoError(t, err)
 		assert.Len(t, resp.BlockPoolsInfo, 1)
@@ -1743,9 +1765,10 @@ func TestGetBlockPoolsInfo(t *testing.T) {
 				"token": []byte("my-mirroring-token"),
 			},
 		}
-		srv := newTestProviderServer(t, pool, secret)
+		srv := newTestProviderServer(t, testPeer, pool, secret)
 		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
-			BlockPoolNames: []string{"pool-mirrored"},
+			StorageClusterUID: testStorageClusterUID,
+			BlockPoolNames:    []string{"pool-mirrored"},
 		})
 		assert.NoError(t, err)
 		assert.Len(t, resp.BlockPoolsInfo, 1)
@@ -1773,9 +1796,10 @@ func TestGetBlockPoolsInfo(t *testing.T) {
 				},
 			},
 		}
-		srv := newTestProviderServer(t, pool)
+		srv := newTestProviderServer(t, testPeer, pool)
 		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
-			BlockPoolNames: []string{"pool-missing-secret"},
+			StorageClusterUID: testStorageClusterUID,
+			BlockPoolNames:    []string{"pool-missing-secret"},
 		})
 		assert.NoError(t, err)
 		assert.Len(t, resp.BlockPoolsInfo, 1)
@@ -1799,9 +1823,10 @@ func TestGetBlockPoolsInfo(t *testing.T) {
 				PoolID: 5,
 			},
 		}
-		srv := newTestProviderServer(t, pool)
+		srv := newTestProviderServer(t, testPeer, pool)
 		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
-			BlockPoolNames: []string{"pool-no-info"},
+			StorageClusterUID: testStorageClusterUID,
+			BlockPoolNames:    []string{"pool-no-info"},
 		})
 		assert.NoError(t, err)
 		assert.Len(t, resp.BlockPoolsInfo, 1)
@@ -1841,9 +1866,10 @@ func TestGetBlockPoolsInfo(t *testing.T) {
 			Status: &rookCephv1.CephBlockPoolStatus{PoolID: 2},
 		}
 
-		srv := newTestProviderServer(t, poolA, secretA, poolB)
+		srv := newTestProviderServer(t, testPeer, poolA, secretA, poolB)
 		resp, err := srv.GetBlockPoolsInfo(ctx, &pb.BlockPoolsInfoRequest{
-			BlockPoolNames: []string{"pool-a", "non-existent", "pool-b"},
+			StorageClusterUID: testStorageClusterUID,
+			BlockPoolNames:    []string{"pool-a", "non-existent", "pool-b"},
 		})
 		assert.NoError(t, err)
 		assert.Len(t, resp.BlockPoolsInfo, 2, "non-existent pool should be skipped")
