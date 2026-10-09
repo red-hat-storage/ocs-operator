@@ -180,7 +180,69 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		}
 	}
 
+	if err := syncExternalConsumersStorageClasses(r, storageCluster); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to sync StorageClasses for external consumers: %v", err)
+	}
+
 	return ctrl.Result{}, nil
+}
+
+// syncExternalConsumersStorageClasses ensures that all external (non-internal)
+// StorageConsumers have their Spec.StorageClasses kept in sync with the
+// StorageCluster's enabled services. Without this, onboarded clients never
+// receive StorageClasses for services that were enabled after the consumer was
+// created (e.g. NVMe-oF).
+func syncExternalConsumersStorageClasses(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) error {
+	consumers := &ocsv1a1.StorageConsumerList{}
+	if err := r.List(r.ctx, consumers, client.InNamespace(storageCluster.Namespace)); err != nil {
+		return fmt.Errorf("failed to list StorageConsumers: %v", err)
+	}
+
+	// Build a set of StorageClass names that should be added/removed based on
+	// toggleable services. Each entry maps a SC name to whether the service is
+	// currently enabled.
+	toggleableClasses := map[string]bool{}
+
+	nvmeofEnabled := storageCluster.Spec.NVMeOF != nil && storageCluster.Spec.NVMeOF.Enable
+	toggleableClasses[util.GenerateNameForNVMeOFStorageClass(storageCluster)] = nvmeofEnabled
+
+	for i := range consumers.Items {
+		consumer := &consumers.Items[i]
+		if consumer.Name == defaults.LocalStorageConsumerName {
+			continue
+		}
+		if !consumer.Spec.Enable {
+			continue
+		}
+
+		needsUpdate := false
+		for scName, enabled := range toggleableClasses {
+			idx := slices.IndexFunc(consumer.Spec.StorageClasses, func(sc ocsv1a1.StorageClassSpec) bool {
+				return sc.Name == scName
+			})
+			hasSC := idx != -1
+
+			if enabled && !hasSC {
+				consumer.Spec.StorageClasses = append(consumer.Spec.StorageClasses, ocsv1a1.StorageClassSpec{
+					CommonClassSpec: ocsv1a1.CommonClassSpec{Name: scName},
+				})
+				needsUpdate = true
+			} else if !enabled && hasSC {
+				consumer.Spec.StorageClasses = slices.Delete(consumer.Spec.StorageClasses, idx, idx+1)
+				needsUpdate = true
+			}
+		}
+
+		if needsUpdate {
+			slices.SortFunc(consumer.Spec.StorageClasses, func(a, b ocsv1a1.StorageClassSpec) int {
+				return strings.Compare(a.Name, b.Name)
+			})
+			if err := r.Update(r.ctx, consumer); err != nil {
+				return fmt.Errorf("failed to update StorageConsumer %s: %v", consumer.Name, err)
+			}
+		}
+	}
+	return nil
 }
 
 func (s *storageConsumer) ensureDeleted(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
