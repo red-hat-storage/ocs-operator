@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"time"
 
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	objectreferencesv1 "github.com/openshift/custom-resource-status/objectreferences/v1"
@@ -13,6 +14,7 @@ import (
 	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -50,27 +52,19 @@ func (obj *ocsNoobaaSystem) ensureCreated(r *StorageClusterReconciler, sc *ocsv1
 	}
 
 	if !r.IsNoobaaStandalone {
-		// find cephCluster
-		foundCeph := &rookCephv1.CephCluster{}
-		err = r.Get(context.TODO(), types.NamespacedName{Name: util.GenerateNameForCephCluster(sc), Namespace: sc.Namespace}, foundCeph)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				r.Log.Info("Waiting on Ceph Cluster to be created before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, util.GenerateNameForCephCluster(sc)))
-				return reconcile.Result{}, nil
-			}
-			r.Log.Error(err, "Failed to retrieve Ceph Cluster.", "CephCluster", klog.KRef(sc.Namespace, util.GenerateNameForCephCluster(sc)))
-			return reconcile.Result{}, err
+		storageClassName := util.GenerateNameForCephBlockPoolStorageClass(sc)
+		if sc.Spec.MultiCloudGateway != nil && sc.Spec.MultiCloudGateway.DbStorageClassName != "" {
+			storageClassName = sc.Spec.MultiCloudGateway.DbStorageClassName
 		}
-		if !sc.Spec.ExternalStorage.Enable {
-			if foundCeph.Status.State != rookCephv1.ClusterStateCreated {
-				r.Log.Info("Waiting on Ceph Cluster to initialize before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, util.GenerateNameForCephCluster(sc)))
-				return reconcile.Result{}, nil
-			}
-		} else {
-			if foundCeph.Status.State != rookCephv1.ClusterStateConnected {
-				r.Log.Info("Waiting for the External Ceph Cluster to be connected before starting Noobaa.", "CephCluster", klog.KRef(sc.Namespace, util.GenerateNameForCephCluster(sc)))
-				return reconcile.Result{}, nil
-			}
+		storageClass := &storagev1.StorageClass{}
+		err = r.Get(context.TODO(), types.NamespacedName{Name: storageClassName}, storageClass)
+		if errors.IsNotFound(err) {
+			r.Log.Info("Waiting for StorageClass before starting Noobaa.", "StorageClass", storageClassName)
+			return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
+		}
+		if err != nil {
+			r.Log.Error(err, "Failed to retrieve StorageClass.", "StorageClass", storageClassName)
+			return reconcile.Result{}, err
 		}
 	}
 
