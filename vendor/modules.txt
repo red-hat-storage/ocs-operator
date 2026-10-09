@@ -453,7 +453,7 @@ github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
 github.com/red-hat-storage/ocs-operator/services/provider/api/v4
 github.com/red-hat-storage/ocs-operator/services/provider/api/v4/client
 github.com/red-hat-storage/ocs-operator/services/provider/api/v4/interfaces
-# github.com/rook/rook/pkg/apis v0.0.0-20251118180359-e53ebb180836
+# github.com/rook/rook/pkg/apis v0.0.0-20251118180359-e53ebb180836 => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20261007215926-d8aedca38109
 ## explicit; go 1.23.0
 github.com/rook/rook/pkg/apis/ceph.rook.io
 github.com/rook/rook/pkg/apis/ceph.rook.io/v1
@@ -1270,6 +1270,7 @@ sigs.k8s.io/yaml/goyaml.v2
 # github.com/red-hat-storage/ocs-operator/api/v4 => ./api
 # github.com/red-hat-storage/ocs-operator/metrics/v4 => ./metrics
 # github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api
+# github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20261007215926-d8aedca38109
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
 # golang.org/x/net => github.com/openshift-sustaining/net v0.43.0-sec.3
 # github.com/go-jose/go-jose/v4 => github.com/openshift-sustaining/go-jose/v4 v4.0.5-cve-2026-34986
