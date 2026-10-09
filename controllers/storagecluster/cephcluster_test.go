@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 )
 
 var networkConfig = &configv1.Network{
@@ -2026,7 +2025,7 @@ func TestSetDefaultDataPoolSpec(t *testing.T) {
 			pool: rookCephv1.PoolSpec{},
 			sc:   baseSC.DeepCopy(),
 			expects: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(true),
+				EnableCrushUpdates: true,
 				DeviceClass:        "ssd",
 				FailureDomain:      "host",
 				Replicated:         generateCephReplicatedSpec(baseSC, "data"),
@@ -2035,11 +2034,11 @@ func TestSetDefaultDataPoolSpec(t *testing.T) {
 		{
 			name: "EnableCrushUpdates set to false",
 			pool: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(false),
+				EnableCrushUpdates: false,
 			},
 			sc: baseSC.DeepCopy(),
 			expects: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(false),
+				EnableCrushUpdates: false,
 				DeviceClass:        "ssd",
 				FailureDomain:      "host",
 				Replicated:         generateCephReplicatedSpec(baseSC, "data"),
@@ -2052,7 +2051,7 @@ func TestSetDefaultDataPoolSpec(t *testing.T) {
 			},
 			sc: baseSC.DeepCopy(),
 			expects: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(true),
+				EnableCrushUpdates: true,
 				DeviceClass:        "gold",
 				FailureDomain:      "host",
 				Replicated:         generateCephReplicatedSpec(baseSC, "data"),
@@ -2067,7 +2066,7 @@ func TestSetDefaultDataPoolSpec(t *testing.T) {
 			},
 			sc: baseSC.DeepCopy(),
 			expects: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(true),
+				EnableCrushUpdates: true,
 				DeviceClass:        "ssd",
 				FailureDomain:      "host",
 				Replicated: rookCephv1.ReplicatedSpec{
@@ -2080,7 +2079,7 @@ func TestSetDefaultDataPoolSpec(t *testing.T) {
 		{
 			name: "EnableCrushUpdates, DeviceClass & Replicated targetSizeRatio set",
 			pool: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(false),
+				EnableCrushUpdates: false,
 				DeviceClass:        "nvme",
 				Replicated: rookCephv1.ReplicatedSpec{
 					TargetSizeRatio: 0.2,
@@ -2088,7 +2087,7 @@ func TestSetDefaultDataPoolSpec(t *testing.T) {
 			},
 			sc: baseSC.DeepCopy(),
 			expects: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(false),
+				EnableCrushUpdates: false,
 				DeviceClass:        "nvme",
 				FailureDomain:      "host",
 				Replicated: rookCephv1.ReplicatedSpec{
@@ -2113,7 +2112,7 @@ func TestSetDefaultDataPoolSpec(t *testing.T) {
 				return sc
 			}(),
 			expects: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(true),
+				EnableCrushUpdates: true,
 				DeviceClass:        "ssd",
 				FailureDomain:      "host",
 				Replicated: rookCephv1.ReplicatedSpec{
@@ -2160,7 +2159,7 @@ func TestSetDefaultMetadataPoolSpec(t *testing.T) {
 			pool: rookCephv1.PoolSpec{},
 			sc:   baseSC.DeepCopy(),
 			expects: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(true),
+				EnableCrushUpdates: true,
 				DeviceClass:        "ssd",
 				FailureDomain:      "host",
 				Replicated:         generateCephReplicatedSpec(baseSC, "metadata"),
@@ -2173,7 +2172,7 @@ func TestSetDefaultMetadataPoolSpec(t *testing.T) {
 			},
 			sc: baseSC.DeepCopy(),
 			expects: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(true),
+				EnableCrushUpdates: true,
 				DeviceClass:        "gold",
 				FailureDomain:      "host",
 				Replicated:         generateCephReplicatedSpec(baseSC, "metadata"),
@@ -2188,7 +2187,7 @@ func TestSetDefaultMetadataPoolSpec(t *testing.T) {
 			},
 			sc: baseSC.DeepCopy(),
 			expects: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(true),
+				EnableCrushUpdates: true,
 				DeviceClass:        "ssd",
 				FailureDomain:      "host",
 				Replicated: rookCephv1.ReplicatedSpec{
@@ -2211,7 +2210,7 @@ func TestSetDefaultMetadataPoolSpec(t *testing.T) {
 				return sc
 			}(),
 			expects: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(true),
+				EnableCrushUpdates: true,
 				DeviceClass:        "ssd",
 				FailureDomain:      "host",
 				Replicated: rookCephv1.ReplicatedSpec{
@@ -2223,11 +2222,11 @@ func TestSetDefaultMetadataPoolSpec(t *testing.T) {
 		{
 			name: "EnableCrushUpdates set to false should be preserved",
 			pool: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(false),
+				EnableCrushUpdates: false,
 			},
 			sc: baseSC.DeepCopy(),
 			expects: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(false),
+				EnableCrushUpdates: false,
 				DeviceClass:        "ssd",
 				FailureDomain:      "host",
 				Replicated:         generateCephReplicatedSpec(baseSC, "metadata"),
@@ -2236,14 +2235,14 @@ func TestSetDefaultMetadataPoolSpec(t *testing.T) {
 		{
 			name: "EnableCrushUpdates false with ReplicasPerFailureDomain set",
 			pool: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(false),
+				EnableCrushUpdates: false,
 				Replicated: rookCephv1.ReplicatedSpec{
 					ReplicasPerFailureDomain: 3,
 				},
 			},
 			sc: baseSC.DeepCopy(),
 			expects: rookCephv1.PoolSpec{
-				EnableCrushUpdates: ptr.To(false),
+				EnableCrushUpdates: false,
 				DeviceClass:        "ssd",
 				FailureDomain:      "host",
 				Replicated: rookCephv1.ReplicatedSpec{
