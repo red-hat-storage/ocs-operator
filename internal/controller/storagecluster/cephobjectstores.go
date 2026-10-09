@@ -4,20 +4,24 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"maps"
+	"time"
 
+	secv1 "github.com/openshift/api/security/v1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
-	secv1 "github.com/openshift/api/security/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -28,6 +32,7 @@ const (
 	stsKeyLen                    = 32 // 32 hex characters for STS key
 	rgwS3AuthUseSTS              = "rgw_s3_auth_use_sts"
 	rgwSTSKey                    = "rgw_sts_key"
+	headlessServiceName          = "ceph-s3"
 )
 
 func shouldSkipObjectStore(sc *ocsv1.StorageCluster) (bool, error) {
@@ -68,6 +73,24 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 		r.Log.Info("Platform is set to skip object store. Not creating a CephObjectStore.", "Platform", platformType)
 		return reconcile.Result{}, nil
 	}
+
+	// When RGW hosting config is needed, RGW needs to be made aware of the Route endpoints, or
+	// it will reject any S3 clients attempting to connect via them.
+	routeEndpoints := []string{}
+
+	if isCephObjectUsingHeadlessService(instance) {
+		liveEndpoints, needRetry, err := r.getRouteEndpoints(instance)
+		if err != nil {
+			r.Log.Error(err, "Failed to get Route endpoints needed for RGW headless service.")
+			return reconcile.Result{}, err
+		}
+		if needRetry {
+			r.Log.Info("Need to wait for Route endpoints before reconciling CephObjectStores.")
+			return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
+		}
+		routeEndpoints = append(routeEndpoints, liveEndpoints...)
+	}
+
 	var cephObjectStores []*cephv1.CephObjectStore
 	// Add KMS details to cephObjectStores spec, only if
 	// cluster-wide encryption is enabled or any of the device set is encrypted
@@ -85,13 +108,13 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 				return reconcile.Result{}, err
 			}
 		}
-		cephObjectStores, err = r.newCephObjectStoreInstances(instance, kmsConfigMap, obj.tlsProfile)
+		cephObjectStores, err = r.newCephObjectStoreInstances(instance, kmsConfigMap, obj.tlsProfile, routeEndpoints)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 	} else {
 		var err error
-		cephObjectStores, err = r.newCephObjectStoreInstances(instance, nil, obj.tlsProfile)
+		cephObjectStores, err = r.newCephObjectStoreInstances(instance, nil, obj.tlsProfile, routeEndpoints)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -109,9 +132,13 @@ func (obj *ocsCephObjectStores) ensureCreated(r *StorageClusterReconciler, insta
 // ensureDeleted deletes the CephObjectStores owned by the StorageCluster
 func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *ocsv1.StorageCluster) (reconcile.Result, error) {
 	foundCephObjectStore := &cephv1.CephObjectStore{}
-	cephObjectStores, err := r.newCephObjectStoreInstances(sc, nil, obj.tlsProfile)
+	cephObjectStores, err := r.newCephObjectStoreInstances(sc, nil, obj.tlsProfile, nil)
 	if err != nil {
 		return reconcile.Result{}, err
+	}
+
+	if err := r.deleteHeadlessService(sc); err != nil {
+		return reconcile.Result{}, fmt.Errorf("uninstall: Failed to delete headless service: %v", err)
 	}
 
 	for _, cephObjectStore := range cephObjectStores {
@@ -142,7 +169,6 @@ func (obj *ocsCephObjectStores) ensureDeleted(r *StorageClusterReconciler, sc *o
 		}
 		r.Log.Error(err, "Uninstall: Waiting for CephObjectStore to be deleted.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
 		return reconcile.Result{}, fmt.Errorf("uninstall: Waiting for CephObjectStore %v to be deleted", cephObjectStore.Name)
-
 	}
 	return reconcile.Result{}, nil
 }
@@ -185,11 +211,21 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 				r.Log.Error(err, "Failed to update CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
 				return err
 			}
+
+			if err := r.reconcileHeadlessService(instance); err != nil {
+				r.Log.Error(err, "Failed to reconcile CephObjectStore headless service.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
+				return err
+			}
 		case errors.IsNotFound(err):
 			r.Log.Info("Creating CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
 			err = r.Create(context.TODO(), cephObjectStore)
 			if err != nil {
 				r.Log.Error(err, "Failed to create CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
+				return err
+			}
+
+			if err := r.reconcileHeadlessService(instance); err != nil {
+				r.Log.Error(err, "Failed to reconcile CephObjectStore headless service.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
 				return err
 			}
 		}
@@ -199,7 +235,9 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 
 // newCephObjectStoreInstances returns the cephObjectStore instances that should be created
 // on first run.
-func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.StorageCluster, kmsConfigMap *corev1.ConfigMap, tlsProfile *ocstlsv1.TLSProfile) ([]*cephv1.CephObjectStore, error) {
+func (r *StorageClusterReconciler) newCephObjectStoreInstances(
+	initData *ocsv1.StorageCluster, kmsConfigMap *corev1.ConfigMap, tlsProfile *ocstlsv1.TLSProfile, routeEndpoints []string,
+) ([]*cephv1.CephObjectStore, error) {
 	ret := []*cephv1.CephObjectStore{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -364,7 +402,27 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(initData *ocsv1.S
 			obj.Spec.Security.TlsGroups = []string{"DEFAULT"}
 			obj.Spec.Security.SslOptions = nil
 		}
+
+		if isCephObjectUsingHeadlessService(initData) {
+			obj.Spec.Gateway.SSLCertificateRef = headlessServiceName   // use headless service's serving cert secret
+			obj.Spec.Gateway.Service.Annotations = map[string]string{} // de-configure default serving cert to use the secret above
+
+			obj.Spec.Hosting = &cephv1.ObjectStoreHostingSpec{
+				AdvertiseEndpoint: &cephv1.ObjectEndpointSpec{
+					DnsName: headlessServiceName + ".openshift-storage.svc", // main DNS endpoint of headless service
+					Port:    getRGWSecurePort(initData),                     // HTTPS is always used internally
+					UseTls:  true,
+				},
+				DNSNames: append(
+					// All possible endpoints by which the RGW can be reached must be listed here.
+					// RGW will reject S3 clients connecting via unlisted endpoints.
+					[]string{headlessServiceName + ".openshift-storage.svc.cluster.local"}, // alternate DNS endpoint of headless service
+					routeEndpoints...,
+				),
+			}
+		}
 	}
+
 	return ret, nil
 }
 
@@ -534,6 +592,128 @@ func (r *StorageClusterReconciler) unsetSTSOptions(obj *cephv1.CephObjectStore) 
 	r.Log.Info("Deleting STS secret for CephObjectStore.", "Secret", klog.KRef(secret.Namespace, secret.Name), "CephObjectStore", klog.KRef(obj.Namespace, obj.Name))
 	if err := r.Delete(context.TODO(), secret); err != nil {
 		return fmt.Errorf("failed to delete STS secret: %w", err)
+	}
+
+	return nil
+}
+
+func isCephObjectUsingHeadlessService(sc *ocsv1.StorageCluster) bool {
+	if sc.Spec.ManagedResources.CephObjectStores.Hosting == nil {
+		return false
+	}
+	return sc.Spec.ManagedResources.CephObjectStores.Hosting.VirtualHostingMode == ocsv1.HeadlessServiceObjectVirtualHostingMode
+}
+
+func (r *StorageClusterReconciler) newCephObjectHeadlessService(sc *ocsv1.StorageCluster) (*corev1.Service, error) {
+	ipFamily, err := getIPFamilyConfig(r.Client)
+	if err != nil {
+		r.Log.Error(err, "failed to get IPFamily of the cluster")
+		return nil, err
+	}
+
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      headlessServiceName,
+			Namespace: sc.Namespace,
+			Annotations: map[string]string{
+				// serving cert secret has same name as headless service
+				"service.beta.openshift.io/serving-cert-secret-name": headlessServiceName,
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type:      corev1.ServiceTypeClusterIP,
+			ClusterIP: corev1.ClusterIPNone,
+			Selector: map[string]string{
+				"app": "rook-ceph-rgw",
+				"rgw": util.GenerateNameForCephObjectStore(sc),
+			},
+			IPFamilies: []corev1.IPFamily{
+				corev1.IPFamily(ipFamily), // assumes strings equal in K8s & Rook - true for IPv4, IPv6
+			},
+			IPFamilyPolicy: ptr.To(corev1.IPFamilyPolicySingleStack),
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "https",
+					Port:       getRGWSecurePort(sc),
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromString("https"),
+				},
+			},
+		},
+	}
+
+	// Set HTTP port only if it's enabled
+	httpPort := getRGWPort(sc)
+	if httpPort != 0 {
+		svc.Spec.Ports = append(svc.Spec.Ports,
+			corev1.ServicePort{
+				Name:       "http",
+				Port:       getRGWPort(sc),
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromString("http"),
+			},
+		)
+	}
+
+	return svc, nil
+}
+
+// ensure the headless service is created, updated, or deleted based on objectstore configs
+func (r *StorageClusterReconciler) reconcileHeadlessService(sc *ocsv1.StorageCluster) error {
+	if isCephObjectUsingHeadlessService(sc) {
+		desiredSvc, err := r.newCephObjectHeadlessService(sc)
+		if err != nil {
+			return err
+		}
+
+		r.Log.Info("Creating or Updating CephObjectStore headless Service.", "Service", klog.KRef(desiredSvc.Namespace, desiredSvc.Name))
+
+		svc := desiredSvc.DeepCopy()
+		_, err = controllerutil.CreateOrUpdate(r.ctx, r.Client, svc, func() error {
+			desiredCopy := desiredSvc.DeepCopy()
+
+			svc.Spec = desiredCopy.Spec
+			maps.Insert(svc.Annotations, maps.All(desiredCopy.Annotations)) // persist legacy and externally-applied annotations
+			maps.Insert(svc.Labels, maps.All(desiredCopy.Labels))           // persist legacy and externally-applied labels
+
+			// Set owner reference to the StorageCluster
+			if err := controllerutil.SetControllerReference(sc, svc, r.Scheme); err != nil {
+				return fmt.Errorf("failed to set controller reference for headless service: %w", err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create or update headless service: %w", err)
+		}
+
+		return nil
+	}
+
+	return r.deleteHeadlessService(sc)
+}
+
+// ensure the headless service is deleted
+func (r *StorageClusterReconciler) deleteHeadlessService(sc *ocsv1.StorageCluster) error {
+	svc, err := r.newCephObjectHeadlessService(sc)
+	if err != nil {
+		return err
+	}
+
+	liveSvc := &corev1.Service{}
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(svc), liveSvc); err != nil {
+		if errors.IsNotFound(err) {
+			return nil // already nonexistent
+		}
+		return fmt.Errorf("failed to check if headless service is deleted: %w", err)
+	}
+
+	r.Log.Info("Deleting CephObjectStore headless Service.", "Service", klog.KRef(svc.Namespace, svc.Name))
+	if err := r.Delete(r.ctx, svc); err != nil {
+		if errors.IsNotFound(err) {
+			return nil // already deleted (race?)
+		}
+		return fmt.Errorf("failed to delete headless service: %w", err)
 	}
 
 	return nil

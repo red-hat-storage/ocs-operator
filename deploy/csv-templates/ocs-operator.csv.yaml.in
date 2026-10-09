@@ -537,6 +537,13 @@ spec:
           - update
           - watch
         - apiGroups:
+          - route.openshift.io
+          resources:
+          - routes/custom-host
+          verbs:
+          - create
+          - update
+        - apiGroups:
           - security.openshift.io
           resources:
           - securitycontextconstraints
