@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -135,7 +134,7 @@ func (o *ocsCephBlockPools) reconcileMgrCephBlockPool(r *StorageClusterReconcile
 
 		setDefaultMetadataPoolSpec(&cephBlockPool.Spec.PoolSpec, storageCluster)
 		// Pass the EnableCrushUpdates for the default cephBlockPool spec if specified
-		if manageCBPSpec.PoolSpec != nil && manageCBPSpec.PoolSpec.EnableCrushUpdates != nil {
+		if manageCBPSpec.PoolSpec != nil {
 			cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = manageCBPSpec.PoolSpec.EnableCrushUpdates
 		}
 		// Pass the DeviceClass for the default cephBlockPool spec if specified
@@ -195,7 +194,7 @@ func (o *ocsCephBlockPools) reconcileNFSCephBlockPool(r *StorageClusterReconcile
 			cephBlockPool.Spec.Replicated.Size = manageCBPSpec.PoolSpec.Replicated.Size
 		}
 		// Pass the EnableCrushUpdates for the default cephBlockPool spec if specified
-		if manageCBPSpec.PoolSpec != nil && manageCBPSpec.PoolSpec.EnableCrushUpdates != nil {
+		if manageCBPSpec.PoolSpec != nil {
 			cephBlockPool.Spec.PoolSpec.EnableCrushUpdates = manageCBPSpec.PoolSpec.EnableCrushUpdates
 		}
 		// Pass the DeviceClass for the default cephBlockPool spec if specified
@@ -250,7 +249,7 @@ func (o *ocsCephBlockPools) reconcileNonResilientCephBlockPool(r *StorageCluster
 		_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, cephBlockPool, func() error {
 			poolSpec := &cephBlockPool.Spec.PoolSpec
 			poolSpec.DeviceClass = failureDomainValue
-			poolSpec.EnableCrushUpdates = ptr.To(true)
+			poolSpec.EnableCrushUpdates = true
 			poolSpec.FailureDomain = getFailureDomain(storageCluster)
 			poolSpec.Parameters = storageCluster.Spec.ManagedResources.CephNonResilientPools.Parameters
 			if poolSpec.Parameters == nil {

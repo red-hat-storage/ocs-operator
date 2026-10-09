@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.17.0
   name: storageclusters.ocs.openshift.io
 spec:
   group: ocs.openshift.io
@@ -758,7 +758,6 @@ spec:
                           enableCrushUpdates:
                             description: Allow rook operator to change the pool CRUSH
                               tunables once the pool is created
-                            nullable: true
                             type: boolean
                           enableRBDStats:
                             description: EnableRBDStats is used to enable gathering
@@ -768,12 +767,7 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: |-
-                                  The algorithm for erasure coding.
-                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
-                                enum:
-                                - isa
-                                - jerasure
+                                description: The algorithm for erasure coding
                                 type: string
                               codingChunks:
                                 description: |-
@@ -921,7 +915,6 @@ spec:
                                 description: TargetSizeRatio gives a hint (%) to Ceph
                                   in terms of expected consumption of the total cluster
                                   capacity
-                                minimum: 0
                                 type: number
                             required:
                             - size
@@ -1421,6 +1414,187 @@ spec:
                         type: integer
                       reconcileStrategy:
                         type: string
+                      security:
+                        description: CephSecurity represents security settings for
+                          ceph cluster
+                        properties:
+                          cephx:
+                            properties:
+                              allowedCiphers:
+                                description: |-
+                                  AllowedCiphers is an advanced configuration that can disrupt cluster availability!
+                                  Review Rook documentation carefully before setting this in a production cluster!
+
+                                  AllowedCiphers sets the Ceph config `auth_allowed_ciphers` to the list given.
+                                  If the list is empty, Rook will enable support for all ciphers.
+                                items:
+                                  description: |-
+                                    A CephX key type represents a cipher type for CephX keys.
+                                    Supported values: aes, aes256k.
+                                  maxLength: 7
+                                  minLength: 3
+                                  type: string
+                                maxItems: 2
+                                minItems: 1
+                                type: array
+                                x-kubernetes-list-type: set
+                              csi:
+                                description: |-
+                                  CSI configures CephX key rotation settings for the Ceph-CSI daemons in the current Kubernetes cluster.
+                                  CSI key rotation can affect existing PV connections, so take care when exercising this option.
+                                properties:
+                                  keepPriorKeyCountMax:
+                                    description: |-
+                                      KeepPriorKeyCountMax tells Rook how many prior keys to keep active.
+                                      Generally, this would be set to 1 to allow for a migration period for applications.
+                                      If desired, set this to 0 to delete prior keys after migration.
+                                      This config only applies to prior keys that already exist.
+                                      If PriorKeyCount is set to 2 while only a single key currently exists, only a single prior key will be kept,
+                                      and the reported status will only indicate the actual number of prior keys,
+                                      not necessarily a reflection of PriorKeyCount config here.
+                                    maximum: 10
+                                    minimum: 0
+                                    type: integer
+                                  keyGeneration:
+                                    description: |-
+                                      KeyGeneration specifies the desired CephX key generation. This is used when KeyRotationPolicy
+                                      is KeyGeneration and ignored for other policies. If this is set to greater than the current
+                                      key generation, relevant keys will be rotated, and the generation value will be updated to
+                                      this new value (generation values are not necessarily incremental, though that is the
+                                      intended use case). If this is set to less than or equal to the current key generation, keys
+                                      are not rotated.
+                                    format: int64
+                                    maximum: 4294967295
+                                    minimum: 0
+                                    type: integer
+                                    x-kubernetes-validations:
+                                    - message: keyGeneration cannot be decreased
+                                      rule: self >= oldSelf
+                                  keyRotationPolicy:
+                                    description: |-
+                                      KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
+                                      One of Disabled, or KeyGeneration. Default Disabled.
+                                    enum:
+                                    - ""
+                                    - Disabled
+                                    - KeyGeneration
+                                    type: string
+                                  keyType:
+                                    description: |-
+                                      KeyType specifies the desired CephX key cipher type.
+                                      If unspecified, Ceph's default will be used.
+                                      If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+                                      initiate key rotation.
+                                      If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+                                      initiate key rotation.
+                                    enum:
+                                    - aes
+                                    - aes256k
+                                    maxLength: 7
+                                    minLength: 3
+                                    type: string
+                                type: object
+                                x-kubernetes-validations:
+                                - message: keyGeneration cannot be removed once set
+                                  rule: '!has(oldSelf.keyGeneration) || has(self.keyGeneration)'
+                              daemon:
+                                description: |-
+                                  Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
+                                  Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
+                                properties:
+                                  keyGeneration:
+                                    description: |-
+                                      KeyGeneration specifies the desired CephX key generation. This is used when KeyRotationPolicy
+                                      is KeyGeneration and ignored for other policies. If this is set to greater than the current
+                                      key generation, relevant keys will be rotated, and the generation value will be updated to
+                                      this new value (generation values are not necessarily incremental, though that is the
+                                      intended use case). If this is set to less than or equal to the current key generation, keys
+                                      are not rotated.
+                                    format: int64
+                                    maximum: 4294967295
+                                    minimum: 0
+                                    type: integer
+                                    x-kubernetes-validations:
+                                    - message: keyGeneration cannot be decreased
+                                      rule: self >= oldSelf
+                                  keyRotationPolicy:
+                                    description: |-
+                                      KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
+                                      One of Disabled, or KeyGeneration. Default Disabled.
+                                    enum:
+                                    - ""
+                                    - Disabled
+                                    - KeyGeneration
+                                    type: string
+                                  keyType:
+                                    description: |-
+                                      KeyType specifies the desired CephX key cipher type.
+                                      If unspecified, Ceph's default will be used.
+                                      If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+                                      initiate key rotation.
+                                      If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+                                      initiate key rotation.
+                                    enum:
+                                    - aes
+                                    - aes256k
+                                    maxLength: 7
+                                    minLength: 3
+                                    type: string
+                                type: object
+                                x-kubernetes-validations:
+                                - message: keyGeneration cannot be removed once set
+                                  rule: '!has(oldSelf.keyGeneration) || has(self.keyGeneration)'
+                              rbdMirrorPeer:
+                                description: |-
+                                  RBDMirrorPeer configures CephX key settings of the `rbd-mirror-peer` user that is used for creating
+                                  bootstrap peer token used connect peer clusters. Rotating the `rbd-mirror-peer` user key will update
+                                  the mirror peer token.
+                                  Rotation will affect any existing peers connected to this cluster, so take care when exercising this option.
+                                properties:
+                                  keyGeneration:
+                                    description: |-
+                                      KeyGeneration specifies the desired CephX key generation. This is used when KeyRotationPolicy
+                                      is KeyGeneration and ignored for other policies. If this is set to greater than the current
+                                      key generation, relevant keys will be rotated, and the generation value will be updated to
+                                      this new value (generation values are not necessarily incremental, though that is the
+                                      intended use case). If this is set to less than or equal to the current key generation, keys
+                                      are not rotated.
+                                    format: int64
+                                    maximum: 4294967295
+                                    minimum: 0
+                                    type: integer
+                                    x-kubernetes-validations:
+                                    - message: keyGeneration cannot be decreased
+                                      rule: self >= oldSelf
+                                  keyRotationPolicy:
+                                    description: |-
+                                      KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
+                                      One of Disabled, or KeyGeneration. Default Disabled.
+                                    enum:
+                                    - ""
+                                    - Disabled
+                                    - KeyGeneration
+                                    type: string
+                                  keyType:
+                                    description: |-
+                                      KeyType specifies the desired CephX key cipher type.
+                                      If unspecified, Ceph's default will be used.
+                                      If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+                                      initiate key rotation.
+                                      If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+                                      initiate key rotation.
+                                    enum:
+                                    - aes
+                                    - aes256k
+                                    maxLength: 7
+                                    minLength: 3
+                                    type: string
+                                type: object
+                                x-kubernetes-validations:
+                                - message: keyGeneration cannot be removed once set
+                                  rule: '!has(oldSelf.keyGeneration) || has(self.keyGeneration)'
+                            type: object
+                        type: object
                       skipUpgradeChecks:
                         description: |-
                           Whether or not upgrade should continue even if a check fails
@@ -1503,7 +1677,6 @@ spec:
                             enableCrushUpdates:
                               description: Allow rook operator to change the pool
                                 CRUSH tunables once the pool is created
-                              nullable: true
                               type: boolean
                             enableRBDStats:
                               description: EnableRBDStats is used to enable gathering
@@ -1513,12 +1686,7 @@ spec:
                               description: The erasure code settings
                               properties:
                                 algorithm:
-                                  description: |-
-                                    The algorithm for erasure coding.
-                                    If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
-                                  enum:
-                                  - isa
-                                  - jerasure
+                                  description: The algorithm for erasure coding
                                   type: string
                                 codingChunks:
                                   description: |-
@@ -1670,7 +1838,6 @@ spec:
                                   description: TargetSizeRatio gives a hint (%) to
                                     Ceph in terms of expected consumption of the total
                                     cluster capacity
-                                  minimum: 0
                                   type: number
                               required:
                               - size
@@ -1731,7 +1898,6 @@ spec:
                           enableCrushUpdates:
                             description: Allow rook operator to change the pool CRUSH
                               tunables once the pool is created
-                            nullable: true
                             type: boolean
                           enableRBDStats:
                             description: EnableRBDStats is used to enable gathering
@@ -1741,12 +1907,7 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: |-
-                                  The algorithm for erasure coding.
-                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
-                                enum:
-                                - isa
-                                - jerasure
+                                description: The algorithm for erasure coding
                                 type: string
                               codingChunks:
                                 description: |-
@@ -1894,7 +2055,6 @@ spec:
                                 description: TargetSizeRatio gives a hint (%) to Ceph
                                   in terms of expected consumption of the total cluster
                                   capacity
-                                minimum: 0
                                 type: number
                             required:
                             - size
@@ -1958,7 +2118,6 @@ spec:
                           enableCrushUpdates:
                             description: Allow rook operator to change the pool CRUSH
                               tunables once the pool is created
-                            nullable: true
                             type: boolean
                           enableRBDStats:
                             description: EnableRBDStats is used to enable gathering
@@ -1968,12 +2127,7 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: |-
-                                  The algorithm for erasure coding.
-                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
-                                enum:
-                                - isa
-                                - jerasure
+                                description: The algorithm for erasure coding
                                 type: string
                               codingChunks:
                                 description: |-
@@ -2121,7 +2275,6 @@ spec:
                                 description: TargetSizeRatio gives a hint (%) to Ceph
                                   in terms of expected consumption of the total cluster
                                   capacity
-                                minimum: 0
                                 type: number
                             required:
                             - size
@@ -2726,7 +2879,6 @@ spec:
                           enableCrushUpdates:
                             description: Allow rook operator to change the pool CRUSH
                               tunables once the pool is created
-                            nullable: true
                             type: boolean
                           enableRBDStats:
                             description: EnableRBDStats is used to enable gathering
@@ -2736,12 +2888,7 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: |-
-                                  The algorithm for erasure coding.
-                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
-                                enum:
-                                - isa
-                                - jerasure
+                                description: The algorithm for erasure coding
                                 type: string
                               codingChunks:
                                 description: |-
@@ -2889,7 +3036,6 @@ spec:
                                 description: TargetSizeRatio gives a hint (%) to Ceph
                                   in terms of expected consumption of the total cluster
                                   capacity
-                                minimum: 0
                                 type: number
                             required:
                             - size
@@ -2957,7 +3103,6 @@ spec:
                           enableCrushUpdates:
                             description: Allow rook operator to change the pool CRUSH
                               tunables once the pool is created
-                            nullable: true
                             type: boolean
                           enableRBDStats:
                             description: EnableRBDStats is used to enable gathering
@@ -2967,12 +3112,7 @@ spec:
                             description: The erasure code settings
                             properties:
                               algorithm:
-                                description: |-
-                                  The algorithm for erasure coding.
-                                  If absent, defaults to the plugin specified in osd_pool_default_erasure_code_profile.
-                                enum:
-                                - isa
-                                - jerasure
+                                description: The algorithm for erasure coding
                                 type: string
                               codingChunks:
                                 description: |-
@@ -3120,7 +3260,6 @@ spec:
                                 description: TargetSizeRatio gives a hint (%) to Ceph
                                   in terms of expected consumption of the total cluster
                                   capacity
-                                minimum: 0
                                 type: number
                             required:
                             - size
@@ -3889,7 +4028,7 @@ spec:
                     x-kubernetes-validations:
                     - message: network provider must be disabled (reverted to empty
                         string) before a new provider is enabled
-                      rule: self == '' || oldSelf == '' || self == oldSelf
+                      rule: self == '' || self == oldSelf
                   selectors:
                     additionalProperties:
                       type: string

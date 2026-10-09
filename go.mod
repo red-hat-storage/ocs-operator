@@ -8,6 +8,8 @@ replace github.com/red-hat-storage/ocs-operator/metrics/v4 => ./metrics
 
 replace github.com/red-hat-storage/ocs-operator/services/provider/api/v4 => ./services/provider/api
 
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20261007215926-d8aedca38109
+
 require (
 	github.com/RHsyseng/operator-utils v1.4.13
 	github.com/blang/semver/v4 v4.0.0

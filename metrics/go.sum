@@ -1694,6 +1694,8 @@ github.com/prometheus/procfs v0.16.0 h1:xh6oHhKwnOJKMYiYBDWmkHqQPyiY40sny36Cmx2b
 github.com/prometheus/procfs v0.16.0/go.mod h1:8veyXUu3nGP7oaCxhX6yeaM5u4stL2FeMXnCqhDthZg=
 github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40TwIPHuXU=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
+github.com/red-hat-storage/rook/pkg/apis v0.0.0-20261007215926-d8aedca38109 h1:dtFR4xKwy8SmRYclWXQpEB5qlG1TNR1gQOdMqU+nDO8=
+github.com/red-hat-storage/rook/pkg/apis v0.0.0-20261007215926-d8aedca38109/go.mod h1:P86+IzuqXmOSmKkZ2ViuWBJdPu22E8ervi6WwFesBkU=
 github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
@@ -1708,8 +1710,6 @@ github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
 github.com/rook/rook v1.17.10-0.20251118180359-e53ebb180836 h1:XkAb4afcav75c2BG6mxSW0pmZs2eNn81i41Hu7I9NDw=
 github.com/rook/rook v1.17.10-0.20251118180359-e53ebb180836/go.mod h1:WCDWQ8R2hz/2qNX/xi9ZRclU6D6asJk06ihrmCegwxA=
-github.com/rook/rook/pkg/apis v0.0.0-20251118180359-e53ebb180836 h1:UUn3kf9/uXE7NIn/dTmV4BAYFpEQ4Av6OQaC4dHDLtY=
-github.com/rook/rook/pkg/apis v0.0.0-20251118180359-e53ebb180836/go.mod h1:4Gv2pJuWOoCnBosONj6RzDo8KoDeWJln4xJTkQl8jqY=
 github.com/rs/xid v1.2.1/go.mod h1:+uKXf+4Djp6Md1KODXJxgGQPKngRmWyn10oCKFzNHOQ=
 github.com/rs/zerolog v1.21.0/go.mod h1:ZPhntP/xmq1nnND05hhpAh2QMhSsA4UN3MGZ6O2J3hM=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=

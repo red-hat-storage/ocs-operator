@@ -22,13 +22,13 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/platform"
 	"github.com/red-hat-storage/ocs-operator/v4/controllers/util"
 	statusutil "github.com/red-hat-storage/ocs-operator/v4/controllers/util"
+	"github.com/red-hat-storage/ocs-operator/v4/version"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/utils/ptr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -305,6 +305,17 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: cephCluster.Name, Namespace: cephCluster.Namespace}, found)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			majorAndMinorVersion, err := version.GetMajorAndMinorVersion()
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+			util.AddAnnotation(cephCluster, util.CreatedAtDfVersionLabelKey, majorAndMinorVersion)
+			util.AddAnnotation(cephCluster, util.CreatedWithCephXFeaturesAnnotationKey, "")
+			err = setCephXFeaturesSpec(cephCluster, sc)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+
 			if sc.Spec.ExternalStorage.Enable {
 				r.Log.Info("Creating external CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
 			} else {
@@ -326,6 +337,15 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 		return reconcile.Result{}, err
 	} else if reconcileStrategy == ReconcileStrategyInit {
 		return reconcile.Result{}, nil
+	}
+
+	// Copy annotations from the existing CephCluster to the in-memory object,
+	// as they are used to determine the desired state during reconciliation.
+	cephCluster.Annotations = found.Annotations
+
+	err = setCephXFeaturesSpec(cephCluster, sc)
+	if err != nil {
+		return reconcile.Result{}, err
 	}
 
 	// Record actual Ceph container image version before attempting update
@@ -434,6 +454,34 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func setCephXFeaturesSpec(cephCluster *rookCephv1.CephCluster, sc *ocsv1.StorageCluster) error {
+	cephCluster.Spec.Security.CephX.AllowedCiphers = []rookCephv1.CephxKeyType{rookCephv1.CephxKeyTypeAes, rookCephv1.CephxKeyTypeAes256k}
+
+	if _, ok := cephCluster.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+		cephCluster.Spec.Security.CephX.RBDMirrorPeer.KeyType = rookCephv1.CephxKeyTypeAes
+	} else {
+		desiredCephxKeyGenAsString := util.MustGetEnv(util.DesiredCephxKeyGenEnvVarName)
+		desiredCephxKeyGen, err := strconv.Atoi(desiredCephxKeyGenAsString)
+		if err != nil {
+			err = fmt.Errorf("could not convert the value %q of env var %q", desiredCephxKeyGenAsString, util.DesiredCephxKeyGenEnvVarName)
+			return err
+		}
+
+		cephCluster.Spec.Security.CephX.Daemon.KeyRotationPolicy = rookCephv1.KeyGenerationCephxKeyRotationPolicy
+		cephCluster.Spec.Security.CephX.Daemon.KeyGeneration = uint32(desiredCephxKeyGen)
+	}
+
+	// Always set the KeyGeneration value if it is specified in the StorageCluster,
+	// regardless of whether the deployment is greenfield or brownfield.
+	if sc.Spec.ManagedResources.CephCluster.CephSecurity != nil &&
+		sc.Spec.ManagedResources.CephCluster.CephSecurity.CephX.Daemon.KeyGeneration > uint32(0) {
+		cephCluster.Spec.Security.CephX.Daemon.KeyRotationPolicy = rookCephv1.KeyGenerationCephxKeyRotationPolicy
+		cephCluster.Spec.Security.CephX.Daemon.KeyGeneration = sc.Spec.ManagedResources.CephCluster.CephSecurity.CephX.Daemon.KeyGeneration
+	}
+
+	return nil
 }
 
 // ensureDeleted deletes the CephCluster owned by the StorageCluster
@@ -1562,9 +1610,7 @@ func isEncrptionSettingUpdated(clusterWideEncrytion bool, existingDeviceSet []ro
 
 // setDefaultMetadataPoolSpec sets the common pool spec for all metadata pools as necessary
 func setDefaultMetadataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageCluster) {
-	if poolSpec.EnableCrushUpdates == nil {
-		poolSpec.EnableCrushUpdates = ptr.To(true)
-	}
+	poolSpec.EnableCrushUpdates = true
 	if poolSpec.DeviceClass == "" {
 		poolSpec.DeviceClass = sc.Status.DefaultCephDeviceClass
 	}
@@ -1584,9 +1630,7 @@ func setDefaultMetadataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.Storage
 
 // setDefaultDataPoolSpec sets the common pool spec for all data pools as necessary
 func setDefaultDataPoolSpec(poolSpec *rookCephv1.PoolSpec, sc *ocsv1.StorageCluster) {
-	if poolSpec.EnableCrushUpdates == nil {
-		poolSpec.EnableCrushUpdates = ptr.To(true)
-	}
+	poolSpec.EnableCrushUpdates = true
 	if poolSpec.DeviceClass == "" {
 		poolSpec.DeviceClass = sc.Status.DefaultCephDeviceClass
 	}
