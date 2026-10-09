@@ -120,6 +120,55 @@ The Secret is labeled with `ocs.openshift.io/storageclient=<name>`, so consumers
 
 The root user has default permissions on all resources within the account, including S3 data operations and IAM management. Non-root account users start with zero permissions and require IAM policies attached via the IAM API. Only the root user can use the IAM API by default. The spoke uses the root user credentials to create IAM users with fine-grained S3 policies tailored to each application's needs.
 
+## RGW Account Quotas
+
+The hub admin can cap how much object storage each spoke consumes. Quotas are set on the Account so they apply to every bucket and user the spoke creates. 
+
+### Why not `storageQuotaInGiB`
+
+Existing spec of `StorageConsumer.spec.storageQuotaInGiB` is block and file only. It is enforced by the admission controller at PVC creation time on the spoke. 
+RGW account quota is a separate mechanism. It is stored on the Account in Ceph and enforced by RGW on every S3 write. Hence we can't reuse the existing `storageQuotaInGiB` for object storage.
+
+### API 
+
+A new optional field on `StorageConsumer.spec` holds the desired RGW account quota. 
+
+```go
+type StorageConsumerSpec struct {
+	// ...existing fields...
+
+	// RGWAccountQuota caps the object storage this consumer's RGW Account can use.
+	// +optional
+	RGWAccountQuota *rookCephv1.AccountQuotaSpec `json:"rgwAccountQuota,omitempty"`
+}
+```
+
+The account quota API consists of: 
+
+- Account total size and object count (caps the whole account)
+- Resource limits (max buckets, users, roles, groups, access keys)
+
+*NOTE*: The default per-bucket quota fields (`MaxBucketSize`/`MaxBucketObjects`) from the `AccountQuotaSpec` will
+be disabled in ODF-provisioned accounts. Per-bucket support can be enabled later if a clear need emerges.
+
+### Governance
+
+- Only the hub admin can manage the account quota.
+- The Account root user (shared with spoke) is created with no capabilities and setting a quota requires the `accounts` or `buckets` admin capability. As a result, spoke cannot bypass the quota. 
+
+### Updating Quota
+
+- Ceph stores a new quota value without checking it against current usage and enforces it on the next write. 
+- Lowering a quota below current usage is safe. 
+- Existing objects are kept and only further writes are blocked until usage drops or the quota is raised. There is no data loss, so the hub does not need to hard-reject reductions. 
+
+### Removing Quota API
+
+- Quota removed from the consumer hands management back to the admin. 
+- Rook stops reconciling it and the last value stays in effect. 
+- It is not auto-disabled. To turn a quota off, the admin disables it with `radosgw-admin` from the toolbox.
+
+
 ## Spoke Offboarding
 
 When a spoke is offboarded, credentials are revoked and all associated resources are cleaned up automatically via ownership cascade.
