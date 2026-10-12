@@ -802,3 +802,16 @@ spec:
       for: 5m
       labels:
         severity: warning
+  - name: osd-key-rotation-alert.rules
+    rules:
+    - alert: OSDKeyRotationJobFailed
+      annotations:
+        description: The OSD encryption key rotation job {{ $labels.job_name }} in namespace {{ $labels.namespace }} has failed. The OSD's disk-encryption (LUKS) key was not rotated. If left unresolved, the stored key can drift out of sync with the on-disk LUKS keyslot and prevent the OSD from starting after a pod or node restart. Inspect the failed job's pod logs and re-run the rotation.
+        message: OSD encryption key rotation job {{ $labels.job_name }} failed in namespace {{ $labels.namespace }}.
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        kube_job_status_failed{job_name=~"rook-ceph-osd-key-rotation.*"} > 0
+      for: 5m
+      labels:
+        severity: critical
