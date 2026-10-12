@@ -174,7 +174,17 @@ func (r *StorageClusterPeerReconciler) reconcileStates(storageClusterPeer *ocsv1
 		storageClusterPeer.Status.PeerInfo = &ocsv1.PeerInfo{StorageClusterUid: string(ticketData.StorageCluster)}
 	}
 
-	ocsClient, err := providerClient.NewProviderClient(r.ctx, storageClusterPeer.Spec.ApiEndpoint, util.OcsClientTimeout)
+	tlsConfig, err := util.LoadPeerTLSConfig(r.ctx, r.Client, storageClusterPeer)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	ocsClient, err := providerClient.NewProviderClientTLS(
+		r.ctx,
+		storageClusterPeer.Spec.ApiEndpoint,
+		util.OcsClientTimeout,
+		tlsConfig,
+	)
 	if err != nil {
 		storageClusterPeer.Status.State = ocsv1.StorageClusterPeerStateFailed
 		storageClusterPeer.Status.FailureReason = ocsv1.StorageClusterPeerFailureReasonConnectionFailed

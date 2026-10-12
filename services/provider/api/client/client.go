@@ -26,12 +26,19 @@ type OCSProviderClient struct {
 
 // NewProviderClient creates a client to talk to the external OCS storage provider server
 func NewProviderClient(ctx context.Context, serverAddr string, timeout time.Duration) (*OCSProviderClient, error) {
-	config := &tls.Config{
-		InsecureSkipVerify: true,
-	}
+	return NewProviderClientTLS(ctx, serverAddr, timeout, &tls.Config{InsecureSkipVerify: true})
+}
 
+// NewProviderClientTLS creates a client to talk to the external OCS storage provider server using the supplied *tls.Config.
+// The caller owns the TLS policy: validation, SAN pinning, mTLS client certificates, or InsecureSkipVerify.
+func NewProviderClientTLS(
+	ctx context.Context,
+	serverAddr string,
+	timeout time.Duration,
+	tlsConfig *tls.Config,
+) (*OCSProviderClient, error) {
 	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(credentials.NewTLS(config)),
+		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
 	}
 
 	conn, err := grpc.NewClient(serverAddr, opts...)
