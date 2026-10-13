@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
@@ -313,6 +314,180 @@ func TestAuthenticateClientConnection(t *testing.T) {
 			}
 
 			err := server.authenticateClientConnection(ctx, tt.consumer)
+
+			if tt.expectedError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectedError && err != nil {
+				t.Errorf("Expected no error but got: %v", err)
+			}
+		})
+	}
+}
+
+// TestAuthenticatePeerConnection tests StorageClusterPeer client certificate authentication
+func TestAuthenticatePeerConnection(t *testing.T) {
+	// Simple case - root CA directly signs client cert (no intermediate)
+	rootCA, rootKey, rootPEM, err := generateTestCA()
+	if err != nil {
+		t.Fatalf("Failed to generate root CA: %v", err)
+	}
+
+	simpleSAN := "simple-peer.example.com"
+	simpleClientCert, err := generateTestClientCert(rootCA, rootKey, simpleSAN)
+	if err != nil {
+		t.Fatalf("Failed to generate simple client cert: %v", err)
+	}
+
+	// Chain case - root CA → intermediate CA → client cert
+	chainRootCA, chainRootKey, chainRootPEM, err := generateTestCA()
+	if err != nil {
+		t.Fatalf("Failed to generate chain root CA: %v", err)
+	}
+
+	intermCA, intermKey, intermPEM, err := generateTestIntermediateCA(chainRootCA, chainRootKey)
+	if err != nil {
+		t.Fatalf("Failed to generate intermediate CA: %v", err)
+	}
+
+	chainSAN := "chain-peer.example.com"
+	chainClientCert, err := generateTestClientCert(intermCA, intermKey, chainSAN)
+	if err != nil {
+		t.Fatalf("Failed to generate chain client cert: %v", err)
+	}
+
+	chainBundle := append(chainRootPEM, intermPEM...)
+
+	tests := []struct {
+		name            string
+		peer            *ocsv1.StorageClusterPeer
+		caConfigMap     *corev1.ConfigMap
+		peerCerts       []*x509.Certificate
+		expectedError   bool
+		skipPeerContext bool
+	}{
+		{
+			name: "configmap not configured - should skip authentication",
+			peer: &ocsv1.StorageClusterPeer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-peer",
+					Namespace: "test-namespace",
+				},
+				Spec: ocsv1.StorageClusterPeerSpec{
+					// No ClientCAConfigMap or ClientSAN configured
+				},
+			},
+			expectedError: false,
+		},
+		{
+			name: "simple client cert without intermediate - should succeed",
+			peer: &ocsv1.StorageClusterPeer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "simple-peer",
+					Namespace: "test-namespace",
+				},
+				Spec: ocsv1.StorageClusterPeerSpec{
+					ClientCAConfigMap: corev1.LocalObjectReference{Name: "simple-ca-configmap"},
+					ClientSAN:         simpleSAN,
+				},
+			},
+			caConfigMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "simple-ca-configmap",
+					Namespace: "test-namespace",
+				},
+				Data: map[string]string{
+					"ca.crt": string(rootPEM),
+				},
+			},
+			peerCerts:     []*x509.Certificate{simpleClientCert},
+			expectedError: false,
+		},
+		{
+			name: "no client certificate provided - should fail",
+			peer: &ocsv1.StorageClusterPeer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "no-cert-peer",
+					Namespace: "test-namespace",
+				},
+				Spec: ocsv1.StorageClusterPeerSpec{
+					ClientCAConfigMap: corev1.LocalObjectReference{Name: "simple-ca-configmap"},
+					ClientSAN:         simpleSAN,
+				},
+			},
+			caConfigMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "simple-ca-configmap",
+					Namespace: "test-namespace",
+				},
+				Data: map[string]string{
+					"ca.crt": string(rootPEM),
+				},
+			},
+			peerCerts:     nil,
+			expectedError: true,
+		},
+		{
+			name: "chain with intermediate in configmap - should succeed",
+			peer: &ocsv1.StorageClusterPeer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "chain-peer",
+					Namespace: "test-namespace",
+				},
+				Spec: ocsv1.StorageClusterPeerSpec{
+					ClientCAConfigMap: corev1.LocalObjectReference{Name: "chain-ca-configmap"},
+					ClientSAN:         chainSAN,
+				},
+			},
+			caConfigMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "chain-ca-configmap",
+					Namespace: "test-namespace",
+				},
+				Data: map[string]string{
+					// Server does not split "ca.crt" into separate root and intermediate pools, it loads everything as trusted roots.
+					"ca.crt": string(chainBundle),
+				},
+			},
+			peerCerts:     []*x509.Certificate{chainClientCert},
+			expectedError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheme := runtime.NewScheme()
+			_ = corev1.AddToScheme(scheme)
+			_ = ocsv1.AddToScheme(scheme)
+
+			var objects []client.Object
+			if tt.caConfigMap != nil {
+				objects = append(objects, tt.caConfigMap)
+			}
+
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(objects...).
+				Build()
+
+			server := &OCSProviderServer{
+				client:    fakeClient,
+				namespace: "test-namespace",
+			}
+
+			ctx := context.Background()
+			if !tt.skipPeerContext {
+				p := &peer.Peer{
+					AuthInfo: credentials.TLSInfo{
+						State: tls.ConnectionState{
+							PeerCertificates: tt.peerCerts,
+						},
+					},
+				}
+				ctx = peer.NewContext(ctx, p)
+			}
+
+			err := server.authenticatePeerConnection(ctx, tt.peer)
 
 			if tt.expectedError && err == nil {
 				t.Errorf("Expected error but got none")

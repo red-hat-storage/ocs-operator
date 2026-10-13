@@ -6,9 +6,12 @@ import (
 	"errors"
 	"fmt"
 
+	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	klog "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,12 +55,12 @@ func (s *OCSProviderServer) validateConnection(ctx context.Context, caConfigMapN
 	// Extract client certificate from gRPC context
 	p, ok := peer.FromContext(ctx)
 	if !ok {
-		return fmt.Errorf("no peer info in gRPC context for %s", resourceName)
+		return status.Errorf(codes.Unauthenticated, "no peer info in gRPC context for %s", resourceName)
 	}
 
 	tlsInfo, ok := p.AuthInfo.(credentials.TLSInfo)
 	if !ok || len(tlsInfo.State.PeerCertificates) == 0 {
-		return fmt.Errorf("no client certificate provided for %s", resourceName)
+		return status.Errorf(codes.Unauthenticated, "no client certificate provided for %s", resourceName)
 	}
 
 	clientCert := tlsInfo.State.PeerCertificates[0]
@@ -71,18 +74,18 @@ func (s *OCSProviderServer) validateConnection(ctx context.Context, caConfigMapN
 	caConfigMap.Name = caConfigMapName
 	caConfigMap.Namespace = s.namespace
 	if err := s.client.Get(ctx, client.ObjectKeyFromObject(caConfigMap), caConfigMap); err != nil {
-		return fmt.Errorf("failed to get ClientCA configmap %s for %s: %w", caConfigMapName, resourceName, err)
+		return status.Errorf(codes.Internal, "failed to get ClientCA configmap %s for %s: %v", caConfigMapName, resourceName, err)
 	}
 
 	caCertStr, ok := caConfigMap.Data["ca.crt"]
 	if !ok || len(caCertStr) == 0 {
-		return fmt.Errorf("ca.crt not found in configmap %s for %s", caConfigMapName, resourceName)
+		return status.Errorf(codes.Internal, "ca.crt not found in configmap %s for %s", caConfigMapName, resourceName)
 	}
 
 	caCert := []byte(caCertStr)
 
 	if err := validateClientCert(caCert, clientCert, intermediatePool, expectedSAN); err != nil {
-		return fmt.Errorf("client certificate validation failed for %s: %w", resourceName, err)
+		return status.Errorf(codes.PermissionDenied, "client certificate validation failed for %s: %v", resourceName, err)
 	}
 
 	return nil
@@ -94,6 +97,22 @@ func (s *OCSProviderServer) authenticateClientConnection(ctx context.Context, co
 		logger := klog.FromContext(ctx)
 		logger.Error(err, "Authentication failed", "consumer", consumer.Name)
 		return errors.New("authentication failed")
+	}
+	return nil
+}
+
+// authenticatePeerConnection validates the client certificate against the Client CA and SAN stored in the respective StorageClusterPeer resource.
+func (s *OCSProviderServer) authenticatePeerConnection(ctx context.Context, peer *ocsv1.StorageClusterPeer) error {
+	if err := s.validateConnection(ctx, peer.Spec.ClientCAConfigMap.Name, peer.Spec.ClientSAN, peer.Name); err != nil {
+		logger := klog.FromContext(ctx)
+		logger.Error(err, "Authentication failed", "peer", peer.Name)
+		code := status.Code(err)
+		switch code {
+		case codes.PermissionDenied, codes.Unauthenticated:
+			return status.Error(code, "authentication failed")
+		default:
+			return status.Error(code, "internal error")
+		}
 	}
 	return nil
 }
