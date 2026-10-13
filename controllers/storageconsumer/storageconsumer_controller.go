@@ -625,6 +625,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDProvisioner(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
 			radosNamespaceName = "''"
@@ -658,6 +667,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientRBDNode(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		if radosNamespaceName == util.ImplicitRbdRadosNamespaceName {
 			radosNamespaceName = "''"
@@ -691,6 +709,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSProvisioner(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		cephClient.Spec.SecretName = cephClientName
 		cephClient.Spec.Caps = map[string]string{
@@ -722,6 +749,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientCephFSNode(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		cephClient.Spec.SecretName = cephClientName
 		cephClient.Spec.Caps = map[string]string{
@@ -754,6 +790,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientNfsProvisioner(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		cephClient.Spec.SecretName = cephClientName
 		cephClient.Spec.Caps = map[string]string{
@@ -786,6 +831,15 @@ func (r *StorageConsumerReconciler) reconcileCephClientNfsNode(
 		if err := controllerutil.SetOwnerReference(additionalOwner, cephClient, r.Scheme); err != nil {
 			return err
 		}
+
+		if cephClient.CreationTimestamp.IsZero() {
+			util.AddAnnotation(cephClient, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
+		if _, ok := cephClient.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			cephClient.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		util.AddLabel(cephClient, util.CsiCephUserGenerationLabelKey, strconv.FormatInt(csiCephUserGeneration, 10))
 		cephClient.Spec.SecretName = cephClientName
 		cephClient.Spec.Caps = map[string]string{

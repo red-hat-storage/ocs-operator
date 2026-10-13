@@ -153,6 +153,8 @@ replace golang.org/x/net => github.com/openshift-sustaining/net v0.50.0-sec.3
 
 replace github.com/go-jose/go-jose/v4 => github.com/openshift-sustaining/go-jose/v4 v4.0.5-cve-2026-34986
 
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20261013121906-3eb5bfdf0894
+
 exclude (
 	// This tag doesn't exist, but is imported by github.com/portworx/sched-ops.
 	github.com/kubernetes-incubator/external-storage v0.20.4-openstorage-rc2
