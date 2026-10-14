@@ -120,6 +120,65 @@ The Secret is labeled with `ocs.openshift.io/storageclient=<name>`, so consumers
 
 The root user has default permissions on all resources within the account, including S3 data operations and IAM management. Non-root account users start with zero permissions and require IAM policies attached via the IAM API. Only the root user can use the IAM API by default. The spoke uses the root user credentials to create IAM users with fine-grained S3 policies tailored to each application's needs.
 
+## RGW Account Quotas
+
+The hub admin can cap how much object storage each spoke consumes. Quotas are set on the Account so they apply to every bucket and user the spoke creates. 
+
+### Why not `storageQuotaInGiB`
+
+Existing spec of `StorageConsumer.spec.storageQuotaInGiB` is block and file only. It is enforced by the admission controller at PVC creation time on the spoke. 
+RGW account quota is a separate mechanism. It is stored on the Account in Ceph and enforced by RGW on every S3 write. Hence we can't reuse the existing `storageQuotaInGiB` for object storage.
+
+### API 
+
+A new optional field on `StorageConsumer.spec` holds the desired RGW account quota. Only account level quota fields will be exposed.
+
+```go
+type StorageConsumerSpec struct {
+	// ...existing fields...
+
+	// RGWAccountQuota caps the object storage this consumer's RGW Account can use.
+	// +optional
+	RGWAccountQuota *RGWAccountQuota `json:"rgwAccountQuota,omitempty"`
+}
+
+// RGWAccountQuota exposes only the account-level subset of Rook's AccountQuotaSpec.
+type RGWAccountQuota struct {
+	// Account-wide storage quotas
+	MaxSize    *resource.Quantity `json:"maxSize,omitempty"`
+	MaxObjects *int64             `json:"maxObjects,omitempty"`
+	// Account-level resource limits
+	MaxBuckets    *int64 `json:"maxBuckets,omitempty"`
+	MaxUsers      *int64 `json:"maxUsers,omitempty"`
+	MaxRoles      *int64 `json:"maxRoles,omitempty"`
+	MaxGroups     *int64 `json:"maxGroups,omitempty"`
+	MaxAccessKeys *int64 `json:"maxAccessKeys,omitempty"`
+}
+```
+
+The account quota API consists of: 
+
+- Account total size and object count (caps the whole account)
+- Resource limits (max buckets, users, roles, groups, access keys)
+
+### Governance
+
+- Only the hub admin can manage the account quota.
+- The Account root user (shared with spoke) is created with no capabilities and setting a quota requires the `accounts` or `buckets` admin capability. As a result, spoke cannot bypass the quota. 
+
+### Updating Quota
+
+- Ceph stores a new quota value without checking it against current usage and enforces it on the next write. 
+- Lowering a quota below current usage is safe. 
+- Existing objects are kept and only further writes are blocked until usage drops or the quota is raised. There is no data loss, so the hub does not need to hard-reject reductions. 
+
+### Removing Quota API
+
+- Quota removed from the consumer hands management back to the admin. 
+- Rook stops reconciling it and the last value stays in effect. 
+- It is not auto-disabled. To turn a quota off, the admin disables it with `radosgw-admin` from the toolbox.
+
+
 ## Spoke Offboarding
 
 When a spoke is offboarded, credentials are revoked and all associated resources are cleaned up automatically via ownership cascade.
