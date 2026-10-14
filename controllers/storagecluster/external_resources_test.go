@@ -576,13 +576,14 @@ func TestCreateExternalModeStorageClassesLabelOnlyUpdate(t *testing.T) {
 	const scName = "ocs-external-storagecluster-ceph-rbd"
 	const defaultAnnotation = "storageclass.kubernetes.io/is-default-class"
 
+	// Labels: nil matches the real 4.18->4.19 upgrade case, where the
+	// is-external label did not exist yet on the StorageClass.
 	existing := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: scName,
 			Annotations: map[string]string{
 				defaultAnnotation: "true",
 			},
-			Labels: map[string]string{},
 		},
 		Provisioner: util.RbdDriverName,
 		Parameters: map[string]string{
