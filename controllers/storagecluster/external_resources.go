@@ -562,6 +562,18 @@ func (r *StorageClusterReconciler) createExternalModeStorageClasses(sccs []Stora
 					util.AddLabel(existing, util.ExternalClassLabelKey, desiredLabel)
 				}
 
+				// Keep selected template annotations aligned with the desired
+				// StorageClass without replacing the object (preserves user
+				// annotations such as storageclass.kubernetes.io/is-default-class).
+				for _, key := range []string{
+					"description",
+					"reclaimspace.csiaddons.openshift.io/schedule",
+				} {
+					if value, ok := sc.Annotations[key]; ok {
+						util.AddAnnotation(existing, key, value)
+					}
+				}
+
 				// Delete existing key rotation annotation and set it on sc only when it is false
 				delete(existing.Annotations, defaults.KeyRotationEnableAnnotation)
 				if krState := sc.GetAnnotations()[defaults.KeyRotationEnableAnnotation]; krState == "false" {

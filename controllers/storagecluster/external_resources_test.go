@@ -594,6 +594,8 @@ func TestCreateExternalModeStorageClassesLabelOnlyUpdate(t *testing.T) {
 
 	desired := existing.DeepCopy()
 	util.AddLabel(desired, util.ExternalClassLabelKey, strconv.FormatBool(true))
+	util.AddAnnotation(desired, "description", "Provides RWO Filesystem volumes, and RWO and RWX Block volumes")
+	util.AddAnnotation(desired, "reclaimspace.csiaddons.openshift.io/schedule", "@weekly")
 
 	reconciler := createFakeInitializationStorageClusterReconciler(t)
 	assert.NoError(t, reconciler.Client.Create(context.TODO(), existing))
@@ -609,6 +611,9 @@ func TestCreateExternalModeStorageClassesLabelOnlyUpdate(t *testing.T) {
 	assert.Equal(t, "true", updated.Labels[util.ExternalClassLabelKey])
 	assert.Equal(t, "true", updated.Annotations[defaultAnnotation],
 		"default StorageClass annotation must be preserved on label-only update")
+	assert.Equal(t, "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
+		updated.Annotations["description"])
+	assert.Equal(t, "@weekly", updated.Annotations["reclaimspace.csiaddons.openshift.io/schedule"])
 	assert.Equal(t, existing.Parameters, updated.Parameters)
 }
 
