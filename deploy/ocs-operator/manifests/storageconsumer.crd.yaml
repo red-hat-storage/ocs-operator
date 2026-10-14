@@ -263,6 +263,8 @@ spec:
                 description: Timestamp of last heartbeat received from consumer
                 format: date-time
                 type: string
+              message:
+                type: string
               onboardingTicketSecret:
                 description: |-
                   LocalObjectReference contains enough information to let you locate the
