@@ -536,7 +536,11 @@ func (r *StorageClusterReconciler) createExternalModeStorageClasses(sccs []Stora
 			if existing.DeletionTimestamp != nil {
 				return fmt.Errorf("failed to restore StorageClass  %s because it is marked for deletion", existing.Name)
 			}
-			if !reflect.DeepEqual(sc.Parameters, existing.Parameters) || existing.Labels[util.ExternalClassLabelKey] != sc.Labels[util.ExternalClassLabelKey] {
+			// Recreate only when immutable fields (e.g. parameters) change.
+			// Label-only differences can be applied in place and must not
+			// delete/recreate the StorageClass (preserves annotations such as
+			// storageclass.kubernetes.io/is-default-class). See DFBUGS-11725.
+			if !reflect.DeepEqual(sc.Parameters, existing.Parameters) {
 				// Since we have to update the existing StorageClass
 				// So, we will delete the existing storageclass and create a new one
 				r.Log.Info("StorageClass needs to be updated, deleting it.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
@@ -554,6 +558,10 @@ func (r *StorageClusterReconciler) createExternalModeStorageClasses(sccs []Stora
 				scRecreated = true
 			}
 			if !scRecreated {
+				if desiredLabel, ok := sc.Labels[util.ExternalClassLabelKey]; ok {
+					util.AddLabel(existing, util.ExternalClassLabelKey, desiredLabel)
+				}
+
 				// Delete existing key rotation annotation and set it on sc only when it is false
 				delete(existing.Annotations, defaults.KeyRotationEnableAnnotation)
 				if krState := sc.GetAnnotations()[defaults.KeyRotationEnableAnnotation]; krState == "false" {
@@ -562,7 +570,7 @@ func (r *StorageClusterReconciler) createExternalModeStorageClasses(sccs []Stora
 
 				err = r.Client.Update(context.TODO(), existing)
 				if err != nil {
-					r.Log.Error(err, "Failed to update annotations on the StorageClass.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
+					r.Log.Error(err, "Failed to update StorageClass metadata.", "StorageClass", klog.KRef(sc.Namespace, existing.Name))
 					return err
 				}
 			}
