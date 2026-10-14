@@ -288,7 +288,18 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 			return ctrl.Result{}, fmt.Errorf("waiting for StorageClusterPeer %s to be in Peered state", storageClusterPeer.Name)
 		}
 
-		ocsClient, err := providerClient.NewProviderClient(r.ctx, storageClusterPeer.Spec.ApiEndpoint, util.OcsClientTimeout)
+		tlsConfig, err := util.LoadPeerTLSConfig(r.ctx, r.Client, storageClusterPeer)
+		if err != nil {
+			r.log.Error(err, "failed to load peer TLS config")
+			return ctrl.Result{}, err
+		}
+
+		ocsClient, err := providerClient.NewProviderClientTLS(
+			r.ctx,
+			storageClusterPeer.Spec.ApiEndpoint,
+			util.OcsClientTimeout,
+			tlsConfig,
+		)
 		if err != nil {
 			r.log.Error(err, "failed to create a new provider client")
 			return ctrl.Result{}, err
