@@ -135,6 +135,8 @@ type CephResourcesSpec struct {
 type StorageConsumerStatus struct {
 	// State describes the state of StorageConsumer
 	State StorageConsumerState `json:"state,omitempty"`
+	// +optional
+	Message string `json:"message,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
 	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future."
 	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`
