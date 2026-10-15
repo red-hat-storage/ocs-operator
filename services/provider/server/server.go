@@ -270,6 +270,14 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 		return nil, status.Errorf(codes.Internal, "failed to get storageconsumer. %v", err)
 	}
 
+	// mTLS authentication is mandatory for internal clients.
+	// TODO: mandate mTLS authentication for external clients.
+	if storageConsumer.Name == defaults.LocalStorageConsumerName &&
+		(storageConsumer.Spec.ClientCAConfigMap.Name == "" || storageConsumer.Spec.ClientSAN == "") {
+		logger.Error(fmt.Errorf("client authentication not configured"), "refusing to onboard internal client without client certificate authentication", "storageConsumerName", storageConsumer.Name)
+		return nil, status.Error(codes.Unauthenticated, "client authentication is required for internal clients")
+	}
+
 	if err := s.authenticateClientConnection(ctx, storageConsumer); err != nil {
 		return nil, status.Error(codes.Unauthenticated, "authentication failed")
 	}
