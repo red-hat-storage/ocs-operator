@@ -18,7 +18,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const defaultProviderServerSAN = "ocs-provider-server.openshift-storage.svc"
+// DefaultProviderServerSAN is the SAN of the provider server's service-CA-signed serving certificate.
+const DefaultProviderServerSAN = "ocs-provider-server.openshift-storage.svc"
 
 // SelfSignedCertValidity is the lifetime of certificates produced by GetSelfSignedCert.
 const SelfSignedCertValidity = 47 * 24 * time.Hour
@@ -85,7 +86,7 @@ func LoadPeerTLSConfig(
 		}
 		tlsConfig = &tls.Config{
 			RootCAs:    certPool,
-			ServerName: cmp.Or(peer.Spec.ServerSAN, defaultProviderServerSAN),
+			ServerName: cmp.Or(peer.Spec.ServerSAN, DefaultProviderServerSAN),
 		}
 	}
 

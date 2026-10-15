@@ -39,6 +39,13 @@ const (
 	LocalStorageClientCNPrefix = "ocs-client"
 	// CertExpiryAnnotation is the annotation key for certificate expiry date
 	CertExpiryAnnotation = "cert.ocs.openshift.io/expiry-date"
+	// CertIdentityAnnotation holds the client identity (CN/SAN) embedded in the client certificate
+	CertIdentityAnnotation = "cert.ocs.openshift.io/identity"
+	// LocalStorageClientCAConfigMap is the name of the configmap holding the client CA certificate (ca.crt)
+	LocalStorageClientCAConfigMap = "ocs-internal-client-ca"
+	// ProviderServerCAConfigMap is the OpenShift-managed configmap (auto-injected into every namespace)
+	// holding the service CA bundle, used by the client to verify the provider server certificate
+	ProviderServerCAConfigMap = "openshift-service-ca.crt"
 )
 
 var (
