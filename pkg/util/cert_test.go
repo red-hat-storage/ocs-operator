@@ -107,7 +107,7 @@ func TestLoadPeerTLSConfig(t *testing.T) {
 			check: func(t *testing.T, cfg *tls.Config) {
 				assert.False(t, cfg.InsecureSkipVerify)
 				assert.NotNil(t, cfg.RootCAs)
-				assert.Equal(t, defaultProviderServerSAN, cfg.ServerName)
+				assert.Equal(t, DefaultProviderServerSAN, cfg.ServerName)
 			},
 		},
 		{
@@ -156,9 +156,9 @@ func TestLoadPeerTLSConfig(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "CA configmap key absent",
-			objs: []client.Object{caConfigMap("other.crt", caPEM)},
-			peer: peerWith(ocsv1.StorageClusterPeerSpec{ServerCAConfigMap: caRef}),
+			name:    "CA configmap key absent",
+			objs:    []client.Object{caConfigMap("other.crt", caPEM)},
+			peer:    peerWith(ocsv1.StorageClusterPeerSpec{ServerCAConfigMap: caRef}),
 			wantErr: true,
 		},
 		{
@@ -167,9 +167,9 @@ func TestLoadPeerTLSConfig(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "client secret missing tls.key",
-			objs: []client.Object{clientSecret(map[string][]byte{"tls.crt": certPEM})},
-			peer: peerWith(ocsv1.StorageClusterPeerSpec{ClientCertSecret: corev1.LocalObjectReference{Name: "client-cert"}}),
+			name:    "client secret missing tls.key",
+			objs:    []client.Object{clientSecret(map[string][]byte{"tls.crt": certPEM})},
+			peer:    peerWith(ocsv1.StorageClusterPeerSpec{ClientCertSecret: corev1.LocalObjectReference{Name: "client-cert"}}),
 			wantErr: true,
 		},
 	}
@@ -187,4 +187,45 @@ func TestLoadPeerTLSConfig(t *testing.T) {
 			tc.check(t, cfg)
 		})
 	}
+}
+
+func TestGetSelfSignedCert(t *testing.T) {
+	cn := "ocs-internal-client"
+	keyUsage := x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
+	extKeyUsage := []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+
+	keyPEM, certPEM, err := GetSelfSignedCert(cn, keyUsage, extKeyUsage)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, keyPEM)
+	assert.NotEmpty(t, certPEM)
+
+	block, _ := pem.Decode(certPEM)
+	assert.NotNil(t, block)
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	assert.NoError(t, err)
+
+	assert.Equal(t, cn, cert.Subject.CommonName)
+	assert.Contains(t, cert.DNSNames, cn)
+	assert.True(t, cert.IsCA)
+	assert.True(t, cert.BasicConstraintsValid)
+	assert.Equal(t, keyUsage, cert.KeyUsage)
+	assert.Contains(t, cert.ExtKeyUsage, x509.ExtKeyUsageClientAuth)
+
+	// Validity should be ~47 days
+	validity := cert.NotAfter.Sub(cert.NotBefore)
+	assert.InDelta(t, SelfSignedCertValidity.Hours(), validity.Hours(), 1)
+
+	// The private key must decode
+	keyBlock, _ := pem.Decode(keyPEM)
+	assert.NotNil(t, keyBlock)
+
+	// x509.CreateCertificate auto-generates a serial; each call yields a fresh, unique one
+	assert.NotNil(t, cert.SerialNumber)
+	_, certPEM2, err := GetSelfSignedCert(cn, keyUsage, extKeyUsage)
+	assert.NoError(t, err)
+	block2, _ := pem.Decode(certPEM2)
+	cert2, err := x509.ParseCertificate(block2.Bytes)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cert.SerialNumber, cert2.SerialNumber)
 }

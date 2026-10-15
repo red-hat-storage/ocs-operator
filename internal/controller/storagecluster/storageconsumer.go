@@ -56,6 +56,21 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		return ctrl.Result{}, fmt.Errorf("failed to generate volumeattributesclasses list for distribution: %v", err)
 	}
 
+	// Read the client identity (SAN) embedded in the generated client cert, used to verify the
+	// client by name on the server side. The cert secret is created/rotated earlier in the same
+	// reconcile by the provider server; on a (re)generation the provider server requeues so the
+	// cache catches up and this read observes the new identity on a following reconcile.
+	clientCertSecret := &corev1.Secret{}
+	clientCertSecret.Name = defaults.LocalStorageClientCertSecret
+	clientCertSecret.Namespace = storageCluster.Namespace
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(clientCertSecret), clientCertSecret); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get client cert secret %s: %v", clientCertSecret.Name, err)
+	}
+	clientSAN := clientCertSecret.Annotations[defaults.CertIdentityAnnotation]
+	if clientSAN == "" {
+		return ctrl.Result{}, fmt.Errorf("client cert secret %s has no identity annotation yet", clientCertSecret.Name)
+	}
+
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = defaults.LocalStorageConsumerName
 	storageConsumer.Namespace = storageCluster.Namespace
@@ -82,6 +97,10 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 			}
 		}
 		spec.VolumeGroupSnapshotClasses = volumeGroupSnapshotClassesSpec
+
+		// mTLS: point the server at the client CA and expected client identity for verification
+		spec.ClientCAConfigMap.Name = defaults.LocalStorageClientCAConfigMap
+		spec.ClientSAN = clientSAN
 
 		controllerutil.AddFinalizer(storageConsumer, internalComponentFinalizer)
 

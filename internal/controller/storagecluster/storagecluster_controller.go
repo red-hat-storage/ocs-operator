@@ -336,6 +336,14 @@ func (r *StorageClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			),
 		).
 		Watches(&ocsclientv1a1.StorageClient{}, enqueueStorageClusterRequest).
+		// Watch the internal client cert secret on all event types (the Owns predicate above filters
+		// data-only updates). A rotation updates this secret in place, and we must re-reconcile so
+		// StorageConsumer.ClientSAN tracks the new client identity for mTLS verification.
+		Watches(
+			&corev1.Secret{},
+			enqueueStorageClusterRequest,
+			builder.WithPredicates(util.NamePredicate(defaults.LocalStorageClientCertSecret)),
+		).
 		// Watch Nodes with OCS label to trigger Blackbox Probe updates
 		Watches(&corev1.Node{}, enqueueStorageClusterRequest, builder.WithPredicates(ocsNodeLabelPredicate)).
 		Watches(
