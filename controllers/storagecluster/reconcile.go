@@ -184,9 +184,8 @@ func (r *StorageClusterReconciler) Reconcile(ctx context.Context, request reconc
 		return result, reconcileError
 	} else if statusError != nil {
 		return result, statusError
-	} else {
-		return result, nil
 	}
+	return result, nil
 }
 
 func (r *StorageClusterReconciler) initializeImagesStatus(sc *ocsv1.StorageCluster) {
@@ -670,9 +669,8 @@ func (r *StorageClusterReconciler) SetOperatorConditions(message string, reason 
 		return error1.New(prevError.Error() + operatorConditionErr.Error())
 	} else if prevError != nil {
 		return prevError
-	} else {
-		return operatorConditionErr
 	}
+	return operatorConditionErr
 }
 
 // validateStorageDeviceSets checks the StorageDeviceSets of the given

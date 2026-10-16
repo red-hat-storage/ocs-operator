@@ -221,7 +221,7 @@ func (r *StorageConsumerReconciler) own(resource metav1.Object) error {
 // SetupWithManager sets up the controller with the Manager.
 func (r *StorageConsumerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	enqueueStorageConsumerRequest := handler.EnqueueRequestsFromMapFunc(
-		func(context context.Context, obj client.Object) []reconcile.Request {
+		func(_ context.Context, obj client.Object) []reconcile.Request {
 			labels := obj.GetLabels()
 			if value, ok := labels[StorageConsumerNameLabel]; ok {
 				return []reconcile.Request{{
