@@ -19,6 +19,7 @@ package controllers
 import (
 	"cmp"
 	"context"
+	stderrors "errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -117,6 +118,11 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 	// Reconcile changes to the cluster
 	result, reconcileError := r.reconcilePhases()
 
+	// Actable errors set status.message during reconcile. On success, clear a leftover error.
+	if reconcileError == nil {
+		r.storageConsumer.Status.Message = ""
+	}
+
 	// Apply status changes to the StorageConsumer
 	statusError := r.Status().Update(r.ctx, r.storageConsumer)
 	if statusError != nil {
@@ -194,6 +200,9 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 
 		storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, r.namespace)
 		if err != nil {
+			if stderrors.Is(err, util.ErrNoStorageCluster) || stderrors.Is(err, util.ErrIgnoredStorageCluster) {
+				r.storageConsumer.Status.Message = err.Error()
+			}
 			return reconcile.Result{}, err
 		}
 
