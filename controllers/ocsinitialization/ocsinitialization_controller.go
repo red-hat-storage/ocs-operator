@@ -285,7 +285,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	)
 
 	enqueueOCSInit := handler.EnqueueRequestsFromMapFunc(
-		func(context context.Context, obj client.Object) []reconcile.Request {
+		func(_ context.Context, _ client.Object) []reconcile.Request {
 			return []reconcile.Request{{
 				NamespacedName: InitNamespacedName(),
 			}}
@@ -312,7 +312,7 @@ func (r *OCSInitializationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&storagev1.StorageClass{},
 			handler.EnqueueRequestsFromMapFunc(
-				func(context context.Context, obj client.Object) []reconcile.Request {
+				func(_ context.Context, obj client.Object) []reconcile.Request {
 					// Only reconcile if the storageClass has topologyConstrainedPools set
 					sc := obj.(*storagev1.StorageClass)
 					if sc.Parameters["topologyConstrainedPools"] != "" {
@@ -637,9 +637,8 @@ func getFailureDomainKeyFromStorageClassParameter(sc *storagev1.StorageClass) st
 		return "topology.rook.io/rack"
 	} else if failuredomain == "hostname" || failuredomain == "host" {
 		return "kubernetes.io/hostname"
-	} else {
-		return ""
 	}
+	return ""
 }
 
 func (r *OCSInitializationReconciler) reconcileUXBackendSecret(initialData *ocsv1.OCSInitialization) error {
