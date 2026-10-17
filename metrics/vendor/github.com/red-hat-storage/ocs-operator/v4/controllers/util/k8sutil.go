@@ -69,6 +69,7 @@ const (
 	OcsClientTimeout                      = 10 * time.Second
 	StorageClientMappingConfigName        = "storage-client-mapping"
 	CreatedWithCephXFeaturesAnnotationKey = "ocs.openshift.io/created-with-cephx-features"
+	CreatedAtDfVersionLabelKey            = "ocs.openshift.io/created-at-df-version"
 )
 
 var podNamespace = os.Getenv(PodNamespaceEnvVar)
