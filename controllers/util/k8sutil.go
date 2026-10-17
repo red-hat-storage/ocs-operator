@@ -36,6 +36,8 @@ const (
 	// SingleNodeEnvVar is set if StorageCluster needs to be deployed on a single node
 	SingleNodeEnvVar = "SINGLE_NODE"
 
+	DesiredCephxKeyGenEnvVarName = "DESIRED_CEPHX_KEY_GEN"
+
 	// This configmap is purely for the OCS operator to use.
 	OcsOperatorConfigName = "ocs-operator-config"
 
@@ -60,12 +62,14 @@ const (
 	ExitCodeThatShouldRestartTheProcess = 42
 
 	//ForbidMirroringLabel is used to forbid mirroring for ceph resources such as CephBlockPool
-	ForbidMirroringLabel                 = "ocs.openshift.io/forbid-mirroring"
-	BlockPoolMirroringTargetIDAnnotation = "ocs.openshift.io/mirroring-target-id"
-	RequestMaintenanceModeAnnotation     = "ocs.openshift.io/request-maintenance-mode"
-	CephRBDMirrorName                    = "cephrbdmirror"
-	OcsClientTimeout                     = 10 * time.Second
-	StorageClientMappingConfigName       = "storage-client-mapping"
+	ForbidMirroringLabel                  = "ocs.openshift.io/forbid-mirroring"
+	BlockPoolMirroringTargetIDAnnotation  = "ocs.openshift.io/mirroring-target-id"
+	RequestMaintenanceModeAnnotation      = "ocs.openshift.io/request-maintenance-mode"
+	CephRBDMirrorName                     = "cephrbdmirror"
+	OcsClientTimeout                      = 10 * time.Second
+	StorageClientMappingConfigName        = "storage-client-mapping"
+	CreatedWithCephXFeaturesAnnotationKey = "ocs.openshift.io/created-with-cephx-features"
+	CreatedAtDfVersionLabelKey            = "ocs.openshift.io/created-at-df-version"
 )
 
 var podNamespace = os.Getenv(PodNamespaceEnvVar)

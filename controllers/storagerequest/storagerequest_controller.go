@@ -163,7 +163,7 @@ func (r *StorageRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	enqueueStorageConsumerRequest := handler.EnqueueRequestsFromMapFunc(
-		func(context context.Context, obj client.Object) []reconcile.Request {
+		func(_ context.Context, obj client.Object) []reconcile.Request {
 			annotations := obj.GetAnnotations()
 			if annotation, found := annotations[v1alpha1.StorageRequestAnnotation]; found {
 				parts := strings.Split(annotation, "/")
