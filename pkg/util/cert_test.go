@@ -107,7 +107,7 @@ func TestLoadPeerTLSConfig(t *testing.T) {
 			check: func(t *testing.T, cfg *tls.Config) {
 				assert.False(t, cfg.InsecureSkipVerify)
 				assert.NotNil(t, cfg.RootCAs)
-				assert.Equal(t, DefaultProviderServerSAN, cfg.ServerName)
+				assert.Equal(t, DefaultProviderServerSAN(testNamespace), cfg.ServerName)
 			},
 		},
 		{

@@ -46,6 +46,8 @@ const (
 	// ProviderServerCAConfigMap is the OpenShift-managed configmap (auto-injected into every namespace)
 	// holding the service CA bundle, used by the client to verify the provider server certificate
 	ProviderServerCAConfigMap = "openshift-service-ca.crt"
+	// Provider Server Service Name
+	OcsProviderServerName = "ocs-provider-server"
 )
 
 var (

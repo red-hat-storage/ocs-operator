@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -341,6 +342,18 @@ func createSetupForOcsProviderTest(t *testing.T, providerAPIServerServiceType co
 	clientConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: ocsClientConfigMapName},
 	}
+	ocsProviderRoute := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{{
+				Host: "ocs-provider.apps.example.com",
+				Conditions: []routev1.RouteIngressCondition{{
+					Type:   routev1.RouteAdmitted,
+					Status: corev1.ConditionTrue,
+				}},
+			}},
+		},
+	}
 
 	scheme := createFakeScheme(t)
 
@@ -349,7 +362,7 @@ func createSetupForOcsProviderTest(t *testing.T, providerAPIServerServiceType co
 
 	r := &StorageClusterReconciler{
 		recorder: reporter,
-		Client: fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node, clientConfigMap).
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node, clientConfigMap, ocsProviderRoute).
 			// The fake client does not assign a UID on Create (the real apiserver does). Set one so
 			// code that detects object existence via UID behaves as it would against a real cluster.
 			WithInterceptorFuncs(interceptor.Funcs{

@@ -13,8 +13,8 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	ocsversion "github.com/red-hat-storage/ocs-operator/v4/version"
 
-	"github.com/blang/semver/v4"
 	"dario.cat/mergo"
+	"github.com/blang/semver/v4"
 	nbv1 "github.com/noobaa/noobaa-operator/v5/pkg/apis/noobaa/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -447,6 +448,18 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 	ocsProviderServiceSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 	}
+	ocsProviderRoute := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{{
+				Host: "ocs-provider.apps.example.com",
+				Conditions: []routev1.RouteIngressCondition{{
+					Type:   routev1.RouteAdmitted,
+					Status: v1.ConditionTrue,
+				}},
+			}},
+		},
+	}
 
 	operatorNamespace := os.Getenv("OPERATOR_NAMESPACE")
 	verOcs, err := semver.Make(ocsversion.Version)
@@ -497,13 +510,22 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		ocsProviderServiceSecret,
 		ocsProviderServiceDeployment,
 		ocsProviderService,
+		ocsProviderRoute,
 		createVirtualMachineCRD(),
 		createStorageClientCRD(),
 		createVolumeGroupSnapshotClassCRD(),
 		createOdfVolumeGroupSnapshotClassCRD(),
 		createRookCephOperatorCSV(sc.Namespace),
 	)
-	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).WithStatusSubresource(sc).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+				if obj.GetUID() == "" {
+					obj.SetUID("fake-uid")
+				}
+				return c.Create(ctx, obj, opts...)
+			},
+		}).Build()
 
 	r := &StorageClusterReconciler{
 		Client:            client,

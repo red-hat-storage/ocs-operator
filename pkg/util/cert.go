@@ -14,12 +14,10 @@ import (
 	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// DefaultProviderServerSAN is the SAN of the provider server's service-CA-signed serving certificate.
-const DefaultProviderServerSAN = "ocs-provider-server.openshift-storage.svc"
 
 // SelfSignedCertValidity is the lifetime of certificates produced by GetSelfSignedCert.
 const SelfSignedCertValidity = 47 * 24 * time.Hour
@@ -85,8 +83,11 @@ func LoadPeerTLSConfig(
 			return nil, fmt.Errorf("failed to parse server CA certificate")
 		}
 		tlsConfig = &tls.Config{
-			RootCAs:    certPool,
-			ServerName: cmp.Or(peer.Spec.ServerSAN, DefaultProviderServerSAN),
+			RootCAs: certPool,
+			ServerName: cmp.Or(
+				peer.Spec.ServerSAN,
+				DefaultProviderServerSAN(defaults.OcsProviderServerName, peer.Namespace),
+			),
 		}
 	}
 
@@ -141,4 +142,9 @@ func loadPeerCertificates(
 	// When the spec configures neither CA nor client cert, all returns are nil;
 	// the caller decides how to proceed (e.g. fall back to an insecure connection).
 	return serverCA, clientCert, clientKey, nil
+}
+
+// DefaultProviderServerSAN is the SAN of the provider server's service-CA-signed serving certificate.
+func DefaultProviderServerSAN(server, namespace string) string {
+	return fmt.Sprintf("%s.%s.svc", server, namespace)
 }
