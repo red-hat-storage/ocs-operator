@@ -8,6 +8,7 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1alpha1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
@@ -24,12 +25,13 @@ func validateClientCert(caCert []byte, clientCert *x509.Certificate, intermediat
 		return errors.New("failed to parse CA certificate for verification")
 	}
 
-	opts := x509.VerifyOptions{
-		Roots:         caCertPool,
-		Intermediates: intermediates,
-		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-	}
-	if _, err := clientCert.Verify(opts); err != nil {
+	if err := util.VerifyCertificate(
+		clientCert,
+		caCertPool,
+		intermediates,
+		expectedSAN,
+		x509.ExtKeyUsageClientAuth,
+	); err != nil {
 		return fmt.Errorf("certificate verification failed (subject: %s, issuer: %s): %w",
 			clientCert.Subject.String(), clientCert.Issuer.String(), err)
 	}

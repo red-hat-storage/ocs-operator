@@ -91,12 +91,31 @@ func LoadPeerTLSConfig(
 		if !certPool.AppendCertsFromPEM(serverCA) {
 			return nil, fmt.Errorf("failed to parse server CA certificate")
 		}
+		serverSAN := cmp.Or(
+			peer.Spec.ServerSAN,
+			DefaultProviderServerSAN(defaults.OcsProviderServerName, peer.Namespace),
+		)
 		tlsConfig = &tls.Config{
-			RootCAs: certPool,
-			ServerName: cmp.Or(
-				peer.Spec.ServerSAN,
-				DefaultProviderServerSAN(defaults.OcsProviderServerName, peer.Namespace),
-			),
+			// grpc-go sets ServerName from the endpoint authority, which supplies
+			// the Route hostname for SNI. Verify the backend service SAN separately.
+			InsecureSkipVerify: true, // #nosec G402 -- VerifyConnection validates the chain and service SAN.
+			VerifyConnection: func(cs tls.ConnectionState) error {
+				if len(cs.PeerCertificates) == 0 {
+					return fmt.Errorf("server presented no certificate")
+				}
+				intermediatePool := x509.NewCertPool()
+				for _, cert := range cs.PeerCertificates[1:] {
+					intermediatePool.AddCert(cert)
+				}
+
+				return VerifyCertificate(
+					cs.PeerCertificates[0],
+					certPool,
+					intermediatePool,
+					serverSAN,
+					x509.ExtKeyUsageServerAuth,
+				)
+			},
 		}
 	}
 
@@ -110,6 +129,17 @@ func LoadPeerTLSConfig(
 	}
 
 	return tlsConfig, nil
+}
+
+// VerifyCertificate validates a certificate chain and its expected DNS SAN.
+func VerifyCertificate(cert *x509.Certificate, roots, intermediates *x509.CertPool, expectedSAN string, keyUsage x509.ExtKeyUsage) error {
+	_, err := cert.Verify(x509.VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+		DNSName:       expectedSAN,
+		KeyUsages:     []x509.ExtKeyUsage{keyUsage},
+	})
+	return err
 }
 
 // loadPeerCertificates loads mTLS certificates for a StorageClusterPeer.
