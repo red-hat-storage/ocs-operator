@@ -591,7 +591,7 @@ func (o *ocsProviderServer) createClientCertAndCA(r *StorageClusterReconciler, i
 			r.Log.Error(err, "Failed to create client cert secret", "Name", secret.Name)
 			return reconcile.Result{}, err
 		}
-	} else if clientCertNeedsRenewal(secret) {
+	} else if util.CertNeedsRenewal(secret, clientCertRenewalWindow) {
 		if err := o.populateClientCertSecret(r, instance, secret); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -651,13 +651,4 @@ func (o *ocsProviderServer) populateClientCertSecret(r *StorageClusterReconciler
 	}
 	r.Log.Info("Generated client certificate", "Name", secret.Name, "Identity", clientCN)
 	return nil
-}
-
-// clientCertNeedsRenewal reports whether the cert secret must be regenerated, based on the expiry annotation.
-func clientCertNeedsRenewal(secret *corev1.Secret) bool {
-	expiry, err := time.Parse(time.RFC3339, secret.Annotations[defaults.CertExpiryAnnotation])
-	if err != nil {
-		return true
-	}
-	return time.Now().After(expiry.Add(-clientCertRenewalWindow))
 }

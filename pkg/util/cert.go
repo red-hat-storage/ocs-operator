@@ -22,6 +22,15 @@ import (
 // SelfSignedCertValidity is the lifetime of certificates produced by GetSelfSignedCert.
 const SelfSignedCertValidity = 47 * 24 * time.Hour
 
+// CertNeedsRenewal reports whether the cert secret must be regenerated, based on the expiry annotation.
+func CertNeedsRenewal(secret *corev1.Secret, renewalWindow time.Duration) bool {
+	expiry, err := time.Parse(time.RFC3339, secret.Annotations[defaults.CertExpiryAnnotation])
+	if err != nil {
+		return true
+	}
+	return time.Now().After(expiry.Add(-renewalWindow))
+}
+
 // GetSelfSignedCert generates a self-signed CA certificate and private key.
 func GetSelfSignedCert(cn string, keyUsage x509.KeyUsage, extKeyUsage []x509.ExtKeyUsage) (keyPEM, certPEM []byte, err error) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -107,7 +108,7 @@ func TestLoadPeerTLSConfig(t *testing.T) {
 			check: func(t *testing.T, cfg *tls.Config) {
 				assert.False(t, cfg.InsecureSkipVerify)
 				assert.NotNil(t, cfg.RootCAs)
-				assert.Equal(t, DefaultProviderServerSAN(testNamespace), cfg.ServerName)
+				assert.Equal(t, DefaultProviderServerSAN(defaults.OcsProviderServerName, testNamespace), cfg.ServerName)
 			},
 		},
 		{
@@ -228,4 +229,41 @@ func TestGetSelfSignedCert(t *testing.T) {
 	cert2, err := x509.ParseCertificate(block2.Bytes)
 	assert.NoError(t, err)
 	assert.NotEqual(t, cert.SerialNumber, cert2.SerialNumber)
+}
+
+func TestCertNeedsRenewal(t *testing.T) {
+	const renewalWindow = time.Hour
+
+	tests := []struct {
+		name   string
+		expiry string
+		want   bool
+	}{
+		{
+			name:   "outside renewal window",
+			expiry: time.Now().Add(2 * time.Hour).Format(time.RFC3339),
+			want:   false,
+		},
+		{
+			name:   "inside renewal window",
+			expiry: time.Now().Add(30 * time.Minute).Format(time.RFC3339),
+			want:   true,
+		},
+		{
+			name:   "invalid expiry",
+			expiry: "invalid",
+			want:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{defaults.CertExpiryAnnotation: tt.expiry},
+				},
+			}
+			assert.Equal(t, tt.want, CertNeedsRenewal(secret, renewalWindow))
+		})
+	}
 }

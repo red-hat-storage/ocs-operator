@@ -37,6 +37,8 @@ const (
 	// LocalStorageClientCNPrefix is the common name prefix for the local storage client certificate;
 	// a unix timestamp is appended to form a unique per-generation client identity (ocs-client-<unix>)
 	LocalStorageClientCNPrefix = "ocs-client"
+	// LocalPeerCNPrefix is the common name prefix for the local storage peer certificate.
+	LocalPeerCNPrefix = "ocs-peer"
 	// CertExpiryAnnotation is the annotation key for certificate expiry date
 	CertExpiryAnnotation = "cert.ocs.openshift.io/expiry-date"
 	// CertIdentityAnnotation holds the client identity (CN/SAN) embedded in the client certificate

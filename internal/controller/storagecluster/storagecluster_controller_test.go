@@ -1215,6 +1215,18 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 	ocsProviderServiceSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
 	}
+	ocsProviderRoute := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName, Namespace: namespace},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{{
+				Host: "ocs-provider.apps.example.com",
+				Conditions: []routev1.RouteIngressCondition{{
+					Type:   routev1.RouteAdmitted,
+					Status: corev1.ConditionTrue,
+				}},
+			}},
+		},
+	}
 
 	// create a fake infrastructure CR for platform detection
 	fakeInfra := &configv1.Infrastructure{
@@ -1239,6 +1251,7 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 		ocsProviderService,
 		ocsProviderServiceDeployment,
 		ocsProviderServiceSecret,
+		ocsProviderRoute,
 		createRookCephOperatorCSV(namespace),
 		fakeInfra,
 	)
