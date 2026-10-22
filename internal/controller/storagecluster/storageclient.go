@@ -66,12 +66,16 @@ func (s *storageClient) ensureCreated(r *StorageClusterReconciler, storagecluste
 		}
 		// we could just use svcName:port however in-cluster traffic from "*.svc" is generally not proxied and
 		// we using qualified name upto ".svc" makes connection not go through any proxies.
-		storageClient.Spec.StorageProviderEndpoint = fmt.Sprintf("%s.%s.svc:%d", ocsProviderServerName, storagecluster.Namespace, ocsProviderServicePort)
+		storageClient.Spec.StorageProviderEndpoint = fmt.Sprintf(
+			"%s:%d",
+			util.DefaultProviderServerSAN(ocsProviderServerName, storagecluster.Namespace),
+			ocsProviderServicePort,
+		)
 
 		// mTLS: present the generated client cert and verify the provider server against its
 		// service-CA bundle and expected SAN (the provider service DNS name).
 		storageClient.Spec.ClientCertSecret.Name = defaults.LocalStorageClientCertSecret
-		storageClient.Spec.ServerSAN = util.DefaultProviderServerSAN
+		storageClient.Spec.ServerSAN = util.DefaultProviderServerSAN(ocsProviderServerName, storagecluster.Namespace)
 		storageClient.Spec.ServerCAConfigMap = corev1.ConfigMapKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{Name: defaults.ProviderServerCAConfigMap},
 			Key:                  openShiftServiceCASecretKey,

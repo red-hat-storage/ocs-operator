@@ -32,6 +32,14 @@ type InfoCephBlockPool struct {
 	MirrorEnabled bool   `yaml:"mirrorEnabled"`
 }
 
+type TLSInfo struct {
+	ServerSAN      string `yaml:"serverSAN"`
+	ServerCMName   string `yaml:"serverCmName"`
+	ClientSAN      string `yaml:"clientSAN"`
+	ClientCMName   string `yaml:"clientCmName"`
+	ClientCertName string `yaml:"clientCertName"`
+}
+
 // InfoStorageCluster describes information regarding a storage cluster key
 type InfoStorageCluster struct {
 	NamespacedName          types.NamespacedName `yaml:"namespacedName"`
@@ -48,4 +56,5 @@ type OdfInfoData struct {
 	DeploymentType string             `yaml:"deploymentType"`
 	Clients        []ConnectedClient  `yaml:"clients"`
 	StorageCluster InfoStorageCluster `yaml:"storageCluster"`
+	TLSInfo        TLSInfo            `yaml:"tlsInfo"`
 }

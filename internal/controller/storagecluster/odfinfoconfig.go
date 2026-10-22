@@ -1,14 +1,17 @@
 package storagecluster
 
 import (
+	"crypto/x509"
 	"fmt"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	ocsv1a1 "github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -18,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -29,7 +33,11 @@ const (
 	fsidKey                   = "fsid"
 	ocsOperatorNamePrefix     = "ocs-operator"
 	OdfInfoConfigMapName      = "odf-info"
+	odfInfoClientCertName     = "odf-info-client-cert"
+	odfInfoClientCAName       = "odf-info-client-ca"
 	odfInfoMapKind            = "ConfigMap"
+	peerCertValidity          = util.SelfSignedCertValidity
+	peerCertRenewalWindow     = 7 * 24 * time.Hour
 )
 
 type odfInfoConfig struct{}
@@ -55,11 +63,16 @@ func (obj *odfInfoConfig) ensureCreated(r *StorageClusterReconciler, storageClus
 
 	mutex.Lock()
 	defer mutex.Unlock()
+	tlsInfo, result, err := obj.createClientCertAndCA(r, operatorNamespace, storageCluster)
+	if err != nil || !result.IsZero() {
+		return result, err
+	}
+
 	_, err = ctrl.CreateOrUpdate(r.ctx, r.Client, odfInfoConfigMap, func() error {
 		r.Log.Info("Creating or updating odf-info config map", odfInfoMapKind, client.ObjectKeyFromObject(odfInfoConfigMap))
 		odfInfoKey := obj.getOdfInfoKeyName(storageCluster)
 
-		odfInfoData, configErr := getOdfInfoData(r, storageCluster)
+		odfInfoData, configErr := getOdfInfoData(r, storageCluster, tlsInfo)
 		if configErr != nil {
 			return fmt.Errorf("failed to get odf-info config map data: %v", configErr)
 		}
@@ -75,6 +88,88 @@ func (obj *odfInfoConfig) ensureCreated(r *StorageClusterReconciler, storageClus
 		return reconcile.Result{}, fmt.Errorf("failed to create or update odf-info config: %v", err)
 	}
 	return reconcile.Result{}, nil
+}
+
+func (obj *odfInfoConfig) createClientCertAndCA(r *StorageClusterReconciler, operatorNamespace string, storageCluster *ocsv1.StorageCluster) (ocsv1a1.TLSInfo, reconcile.Result, error) {
+	secret := &corev1.Secret{}
+	secret.Name = odfInfoClientCertName
+	secret.Namespace = storageCluster.Namespace
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(secret), secret); client.IgnoreNotFound(err) != nil {
+		r.Log.Error(err, "Failed to get client cert secret", "Name", secret.Name)
+		return ocsv1a1.TLSInfo{}, reconcile.Result{}, err
+	}
+
+	// secret content is stateful based on random data in cert and shouldn't be
+	// updated in every reconcile
+	if secret.UID == "" {
+		if err := populateClientCertSecret(r, storageCluster, secret); err != nil {
+			return ocsv1a1.TLSInfo{}, reconcile.Result{}, err
+		}
+		if err := r.Create(r.ctx, secret); err != nil {
+			if errors.IsAlreadyExists(err) {
+				return ocsv1a1.TLSInfo{}, reconcile.Result{Requeue: true}, nil
+			}
+			r.Log.Error(err, "Failed to create client cert secret", "Name", secret.Name)
+			return ocsv1a1.TLSInfo{}, reconcile.Result{}, err
+		}
+	} else if util.CertNeedsRenewal(secret, peerCertRenewalWindow) {
+		if err := populateClientCertSecret(r, storageCluster, secret); err != nil {
+			return ocsv1a1.TLSInfo{}, reconcile.Result{}, err
+		}
+		if err := r.Update(r.ctx, secret); err != nil {
+			r.Log.Error(err, "Failed to update client cert secret", "Name", secret.Name)
+			return ocsv1a1.TLSInfo{}, reconcile.Result{}, err
+		}
+	}
+
+	caCert := secret.Data["tls.crt"]
+	if len(caCert) == 0 {
+		return ocsv1a1.TLSInfo{}, reconcile.Result{}, fmt.Errorf("client cert secret %s has no tls.crt", secret.Name)
+	}
+
+	cm := &corev1.ConfigMap{}
+	cm.Name = odfInfoClientCAName
+	cm.Namespace = storageCluster.Namespace
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cm, func() error {
+		if cm.Data == nil {
+			cm.Data = make(map[string]string)
+		}
+		cm.Data["ca.crt"] = string(caCert)
+		return controllerutil.SetControllerReference(storageCluster, cm, r.Client.Scheme())
+	}); err != nil {
+		r.Log.Error(err, "Failed to ensure client CA configmap", "Name", cm.Name)
+		return ocsv1a1.TLSInfo{}, reconcile.Result{}, err
+	}
+
+	return ocsv1a1.TLSInfo{
+		ServerSAN:      util.DefaultProviderServerSAN(defaults.OcsProviderServerName, operatorNamespace),
+		ServerCMName:   defaults.ProviderServerCAConfigMap,
+		ClientSAN:      secret.Annotations[defaults.CertIdentityAnnotation],
+		ClientCMName:   cm.Name,
+		ClientCertName: secret.Name,
+	}, reconcile.Result{}, nil
+}
+
+func populateClientCertSecret(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster, secret *corev1.Secret) error {
+	clientCN := fmt.Sprintf("%s-%x", defaults.LocalPeerCNPrefix, util.FnvHash(strconv.FormatInt(time.Now().UnixNano(), 10)))
+	keyUsage := x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
+	extKeyUsage := []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+	keyPEM, certPEM, err := util.GetSelfSignedCert(clientCN, keyUsage, extKeyUsage)
+	if err != nil {
+		return fmt.Errorf("failed to generate client certificate: %v", err)
+	}
+	if secret.Data == nil {
+		secret.Data = make(map[string][]byte)
+	}
+	secret.Data["tls.key"] = keyPEM
+	secret.Data["tls.crt"] = certPEM
+	if secret.Annotations == nil {
+		secret.Annotations = make(map[string]string)
+	}
+	secret.Annotations[defaults.CertExpiryAnnotation] = time.Now().Add(peerCertValidity).Format(time.RFC3339)
+	secret.Annotations[defaults.CertIdentityAnnotation] = clientCN
+	secret.Type = corev1.SecretTypeTLS
+	return controllerutil.SetControllerReference(storageCluster, secret, r.Client.Scheme())
 }
 
 func (obj *odfInfoConfig) getOdfInfoKeyName(storageCluster *ocsv1.StorageCluster) string {
@@ -115,7 +210,7 @@ func (obj *odfInfoConfig) ensureDeleted(r *StorageClusterReconciler, storageClus
 	return reconcile.Result{}, nil
 }
 
-func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (string, error) {
+func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster, tlsInfo ocsv1a1.TLSInfo) (string, error) {
 	ocsVersion, err := getOcsVersion(r)
 	if err != nil {
 		return "", err
@@ -160,6 +255,7 @@ func getOdfInfoData(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCl
 			Annotations:             annotations,
 			InfoCephBlockPools:      infoCephBlockPools,
 		},
+		TLSInfo: tlsInfo,
 	}
 	yamlData, err := yaml.Marshal(data)
 	if err != nil {

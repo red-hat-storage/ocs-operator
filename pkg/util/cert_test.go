@@ -14,6 +14,7 @@ import (
 	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -48,6 +49,66 @@ func testCertKeyPEM(t *testing.T) (certPEM, keyPEM []byte) {
 	return certPEM, keyPEM
 }
 
+func testServerCert(t *testing.T, caPEM, caKeyPEM []byte, dnsName string) *x509.Certificate {
+	return testServerCertChain(t, caPEM, caKeyPEM, dnsName, false)[0]
+}
+
+func testServerCertChain(t *testing.T, caPEM, caKeyPEM []byte, dnsName string, withIntermediate bool) []*x509.Certificate {
+	t.Helper()
+
+	caBlock, _ := pem.Decode(caPEM)
+	require.NotNil(t, caBlock)
+	caCert, err := x509.ParseCertificate(caBlock.Bytes)
+	require.NoError(t, err)
+
+	caKeyBlock, _ := pem.Decode(caKeyPEM)
+	require.NotNil(t, caKeyBlock)
+	caKey, err := x509.ParseECPrivateKey(caKeyBlock.Bytes)
+	require.NoError(t, err)
+
+	signingCert := caCert
+	signingKey := caKey
+	var chain []*x509.Certificate
+	if withIntermediate {
+		intermediateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+		intermediateTemplate := x509.Certificate{
+			SerialNumber:          big.NewInt(3),
+			Subject:               pkix.Name{CommonName: "intermediate"},
+			NotBefore:             time.Now().Add(-time.Hour),
+			NotAfter:              time.Now().Add(time.Hour),
+			KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+			BasicConstraintsValid: true,
+			IsCA:                  true,
+		}
+		intermediateDER, err := x509.CreateCertificate(rand.Reader, &intermediateTemplate, caCert, &intermediateKey.PublicKey, caKey)
+		require.NoError(t, err)
+		intermediateCert, err := x509.ParseCertificate(intermediateDER)
+		require.NoError(t, err)
+		signingCert = intermediateCert
+		signingKey = intermediateKey
+		chain = append(chain, intermediateCert)
+	}
+
+	serverKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	template := x509.Certificate{
+		SerialNumber:          big.NewInt(2),
+		Subject:               pkix.Name{CommonName: dnsName},
+		DNSNames:              []string{dnsName},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, &template, signingCert, &serverKey.PublicKey, signingKey)
+	require.NoError(t, err)
+	serverCert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	return append([]*x509.Certificate{serverCert}, chain...)
+}
+
 func testScheme(t *testing.T) *runtime.Scheme {
 	t.Helper()
 	s := runtime.NewScheme()
@@ -57,8 +118,12 @@ func testScheme(t *testing.T) *runtime.Scheme {
 }
 
 func TestLoadPeerTLSConfig(t *testing.T) {
-	caPEM, _ := testCertKeyPEM(t)
+	caPEM, caKeyPEM := testCertKeyPEM(t)
 	certPEM, keyPEM := testCertKeyPEM(t)
+	defaultSAN := DefaultProviderServerSAN(defaults.OcsProviderServerName, testNamespace)
+	defaultServerCert := testServerCert(t, caPEM, caKeyPEM, defaultSAN)
+	customServerCert := testServerCert(t, caPEM, caKeyPEM, "custom.san.svc")
+	intermediateServerChain := testServerCertChain(t, caPEM, caKeyPEM, defaultSAN, true)
 
 	caConfigMap := func(key string, data []byte) *corev1.ConfigMap {
 		return &corev1.ConfigMap{
@@ -105,9 +170,12 @@ func TestLoadPeerTLSConfig(t *testing.T) {
 			objs: []client.Object{caConfigMap("ca.crt", caPEM)},
 			peer: peerWith(ocsv1.StorageClusterPeerSpec{ServerCAConfigMap: caRef}),
 			check: func(t *testing.T, cfg *tls.Config) {
-				assert.False(t, cfg.InsecureSkipVerify)
-				assert.NotNil(t, cfg.RootCAs)
-				assert.Equal(t, DefaultProviderServerSAN, cfg.ServerName)
+				assert.True(t, cfg.InsecureSkipVerify)
+				assert.Nil(t, cfg.RootCAs)
+				assert.Empty(t, cfg.ServerName)
+				require.NotNil(t, cfg.VerifyConnection)
+				assert.NoError(t, cfg.VerifyConnection(tls.ConnectionState{PeerCertificates: []*x509.Certificate{defaultServerCert}}))
+				assert.Error(t, cfg.VerifyConnection(tls.ConnectionState{PeerCertificates: []*x509.Certificate{customServerCert}}))
 			},
 		},
 		{
@@ -115,7 +183,11 @@ func TestLoadPeerTLSConfig(t *testing.T) {
 			objs: []client.Object{caConfigMap("ca.crt", caPEM)},
 			peer: peerWith(ocsv1.StorageClusterPeerSpec{ServerCAConfigMap: caRef, ServerSAN: "custom.san.svc"}),
 			check: func(t *testing.T, cfg *tls.Config) {
-				assert.Equal(t, "custom.san.svc", cfg.ServerName)
+				assert.True(t, cfg.InsecureSkipVerify)
+				assert.Empty(t, cfg.ServerName)
+				require.NotNil(t, cfg.VerifyConnection)
+				assert.NoError(t, cfg.VerifyConnection(tls.ConnectionState{PeerCertificates: []*x509.Certificate{customServerCert}}))
+				assert.Error(t, cfg.VerifyConnection(tls.ConnectionState{PeerCertificates: []*x509.Certificate{defaultServerCert}}))
 			},
 		},
 		{
@@ -129,8 +201,10 @@ func TestLoadPeerTLSConfig(t *testing.T) {
 				ClientCertSecret:  corev1.LocalObjectReference{Name: "client-cert"},
 			}),
 			check: func(t *testing.T, cfg *tls.Config) {
-				assert.NotNil(t, cfg.RootCAs)
+				assert.True(t, cfg.InsecureSkipVerify)
+				require.NotNil(t, cfg.VerifyConnection)
 				assert.Len(t, cfg.Certificates, 1)
+				assert.NoError(t, cfg.VerifyConnection(tls.ConnectionState{PeerCertificates: intermediateServerChain}))
 			},
 		},
 		{
@@ -228,4 +302,41 @@ func TestGetSelfSignedCert(t *testing.T) {
 	cert2, err := x509.ParseCertificate(block2.Bytes)
 	assert.NoError(t, err)
 	assert.NotEqual(t, cert.SerialNumber, cert2.SerialNumber)
+}
+
+func TestCertNeedsRenewal(t *testing.T) {
+	const renewalWindow = time.Hour
+
+	tests := []struct {
+		name   string
+		expiry string
+		want   bool
+	}{
+		{
+			name:   "outside renewal window",
+			expiry: time.Now().Add(2 * time.Hour).Format(time.RFC3339),
+			want:   false,
+		},
+		{
+			name:   "inside renewal window",
+			expiry: time.Now().Add(30 * time.Minute).Format(time.RFC3339),
+			want:   true,
+		},
+		{
+			name:   "invalid expiry",
+			expiry: "invalid",
+			want:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{defaults.CertExpiryAnnotation: tt.expiry},
+				},
+			}
+			assert.Equal(t, tt.want, CertNeedsRenewal(secret, renewalWindow))
+		})
+	}
 }
