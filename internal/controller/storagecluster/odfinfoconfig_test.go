@@ -158,6 +158,7 @@ func TestCreateClientCertAndCA(t *testing.T) {
 	err = yaml.Unmarshal([]byte(odfInfoConfigMap.Data[odfInfo.getOdfInfoKeyName(storageCluster)]), &odfInfoData)
 	assert.NilError(t, err)
 	assert.Equal(t, odfInfoData.TLSInfo.ClientSAN, secret.Annotations[defaults.CertIdentityAnnotation])
-	assert.Equal(t, odfInfoData.TLSInfo.ClientCMName, caConfigMap.Name)
+	assert.Equal(t, caConfigMap.Data["ca.crt"], odfInfoData.TLSInfo.ClientCMContent)
+	assert.Equal(t, "server-ca-bundle", odfInfoData.TLSInfo.ServerCMContent)
 	assert.Equal(t, odfInfoData.TLSInfo.ClientCertName, secret.Name)
 }

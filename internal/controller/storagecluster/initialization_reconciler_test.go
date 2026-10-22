@@ -293,6 +293,8 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 	customSpec *api.StorageClusterSpec) (*testing.T, *StorageClusterReconciler,
 	*api.StorageCluster, reconcile.Request) {
 	cr := createDefaultStorageCluster()
+	err := os.Setenv("OPERATOR_NAMESPACE", cr.Namespace)
+	assert.NoError(t, err)
 	if customSpec != nil {
 		_ = mergo.Merge(&cr.Spec, customSpec)
 	}
@@ -337,8 +339,6 @@ func initStorageClusterResourceCreateUpdateTest(t *testing.T, runtimeObjs []clie
 		_ = reconciler.Create(context.TODO(), rtObj)
 	}
 
-	err := os.Setenv("OPERATOR_NAMESPACE", cr.Namespace)
-	assert.NoError(t, err)
 	err = os.Setenv(util.DesiredCephxKeyGenEnvVarName, "2")
 	assert.NoError(t, err)
 	result, err := reconciler.Reconcile(context.TODO(), requestOCSInit)
@@ -462,6 +462,13 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 	}
 
 	operatorNamespace := os.Getenv("OPERATOR_NAMESPACE")
+	providerServerCAConfigMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      defaults.ProviderServerCAConfigMap,
+			Namespace: operatorNamespace,
+		},
+		Data: map[string]string{"service-ca.crt": "server-ca-bundle"},
+	}
 	verOcs, err := semver.Make(ocsversion.Version)
 	if err != nil {
 		panic(err)
@@ -499,6 +506,7 @@ func createFakeInitializationStorageClusterReconciler(t *testing.T, obj ...runti
 		csrbd,
 		cfs,
 		clientConfigMap,
+		providerServerCAConfigMap,
 		cnfs,
 		cnfsbp,
 		cnfssvc,

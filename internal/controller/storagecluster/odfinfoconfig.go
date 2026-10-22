@@ -127,26 +127,33 @@ func (obj *odfInfoConfig) createClientCertAndCA(r *StorageClusterReconciler, ope
 		return ocsv1a1.TLSInfo{}, reconcile.Result{}, fmt.Errorf("client cert secret %s has no tls.crt", secret.Name)
 	}
 
-	cm := &corev1.ConfigMap{}
-	cm.Name = odfInfoClientCAName
-	cm.Namespace = storageCluster.Namespace
-	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, cm, func() error {
-		if cm.Data == nil {
-			cm.Data = make(map[string]string)
+	clientCm := &corev1.ConfigMap{}
+	clientCm.Name = odfInfoClientCAName
+	clientCm.Namespace = storageCluster.Namespace
+	if _, err := ctrl.CreateOrUpdate(r.ctx, r.Client, clientCm, func() error {
+		if clientCm.Data == nil {
+			clientCm.Data = make(map[string]string)
 		}
-		cm.Data["ca.crt"] = string(caCert)
-		return controllerutil.SetControllerReference(storageCluster, cm, r.Client.Scheme())
+		clientCm.Data["ca.crt"] = string(caCert)
+		return controllerutil.SetControllerReference(storageCluster, clientCm, r.Client.Scheme())
 	}); err != nil {
-		r.Log.Error(err, "Failed to ensure client CA configmap", "Name", cm.Name)
+		r.Log.Error(err, "Failed to ensure client CA configmap", "Name", clientCm.Name)
+		return ocsv1a1.TLSInfo{}, reconcile.Result{}, err
+	}
+
+	serverCm := &corev1.ConfigMap{}
+	serverCm.Name = defaults.ProviderServerCAConfigMap
+	serverCm.Namespace = operatorNamespace
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(serverCm), serverCm); err != nil {
 		return ocsv1a1.TLSInfo{}, reconcile.Result{}, err
 	}
 
 	return ocsv1a1.TLSInfo{
-		ServerSAN:      util.DefaultProviderServerSAN(defaults.OcsProviderServerName, operatorNamespace),
-		ServerCMName:   defaults.ProviderServerCAConfigMap,
-		ClientSAN:      secret.Annotations[defaults.CertIdentityAnnotation],
-		ClientCMName:   cm.Name,
-		ClientCertName: secret.Name,
+		ServerSAN:       util.DefaultProviderServerSAN(defaults.OcsProviderServerName, operatorNamespace),
+		ServerCMContent: serverCm.Data["service-ca.crt"],
+		ClientSAN:       secret.Annotations[defaults.CertIdentityAnnotation],
+		ClientCMContent: clientCm.Data["ca.crt"],
+		ClientCertName:  secret.Name,
 	}, reconcile.Result{}, nil
 }
 

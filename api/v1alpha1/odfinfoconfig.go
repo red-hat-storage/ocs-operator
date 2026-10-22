@@ -33,11 +33,11 @@ type InfoCephBlockPool struct {
 }
 
 type TLSInfo struct {
-	ServerSAN      string `yaml:"serverSAN"`
-	ServerCMName   string `yaml:"serverCmName"`
-	ClientSAN      string `yaml:"clientSAN"`
-	ClientCMName   string `yaml:"clientCmName"`
-	ClientCertName string `yaml:"clientCertName"`
+	ServerSAN       string `yaml:"serverSAN"`
+	ServerCMContent string `yaml:"serverCmContent"`
+	ClientSAN       string `yaml:"clientSAN"`
+	ClientCMContent string `yaml:"clientCmContent"`
+	ClientCertName  string `yaml:"clientCertName"`
 }
 
 // InfoStorageCluster describes information regarding a storage cluster key
