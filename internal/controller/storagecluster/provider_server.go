@@ -425,6 +425,7 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 			},
 			Ports: []corev1.ServicePort{
 				{
+					Name: "ocs-provider",
 					NodePort: func() int32 {
 						// ClusterIP service doesn't need nodePort
 						if serviceType == corev1.ServiceTypeClusterIP {

@@ -500,6 +500,7 @@ func GetProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster) *corev1.
 			},
 			Ports: []corev1.ServicePort{
 				{
+					Name:       "ocs-provider",
 					NodePort:   ocsProviderServiceNodePort,
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
@@ -526,6 +527,7 @@ func GetLoadBalancerProviderAPIServerServiceForTest(instance *ocsv1.StorageClust
 			},
 			Ports: []corev1.ServicePort{
 				{
+					Name:       "ocs-provider",
 					NodePort:   ocsProviderServiceNodePort,
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
@@ -552,6 +554,7 @@ func GetClusterIPProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster)
 			},
 			Ports: []corev1.ServicePort{
 				{
+					Name:       "ocs-provider",
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
 				},
