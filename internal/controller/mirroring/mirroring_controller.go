@@ -264,7 +264,11 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 		- reconcile blockpools, radosnamespaces and storageconsumer (to disable mirroring)
 	*/
 
-	if err := r.reconcileRbdMirror(clientMappingConfig, shouldMirror); err != nil {
+	storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, clientMappingConfig.Namespace)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if err := r.reconcileRbdMirror(clientMappingConfig, storageCluster, shouldMirror); err != nil {
 		errorOccurred = true
 	}
 
@@ -322,14 +326,15 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 		remoteClientInfoById := map[string]*pb.ClientInfo{}
 		remoteBlockPoolInfoByName := map[string]*pb.BlockPoolInfo{}
 
-		if err := r.getBlockPoolsInfo(ocsClient, storageClusterPeer, cephBlockPoolsList, remoteBlockPoolInfoByName); err != nil {
+		storageClusterUID := string(storageCluster.UID)
+		if err := r.getBlockPoolsInfo(ocsClient, storageClusterUID, cephBlockPoolsList, remoteBlockPoolInfoByName); err != nil {
 			if errors.Is(err, ErrNetwork) {
 				return ctrl.Result{}, err
 			}
 			errorOccurred = true
 		}
 
-		if err := r.getStorageClientsInfo(ocsClient, storageClusterPeer, remoteClientIds, remoteClientInfoById); err != nil {
+		if err := r.getStorageClientsInfo(ocsClient, storageClusterUID, remoteClientIds, remoteClientInfoById); err != nil {
 			if errors.Is(err, ErrNetwork) {
 				return ctrl.Result{}, err
 			}
@@ -391,7 +396,7 @@ func (r *MirroringReconciler) reconcilePhases(clientMappingConfig *corev1.Config
 
 func (r *MirroringReconciler) getBlockPoolsInfo(
 	ocsClient *providerClient.OCSProviderClient,
-	storageClusterPeer *ocsv1.StorageClusterPeer,
+	storageClusterUID string,
 	cephBlockPoolsList *rookCephv1.CephBlockPoolList,
 	remoteBlockPoolInfoByName map[string]*pb.BlockPoolInfo,
 ) error {
@@ -411,7 +416,7 @@ func (r *MirroringReconciler) getBlockPoolsInfo(
 	// fetch BlockPoolsInfo
 	response, err := ocsClient.GetBlockPoolsInfo(
 		r.ctx,
-		storageClusterPeer.Status.PeerInfo.StorageClusterUid,
+		storageClusterUID,
 		blockPoolNames,
 	)
 	if err != nil {
@@ -443,14 +448,14 @@ func (r *MirroringReconciler) getBlockPoolsInfo(
 
 func (r *MirroringReconciler) getStorageClientsInfo(
 	ocsClient *providerClient.OCSProviderClient,
-	storageClusterPeer *ocsv1.StorageClusterPeer,
+	storageClusterUID string,
 	remoteClientIds []string,
 	remoteClientIdByClientInfo map[string]*pb.ClientInfo,
 ) error {
 	var combinedError error
 	response, err := ocsClient.GetStorageClientsInfo(
 		r.ctx,
-		storageClusterPeer.Status.PeerInfo.StorageClusterUid,
+		storageClusterUID,
 		remoteClientIds,
 	)
 	if err != nil {
@@ -479,7 +484,11 @@ func (r *MirroringReconciler) getStorageClientsInfo(
 	return combinedError
 }
 
-func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.ConfigMap, shouldMirror bool) error {
+func (r *MirroringReconciler) reconcileRbdMirror(
+	clientMappingConfig *corev1.ConfigMap,
+	storageCluster *ocsv1.StorageCluster,
+	shouldMirror bool,
+) error {
 	rbdMirrorList := &rookCephv1.CephRBDMirrorList{}
 
 	if err := r.list(
@@ -507,12 +516,6 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 		client.MatchingFields{util.AnnotationIndexName: util.RequestMaintenanceModeAnnotation},
 	); err != nil {
 		r.log.Error(err, "failed to list StorageConsumer(s)")
-		return err
-	}
-
-	storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, clientMappingConfig.Namespace)
-	if err != nil {
-		r.log.Error(err, "failed to get StorageCluster")
 		return err
 	}
 
