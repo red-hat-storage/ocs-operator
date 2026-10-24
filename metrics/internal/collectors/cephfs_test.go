@@ -1,6 +1,7 @@
 package collectors
 
 import (
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -79,23 +80,42 @@ func TestCephFSSubvolumeCountCollectorCollect(t *testing.T) {
 			t.Fatalf("expected 7 metrics, got %d", len(metrics))
 		}
 
-		countsByConsumer := make(map[string]float64)
+		subvolumeCountsByConsumer := make(map[string]float64)
+		snapshotCountsByConsumer := make(map[string]float64)
 		for _, m := range metrics {
 			var d dto.Metric
 			if err := m.Write(&d); err != nil {
 				t.Fatal(err)
 			}
+			desc := m.Desc().String()
+			var consumer string
 			for _, lp := range d.Label {
-				if lp.GetName() == "consumer_name" && d.Gauge != nil {
-					countsByConsumer[lp.GetValue()] = d.Gauge.GetValue()
+				if lp.GetName() == "consumer_name" {
+					consumer = lp.GetValue()
+					break
 				}
 			}
+			if consumer == "" || d.Gauge == nil {
+				continue
+			}
+			// Filter by metric descriptor to only count the relevant metrics
+			if strings.Contains(desc, "subvolume_count") {
+				subvolumeCountsByConsumer[consumer] = d.Gauge.GetValue()
+			} else if strings.Contains(desc, "snapshot_content_count") {
+				snapshotCountsByConsumer[consumer] = d.Gauge.GetValue()
+			}
 		}
-		if countsByConsumer["consumer-a"] != 2 {
-			t.Errorf("consumer-a subvolume_count = %v, want 2", countsByConsumer["consumer-a"])
+		if subvolumeCountsByConsumer["consumer-a"] != 2 {
+			t.Errorf("consumer-a subvolume_count = %v, want 2", subvolumeCountsByConsumer["consumer-a"])
 		}
-		if countsByConsumer["consumer-b"] != 3 {
-			t.Errorf("consumer-b subvolume_count = %v, want 3", countsByConsumer["consumer-b"])
+		if subvolumeCountsByConsumer["consumer-b"] != 3 {
+			t.Errorf("consumer-b subvolume_count = %v, want 3", subvolumeCountsByConsumer["consumer-b"])
+		}
+		if snapshotCountsByConsumer["consumer-a"] != 1 {
+			t.Errorf("consumer-a snapshot_content_count = %v, want 1", snapshotCountsByConsumer["consumer-a"])
+		}
+		if snapshotCountsByConsumer["consumer-b"] != 4 {
+			t.Errorf("consumer-b snapshot_content_count = %v, want 4", snapshotCountsByConsumer["consumer-b"])
 		}
 	})
 }
