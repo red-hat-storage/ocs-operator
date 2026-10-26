@@ -18,7 +18,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
-	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.6.0
+	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.7.0
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20260823065117-0e4d1eff6a6f
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
