@@ -477,6 +477,10 @@ func (r *StorageRequestReconciler) reconcileCephClientRBDProvisioner() error {
 			return err
 		}
 
+		if r.cephClientProvisioner.CreationTimestamp.IsZero() {
+			util.AddAnnotation(r.cephClientProvisioner, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
 		addStorageRelatedAnnotations(r.cephClientProvisioner, r.getNamespacedName(), "rbd", "provisioner")
 		r.cephClientProvisioner.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
@@ -485,6 +489,11 @@ func (r *StorageRequestReconciler) reconcileCephClientRBDProvisioner() error {
 				"osd": fmt.Sprintf("profile rbd pool=%s namespace=%s", r.cephRadosNamespace.Spec.BlockPoolName, r.cephRadosNamespace.Name),
 			},
 		}
+
+		if _, ok := r.cephClientProvisioner.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			r.cephClientProvisioner.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		return nil
 	})
 
@@ -513,6 +522,10 @@ func (r *StorageRequestReconciler) reconcileCephClientRBDNode() error {
 			return err
 		}
 
+		if r.cephClientNode.CreationTimestamp.IsZero() {
+			util.AddAnnotation(r.cephClientNode, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
 		addStorageRelatedAnnotations(r.cephClientNode, r.getNamespacedName(), "rbd", "node")
 		r.cephClientNode.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
@@ -520,6 +533,10 @@ func (r *StorageRequestReconciler) reconcileCephClientRBDNode() error {
 				"mgr": "allow rw",
 				"osd": fmt.Sprintf("profile rbd pool=%s namespace=%s", r.cephRadosNamespace.Spec.BlockPoolName, r.cephRadosNamespace.Name),
 			},
+		}
+
+		if _, ok := r.cephClientNode.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			r.cephClientNode.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
 		}
 
 		return nil
@@ -552,6 +569,10 @@ func (r *StorageRequestReconciler) reconcileCephClientCephFSProvisioner() error 
 			return err
 		}
 
+		if r.cephClientProvisioner.CreationTimestamp.IsZero() {
+			util.AddAnnotation(r.cephClientProvisioner, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
 		addStorageRelatedAnnotations(r.cephClientProvisioner, r.getNamespacedName(), "cephfs", "provisioner")
 		r.cephClientProvisioner.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
@@ -561,6 +582,11 @@ func (r *StorageRequestReconciler) reconcileCephClientCephFSProvisioner() error 
 				"osd": "allow rw tag cephfs metadata=*",
 			},
 		}
+
+		if _, ok := r.cephClientProvisioner.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			r.cephClientProvisioner.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		return nil
 	})
 
@@ -591,6 +617,10 @@ func (r *StorageRequestReconciler) reconcileCephClientCephFSNode() error {
 			return err
 		}
 
+		if r.cephClientNode.CreationTimestamp.IsZero() {
+			util.AddAnnotation(r.cephClientNode, util.CreatedWithCephXFeaturesAnnotationKey, "")
+		}
+
 		addStorageRelatedAnnotations(r.cephClientNode, r.getNamespacedName(), "cephfs", "node")
 		r.cephClientNode.Spec = rookCephv1.ClientSpec{
 			Caps: map[string]string{
@@ -600,6 +630,11 @@ func (r *StorageRequestReconciler) reconcileCephClientCephFSNode() error {
 				"mds": fmt.Sprintf("allow rw path=/volumes/%s", r.cephFilesystemSubVolumeGroup.Name),
 			},
 		}
+
+		if _, ok := r.cephClientNode.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
+			r.cephClientNode.Spec.Security.CephX.KeyType = rookCephv1.CephxKeyTypeAes
+		}
+
 		return nil
 	})
 
