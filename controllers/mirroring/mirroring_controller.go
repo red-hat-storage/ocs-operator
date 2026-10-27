@@ -15,6 +15,7 @@ package mirroring
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -339,7 +340,7 @@ func (r *MirroringReconciler) reconcileBlockPoolMirroring(
 			for i := range response.Errors {
 				resp := response.Errors[i]
 				r.log.Error(
-					fmt.Errorf(resp.Message),
+					errors.New(resp.Message),
 					"failed to get BlockPoolsInfo",
 					"CephBlockPool",
 					resp.BlockPoolName,
@@ -504,7 +505,7 @@ func (r *MirroringReconciler) reconcileRadosNamespaceMirroring(
 			for i := range response.Errors {
 				resp := response.Errors[i]
 				r.log.Error(
-					fmt.Errorf(resp.Message),
+					errors.New(resp.Message),
 					"failed to get StorageClientsInfo",
 					"CephBlockPool",
 					resp.ClientID,
