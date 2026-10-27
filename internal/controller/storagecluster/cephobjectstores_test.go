@@ -55,7 +55,7 @@ func TestCephObjectStores(t *testing.T) {
 }
 
 func assertCephObjectStores(t *testing.T, reconciler *StorageClusterReconciler, cr *api.StorageCluster, request reconcile.Request) {
-	expectedCos, err := reconciler.newCephObjectStoreInstances(cr, nil, nil)
+	expectedCos, err := reconciler.newCephObjectStoreInstances(cr, nil, nil, nil)
 	assert.NoError(t, err)
 
 	actualCos := &cephv1.CephObjectStore{
@@ -85,7 +85,7 @@ func assertCephObjectStores(t *testing.T, reconciler *StorageClusterReconciler, 
 	assert.Equal(t, len(expectedCos[0].OwnerReferences), 1)
 
 	cr.Spec.ManagedResources.CephObjectStores.GatewayInstances = 2
-	expectedCos, _ = reconciler.newCephObjectStoreInstances(cr, nil, nil)
+	expectedCos, _ = reconciler.newCephObjectStoreInstances(cr, nil, nil, nil)
 	assert.Equal(t, expectedCos[0].Spec.Gateway.Instances, int32(2))
 }
 
@@ -106,7 +106,7 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_RGW_AUTH_METHOD": "agent",
 			},
 		}
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, cephObjectStores[0].Spec.Security)
 		s3 := cephObjectStores[0].Spec.Security.ServerSideEncryptionS3
@@ -127,7 +127,7 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_RGW_AUTH_METHOD": "agent",
 			},
 		}
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil, nil)
 		assert.NoError(t, err)
 		assert.Nil(t, cephObjectStores[0].Spec.Security)
 	})
@@ -140,7 +140,7 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_RGW_AUTH_METHOD": "token",
 			},
 		}
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, cephObjectStores[0].Spec.Security)
 		// SSE-KMS should be configured
@@ -158,7 +158,7 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_ADDR":   "https://vault.example.com:8200",
 			},
 		}
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil, nil)
 		assert.NoError(t, err)
 		// Security is always set (for DEFAULT TLS groups), but KMS fields must be empty
 		assert.NotNil(t, cephObjectStores[0].Spec.Security)
@@ -174,13 +174,13 @@ func TestCephObjectStoreSSES3WithVaultAgent(t *testing.T) {
 				"VAULT_RGW_AUTH_METHOD": "kubernetes",
 			},
 		}
-		_, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil)
+		_, err := reconciler.newCephObjectStoreInstances(cr, kmsConfigMap, nil, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "kubernetes")
 	})
 
 	t.Run("No RGW encryption when KMS ConfigMap is nil", func(t *testing.T) {
-		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, nil, nil)
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(cr, nil, nil, nil)
 		assert.NoError(t, err)
 		// Security is always set (for DEFAULT TLS groups), but KMS fields must be empty
 		assert.NotNil(t, cephObjectStores[0].Spec.Security)
@@ -563,7 +563,7 @@ func TestNewCephObjectStoreInstancesWithSTS(t *testing.T) {
 	reconciler := createFakeStorageClusterReconciler(t, objects...)
 
 	// Create CephObjectStore instances
-	cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil, nil)
+	cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil, nil, nil)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, cephObjectStores)
 
@@ -609,7 +609,7 @@ func TestNewCephObjectStoreInstancesWithoutSTS(t *testing.T) {
 
 	reconciler := createFakeStorageClusterReconciler(t, sc)
 
-	cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil, nil)
+	cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil, nil, nil)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, cephObjectStores)
 
@@ -664,7 +664,7 @@ func TestRGWTLSConfig(t *testing.T) {
 			[]ocstlsv1.TLSCipherSuite{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
 			[]ocstlsv1.TLSGroupName{"secp256r1", "secp384r1"},
 		)
-		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, stores[0].Spec.Security)
 		// TLS 1.2 must set Ciphers field (not CipherSuites)
@@ -684,7 +684,7 @@ func TestRGWTLSConfig(t *testing.T) {
 			[]ocstlsv1.TLSCipherSuite{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384"},
 			[]ocstlsv1.TLSGroupName{"X25519"},
 		)
-		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, stores[0].Spec.Security)
 		// TLS 1.3 must set CipherSuites field (not Ciphers)
@@ -703,7 +703,7 @@ func TestRGWTLSConfig(t *testing.T) {
 			[]ocstlsv1.TLSCipherSuite{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"},
 			[]ocstlsv1.TLSGroupName{"secp256r1"},
 		)
-		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, stores[0].Spec.Security)
 		assert.Equal(t, []string{"DEFAULT"}, stores[0].Spec.Security.TlsGroups)
@@ -711,7 +711,7 @@ func TestRGWTLSConfig(t *testing.T) {
 	})
 
 	t.Run("Nil TLS profile sets DEFAULT groups and clears ciphers", func(t *testing.T) {
-		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, nil)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, nil, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, stores[0].Spec.Security)
 		assert.Nil(t, stores[0].Spec.Security.Ciphers)
@@ -727,7 +727,7 @@ func TestRGWTLSConfig(t *testing.T) {
 			[]ocstlsv1.TLSCipherSuite{"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
 			[]ocstlsv1.TLSGroupName{"secp384r1"},
 		)
-		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile)
+		stores, err := reconciler.newCephObjectStoreInstances(cr, nil, profile, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, stores[0].Spec.Security)
 		assert.Contains(t, stores[0].Spec.Security.Ciphers, "ECDHE-RSA-AES256-GCM-SHA384")
@@ -792,4 +792,72 @@ func TestShouldSkipObjectStore(t *testing.T) {
 			assert.Equal(t, c.expectedSkip, skip)
 		})
 	}
+}
+
+func TestRgwHeadlessService(t *testing.T) {
+	platform.SetFakePlatformInstanceForTesting(true, configv1.BareMetalPlatformType)
+	defer platform.UnsetFakePlatformInstanceForTesting()
+
+	var objects []runtime.Object
+	sc := &api.StorageCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-storagecluster",
+			Namespace: "test-namespace",
+		},
+		Spec: api.StorageClusterSpec{
+			ManagedResources: api.ManagedResourcesSpec{
+				CephObjectStores: api.ManageCephObjectStores{
+					Hosting: &api.CephObjectStoreHostingSpec{
+						VirtualHostingMode: api.HeadlessServiceObjectVirtualHostingMode,
+					},
+				},
+			},
+		},
+	}
+	objects = append(objects, sc)
+
+	reconciler := createFakeStorageClusterReconciler(t, objects...)
+
+	// Create CephObjectStore instances
+	routeEndpoints := []string{"s3.endpoint", "insecure.endpoint"}
+	cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil, nil, routeEndpoints)
+	require.NoError(t, err)
+	require.NotEmpty(t, cephObjectStores)
+
+	// Verify CephObjectSTore config is modified as needed
+	cosHostingOn := (cephObjectStores[0]).DeepCopy()
+	require.NotNil(t, cosHostingOn.Spec.Hosting)
+	require.NotNil(t, cosHostingOn.Spec.Hosting.AdvertiseEndpoint)
+	ae := cosHostingOn.Spec.Hosting.AdvertiseEndpoint
+	assert.Equal(t, "ceph-s3.openshift-storage.svc", ae.DnsName)
+	assert.Equal(t, 443, int(ae.Port))
+	assert.True(t, ae.UseTls)
+	assert.ElementsMatch(t, cosHostingOn.Spec.Hosting.DNSNames, []string{
+		"ceph-s3.openshift-storage.svc.cluster.local",
+		"s3.endpoint",
+		"insecure.endpoint",
+	})
+	assert.NotContains(t, cosHostingOn.Spec.Gateway.Service.Annotations, "service.beta.openshift.io/serving-cert-secret-name")
+	assert.Equal(t, "ceph-s3", cosHostingOn.Spec.Gateway.SSLCertificateRef)
+
+	// ensure that removing the hosting config reverts the object store configs
+	scHostingOff := sc.DeepCopy()
+	scHostingOff.Spec.ManagedResources.CephObjectStores.Hosting = nil
+
+	cephObjectStores, err = reconciler.newCephObjectStoreInstances(scHostingOff, nil, nil, routeEndpoints)
+	require.NoError(t, err)
+	require.NotEmpty(t, cephObjectStores)
+
+	cosHostingOff := (cephObjectStores[0]).DeepCopy()
+	assert.Nil(t, cosHostingOff.Spec.Hosting)
+
+	// ensure the object store is the same when hosting is on and off except for the specific configs that change
+	expectWhenHostingOff := cosHostingOn.DeepCopy()
+	expectWhenHostingOff.Spec.Hosting = nil
+	expectWhenHostingOff.Spec.Gateway.Service.Annotations = cosHostingOff.Spec.Gateway.Service.Annotations // not diffed
+	expectWhenHostingOff.Spec.Gateway.SSLCertificateRef = ""
+
+	assert.Equal(t, expectWhenHostingOff, cosHostingOff)
+	// as long as the annotation is present, assume the value is correct
+	assert.Contains(t, cosHostingOff.Spec.Gateway.Service.Annotations, "service.beta.openshift.io/serving-cert-secret-name")
 }
