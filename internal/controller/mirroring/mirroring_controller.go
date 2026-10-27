@@ -521,7 +521,7 @@ func (r *MirroringReconciler) reconcileRbdMirror(clientMappingConfig *corev1.Con
 			return err
 		}
 	} else {
-		if err := r.delete(rbdMirror); err != nil {
+		if err := r.delete(rbdMirror); client.IgnoreNotFound(err) != nil {
 			r.log.Error(err, "failed to delete CephRBDMirror", "CephRBDMirror", rbdMirror.Name)
 			return err
 		}
