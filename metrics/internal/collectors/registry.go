@@ -109,6 +109,10 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 		c.Run(opts.StopCh)
 		registry.MustRegister(c)
 	}
+	if c := NewCephFilesystemCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
+	}
 	if c := NewClusterAdvancedFeatureCollector(opts); c != nil {
 		c.Run(opts.StopCh)
 		registry.MustRegister(c)
