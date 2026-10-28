@@ -58,7 +58,7 @@ func (t *DeployManager) StartDefaultStorageCluster() error {
 
 // DefaultStorageCluster returns a default StorageCluster manifest
 func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
-	storageClassName := "gp3-csi"
+	storageClassName := "ibmc-vpc-block-10iops-tier"
 	blockVolumeMode := corev1.PersistentVolumeBlock
 	storageCluster := &ocsv1.StorageCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -69,7 +69,7 @@ func (t *DeployManager) DefaultStorageCluster() (*ocsv1.StorageCluster, error) {
 			ResourceProfile: "lean",
 			StorageDeviceSets: []ocsv1.StorageDeviceSet{
 				{
-					Name:     "gp3-csi",
+					Name:     "ibmc-vpc-block-10iops-tier",
 					Count:    1,
 					Replica:  t.getMinOSDsCount(),
 					Portable: true,
