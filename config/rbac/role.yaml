@@ -2,9 +2,34 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: manager-role
 rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - endpoints
+  - events
+  - nodes
+  - persistentvolumeclaims
+  - pods
+  - secrets
+  - serviceaccounts
+  - services
+  verbs:
+  - '*'
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  verbs:
+  - '*'
 - apiGroups:
   - apiextensions.k8s.io
   resources:
@@ -41,16 +66,10 @@ rules:
   resources:
   - cephblockpoolradosnamespaces
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
+  - '*'
 - apiGroups:
   - ceph.rook.io
   resources:
-  - cephblockpoolradosnamespaces
   - cephblockpools
   - cephclusters
   - cephfilesystems
@@ -64,16 +83,6 @@ rules:
   - ceph.rook.io
   resources:
   - cephclients
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - ceph.rook.io
-  resources:
   - cephfilesystemsubvolumegroups
   verbs:
   - create
@@ -97,14 +106,6 @@ rules:
   - config.openshift.io
   resources:
   - clusterversions
-  - networks
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - config.openshift.io
-  resources:
   - infrastructures
   - networks
   verbs:
@@ -127,35 +128,6 @@ rules:
   - list
   - update
 - apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - endpoints
-  - events
-  - nodes
-  - persistentvolumeclaims
-  - persistentvolumes
-  - pods
-  - secrets
-  - serviceaccounts
-  - services
-  verbs:
-  - '*'
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
-  - persistentvolumes
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - k8s.cni.cncf.io
   resources:
   - network-attachment-definitions
@@ -168,6 +140,7 @@ rules:
   resources:
   - alertmanagers
   - prometheuses
+  - servicemonitors
   verbs:
   - create
   - delete
@@ -180,24 +153,11 @@ rules:
   - monitoring.coreos.com
   resources:
   - prometheusrules
-  - servicemonitors
   verbs:
   - create
   - delete
   - get
   - list
-  - update
-  - watch
-- apiGroups:
-  - monitoring.coreos.com
-  resources:
-  - servicemonitors
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
   - update
   - watch
 - apiGroups:
@@ -219,6 +179,8 @@ rules:
   - ocs.openshift.io
   resources:
   - '*'
+  - storageconsumers
+  - storagerequests
   verbs:
   - create
   - delete
@@ -238,38 +200,7 @@ rules:
 - apiGroups:
   - ocs.openshift.io
   resources:
-  - storageconsumers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ocs.openshift.io
-  resources:
   - storageconsumers/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - ocs.openshift.io
-  resources:
-  - storagerequests
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ocs.openshift.io
-  resources:
   - storagerequests/status
   verbs:
   - get
@@ -348,15 +279,10 @@ rules:
   resources:
   - volumesnapshotclasses
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - watch
+  - '*'
 - apiGroups:
   - snapshot.storage.k8s.io
   resources:
-  - volumesnapshotclasses
   - volumesnapshots
   verbs:
   - '*'
@@ -366,13 +292,6 @@ rules:
   - storageclasses
   verbs:
   - '*'
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - template.openshift.io
   resources:
