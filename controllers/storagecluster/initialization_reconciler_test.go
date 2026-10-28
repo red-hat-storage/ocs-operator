@@ -175,6 +175,8 @@ func initStorageClusterResourceCreateUpdateTestWithPlatform(
 
 	err := os.Setenv("OPERATOR_NAMESPACE", cr.Namespace)
 	assert.NoError(t, err)
+	err = os.Setenv(util.DesiredCephxKeyGenEnvVarName, "2")
+	assert.NoError(t, err)
 	result, err := reconciler.Reconcile(context.TODO(), request)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -241,6 +243,8 @@ func createFakeInitializationStorageClusterReconcilerWithPlatform(t *testing.T,
 	if platform == nil {
 		platform = &Platform{platform: configv1.NonePlatformType}
 	}
+
+	os.Setenv(util.DesiredCephxKeyGenEnvVarName, "2")
 
 	return StorageClusterReconciler{
 		Client:            client,
