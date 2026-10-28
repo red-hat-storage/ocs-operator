@@ -2,6 +2,8 @@ module github.com/red-hat-storage/ocs-operator/api/v4
 
 go 1.22.2
 
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20261104055432-f6dd6a3ab7ba
+
 require (
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240827070548-002966de315a
 	github.com/openshift/api v0.0.0-20240828125535-01b3675ba7b3
