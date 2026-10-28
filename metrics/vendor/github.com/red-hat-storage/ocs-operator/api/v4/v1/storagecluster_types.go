@@ -216,6 +216,9 @@ type ManageCephCluster struct {
 
 	// Whether to allow updating the device class after the OSD is initially provisioned
 	AllowDeviceClassUpdate bool `json:"allowDeviceClassUpdate,omitempty"`
+
+	// CephSecurity represents security settings for ceph cluster
+	CephSecurity *CephClusterSecurity `json:"security,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
@@ -312,6 +315,10 @@ type ManageCephRBDMirror struct {
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=1
 	DaemonCount int `json:"daemonCount,omitempty"`
+}
+
+type CephClusterSecurity struct {
+	CephX rookCephv1.ClusterCephxConfig `json:"cephx,omitempty"`
 }
 
 // MgrSpec defines the settings for the Ceph Manager
