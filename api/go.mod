@@ -2,6 +2,8 @@ module github.com/red-hat-storage/ocs-operator/api/v4
 
 go 1.22.2
 
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20261021171402-e137358e0cf9
+
 require (
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240827070548-002966de315a
 	github.com/openshift/api v0.0.0-20240828125535-01b3675ba7b3
@@ -9,6 +11,7 @@ require (
 	github.com/rook/rook/pkg/apis v0.0.0-20240828225153-88eab510dd2b
 	k8s.io/api v0.31.0
 	k8s.io/apimachinery v0.31.0
+	k8s.io/utils v0.0.0-20240821151609-f90d01438635
 )
 
 require (
@@ -70,7 +73,6 @@ require (
 	k8s.io/client-go v0.31.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240827152857-f7e401e7b4c2 // indirect
-	k8s.io/utils v0.0.0-20240821151609-f90d01438635 // indirect
 	sigs.k8s.io/container-object-storage-interface-api v0.1.0 // indirect
 	sigs.k8s.io/controller-runtime v0.19.0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
