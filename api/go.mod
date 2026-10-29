@@ -2,6 +2,8 @@ module github.com/red-hat-storage/ocs-operator/api/v4
 
 go 1.21.13
 
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20261022212115-d4b34aba1af5
+
 require (
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20240319123706-4ee28d614c7c
 	github.com/openshift/api v0.0.0-20240323003854-2252c7adfb79
@@ -9,6 +11,7 @@ require (
 	github.com/rook/rook/pkg/apis v0.0.0-20240327231646-b6b89a012a95
 	k8s.io/api v0.29.3
 	k8s.io/apimachinery v0.29.3
+	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 )
 
 require (
@@ -55,19 +58,18 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/oauth2 v0.22.0 // indirect
+	golang.org/x/oauth2 v0.24.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/term v0.29.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
-	golang.org/x/time v0.5.0 // indirect
-	google.golang.org/protobuf v1.34.2 // indirect
+	golang.org/x/time v0.8.0 // indirect
+	google.golang.org/protobuf v1.36.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/client-go v0.29.3 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
-	k8s.io/utils v0.0.0-20240102154912-e7106e64919e // indirect
 	sigs.k8s.io/container-object-storage-interface-api v0.1.0 // indirect
 	sigs.k8s.io/controller-runtime v0.16.3 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
