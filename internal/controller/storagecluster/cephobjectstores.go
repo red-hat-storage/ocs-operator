@@ -286,6 +286,11 @@ func (r *StorageClusterReconciler) newCephObjectStoreInstances(
 			return nil, err
 		}
 
+		// attach the object store to the configured zone to enable multisite
+		if zoneName := initData.Spec.ManagedResources.CephObjectStores.ZoneName; zoneName != "" {
+			obj.Spec.Zone.Name = zoneName
+		}
+
 		// when using non default hostNetwork Object Store should use hostNetwork
 		obj.Spec.Gateway.HostNetwork = ptr.To(util.ShouldUseHostNetworking(initData) || ptr.Deref(initData.Spec.ManagedResources.CephObjectStores.HostNetwork, false))
 
