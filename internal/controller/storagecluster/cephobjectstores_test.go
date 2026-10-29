@@ -627,6 +627,35 @@ func TestNewCephObjectStoreInstancesWithoutSTS(t *testing.T) {
 	assert.True(t, errors.IsNotFound(err))
 }
 
+func TestNewCephObjectStoreInstancesZoneName(t *testing.T) {
+	platform.SetFakePlatformInstanceForTesting(true, configv1.BareMetalPlatformType)
+	defer platform.UnsetFakePlatformInstanceForTesting()
+
+	for _, zoneName := range []string{"", "test-zone"} {
+		sc := &api.StorageCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-storagecluster",
+				Namespace: "test-namespace",
+			},
+			Spec: api.StorageClusterSpec{
+				ManagedResources: api.ManagedResourcesSpec{
+					CephObjectStores: api.ManageCephObjectStores{
+						ZoneName: zoneName,
+					},
+				},
+			},
+		}
+
+		reconciler := createFakeStorageClusterReconciler(t, sc)
+
+		cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil, nil, nil)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, cephObjectStores)
+		assert.Equal(t, zoneName, cephObjectStores[0].Spec.Zone.Name)
+		assert.Equal(t, zoneName != "", cephObjectStores[0].Spec.IsMultisite())
+	}
+}
+
 func makeTLSProfile(selector ocstlsv1.Selector, version ocstlsv1.TLSProtocolVersion, ciphers []ocstlsv1.TLSCipherSuite, groups []ocstlsv1.TLSGroupName) *ocstlsv1.TLSProfile {
 	return &ocstlsv1.TLSProfile{
 		ObjectMeta: metav1.ObjectMeta{
