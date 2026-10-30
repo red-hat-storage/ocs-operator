@@ -639,6 +639,17 @@ spec:
       for: 60s
       labels:
         severity: warning
+    - alert: ODFOperatorDependenciesUpgradePending
+      annotations:
+        description: ODF Operator has paused upgrading dependent operator subscriptions because the target build is more than 7 days older than the last accepted build ({{ $labels.last_accepted_csv }}, built {{ $labels.last_accepted_csv_build_date }}). Upgrade to a release built after this date, or set the "odf.openshift.io/skip-build-date-check" annotation to "true" on the odf-operator-internal-config ConfigMap in the operator namespace to override this check. See the Runbook for more details.
+        message: ODF Operator dependencies upgrade is pending a newer build.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFOperatorDependenciesUpgradePending.md
+        severity_level: warning
+      expr: |
+        odf_operator_dependencies_upgrade_blocked{job="ocs-metrics-exporter"} == 1
+      for: 60s
+      labels:
+        severity: warning
   - name: ceph-fs-stale-subvolume.rules
     rules:
     - alert: CephFSStaleSubvolume
