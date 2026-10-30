@@ -693,7 +693,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 
 		reason := ocsv1.ReconcileCompleted
 		message := ocsv1.ReconcileCompletedMessage
-		util.ResetUnreportedConditionsToHealthy(&instance.Status.Conditions, r.conditions, reason, message)
+		util.ResetUnreportedConditionsToHealthy(instance, r.conditions, reason, message)
 
 		// Merge negatives from r.conditions and write them back to the StorageCluster status.
 		// One shortcoming is that only one failure of a particular condition can be
@@ -704,10 +704,15 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			conditionsv1.SetStatusCondition(&instance.Status.Conditions, condition)
 		}
 
-		// If for any reason we marked ourselves !upgradeable...then unset readiness
-		if conditionsv1.IsStatusConditionFalse(instance.Status.Conditions, conditionsv1.ConditionUpgradeable) {
-			returnErr := r.SetOperatorConditions(conditionsv1.FindStatusCondition(instance.Status.Conditions, conditionsv1.ConditionUpgradeable).Message, conditionsv1.FindStatusCondition(instance.Status.Conditions, conditionsv1.ConditionUpgradeable).Reason, metav1.ConditionFalse, nil)
-			if returnErr != nil {
+		// Sync OperatorCondition with the latest StorageCluster conditions.
+		if instance.Status.Phase != ocsv1.PhaseReady {
+			ocReason := "StorageClusterNotReady"
+			ocMessage := "StorageCluster is not ready"
+			upgradeableCondition := conditionsv1.FindStatusCondition(instance.Status.Conditions, conditionsv1.ConditionUpgradeable)
+			if upgradeableCondition != nil {
+				ocMessage = upgradeableCondition.Message
+			}
+			if returnErr := r.SetOperatorConditions(ocMessage, ocReason, metav1.ConditionFalse, nil); returnErr != nil {
 				return reconcile.Result{}, returnErr
 			}
 		}
