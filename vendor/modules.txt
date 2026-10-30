@@ -394,7 +394,7 @@ github.com/prometheus/procfs/internal/util
 ## explicit; go 1.22.0
 github.com/red-hat-storage/ocs-client-operator/api/v1alpha1
 # github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20240731064750-930a78b89d84 => ./api
-## explicit; go 1.22.2
+## explicit; go 1.22.12
 github.com/red-hat-storage/ocs-operator/api/v4/v1
 github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
 # github.com/rook/rook/pkg/apis v0.0.0-20240828225153-88eab510dd2b
