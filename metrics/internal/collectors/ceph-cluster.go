@@ -17,7 +17,20 @@ const (
 	mirrorDaemonSubsystem     = "mirror_daemon"
 	lvmOSD                    = "lvm_osds"
 	cephxKeyRotationSubsystem = "cephx_daemon_key_rotation"
+	cephClusterSubsystem      = "cephcluster"
 )
+
+// cephClusterPhases enumerates every cephv1.ConditionType value a CephCluster's
+// status.phase can report, used to emit one-hot phase metrics.
+var cephClusterPhases = []cephv1.ConditionType{
+	cephv1.ConditionConnecting,
+	cephv1.ConditionConnected,
+	cephv1.ConditionProgressing,
+	cephv1.ConditionReady,
+	cephv1.ConditionFailure,
+	cephv1.ConditionDeleting,
+	cephv1.ConditionDeletionIsBlocked,
+}
 
 // Daemon type constants for CephX key rotation
 const (
@@ -34,6 +47,7 @@ type CephClusterCollector struct {
 	MirrorDaemonCount      *prometheus.Desc
 	LegacyOSD              *prometheus.Desc
 	KeyRotationMismatch    *prometheus.Desc
+	Phase                  *prometheus.Desc
 	Informer               cache.SharedIndexInformer
 	CephFilesystemInformer cache.SharedIndexInformer
 	AllowedNamespaces      []string
@@ -73,6 +87,12 @@ func NewCephClusterCollector(opts *options.Options) *CephClusterCollector {
 			[]string{"daemon", "ceph_cluster", "namespace"},
 			nil,
 		),
+		Phase: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, cephClusterSubsystem, "status_phase"),
+			`CephCluster Status Phase. One series per possible phase value with the active phase set to 1 and all others set to 0. Possible phases: Connecting, Connected, Progressing, Ready, Failure, Deleting, DeletionIsBlocked`,
+			[]string{"name", "namespace", "phase"},
+			nil,
+		),
 		Informer:               cephClusterInformer,
 		CephFilesystemInformer: cephFilesystemInformer,
 		AllowedNamespaces:      opts.AllowedNamespaces,
@@ -91,6 +111,7 @@ func (c *CephClusterCollector) Describe(ch chan<- *prometheus.Desc) {
 		c.MirrorDaemonCount,
 		c.LegacyOSD,
 		c.KeyRotationMismatch,
+		c.Phase,
 	}
 
 	for _, d := range ds {
@@ -108,6 +129,22 @@ func (c *CephClusterCollector) Collect(ch chan<- prometheus.Metric) {
 		c.collectMirrorinDaemonCount(cephClusters, ch)
 		c.collectLegacyOSDCount(cephClusters, ch)
 		c.collectCephxKeyRotationStatus(cephClusters, cephFilesystemLister, ch)
+		c.collectCephClusterPhase(cephClusters, ch)
+	}
+}
+
+func (c *CephClusterCollector) collectCephClusterPhase(cephClusters []*cephv1.CephCluster, ch chan<- prometheus.Metric) {
+	for _, cephCluster := range cephClusters {
+		current := cephCluster.Status.Phase
+		for _, phase := range cephClusterPhases {
+			val := 0.0
+			if phase == current {
+				val = 1
+			}
+			ch <- prometheus.MustNewConstMetric(c.Phase,
+				prometheus.GaugeValue, val,
+				cephCluster.Name, cephCluster.Namespace, string(phase))
+		}
 	}
 }
 
