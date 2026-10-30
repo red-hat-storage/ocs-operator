@@ -219,6 +219,85 @@ func TestCollectMirrorinDaemonCount(t *testing.T) {
 	}
 }
 
+func TestCollectCephClusterPhase(t *testing.T) {
+	mockOpts.StopCh = make(chan struct{})
+	defer close(mockOpts.StopCh)
+
+	cephClusterCollector := getMockCephClusterCollector(t, mockOpts)
+
+	objReady := mockCephCluster1.DeepCopy()
+	objReady.Name = objReady.Name + "ready"
+	objReady.Status = cephv1.ClusterStatus{Phase: cephv1.ConditionReady}
+
+	objFailure := mockCephCluster1.DeepCopy()
+	objFailure.Name = objFailure.Name + "failure"
+	objFailure.Status = cephv1.ClusterStatus{Phase: cephv1.ConditionFailure}
+
+	tests := Tests{
+		{
+			name: "Collect CephCluster phase metrics",
+			args: args{
+				objects: []runtime.Object{
+					objReady,
+					objFailure,
+				},
+			},
+		},
+		{
+			name: "Empty CephCluster",
+			args: args{
+				objects: []runtime.Object{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		ch := make(chan prometheus.Metric)
+		metric := dto.Metric{}
+		go func() {
+			var cephClusters []*cephv1.CephCluster
+			for _, obj := range tt.args.objects {
+				cephClusters = append(cephClusters, obj.(*cephv1.CephCluster))
+			}
+			cephClusterCollector.collectCephClusterPhase(cephClusters, ch)
+			close(ch)
+		}()
+
+		gotPhases := map[string]map[string]float64{}
+		for m := range ch {
+			assert.Contains(t, m.Desc().String(), "status_phase")
+			metric.Reset()
+			err := m.Write(&metric)
+			assert.Nil(t, err)
+
+			var name, phase string
+			for _, label := range metric.GetLabel() {
+				switch *label.Name {
+				case "name":
+					name = *label.Value
+				case "namespace":
+					assert.Contains(t, cephClusterCollector.AllowedNamespaces, *label.Value)
+				case "phase":
+					phase = *label.Value
+				}
+			}
+			if gotPhases[name] == nil {
+				gotPhases[name] = map[string]float64{}
+			}
+			gotPhases[name][phase] = *metric.Gauge.Value
+		}
+
+		if len(tt.args.objects) > 0 {
+			assert.Len(t, gotPhases[objReady.Name], len(cephClusterPhases))
+			assert.Equal(t, float64(1), gotPhases[objReady.Name]["Ready"])
+			assert.Equal(t, float64(0), gotPhases[objReady.Name]["Failure"])
+
+			assert.Equal(t, float64(1), gotPhases[objFailure.Name]["Failure"])
+			assert.Equal(t, float64(0), gotPhases[objFailure.Name]["Ready"])
+		}
+	}
+}
+
 func TestCollectLegacyOSDCount(t *testing.T) {
 	mockOpts.StopCh = make(chan struct{})
 	defer close(mockOpts.StopCh)
