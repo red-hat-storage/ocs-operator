@@ -310,6 +310,7 @@ spec:
         severity_level: warning
       expr: |
         (time() - 120) > (ocs_storage_client_last_heartbeat > 0)
+      for: 5m
       labels:
         severity: warning
     - alert: StorageClientHeartbeatMissed
@@ -320,6 +321,7 @@ spec:
         severity_level: critical
       expr: |
         (time() - 300) > (ocs_storage_client_last_heartbeat > 0)
+      for: 5m
       labels:
         severity: critical
     - alert: StorageClientIncompatibleOperatorVersion
