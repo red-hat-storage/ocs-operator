@@ -234,8 +234,8 @@ github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/
 github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/scheme
 github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1
 github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/utils
-# github.com/klauspost/compress v1.18.0
-## explicit; go 1.22
+# github.com/klauspost/compress v1.20.2
+## explicit; go 1.25
 github.com/klauspost/compress
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/huff0
@@ -445,7 +445,7 @@ github.com/prometheus/procfs/internal/util
 ## explicit; go 1.23.0
 github.com/red-hat-storage/ocs-client-operator/api/v1alpha1
 # github.com/red-hat-storage/ocs-operator/api/v4 v4.0.0-20250227172543-a22914aaf7d5 => ./api
-## explicit; go 1.23.10
+## explicit; go 1.25
 github.com/red-hat-storage/ocs-operator/api/v4/v1
 github.com/red-hat-storage/ocs-operator/api/v4/v1alpha1
 # github.com/red-hat-storage/ocs-operator/services/provider/api/v4 v4.0.0-20250227172543-a22914aaf7d5 => ./services/provider/api
