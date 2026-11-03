@@ -76,7 +76,8 @@ var (
 			StorageClassName: "mock-sc",
 			Connection:       conn,
 			ClaimRef: &corev1.ObjectReference{
-				Name: "mockOB",
+				Name:      "mockOB",
+				Namespace: "mock-obc-namespace",
 			},
 		},
 	}
@@ -224,6 +225,8 @@ func TestCollectObjectBucketMetrics(t *testing.T) {
 					assert.Equal(t, *label.Value, mockObjectBucket.Name)
 				} else if *label.Name == "objectbucketclaim" {
 					assert.Equal(t, *label.Value, mockObjectBucket.Spec.ClaimRef.Name)
+				} else if *label.Name == "objectbucketclaim_namespace" {
+					assert.Equal(t, *label.Value, mockObjectBucket.Spec.ClaimRef.Namespace)
 				} else if *label.Name == "storageclass" {
 					assert.Equal(t, *label.Value, mockObjectBucket.Spec.StorageClassName)
 				} else if *label.Name == "object_store" {

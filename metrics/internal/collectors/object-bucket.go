@@ -78,7 +78,7 @@ func NewObjectBucketCollector(opts *options.Options) *ObjectBucketCollector {
 		ObjectBucketClaimInfo: prometheus.NewDesc(
 			"ocs_objectbucketclaim_info",
 			"Information about the ObjectBucketClaim",
-			[]string{"objectbucketclaim", "objectbucket", "storageclass"},
+			[]string{"objectbucketclaim", "objectbucketclaim_namespace", "objectbucket", "storageclass"},
 			nil,
 		),
 
@@ -244,6 +244,7 @@ func (c *ObjectBucketCollector) collectObjectBucketMetrics(cephObjectStore cephv
 				prometheus.GaugeValue,
 				1,
 				ob.Spec.ClaimRef.Name,
+				ob.Spec.ClaimRef.Namespace,
 				ob.Name,
 				ob.Spec.StorageClassName)
 		}
