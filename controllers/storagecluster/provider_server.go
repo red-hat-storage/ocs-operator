@@ -10,6 +10,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -46,6 +47,10 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 		return res, err
 	}
 
+	if res, err := o.createNetworkPolicy(r, instance); err != nil || !res.IsZero() {
+		return res, err
+	}
+
 	if res, err := o.createDeployment(r, instance); err != nil || !res.IsZero() {
 		return res, err
 	}
@@ -55,6 +60,58 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (o *ocsProviderServer) createNetworkPolicy(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	desiredService := GetProviderAPIServerService(instance)
+
+	networkPolicy := &networkingv1.NetworkPolicy{}
+	networkPolicy.Name = ocsProviderServerName
+	networkPolicy.Namespace = instance.Namespace
+
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(networkPolicy), networkPolicy); client.IgnoreNotFound(err) != nil {
+		r.Log.Error(err, "Failed to get networkpolicy", "Name", networkPolicy.Name)
+		return reconcile.Result{}, err
+	}
+
+	// Cross-cluster DR traffic via Submariner/Globalnet cannot match any
+	// namespaceSelector, so the NetworkPolicy must not exist when a peer is present.
+	hasPeers, err := hasStorageClusterPeers(r, instance.Namespace)
+	if err != nil {
+		r.Log.Error(err, "Failed to list StorageClusterPeer resources")
+		return reconcile.Result{}, err
+	}
+
+	if desiredService.Spec.Type != corev1.ServiceTypeClusterIP || hasPeers {
+		if networkPolicy.UID != "" {
+			if err := r.Delete(r.ctx, networkPolicy); err != nil {
+				r.Log.Error(err, "Failed to delete networkpolicy", "Name", networkPolicy.Name)
+				return reconcile.Result{}, err
+			}
+		}
+		return reconcile.Result{}, nil
+	}
+
+	desiredNetworkPolicy := getProviderAPIServerNetworkPolicy(instance)
+
+	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, networkPolicy, func() error {
+		networkPolicy.Spec = desiredNetworkPolicy.Spec
+		return controllerutil.SetControllerReference(instance, networkPolicy, r.Client.Scheme())
+	}); err != nil {
+		r.Log.Error(err, "Failed to create/update networkpolicy", "Name", desiredNetworkPolicy.Name)
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func hasStorageClusterPeers(r *StorageClusterReconciler, namespace string) (bool, error) {
+	peerList := &metav1.PartialObjectMetadataList{}
+	peerList.SetGroupVersionKind(ocsv1.GroupVersion.WithKind("StorageClusterPeerList"))
+	if err := r.List(r.ctx, peerList, client.InNamespace(namespace), client.Limit(1)); err != nil {
+		return false, err
+	}
+	return len(peerList.Items) > 0, nil
 }
 
 func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
@@ -67,8 +124,12 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 	apiServerService := &corev1.Service{}
 	apiServerService.Name = ocsProviderServerName
 	apiServerService.Namespace = instance.Namespace
+	apiServerNetworkPolicy := &networkingv1.NetworkPolicy{}
+	apiServerNetworkPolicy.Name = ocsProviderServerName
+	apiServerNetworkPolicy.Namespace = instance.Namespace
 	for _, resource := range []client.Object{
 		apiServerService,
+		apiServerNetworkPolicy,
 		GetProviderAPIServerDeployment(instance),
 	} {
 		err := r.Client.Delete(r.ctx, resource)
@@ -361,6 +422,43 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 				},
 			},
 			Type: serviceType,
+		},
+	}
+}
+
+func getProviderAPIServerNetworkPolicy(instance *ocsv1.StorageCluster) *networkingv1.NetworkPolicy {
+
+	return &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ocsProviderServerName,
+			Namespace: instance.Namespace,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "ocsProviderApiServer",
+				},
+			},
+			PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeIngress},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					From: []networkingv1.NetworkPolicyPeer{
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"kubernetes.io/metadata.name": instance.Namespace,
+								},
+							},
+						},
+					},
+					Ports: []networkingv1.NetworkPolicyPort{
+						{
+							Protocol: ptr.To(corev1.ProtocolTCP),
+							Port:     ptr.To(intstr.FromInt32(ocsProviderServicePort)),
+						},
+					},
+				},
+			},
 		},
 	}
 }
