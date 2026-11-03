@@ -218,8 +218,8 @@ func (c *ObjectBucketCollector) collectObjectBucketMetrics(cephObjectStore cephv
 		for _, ob := range objectBucketList {
 			userinfo, err := adminAPI.GetUser(ctx, rgwadmin.User{ID: ob.Spec.AdditionalState[cephUser], GenerateStat: &generatestat})
 			if err != nil {
-				klog.Errorf("Failed to get user for object bucket %q. %v", err, ob.Name)
-				return
+				klog.Errorf("Failed to get user for object bucket %q. %v", ob.Name, err)
+				continue
 			}
 			ch <- prometheus.MustNewConstMetric(c.OBSizeTotal,
 				prometheus.GaugeValue, float64(*userinfo.Stat.Size),
