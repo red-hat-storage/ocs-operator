@@ -28,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 // StorageClusterSpec defines the desired state of StorageCluster
@@ -216,6 +217,9 @@ type ManageCephCluster struct {
 
 	// Whether to allow updating the device class after the OSD is initially provisioned
 	AllowDeviceClassUpdate bool `json:"allowDeviceClassUpdate,omitempty"`
+
+	// CephSecurity represents security settings for ceph cluster
+	CephSecurity *CephClusterSecurity `json:"security,omitempty"`
 }
 
 // ManageCephConfig defines how to reconcile the Ceph configuration
@@ -312,6 +316,10 @@ type ManageCephRBDMirror struct {
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=1
 	DaemonCount int `json:"daemonCount,omitempty"`
+}
+
+type CephClusterSecurity struct {
+	CephX rookCephv1.ClusterCephxConfig `json:"cephx,omitempty"`
 }
 
 // MgrSpec defines the settings for the Ceph Manager
@@ -756,15 +764,6 @@ func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration, nod
 										},
 									},
 								},
-								{
-									Name: "ROOK_CEPH_SECRET",
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											LocalObjectReference: corev1.LocalObjectReference{Name: "rook-ceph-mon"},
-											Key:                  "ceph-secret",
-										},
-									},
-								},
 							},
 							SecurityContext: &corev1.SecurityContext{
 								RunAsNonRoot: &runAsNonRoot,
@@ -774,6 +773,7 @@ func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration, nod
 							VolumeMounts: []corev1.VolumeMount{
 								{Name: "ceph-config", MountPath: "/etc/ceph"},
 								{Name: "mon-endpoint-volume", MountPath: "/etc/rook"},
+								{Name: "ceph-admin-secret", MountPath: "/var/lib/rook-ceph-mon", ReadOnly: true},
 							},
 						},
 					},
@@ -790,6 +790,18 @@ func (r *StorageCluster) NewToolsDeployment(tolerations []corev1.Toleration, nod
 								},
 							},
 						},
+						},
+						{
+							Name: "ceph-admin-secret",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "rook-ceph-mon",
+									Optional:   ptr.To(false),
+									Items: []corev1.KeyToPath{
+										{Key: "ceph-secret", Path: "secret.keyring"},
+									},
+								},
+							},
 						},
 					},
 				},
