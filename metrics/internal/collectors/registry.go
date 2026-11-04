@@ -133,6 +133,10 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 		c.Run(opts.StopCh)
 		registry.MustRegister(c)
 	}
+	if c := NewOdfUpgradeStatusCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
+	}
 
 	healthScoreCollector, healthScoreErr := NewHealthScoreCollector(opts)
 	if healthScoreErr != nil {
@@ -147,6 +151,10 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 // depend on Ceph CRDs or tooling. Used in external mode and NooBaa standalone.
 func RegisterNonCephCollectors(registry *prometheus.Registry, opts *options.Options) {
 	if c := NewOperatorConditionCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
+	}
+	if c := NewOdfUpgradeStatusCollector(opts); c != nil {
 		c.Run(opts.StopCh)
 		registry.MustRegister(c)
 	}
