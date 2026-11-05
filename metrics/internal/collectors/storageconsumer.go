@@ -27,6 +27,7 @@ type StorageConsumerCollector struct {
 	CephFsVolumeSnapshotContentCount *prometheus.Desc
 	ProviderOperatorVersion          *prometheus.Desc
 	ClientOperatorVersion            *prometheus.Desc
+	CertStatus                       *prometheus.Desc
 	AllowedNamespace                 string
 }
 
@@ -81,6 +82,12 @@ func NewStorageConsumerCollector(opts *options.Options) *StorageConsumerCollecto
 			[]string{"client_name", "consumer_name"},
 			nil,
 		),
+		CertStatus: prometheus.NewDesc(
+			prometheus.BuildFQName("ocs", "storage_consumer", "cert_status"),
+			`mTLS certificate configuration status of OCS Storage Consumers (0=configured, 1=not configured in spec)`,
+			[]string{"storage_consumer_name", "cert_type"},
+			nil,
+		),
 		Informer: sharedIndexInformer,
 	}
 }
@@ -102,6 +109,7 @@ func (c *StorageConsumerCollector) Describe(ch chan<- *prometheus.Desc) {
 		c.StorageQuotaUtilizationRatio,
 		c.CephFsPvCount,
 		c.CephFsVolumeSnapshotContentCount,
+		c.CertStatus,
 	}
 	for _, d := range ds {
 		ch <- d
@@ -154,6 +162,10 @@ func (c *StorageConsumerCollector) collectStorageConsumersMetadata(storageConsum
 		ch <- prometheus.MustNewConstMetric(c.LastHeartbeat,
 			prometheus.GaugeValue, float64(storageConsumer.Status.LastHeartbeat.Time.Unix()),
 			storageConsumer.Name)
+
+		ch <- prometheus.MustNewConstMetric(c.CertStatus,
+			prometheus.GaugeValue, boolToFloat64(storageConsumer.Spec.ClientCAConfigMap.Name == ""),
+			storageConsumer.Name, "client_ca")
 
 		if storageConsumer.Status.Client != nil {
 			ch <- prometheus.MustNewConstMetric(c.ClientOperatorVersion,
