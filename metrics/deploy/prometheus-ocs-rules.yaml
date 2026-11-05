@@ -829,3 +829,16 @@ spec:
       for: 5m
       labels:
         severity: critical
+  - name: mtls-cert-alert.rules
+    rules:
+    - alert: StorageConsumerClientCertNotConfigured
+      annotations:
+        description: mTLS certificate material ({{ $labels.cert_type }}) is not configured in the spec of StorageConsumer {{ $labels.storage_consumer_name }}. Client-certificate authentication is not in place for this consumer.
+        message: StorageConsumer {{ $labels.storage_consumer_name }} has no mTLS {{ $labels.cert_type }} certificate reference configured.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/StorageConsumerClientCertNotConfigured.md
+        severity_level: critical
+      expr: |
+        ocs_storage_consumer_cert_status{job="ocs-metrics-exporter"} == 1
+      for: 5m
+      labels:
+        severity: critical
