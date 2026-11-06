@@ -14,15 +14,19 @@ import (
 
 const (
 	// component within the project/exporter
-	rgwSubsystem = "rgw"
+	rgwSubsystem                 = "rgw"
+	cephObjectStoreUserSubsystem = "cephobjectstoreuser"
 )
 
 var _ prometheus.Collector = &CephObjectStoreCollector{}
 
-// CephObjectStoreCollector is a custom collector for CephObjectStore Custom Resource
+// CephObjectStoreCollector is a custom collector for the CephObjectStore and
+// CephObjectStoreUser Custom Resources
 type CephObjectStoreCollector struct {
 	RGWHealthStatus   *prometheus.Desc
+	UserPhase         *prometheus.Desc
 	Informer          cache.SharedIndexInformer
+	InformerUser      cache.SharedIndexInformer
 	AllowedNamespaces []string
 }
 
@@ -34,6 +38,14 @@ func NewCephObjectStoreCollector(opts *options.Options) *CephObjectStoreCollecto
 		return nil
 	}
 
+	client, err := rookclient.NewForConfig(opts.Kubeconfig)
+	if err != nil {
+		klog.Error(err)
+		return nil
+	}
+	lwUser := cache.NewListWatchFromClient(client.CephV1().RESTClient(), "cephobjectstoreusers", searchInNamespace(opts), fields.Everything())
+	sharedIndexInformerUser := cache.NewSharedIndexInformer(lwUser, &cephv1.CephObjectStoreUser{}, 0, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+
 	return &CephObjectStoreCollector{
 		RGWHealthStatus: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, rgwSubsystem, "health_status"),
@@ -41,20 +53,29 @@ func NewCephObjectStoreCollector(opts *options.Options) *CephObjectStoreCollecto
 			[]string{"name", "namespace", "rgw_endpoint"},
 			nil,
 		),
+		UserPhase: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, cephObjectStoreUserSubsystem, "status_phase"),
+			`CephObjectStoreUser Status Phase. 0=Empty, 1=Ready, 2=Failed, 3=Reconciling, 4=ReconcileFailed`,
+			[]string{"name", "namespace"},
+			nil,
+		),
 		Informer:          sharedIndexInformer,
+		InformerUser:      sharedIndexInformerUser,
 		AllowedNamespaces: opts.AllowedNamespaces,
 	}
 }
 
-// Run starts CephObjectStore informer
+// Run starts the CephObjectStore and CephObjectStoreUser informers
 func (c *CephObjectStoreCollector) Run(stopCh <-chan struct{}) {
 	go c.Informer.Run(stopCh)
+	go c.InformerUser.Run(stopCh)
 }
 
 // Describe implements prometheus.Collector interface
 func (c *CephObjectStoreCollector) Describe(ch chan<- *prometheus.Desc) {
 	ds := []*prometheus.Desc{
 		c.RGWHealthStatus,
+		c.UserPhase,
 	}
 
 	for _, d := range ds {
@@ -69,6 +90,12 @@ func (c *CephObjectStoreCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if len(cephObjectStores) > 0 {
 		c.collectObjectStoreHealth(cephObjectStores, ch)
+	}
+
+	userLister := cephv1listers.NewCephObjectStoreUserLister(c.InformerUser.GetIndexer())
+	users := getAllCephObjectStoreUsers(userLister, c.AllowedNamespaces)
+	if len(users) > 0 {
+		c.collectCephObjectStoreUserPhase(users, ch)
 	}
 }
 
@@ -91,6 +118,27 @@ func getAllObjectStores(lister cephv1listers.CephObjectStoreLister, namespaces [
 		cephObjectStores = append(cephObjectStores, tempCephObjectStores...)
 	}
 	return
+}
+
+func getAllCephObjectStoreUsers(lister cephv1listers.CephObjectStoreUserLister, namespaces []string) []*cephv1.CephObjectStoreUser {
+	if len(namespaces) == 0 {
+		result, err := lister.List(labels.Everything())
+		if err != nil {
+			klog.Errorf("couldn't list CephObjectStoreUsers: %v", err)
+			return nil
+		}
+		return result
+	}
+	var result []*cephv1.CephObjectStoreUser
+	for _, ns := range namespaces {
+		items, err := lister.CephObjectStoreUsers(ns).List(labels.Everything())
+		if err != nil {
+			klog.Errorf("couldn't list CephObjectStoreUsers in namespace %s: %v", ns, err)
+			continue
+		}
+		result = append(result, items...)
+	}
+	return result
 }
 
 func (c *CephObjectStoreCollector) collectObjectStoreHealth(cephObjectStores []*cephv1.CephObjectStore, ch chan<- prometheus.Metric) {
@@ -142,6 +190,23 @@ func (c *CephObjectStoreCollector) collectObjectStoreHealth(cephObjectStores []*
 			klog.Errorf("CephObjectStore in unexpected phase. Must be %q, %q or %q",
 				cephv1.ConditionConnected, cephv1.ConditionProgressing, cephv1.ConditionFailure)
 		}
+	}
+}
+
+func (c *CephObjectStoreCollector) collectCephObjectStoreUserPhase(users []*cephv1.CephObjectStoreUser, ch chan<- prometheus.Metric) {
+	for _, user := range users {
+		var current string
+		if user.Status != nil {
+			current = user.Status.Phase
+		}
+		code, ok := rookGenericStatusCode(current)
+		if !ok {
+			klog.Errorf("CephObjectStoreUser %q in unexpected phase %q. Must be one of %v", user.Name, current, rookGenericPhases)
+			continue
+		}
+		ch <- prometheus.MustNewConstMetric(c.UserPhase,
+			prometheus.GaugeValue, code,
+			user.Name, user.Namespace)
 	}
 }
 
