@@ -36,20 +36,25 @@ var _ resourceManager = &storageConsumer{}
 
 func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageCluster *ocsv1.StorageCluster) (ctrl.Result, error) {
 
-	storageClassesSpec, err := getLocalStorageClassNames(r.ctx, r.Client, storageCluster)
+	availableServices, err := util.GetAvailableServices(r.ctx, r.Client, storageCluster)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get available services configured in StorageCluster: %v", err)
+	}
+
+	storageClassesSpec, err := getLocalStorageClassNames(r.ctx, r.Client, storageCluster, availableServices)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to generate storageclasses list for distribution: %v", err)
 	}
-	volumeSnapshotClassesSpec, err := getLocalVolumeSnapshotClassNames(r.ctx, r.Client, storageCluster)
+	volumeSnapshotClassesSpec, err := getLocalVolumeSnapshotClassNames(r.ctx, r.Client, storageCluster, availableServices)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to generate volumesnapshotclasses list for distribution: %v", err)
 	}
-	volumeGroupSnapshotClassesSpec, err := getLocalVolumeGroupSnapshotClassNames(r.ctx, r.Client, storageCluster)
+	volumeGroupSnapshotClassesSpec, err := getLocalVolumeGroupSnapshotClassNames(r.ctx, r.Client, storageCluster, availableServices)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to generate volumegroupsnapshotclasses list for distribution: %v", err)
 	}
 
-	networkFenceClassesSpec := getLocalNetworkFenceClassNames(storageCluster)
+	networkFenceClassesSpec := getLocalNetworkFenceClassNames(storageCluster, availableServices)
 
 	volumeAttributesClassesSpec, err := getLocalVolumeAttributesClassNames(r.ctx, r.Client)
 	if err != nil {
@@ -106,10 +111,6 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 		return ctrl.Result{}, fmt.Errorf("expected storageConsumer UID to not be empty")
 	}
 
-	availableServices, err := util.GetAvailableServices(r.ctx, r.Client, storageCluster)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get available services configured in StorageCluster: %v", err)
-	}
 	consumerConfigMap := &corev1.ConfigMap{}
 	consumerConfigMap.Name = defaults.LocalStorageConsumerConfigMapName
 	consumerConfigMap.Namespace = storageCluster.Namespace
@@ -223,13 +224,13 @@ func (s *storageConsumer) ensureDeleted(r *StorageClusterReconciler, storageClus
 	return ctrl.Result{}, nil
 }
 
-func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster) (
+func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster, availableServices *util.AvailableServices) (
 	[]ocsv1a1.StorageClassSpec, error) {
 
 	storageClassNames := map[string]bool{}
 	storageClassNames[util.GenerateNameForCephBlockPoolStorageClass(storageCluster)] = true
 
-	if ReconcileStrategy(storageCluster.Spec.ManagedResources.CephFilesystems.ReconcileStrategy) != ReconcileStrategyIgnore {
+	if availableServices.CephFs {
 		storageClassNames[util.GenerateNameForCephFilesystemStorageClass(storageCluster)] = true
 	}
 
@@ -292,13 +293,13 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 	return scSpec, nil
 }
 
-func getLocalVolumeSnapshotClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster) (
+func getLocalVolumeSnapshotClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster, availableServices *util.AvailableServices) (
 	[]ocsv1a1.VolumeSnapshotClassSpec, error) {
 
 	volumeSnapshotClassNames := map[string]bool{}
 	volumeSnapshotClassNames[util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)] = true
 
-	if ReconcileStrategy(storageCluster.Spec.ManagedResources.CephFilesystems.ReconcileStrategy) != ReconcileStrategyIgnore {
+	if availableServices.CephFs {
 		volumeSnapshotClassNames[util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)] = true
 	}
 
@@ -334,13 +335,13 @@ func getLocalVolumeSnapshotClassNames(ctx context.Context, kubeClient client.Cli
 	return vscSpec, nil
 }
 
-func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster) (
+func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient client.Client, storageCluster *ocsv1.StorageCluster, availableServices *util.AvailableServices) (
 	[]ocsv1a1.VolumeGroupSnapshotClassSpec, error) {
 
 	volumeGroupSnapshotClassNames := map[string]bool{}
 	volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)] = true
 
-	if ReconcileStrategy(storageCluster.Spec.ManagedResources.CephFilesystems.ReconcileStrategy) != ReconcileStrategyIgnore {
+	if availableServices.CephFs {
 		volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = true
 	}
 
@@ -384,12 +385,12 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 	return vgscSpec, nil
 }
 
-func getLocalNetworkFenceClassNames(storageCluster *ocsv1.StorageCluster) []ocsv1a1.NetworkFenceClassesSpec {
+func getLocalNetworkFenceClassNames(storageCluster *ocsv1.StorageCluster, availableServices *util.AvailableServices) []ocsv1a1.NetworkFenceClassesSpec {
 
 	networkFenceClassNames := map[string]bool{}
 	networkFenceClassNames[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.RbdNetworkFenceClass)] = true
 
-	if ReconcileStrategy(storageCluster.Spec.ManagedResources.CephFilesystems.ReconcileStrategy) != ReconcileStrategyIgnore {
+	if availableServices.CephFs {
 		networkFenceClassNames[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.CephfsNetworkFenceClass)] = true
 	}
 
