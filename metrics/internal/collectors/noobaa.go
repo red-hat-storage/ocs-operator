@@ -58,7 +58,7 @@ func (n *noobaaLister) List(selector labels.Selector) (ret []*nbv1.NooBaa, err e
 const noobaaSubsystem = "noobaa"
 
 // noobaaPhases enumerates every nbv1.SystemPhase value a NooBaa's status.phase can
-// report, in the same order as the numeric codes returned by noobaaStatusCode.
+// report.
 var noobaaPhases = []nbv1.SystemPhase{
 	nbv1.SystemPhaseRejected,
 	nbv1.SystemPhaseVerifying,
@@ -69,17 +69,20 @@ var noobaaPhases = []nbv1.SystemPhase{
 }
 
 // noobaaStatusCode maps a NooBaa status.phase to its numeric status_phase gauge
-// value: 0=Rejected, 1=Verifying, 2=Creating, 3=Connecting, 4=Configuring, 5=Ready.
-// ok is false if phase doesn't match any known value, in which case the caller
-// should skip emitting the metric (and log the unexpected value itself, since it
-// has the resource name/namespace for context).
+// value: 0=Creating, 1=Verifying, 2=Rejected, 3=Connecting, 4=Configuring, 5=Ready.
+// Rejected is pinned to code 2 to match the "failure" code used by
+// cephConditionStatusCode and rookGenericStatusCode, so every CR's PhaseFailure
+// alert can check the same value regardless of which status vocabulary that CR
+// uses. ok is false if phase doesn't match any known value, in which case the
+// caller should skip emitting the metric (and log the unexpected value itself,
+// since it has the resource name/namespace for context).
 func noobaaStatusCode(phase nbv1.SystemPhase) (code float64, ok bool) {
 	switch phase {
-	case nbv1.SystemPhaseRejected:
+	case nbv1.SystemPhaseCreating:
 		return 0, true
 	case nbv1.SystemPhaseVerifying:
 		return 1, true
-	case nbv1.SystemPhaseCreating:
+	case nbv1.SystemPhaseRejected:
 		return 2, true
 	case nbv1.SystemPhaseConnecting:
 		return 3, true
@@ -114,7 +117,7 @@ func NewNooBaaCollector(opts *options.Options) *NooBaaCollector {
 	return &NooBaaCollector{
 		Phase: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, noobaaSubsystem, "status_phase"),
-			`NooBaa Status Phase. 0=Rejected, 1=Verifying, 2=Creating, 3=Connecting, 4=Configuring, 5=Ready`,
+			`NooBaa Status Phase. 0=Creating, 1=Verifying, 2=Rejected, 3=Connecting, 4=Configuring, 5=Ready`,
 			[]string{"name", "namespace"},
 			nil,
 		),

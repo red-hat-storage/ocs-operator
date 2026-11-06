@@ -37,7 +37,7 @@ func NewCephNVMeOFGatewayCollector(opts *options.Options) *CephNVMeOFGatewayColl
 	return &CephNVMeOFGatewayCollector{
 		Phase: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, cephNVMeOFGatewaySubsystem, "status_phase"),
-			`CephNVMeOFGateway Status Phase. 0=Empty, 1=Ready, 2=Failed, 3=Reconciling, 4=ReconcileFailed`,
+			`CephNVMeOFGateway Status Phase. 0=Empty, 1=Ready, 2=Failed/ReconcileFailed, 3=Reconciling`,
 			[]string{"name", "namespace"},
 			nil,
 		),

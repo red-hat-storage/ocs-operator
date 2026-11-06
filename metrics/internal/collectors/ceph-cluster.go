@@ -77,7 +77,7 @@ func NewCephClusterCollector(opts *options.Options) *CephClusterCollector {
 		),
 		Phase: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, cephClusterSubsystem, "status_phase"),
-			`CephCluster Status Phase. 0=Connecting, 1=Connected, 2=Progressing, 3=Ready, 4=Failure, 5=Deleting, 6=DeletionIsBlocked`,
+			`CephCluster Status Phase. 0=Connecting, 1=Connected, 2=Failure, 3=Ready, 4=Progressing, 5=Deleting, 6=DeletionIsBlocked`,
 			[]string{"name", "namespace"},
 			nil,
 		),
