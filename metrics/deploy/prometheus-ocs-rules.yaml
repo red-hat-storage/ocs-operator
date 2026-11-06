@@ -842,3 +842,123 @@ spec:
       for: 5m
       labels:
         severity: critical
+  - name: cr-status-phase-alerts.rules
+    rules:
+    - alert: OCSCephBlockPoolPhaseFailure
+      annotations:
+        description: CephBlockPool {{ $labels.name }} is in a Failure phase in namespace {{ $labels.namespace }}. The pool failed to reconcile and needs investigation.
+        message: CephBlockPool {{ $labels.name }} creation/reconciliation has failed in namespace {{ $labels.namespace }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OCSCephBlockPoolPhaseFailure.md
+        severity_level: warning
+      expr: |
+        ocs_cephblockpool_status_phase{job="ocs-metrics-exporter"} == 4
+      for: 10m
+      labels:
+        severity: warning
+    - alert: OCSCephBlockPoolRadosNamespacePhaseFailure
+      annotations:
+        description: CephBlockPoolRadosNamespace {{ $labels.rados_namespace }} for consumer {{ $labels.consumer_name }} is in a Failure phase in namespace {{ $labels.namespace }}. It failed to reconcile and needs investigation.
+        message: CephBlockPoolRadosNamespace {{ $labels.rados_namespace }} creation/reconciliation has failed in namespace {{ $labels.namespace }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OCSCephBlockPoolRadosNamespacePhaseFailure.md
+        severity_level: warning
+      expr: |
+        ocs_cephblockpoolradosnamespace_status_phase{job="ocs-metrics-exporter"} == 4
+      for: 10m
+      labels:
+        severity: warning
+    - alert: OCSCephFilesystemPhaseFailure
+      annotations:
+        description: CephFilesystem {{ $labels.name }} is in a Failure phase in namespace {{ $labels.namespace }}. The filesystem failed to reconcile and needs investigation.
+        message: CephFilesystem {{ $labels.name }} creation/reconciliation has failed in namespace {{ $labels.namespace }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OCSCephFilesystemPhaseFailure.md
+        severity_level: warning
+      expr: |
+        ocs_cephfilesystem_status_phase{job="ocs-metrics-exporter"} == 4
+      for: 10m
+      labels:
+        severity: warning
+    - alert: OCSCephFilesystemSubVolumeGroupPhaseFailure
+      annotations:
+        description: CephFilesystemSubVolumeGroup {{ $labels.subvolume_group }} for consumer {{ $labels.consumer_name }} is in a Failure phase in namespace {{ $labels.namespace }}. It failed to reconcile and needs investigation.
+        message: CephFilesystemSubVolumeGroup {{ $labels.subvolume_group }} creation/reconciliation has failed in namespace {{ $labels.namespace }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OCSCephFilesystemSubVolumeGroupPhaseFailure.md
+        severity_level: warning
+      expr: |
+        ocs_cephfilesystemsubvolumegroup_status_phase{job="ocs-metrics-exporter"} == 4
+      for: 10m
+      labels:
+        severity: warning
+    - alert: OCSCephClusterPhaseFailure
+      annotations:
+        description: CephCluster {{ $labels.name }} is in a Failure phase in namespace {{ $labels.namespace }}. The Ceph cluster failed to reconcile and needs investigation.
+        message: CephCluster {{ $labels.name }} creation/reconciliation has failed in namespace {{ $labels.namespace }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OCSCephClusterPhaseFailure.md
+        severity_level: critical
+      expr: |
+        ocs_cephcluster_status_phase{job="ocs-metrics-exporter"} == 4
+      for: 10m
+      labels:
+        severity: critical
+    - alert: OCSCephNFSPhaseFailure
+      annotations:
+        description: CephNFS {{ $labels.name }} is in a Failed or ReconcileFailed phase in namespace {{ $labels.namespace }}. It failed to reconcile and needs investigation.
+        message: CephNFS {{ $labels.name }} creation/reconciliation has failed in namespace {{ $labels.namespace }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OCSCephNFSPhaseFailure.md
+        severity_level: warning
+      expr: |
+        ocs_cephnfs_status_phase{job="ocs-metrics-exporter"} == 2
+        or
+        ocs_cephnfs_status_phase{job="ocs-metrics-exporter"} == 4
+      for: 10m
+      labels:
+        severity: warning
+    - alert: OCSCephNVMeOFGatewayPhaseFailure
+      annotations:
+        description: CephNVMeOFGateway {{ $labels.name }} is in a Failed or ReconcileFailed phase in namespace {{ $labels.namespace }}. It failed to reconcile and needs investigation.
+        message: CephNVMeOFGateway {{ $labels.name }} creation/reconciliation has failed in namespace {{ $labels.namespace }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OCSCephNVMeOFGatewayPhaseFailure.md
+        severity_level: warning
+      expr: |
+        ocs_cephnvmeofgateway_status_phase{job="ocs-metrics-exporter"} == 2
+        or
+        ocs_cephnvmeofgateway_status_phase{job="ocs-metrics-exporter"} == 4
+      for: 10m
+      labels:
+        severity: warning
+    - alert: OCSCephRBDMirrorPhaseFailure
+      annotations:
+        description: CephRBDMirror {{ $labels.name }} is in a Failed or ReconcileFailed phase in namespace {{ $labels.namespace }}. It failed to reconcile and needs investigation.
+        message: CephRBDMirror {{ $labels.name }} creation/reconciliation has failed in namespace {{ $labels.namespace }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OCSCephRBDMirrorPhaseFailure.md
+        severity_level: warning
+      expr: |
+        ocs_cephrbdmirror_status_phase{job="ocs-metrics-exporter"} == 2
+        or
+        ocs_cephrbdmirror_status_phase{job="ocs-metrics-exporter"} == 4
+      for: 10m
+      labels:
+        severity: warning
+    - alert: OCSCephObjectStoreUserPhaseFailure
+      annotations:
+        description: CephObjectStoreUser {{ $labels.name }} is in a Failed or ReconcileFailed phase in namespace {{ $labels.namespace }}. It failed to reconcile and needs investigation.
+        message: CephObjectStoreUser {{ $labels.name }} creation/reconciliation has failed in namespace {{ $labels.namespace }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OCSCephObjectStoreUserPhaseFailure.md
+        severity_level: warning
+      expr: |
+        ocs_cephobjectstoreuser_status_phase{job="ocs-metrics-exporter"} == 2
+        or
+        ocs_cephobjectstoreuser_status_phase{job="ocs-metrics-exporter"} == 4
+      for: 10m
+      labels:
+        severity: warning
+    - alert: OCSNooBaaPhaseFailure
+      annotations:
+        description: NooBaa {{ $labels.name }} is in a Rejected phase in namespace {{ $labels.namespace }}. The spec was rejected by the operator, most likely due to an incompatible configuration, and needs investigation.
+        message: NooBaa {{ $labels.name }} was rejected by the operator in namespace {{ $labels.namespace }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OCSNooBaaPhaseFailure.md
+        severity_level: critical
+      expr: |
+        ocs_noobaa_status_phase{job="ocs-metrics-exporter"} == 0
+      for: 10m
+      labels:
+        severity: critical
