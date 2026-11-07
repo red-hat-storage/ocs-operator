@@ -8,11 +8,9 @@ TARGET_ARCH="${TARGET_ARCH:-amd64}"
 HOST_OS="$(go env GOHOSTOS)"
 HOST_ARCH="$(go env GOHOSTARCH)"
 
-# Current DEV version of the CSV
-DEFAULT_CSV_VERSION="5.0.0"
-CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
+# Current DEV version of the CSV — sourced from version/version.go
+CSV_VERSION="${CSV_VERSION:-$(sed -n 's/^[[:space:]]*Version = "\([^"]*\)".*/\1/p' version/version.go)}"
 VERSION="${VERSION:-${CSV_VERSION}}"
-LDFLAGS="-X github.com/red-hat-storage/ocs-operator/v4/version.Version=${CSV_VERSION}"
 
 # Vars for CSV generation
 OUTDIR_TEMPLATES="deploy/csv-templates"
