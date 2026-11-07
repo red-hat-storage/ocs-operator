@@ -137,6 +137,10 @@ func RegisterCustomResourceCollectors(registry *prometheus.Registry, opts *optio
 		c.Run(opts.StopCh)
 		registry.MustRegister(c)
 	}
+	if c := NewStorageClusterPeerCollector(opts); c != nil {
+		c.Run(opts.StopCh)
+		registry.MustRegister(c)
+	}
 	if c := NewStorageClusterCollector(opts); c != nil {
 		c.Run(opts.StopCh)
 		registry.MustRegister(c)
