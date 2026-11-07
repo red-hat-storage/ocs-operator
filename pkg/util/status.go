@@ -107,8 +107,10 @@ func SetCompleteCondition(conditions *[]conditionsv1.Condition, reason string, m
 // Since only unhealthy conditions are reported during reconciliation, recovered components
 // no longer report a condition, which can leave previous errors in the status.
 // This resets unreported condition types to their healthy defaults while preserving
-// conditions that are still being reported as unhealthy.
-func ResetUnreportedConditionsToHealthy(statusConditions *[]conditionsv1.Condition, unhealthyConditions []conditionsv1.Condition, reason string, message string) {
+// conditions that are still being reported as unhealthy. Upgradeable is not reset when
+// the cluster is expanding, because Expanding sets Upgradeable=False on StorageCluster
+// status directly.
+func ResetUnreportedConditionsToHealthy(instance *ocsv1.StorageCluster, unhealthyConditions []conditionsv1.Condition, reason string, message string) {
 	reportedUnhealthyTypes := make(map[conditionsv1.ConditionType]struct{}, len(unhealthyConditions))
 	for _, condition := range unhealthyConditions {
 		reportedUnhealthyTypes[condition.Type] = struct{}{}
@@ -118,7 +120,7 @@ func ResetUnreportedConditionsToHealthy(statusConditions *[]conditionsv1.Conditi
 		if _, reported := reportedUnhealthyTypes[conditionType]; reported {
 			return
 		}
-		conditionsv1.SetStatusCondition(statusConditions, conditionsv1.Condition{
+		conditionsv1.SetStatusCondition(&instance.Status.Conditions, conditionsv1.Condition{
 			Type:    conditionType,
 			Status:  healthyStatus,
 			Reason:  reason,
@@ -130,6 +132,9 @@ func ResetUnreportedConditionsToHealthy(statusConditions *[]conditionsv1.Conditi
 	resetIfNotReported(conditionsv1.ConditionAvailable, corev1.ConditionTrue)
 	resetIfNotReported(conditionsv1.ConditionProgressing, corev1.ConditionFalse)
 	resetIfNotReported(conditionsv1.ConditionDegraded, corev1.ConditionFalse)
+	if instance.Status.Phase != ocsv1.PhaseClusterExpanding {
+		resetIfNotReported(conditionsv1.ConditionUpgradeable, corev1.ConditionTrue)
+	}
 }
 
 // MapCephClusterNegativeConditions maps the status states from CephCluster resource into ocs status conditions.
