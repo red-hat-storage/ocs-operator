@@ -4742,6 +4742,13 @@ spec:
                     description: GatewayInstances is the number of active NVMe-oF
                       gateway instances.
                     type: integer
+                  interruptMode:
+                    description: |-
+                      InterruptMode runs the gateway's SPDK reactors in interrupt mode (true) or poll mode (false).
+                      Poll mode gives the highest IOPS but pins ~4 cores per gateway at 100% CPU even when idle.
+                      Prefer interrupt mode below ~50k IOPS per gateway, poll mode above ~100k.
+                      If not set, defaults to true (interrupt mode).
+                    type: boolean
                   poolSpec:
                     description: |-
                       PoolSpec defines the pool settings for the NVMe-oF block pool.
