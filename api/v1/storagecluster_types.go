@@ -588,6 +588,13 @@ type NVMeOFSpec struct {
 	// +kubebuilder:default=2
 	// +optional
 	GatewayInstances int `json:"gatewayInstances,omitempty"`
+	// InterruptMode runs the gateway's SPDK reactors in interrupt mode (true) or poll mode (false).
+	// Poll mode minimizes latency and maximizes IOPS, but each reactor core runs at 100% CPU
+	// even when idle. Interrupt mode greatly reduces idle CPU at the cost of some latency and
+	// peak throughput.
+	// If not set, defaults to true (interrupt mode).
+	// +optional
+	InterruptMode *bool `json:"interruptMode,omitempty"`
 }
 
 // MonitoringSpec controls the configuration of resources for exposing OCS metrics
