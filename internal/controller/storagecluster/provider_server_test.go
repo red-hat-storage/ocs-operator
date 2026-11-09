@@ -31,232 +31,56 @@ import (
 
 func TestOcsProviderServerEnsureCreated(t *testing.T) {
 
-	t.Run("Ensure that Deployment,Service is created when storageCluster is created", func(t *testing.T) {
+	t.Run("Service is always ClusterIP and NetworkPolicy is created regardless of ProviderAPIServerServiceType", func(t *testing.T) {
 
-		r, instance := createSetupForOcsProviderTest(t, corev1.ServiceTypeNodePort)
+		for _, svcType := range []corev1.ServiceType{
+			corev1.ServiceTypeClusterIP,
+			corev1.ServiceTypeNodePort,
+			corev1.ServiceTypeLoadBalancer,
+			"",
+		} {
+			r, instance := createSetupForOcsProviderTest(t, svcType)
 
-		obj := &ocsProviderServer{}
-		res, err := obj.ensureCreated(r, instance)
-		assert.NoError(t, err)
-		assert.False(t, res.IsZero())
+			obj := &ocsProviderServer{}
+			res, err := obj.ensureCreated(r, instance)
+			assert.NoError(t, err)
+			assert.False(t, res.IsZero())
 
-		// storagecluster controller waits for svc status to fetch the IP and it requeue
-		// as we are using a fake client and it does not fill the status automatically.
-		// update the required status field of the svc to overcome the failure and requeue.
-		service := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+			// storagecluster controller waits for deployment status to fetch the replica count and it requeue
+			// as we are using a fake client and it does not fill the status automatically.
+			// update the required status field of the deployment to overcome the failure and requeue.
+			deployment := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+			}
+			deployment.Status.AvailableReplicas = 1
+			err = r.Status().Update(context.TODO(), deployment)
+			assert.NoError(t, err)
+
+			// call ensureCreated again after filling the status of deployment, It will pass now
+			res, err = obj.ensureCreated(r, instance)
+			assert.NoError(t, err)
+			assert.True(t, res.IsZero())
+
+			deployment = &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+			}
+			assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment))
+			expectedDeployment := GetProviderAPIServerDeploymentForTest(instance)
+			assert.Equal(t, deployment.Spec, expectedDeployment.Spec)
+
+			service := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+			}
+			assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
+			expectedService := GetClusterIPProviderAPIServerServiceForTest(instance)
+			assert.Equal(t, expectedService.Spec, service.Spec)
+
+			networkPolicy := &networkingv1.NetworkPolicy{}
+			networkPolicy.Name = ocsProviderServerName
+			assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(networkPolicy), networkPolicy))
+			expectedNetworkPolicy := getProviderAPIServerNetworkPolicy(instance)
+			assert.Equal(t, expectedNetworkPolicy.Spec, networkPolicy.Spec)
 		}
-		service.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
-			{
-				Hostname: "fake",
-			},
-		}
-		err = r.Status().Update(context.TODO(), service)
-		assert.NoError(t, err)
-
-		// call ensureCreated again after filling the status of svc, It will fail on deployment now
-		res, err = obj.ensureCreated(r, instance)
-		assert.NoError(t, err)
-		assert.False(t, res.IsZero())
-
-		// storagecluster controller waits for deployment status to fetch the replica count and it requeue
-		// as we are using a fake client and it does not fill the status automatically.
-		// update the required status field of the deployment to overcome the failure and requeue.
-		deployment := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		deployment.Status.AvailableReplicas = 1
-		err = r.Status().Update(context.TODO(), deployment)
-		assert.NoError(t, err)
-
-		// call ensureCreated again after filling the status of deployment, It will pass now
-		res, err = obj.ensureCreated(r, instance)
-		assert.NoError(t, err)
-		assert.True(t, res.IsZero())
-
-		deployment = &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment))
-		expectedDeployment := GetProviderAPIServerDeploymentForTest(instance)
-		assert.Equal(t, deployment.Spec, expectedDeployment.Spec)
-
-		service = &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
-		expectedService := GetProviderAPIServerServiceForTest(instance)
-		assert.Equal(t, expectedService.Spec, service.Spec)
-	})
-
-	t.Run("Ensure that Deployment,Service is created when ProviderAPIServerServiceType set to loadBalancer", func(t *testing.T) {
-
-		r, instance := createSetupForOcsProviderTest(t, corev1.ServiceTypeLoadBalancer)
-
-		obj := &ocsProviderServer{}
-		res, err := obj.ensureCreated(r, instance)
-		assert.NoError(t, err)
-		assert.False(t, res.IsZero())
-
-		// storagecluster controller waits for svc status to fetch the IP and it requeue
-		// as we are using a fake client and it does not fill the status automatically.
-		// update the required status field of the svc to overcome the failure and requeue.
-		service := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		service.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
-			{
-				Hostname: "fake",
-			},
-		}
-		err = r.Status().Update(context.TODO(), service)
-		assert.NoError(t, err)
-
-		// call ensureCreated again after filling the status of svc, It will fail on deployment now
-		res, err = obj.ensureCreated(r, instance)
-		assert.NoError(t, err)
-		assert.False(t, res.IsZero())
-
-		// storagecluster controller waits for deployment status to fetch the replica count and it requeue
-		// as we are using a fake client and it does not fill the status automatically.
-		// update the required status field of the deployment to overcome the failure and requeue.
-		deployment := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		deployment.Status.AvailableReplicas = 1
-		err = r.Status().Update(context.TODO(), deployment)
-		assert.NoError(t, err)
-
-		// call ensureCreated again after filling the status of deployment, It will pass now
-		res, err = obj.ensureCreated(r, instance)
-		assert.NoError(t, err)
-		assert.True(t, res.IsZero())
-
-		deployment = &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment))
-		expectedDeployment := GetProviderAPIServerDeploymentForTest(instance)
-		assert.Equal(t, deployment.Spec, expectedDeployment.Spec)
-
-		service = &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
-		expectedService := GetLoadBalancerProviderAPIServerServiceForTest(instance)
-		assert.Equal(t, expectedService.Spec, service.Spec)
-	})
-
-	t.Run("Ensure that Deployment,Service is created when ProviderAPIServerServiceType set to ClusterIP", func(t *testing.T) {
-
-		r, instance := createSetupForOcsProviderTest(t, corev1.ServiceTypeClusterIP)
-
-		obj := &ocsProviderServer{}
-		res, err := obj.ensureCreated(r, instance)
-		assert.NoError(t, err)
-		assert.False(t, res.IsZero())
-
-		// storagecluster controller waits for svc status to fetch the IP and it requeue
-		// as we are using a fake client and it does not fill the status automatically.
-		// update the required status field of the svc to overcome the failure and requeue.
-		service := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		err = r.Update(context.TODO(), service)
-		assert.NoError(t, err)
-
-		// call ensureCreated again after filling the status of svc, It will fail on deployment now
-		res, err = obj.ensureCreated(r, instance)
-		assert.NoError(t, err)
-		assert.False(t, res.IsZero())
-
-		// storagecluster controller waits for deployment status to fetch the replica count and it requeue
-		// as we are using a fake client and it does not fill the status automatically.
-		// update the required status field of the deployment to overcome the failure and requeue.
-		deployment := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		deployment.Status.AvailableReplicas = 1
-		err = r.Status().Update(context.TODO(), deployment)
-		assert.NoError(t, err)
-
-		// call ensureCreated again after filling the status of deployment, It will pass now
-		res, err = obj.ensureCreated(r, instance)
-		assert.NoError(t, err)
-		assert.True(t, res.IsZero())
-
-		deployment = &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(deployment), deployment))
-		expectedDeployment := GetProviderAPIServerDeploymentForTest(instance)
-		assert.Equal(t, deployment.Spec, expectedDeployment.Spec)
-
-		service = &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
-		}
-		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(service), service))
-		expectedService := GetClusterIPProviderAPIServerServiceForTest(instance)
-		assert.Equal(t, expectedService.Spec, service.Spec)
-
-		networkPolicy := &networkingv1.NetworkPolicy{}
-		networkPolicy.Name = ocsProviderServerName
-		assert.NoError(t, r.Get(context.TODO(), client.ObjectKeyFromObject(networkPolicy), networkPolicy))
-		expectedNetworkPolicy := getProviderAPIServerNetworkPolicy(instance)
-		assert.Equal(t, expectedNetworkPolicy.Spec, networkPolicy.Spec)
-	})
-
-	t.Run("NetworkPolicy is not created when ProviderAPIServerServiceType is not ClusterIP", func(t *testing.T) {
-
-		r, instance := createSetupForOcsProviderTest(t, corev1.ServiceTypeLoadBalancer)
-
-		obj := &ocsProviderServer{}
-		res, err := obj.ensureCreated(r, instance)
-		assert.NoError(t, err)
-		assert.False(t, res.IsZero())
-
-		service := &corev1.Service{}
-		service.Name = ocsProviderServerName
-		service.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
-			{
-				Hostname: "fake",
-			},
-		}
-		err = r.Status().Update(context.TODO(), service)
-		assert.NoError(t, err)
-
-		res, err = obj.ensureCreated(r, instance)
-		assert.NoError(t, err)
-		assert.False(t, res.IsZero())
-
-		deployment := &appsv1.Deployment{}
-		deployment.Name = ocsProviderServerName
-		deployment.Status.AvailableReplicas = 1
-		err = r.Status().Update(context.TODO(), deployment)
-		assert.NoError(t, err)
-
-		res, err = obj.ensureCreated(r, instance)
-		assert.NoError(t, err)
-		assert.True(t, res.IsZero())
-
-		networkPolicy := &networkingv1.NetworkPolicy{}
-		networkPolicy.Name = ocsProviderServerName
-		assert.True(t, errors.IsNotFound(r.Get(context.TODO(), client.ObjectKeyFromObject(networkPolicy), networkPolicy)))
-	})
-
-	t.Run("NetworkPolicy is not created when service type is not ClusterIP after being created", func(t *testing.T) {
-
-		r, instance := createSetupForOcsProviderTest(t, corev1.ServiceTypeLoadBalancer)
-
-		obj := &ocsProviderServer{}
-		res, err := obj.createNetworkPolicy(r, instance)
-		assert.NoError(t, err)
-		assert.True(t, res.IsZero())
-
-		networkPolicy := &networkingv1.NetworkPolicy{}
-		networkPolicy.Name = ocsProviderServerName
-		networkPolicy.Namespace = instance.Namespace
-		assert.True(t, errors.IsNotFound(r.Get(context.TODO(), client.ObjectKeyFromObject(networkPolicy), networkPolicy)))
 	})
 
 	t.Run("NetworkPolicy is not created when StorageClusterPeer exists", func(t *testing.T) {
@@ -480,60 +304,6 @@ func GetProviderAPIServerDeploymentForTest(instance *ocsv1.StorageCluster) *apps
 					},
 				},
 			},
-		},
-	}
-}
-
-func GetProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster) *corev1.Service {
-
-	return &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ocsProviderServerName,
-			Namespace: instance.Namespace,
-			Annotations: map[string]string{
-				"service.beta.openshift.io/serving-cert-secret-name": ocsProviderCertSecretName,
-			},
-		},
-		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{
-				"app": "ocsProviderApiServer",
-			},
-			Ports: []corev1.ServicePort{
-				{
-					Name:       "ocs-provider",
-					NodePort:   ocsProviderServiceNodePort,
-					Port:       ocsProviderServicePort,
-					TargetPort: intstr.FromString("ocs-provider"),
-				},
-			},
-			Type: corev1.ServiceTypeNodePort,
-		},
-	}
-}
-
-func GetLoadBalancerProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster) *corev1.Service {
-
-	return &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ocsProviderServerName,
-			Namespace: instance.Namespace,
-			Annotations: map[string]string{
-				"service.beta.openshift.io/serving-cert-secret-name": ocsProviderCertSecretName,
-			},
-		},
-		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{
-				"app": "ocsProviderApiServer",
-			},
-			Ports: []corev1.ServicePort{
-				{
-					Name:       "ocs-provider",
-					NodePort:   ocsProviderServiceNodePort,
-					Port:       ocsProviderServicePort,
-					TargetPort: intstr.FromString("ocs-provider"),
-				},
-			},
-			Type: corev1.ServiceTypeLoadBalancer,
 		},
 	}
 }
