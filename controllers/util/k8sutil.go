@@ -22,6 +22,8 @@ const (
 	// SingleNodeEnvVar is set if StorageCluster needs to be deployed on a single node
 	SingleNodeEnvVar = "SINGLE_NODE"
 
+	DesiredCephxKeyGenEnvVarName = "DESIRED_CEPHX_KEY_GEN"
+
 	// This configmap is purely for the OCS operator to use.
 	OcsOperatorConfigName = "ocs-operator-config"
 
@@ -35,6 +37,9 @@ const (
 	EnableTopologyKey           = "CSI_ENABLE_TOPOLOGY"
 	TopologyDomainLabelsKey     = "CSI_TOPOLOGY_DOMAIN_LABELS"
 	EnableNFSKey                = "ROOK_CSI_ENABLE_NFS"
+
+	CreatedAtDfVersionLabelKey            = "ocs.openshift.io/created-at-df-version"
+	CreatedWithCephXFeaturesAnnotationKey = "ocs.openshift.io/created-with-cephx-features"
 )
 
 // GetWatchNamespace returns the namespace the operator should be watching for changes
