@@ -12,7 +12,6 @@ HOST_ARCH="$(go env GOHOSTARCH)"
 DEFAULT_CSV_VERSION="5.0.0"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
 VERSION="${VERSION:-${CSV_VERSION}}"
-LDFLAGS="-X github.com/red-hat-storage/ocs-operator/v4/version.Version=${CSV_VERSION}"
 
 # Vars for CSV generation
 OUTDIR_TEMPLATES="deploy/csv-templates"
