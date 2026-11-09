@@ -2,6 +2,8 @@ module github.com/red-hat-storage/ocs-operator/api/v4
 
 go 1.20
 
+replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20261104202500-9782adbb9007
+
 require (
 	github.com/noobaa/noobaa-operator/v5 v5.0.0-20231213124549-5d7b0417716d
 	github.com/openshift/api v0.0.0-20231212225112-7cca8a108d7b
@@ -9,6 +11,7 @@ require (
 	github.com/rook/rook/pkg/apis v0.0.0-20231215165123-32de0fb5f69b
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
+	k8s.io/utils v0.0.0-20231127182322-b307cd553661
 )
 
 require (
@@ -16,7 +19,7 @@ require (
 	github.com/containernetworking/cni v1.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
-	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.20.0 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
@@ -69,7 +72,6 @@ require (
 	k8s.io/client-go v0.28.4 // indirect
 	k8s.io/klog/v2 v2.110.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20231129212854-f0671cc7e66a // indirect
-	k8s.io/utils v0.0.0-20231127182322-b307cd553661 // indirect
 	sigs.k8s.io/container-object-storage-interface-api v0.1.0 // indirect
 	sigs.k8s.io/controller-runtime v0.16.3 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect

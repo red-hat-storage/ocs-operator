@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -50,6 +52,8 @@ var (
 	uxBackendOauthImage      = flag.String("ux-backend-oauth-image", "", "ux backend oauth container image")
 	ocsMustGatherImage       = flag.String("ocs-must-gather-image", "", "ocs-must-gather image")
 	rookCsiAddonsImage       = flag.String("rook-csiaddons-image", "", "csi-addons container image")
+
+	desiredCephxKeyGen = flag.Int("desired-cephx-key-gen", 2, "desired cephx keys generation")
 
 	inputCrdsDir      = flag.String("crds-directory", "", "The directory containing all the crds to be included in the registry bundle")
 	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
@@ -162,6 +166,10 @@ func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 			{
 				Name:  "ONBOARDING_SECRET_GENERATOR_IMAGE",
 				Value: *ocsContainerImage,
+			},
+			{
+				Name:  "DESIRED_CEPHX_KEY_GEN",
+				Value: strconv.Itoa(*desiredCephxKeyGen),
 			},
 			{
 				Name: util.OperatorNamespaceEnvVar,
@@ -870,24 +878,19 @@ func copyCrds(ocsCSV *csvv1.ClusterServiceVersion) {
 		}
 
 		fmt.Printf("reading CRD file %s\n", crdFile)
-		// CRDs that refer to 'ObjectReference' fetches
-		// spec description from K8s in incorrect YAML format.
-		// This can not be prevented and documentation needs to
-		// be updated in Kubernetes. Until then the work around is
-		// to remove all occurrences of ' --- ' in description.
-		// "---" is used as YAML separator and should not be replaced.
-		// https://github.com/kubernetes/api/blob/master/core/v1/types.go#L5287-L5301
-		crdBytes = []byte(strings.ReplaceAll(string(crdBytes), " --- ", " "))
-		entries := strings.Split(string(crdBytes), "---")
-		for _, entry := range entries {
+
+		toJSON, err := yaml.YAMLToJSON(crdBytes)
+		if err != nil {
+			panic(err)
+		}
+		decoder := json.NewDecoder(bytes.NewReader(toJSON))
+		for {
 			crd := extv1.CustomResourceDefinition{}
-			err = yaml.Unmarshal([]byte(entry), &crd)
-			if err != nil {
+			err = decoder.Decode(&crd)
+			if err == io.EOF {
+				break
+			} else if err != nil {
 				panic(err)
-			}
-			if crd.Spec.Names.Singular == "" {
-				// filters out empty entries caused by starting file with '---' separator
-				continue
 			}
 			if ownedCrds[crd.Name] == nil {
 				continue
