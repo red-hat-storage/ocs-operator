@@ -139,6 +139,8 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
+replace github.com/rook/rook => github.com/red-hat-storage/rook v1.1.0-beta.0.0.20261105221047-62c7efa541c0
+
 replace github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // required by rook
 
 replace golang.org/x/net => github.com/openshift-sustaining/net v0.35.0-sec.3
