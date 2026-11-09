@@ -6,7 +6,7 @@ source hack/common.sh
 
 CSV_MERGER="tools/csv-merger/csv-merger"
 
-(cd tools/csv-merger/ && go build -ldflags="${LDFLAGS}")
+(cd tools/csv-merger/ && go build)
 
 function help_txt() {
 	echo "Environment Variables"
