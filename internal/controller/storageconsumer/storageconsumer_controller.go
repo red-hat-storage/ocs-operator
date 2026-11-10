@@ -323,6 +323,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 				if err := r.reconcileRGWAccount(
 					util.GenerateNameForCephObjectStore(storageCluster),
 					consumerResources.GetRGWAccountName(),
+					r.storageConsumer.Spec.RGWAccountQuota,
 					consumerConfigMap,
 				); err != nil {
 					return reconcile.Result{}, err
@@ -635,6 +636,7 @@ func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup(
 func (r *StorageConsumerReconciler) reconcileRGWAccount(
 	objectStoreName string,
 	accountName string,
+	quota *rookCephv1.AccountQuotaSpec,
 	additionalOwner client.Object,
 ) error {
 	account := &rookCephv1.CephObjectStoreAccount{}
@@ -650,6 +652,9 @@ func (r *StorageConsumerReconciler) reconcileRGWAccount(
 		}
 		account.Spec.Store = objectStoreName
 		account.Spec.Name = accountName
+		// Always set the quota so that removing it from the StorageConsumer clears it on the Account.
+		// Rook then resets every field to the Ceph default.
+		account.Spec.Quotas = ptr.Deref(quota.DeepCopy(), rookCephv1.AccountQuotaSpec{})
 		return nil
 	}); err != nil {
 		return err
