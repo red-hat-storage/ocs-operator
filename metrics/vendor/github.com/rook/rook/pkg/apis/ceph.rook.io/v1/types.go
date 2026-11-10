@@ -162,6 +162,12 @@ type ClusterSpec struct {
 	// +optional
 	WaitTimeoutForHealthyOSDInMinutes time.Duration `json:"waitTimeoutForHealthyOSDInMinutes,omitempty"`
 
+	// UpgradeOSDRequiresHealthyPGs defines if OSD upgrade requires PGs are clean. If set to `true` OSD upgrade process won't start until PGs are healthy.
+	// This configuration will be ignored if `skipUpgradeChecks` is `true`.
+	// Default is false.
+	// +optional
+	UpgradeOSDRequiresHealthyPGs bool `json:"upgradeOSDRequiresHealthyPGs,omitempty"`
+
 	// A spec for configuring disruption management.
 	// +nullable
 	// +optional
@@ -216,7 +222,7 @@ type ClusterSpec struct {
 	// Security represents security settings
 	// +optional
 	// +nullable
-	Security SecuritySpec `json:"security,omitempty"`
+	Security ClusterSecuritySpec `json:"security,omitempty"`
 
 	// Logging represents loggings settings
 	// +optional
@@ -290,6 +296,121 @@ type SecuritySpec struct {
 	// +nullable
 	KeyRotation KeyRotationSpec `json:"keyRotation,omitempty"`
 }
+
+// ClusterSecuritySpec is the CephCluster security spec to include various security items such as kms
+type ClusterSecuritySpec struct {
+	// KeyManagementService is the main Key Management option
+	// +optional
+	// +nullable
+	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
+	// KeyRotation defines options for rotation of OSD disk encryption keys.
+	// +optional
+	// +nullable
+	KeyRotation KeyRotationSpec `json:"keyRotation,omitempty"`
+
+	// CephX configures CephX key settings. More: https://docs.ceph.com/en/latest/dev/cephx/
+	// +optional
+	CephX ClusterCephxConfig `json:"cephx,omitempty"`
+}
+
+type ClusterCephxConfig struct {
+	// AllowedCiphers is an advanced configuration that can disrupt cluster availability!
+	// Review Rook documentation carefully before setting this in a production cluster!
+	//
+	// AllowedCiphers sets the Ceph config `auth_allowed_ciphers` to the list given.
+	// If the list is empty, Rook will enable support for all ciphers.
+	// +optional
+	// +listType=set
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=2
+	AllowedCiphers []CephxKeyType `json:"allowedCiphers,omitempty"`
+	// ^ backport note: kubebuilder:validation:items:Enum is unsupported for older controller-gen.
+	// Consumers will need to be careful not to set values except aes/aes256k.
+
+	// Daemon configures CephX key settings for local Ceph daemons managed by Rook and part of the
+	// Ceph cluster. Daemon CephX keys can be rotated without affecting client connections.
+	// +optional
+	Daemon CephxConfig `json:"daemon,omitempty"`
+
+	// RBDMirrorPeer configures CephX key settings of the `rbd-mirror-peer` user that is used for creating
+	// bootstrap peer token used connect peer clusters. Rotating the `rbd-mirror-peer` user key will update
+	// the mirror peer token.
+	// Rotation will affect any existing peers connected to this cluster, so take care when exercising this option.
+	// +optional
+	RBDMirrorPeer CephxConfig `json:"rbdMirrorPeer,omitempty"`
+
+	// CSI configures CephX key rotation settings for the Ceph-CSI daemons in the current Kubernetes cluster.
+	// CSI key rotation can affect existing PV connections, so take care when exercising this option.
+	// +optional
+	CSI CephXConfigWithPriorCount `json:"csi,omitempty"`
+}
+
+type CephXConfigWithPriorCount struct {
+	CephxConfig `json:",inline"` // inline core CephxConfig
+
+	// KeepPriorKeyCountMax tells Rook how many prior keys to keep active.
+	// Generally, this would be set to 1 to allow for a migration period for applications.
+	// If desired, set this to 0 to delete prior keys after migration.
+	// This config only applies to prior keys that already exist.
+	// If PriorKeyCount is set to 2 while only a single key currently exists, only a single prior key will be kept,
+	// and the reported status will only indicate the actual number of prior keys,
+	// not necessarily a reflection of PriorKeyCount config here.
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=10
+	KeepPriorKeyCountMax uint8 `json:"keepPriorKeyCountMax,omitempty"`
+}
+
+// +kubebuilder:validation:XValidation:message="keyGeneration cannot be removed once set",rule="!has(oldSelf.keyGeneration) || has(self.keyGeneration)"
+type CephxConfig struct {
+	// KeyRotationPolicy controls if and when CephX keys are rotated after initial creation.
+	// One of Disabled, or KeyGeneration. Default Disabled.
+	// +optional
+	// +kubebuilder:validation:Enum="";Disabled;KeyGeneration
+	KeyRotationPolicy CephxKeyRotationPolicy `json:"keyRotationPolicy,omitempty"`
+
+	// KeyGeneration specifies the desired CephX key generation. This is used when KeyRotationPolicy
+	// is KeyGeneration and ignored for other policies. If this is set to greater than the current
+	// key generation, relevant keys will be rotated, and the generation value will be updated to
+	// this new value (generation values are not necessarily incremental, though that is the
+	// intended use case). If this is set to less than or equal to the current key generation, keys
+	// are not rotated.
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=4294967295
+	// +kubebuilder:validation:XValidation:message="keyGeneration cannot be decreased",rule="self >= oldSelf"
+	// +kubebuilder:validation:Format=int64
+	KeyGeneration uint32 `json:"keyGeneration,omitempty"`
+
+	// KeyType specifies the desired CephX key cipher type.
+	// If unspecified, Ceph's default will be used.
+	// If KeyRotationPolicy is Disabled or unspecified (default), modifying this value will never
+	// initiate key rotation.
+	// If KeyRotationPolicy is set to an enabled value (any other value), modifying this may
+	// initiate key rotation.
+	// +optional
+	// +kubebuilder:validation:Enum=aes;aes256k
+	KeyType CephxKeyType `json:"keyType,omitempty"`
+}
+
+// A CephX key rotation policy controls if and when CephX keys are rotated after initial creation.
+// Supported values: Disabled, KeyGeneration. Default: Disabled.
+type CephxKeyRotationPolicy string
+
+// A CephX key type represents a cipher type for CephX keys.
+// Supported values: aes, aes256k.
+// +kubebuilder:validation:MinLength=3
+// +kubebuilder:validation:MaxLength=7
+type CephxKeyType string
+
+const (
+	DisabledCephxKeyRotationPolicy      CephxKeyRotationPolicy = "Disabled"
+	KeyGenerationCephxKeyRotationPolicy CephxKeyRotationPolicy = "KeyGeneration"
+
+	CephxKeyTypeUndefined CephxKeyType = ""
+	CephxKeyTypeAes       CephxKeyType = "aes"
+	CephxKeyTypeAes256k   CephxKeyType = "aes256k"
+)
 
 // ObjectStoreSecuritySpec is spec to define security features like encryption
 type ObjectStoreSecuritySpec struct {
@@ -404,13 +525,14 @@ type MonitoringSpec struct {
 
 // ClusterStatus represents the status of a Ceph cluster
 type ClusterStatus struct {
-	State       ClusterState    `json:"state,omitempty"`
-	Phase       ConditionType   `json:"phase,omitempty"`
-	Message     string          `json:"message,omitempty"`
-	Conditions  []Condition     `json:"conditions,omitempty"`
-	CephStatus  *CephStatus     `json:"ceph,omitempty"`
-	CephStorage *CephStorage    `json:"storage,omitempty"`
-	CephVersion *ClusterVersion `json:"version,omitempty"`
+	State       ClusterState       `json:"state,omitempty"`
+	Phase       ConditionType      `json:"phase,omitempty"`
+	Message     string             `json:"message,omitempty"`
+	Conditions  []Condition        `json:"conditions,omitempty"`
+	CephStatus  *CephStatus        `json:"ceph,omitempty"`
+	Cephx       ClusterCephxStatus `json:"cephx,omitempty"`
+	CephStorage *CephStorage       `json:"storage,omitempty"`
+	CephVersion *ClusterVersion    `json:"version,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -576,6 +698,65 @@ const (
 	ClusterStateError ClusterState = "Error"
 )
 
+type CephxStatus struct {
+	// KeyGeneration represents the CephX key generation for the last successful reconcile.
+	// For all newly-created resources, this field is set to `1`.
+	// When keys are rotated due to any rotation policy, the generation is incremented or updated to
+	// the configured policy generation.
+	// Generation `0` indicates that keys existed prior to the implementation of key tracking.
+	KeyGeneration uint32 `json:"keyGeneration,omitempty"`
+
+	// KeyCephVersion reports the Ceph version that created the current generation's keys. This is
+	// same string format as reported by `CephCluster.status.version.version` to allow them to be
+	// compared. E.g., `20.2.0-0`.
+	// For all newly-created resources, this field set to the version of Ceph that created the key.
+	// The special value "Uninitialized" indicates that keys are being created for the first time.
+	// An empty string indicates that the version is unknown, as expected in brownfield deployments.
+	KeyCephVersion string `json:"keyCephVersion,omitempty"`
+
+	// KeyType identifies the CephX key type for the current generation's keys, if known.
+	// If unknown, the value will be empty.
+	// +optional
+	KeyType CephxKeyType `json:"keyType,omitempty"`
+}
+
+type CephxStatusWithKeyCount struct {
+	CephxStatus `json:",inline"` // inline core CephxStatus
+
+	// PriorKeyCount reports the number of prior-generation CephX keys that remain active for the related component
+	PriorKeyCount uint8 `json:"priorKeyCount,omitempty"`
+}
+
+// UninitializedCephxKeyCephVersion is a special value for CephxStatus.KeyCephVersion that is
+// applied when a resource status is first initialized. Rook replaces this value with the current
+// Ceph version after keys are first created and the resource is reconciled successfully.
+const UninitializedCephxKeyCephVersion string = "Uninitialized"
+
+type LocalCephxStatus struct {
+	// Daemon shows the CephX key status for local Ceph daemons associated with this resources.
+	Daemon CephxStatus `json:"daemon,omitempty"`
+}
+
+// ClusterCephxStatus defines the cephx key rotation status of various daemons on the cephCluster resource
+type ClusterCephxStatus struct {
+	// Admin shows the CephX key status for the client.admin key
+	Admin CephxStatus `json:"admin,omitempty"`
+	// Mon represents the CephX key status of the Monitor daemons
+	Mon CephxStatus `json:"mon,omitempty"`
+	// Mgr represents the cephx key rotation status of the ceph manager daemon
+	Mgr CephxStatus `json:"mgr,omitempty"`
+	// OSD shows the CephX key status of of OSDs
+	OSD CephxStatus `json:"osd,omitempty"`
+	// CSI shows the CephX key status for Ceph-CSI components.
+	CSI CephxStatusWithKeyCount `json:"csi,omitempty"`
+	// RBDMirrorPeer represents the cephx key rotation status of the `rbd-mirror-peer` user
+	RBDMirrorPeer CephxStatus `json:"rbdMirrorPeer,omitempty"`
+	// Crash Collector represents the cephx key rotation status of the crash collector daemon
+	CrashCollector CephxStatus `json:"crashCollector,omitempty"`
+	// Ceph Exporter represents the cephx key rotation status of the ceph exporter daemon
+	CephExporter CephxStatus `json:"cephExporter,omitempty"`
+}
+
 // MonSpec represents the specification of the monitor
 // +kubebuilder:validation:XValidation:message="zones must be less than or equal to count",rule="!has(self.zones) || (has(self.zones) && (size(self.zones) <= self.count))"
 // +kubebuilder:validation:XValidation:message="stretchCluster zones must be equal to 3",rule="!has(self.stretchCluster) || (has(self.stretchCluster) && (size(self.stretchCluster.zones) > 0) && (size(self.stretchCluster.zones) == 3))"
@@ -695,6 +876,12 @@ type CrashCollectorSpec struct {
 
 // CephBlockPool represents a Ceph Storage Pool
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.status.info.type`
+// +kubebuilder:printcolumn:name="FailureDomain",type=string,JSONPath=`.status.info.failureDomain`
+// +kubebuilder:printcolumn:name="Replication",type=integer,JSONPath=`.spec.replicated.size`,priority=1
+// +kubebuilder:printcolumn:name="EC-CodingChunks",type=integer,JSONPath=`.spec.erasureCoded.codingChunks`,priority=1
+// +kubebuilder:printcolumn:name="EC-DataChunks",type=integer,JSONPath=`.spec.erasureCoded.dataChunks`,priority=1
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephBlockPool struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -771,6 +958,10 @@ type PoolSpec struct {
 	// +optional
 	// +nullable
 	Quotas QuotaSpec `json:"quotas,omitempty"`
+
+	// The application name to set on the pool. Only expected to be set for rgw pools.
+	// +optional
+	Application string `json:"application"`
 }
 
 // NamedBlockPoolSpec allows a block pool to be created with a non-default name.
@@ -778,7 +969,7 @@ type PoolSpec struct {
 // allowed pool names that can be specified.
 type NamedBlockPoolSpec struct {
 	// The desired name of the pool if different from the CephBlockPool CR name.
-	// +kubebuilder:validation:Enum=device_health_metrics;.nfs;.mgr
+	// +kubebuilder:validation:Enum=.rgw.root;.nfs;.mgr
 	// +optional
 	Name string `json:"name,omitempty"`
 	// The core pool configuration
@@ -805,6 +996,8 @@ type CephBlockPoolStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	Cephx PeerTokenCephxStatus `json:"cephx,omitempty"`
+	// +optional
 	MirroringStatus *MirroringStatusSpec `json:"mirroringStatus,omitempty"`
 	// +optional
 	MirroringInfo *MirroringInfoSpec `json:"mirroringInfo,omitempty"`
@@ -817,6 +1010,12 @@ type CephBlockPoolStatus struct {
 	// +optional
 	ObservedGeneration int64       `json:"observedGeneration,omitempty"`
 	Conditions         []Condition `json:"conditions,omitempty"`
+}
+
+// PeerTokenCephxStatus represents the cephx key rotation status for peer tokens
+type PeerTokenCephxStatus struct {
+	// PeerToken shows the rotation status of the peer token associated with the `rbd-mirror-peer` user.
+	PeerToken CephxStatus `json:"peerToken,omitempty"`
 }
 
 // MirroringStatusSpec is the status of the pool mirroring
@@ -1181,7 +1380,7 @@ type MetadataServerSpec struct {
 	// +optional
 	Labels Labels `json:"labels,omitempty"`
 
-	// The resource requirements for the rgw pods
+	// The resource requirements for the mds pods
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional
@@ -1240,7 +1439,8 @@ type CephFilesystemStatus struct {
 	// Use only info and put mirroringStatus in it?
 	// +optional
 	// +nullable
-	Info map[string]string `json:"info,omitempty"`
+	Info  map[string]string `json:"info,omitempty"`
+	Cephx LocalCephxStatus  `json:"cephx,omitempty"`
 	// MirroringStatus is the filesystem mirroring status
 	// +optional
 	MirroringStatus *FilesystemMirroringInfoSpec `json:"mirroringStatus,omitempty"`
@@ -1398,6 +1598,9 @@ type PeerStatSpec struct {
 
 // CephObjectStore represents a Ceph Object Store Gateway
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Endpoint",type=string,JSONPath=`.status.info.endpoint`
+// +kubebuilder:printcolumn:name="SecureEndpoint",type=string,JSONPath=`.status.info.secureEndpoint`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephObjectStore struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1427,6 +1630,11 @@ type ObjectStoreSpec struct {
 	// +optional
 	// +nullable
 	DataPool PoolSpec `json:"dataPool,omitempty"`
+
+	// The pool information when configuring RADOS namespaces in existing pools.
+	// +optional
+	// +nullable
+	SharedPools ObjectSharedPoolsSpec `json:"sharedPools"`
 
 	// Preserve pools on object store deletion
 	// +optional
@@ -1460,6 +1668,25 @@ type ObjectStoreSpec struct {
 	// is being used to create buckets. The default is empty.
 	// +optional
 	AllowUsersInNamespaces []string `json:"allowUsersInNamespaces,omitempty"`
+
+	// Hosting settings for the object store
+	// +optional
+	Hosting *ObjectStoreHostingSpec `json:"hosting,omitempty"`
+}
+
+// ObjectSharedPoolsSpec represents object store pool info when configuring RADOS namespaces in existing pools.
+type ObjectSharedPoolsSpec struct {
+	// The metadata pool used for creating RADOS namespaces in the object store
+	// +kubebuilder:validation:XValidation:message="object store shared metadata pool is immutable",rule="self == oldSelf"
+	MetadataPoolName string `json:"metadataPoolName"`
+
+	// The data pool used for creating RADOS namespaces in the object store
+	// +kubebuilder:validation:XValidation:message="object store shared data pool is immutable",rule="self == oldSelf"
+	DataPoolName string `json:"dataPoolName"`
+
+	// Whether the RADOS namespaces should be preserved on deletion of the object store
+	// +optional
+	PreserveRadosNamespaceDataOnDelete bool `json:"preserveRadosNamespaceDataOnDelete"`
 }
 
 // ObjectHealthCheckSpec represents the health check of an object store
@@ -1577,7 +1804,7 @@ type GatewaySpec struct {
 // Kubernetes's v1.EndpointAddress.
 // +structType=atomic
 type EndpointAddress struct {
-	// The IP of this endpoint. As a legacy behavior, this supports being given a DNS-adressable hostname as well.
+	// The IP of this endpoint. As a legacy behavior, this supports being given a DNS-addressable hostname as well.
 	// +optional
 	IP string `json:"ip" protobuf:"bytes,1,opt,name=ip"`
 
@@ -1603,6 +1830,7 @@ type ObjectStoreStatus struct {
 	// +optional
 	// +nullable
 	Info       map[string]string `json:"info,omitempty"`
+	Cephx      LocalCephxStatus  `json:"cephx,omitempty"`
 	Conditions []Condition       `json:"conditions,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
@@ -1618,6 +1846,18 @@ type ObjectEndpoints struct {
 	Secure []string `json:"secure"`
 }
 
+// ObjectStoreHostingSpec represents the hosting settings for the object store
+type ObjectStoreHostingSpec struct {
+	// A list of DNS names in which bucket can be accessed via virtual host path. These names need to valid according RFC-1123.
+	// Each domain requires wildcard support like ingress loadbalancer.
+	// Do not include the wildcard itself in the list of hostnames (e.g. use "mystore.example.com" instead of "*.mystore.example.com").
+	// Add all hostnames including user-created Kubernetes Service endpoints to the list.
+	// CephObjectStore Service Endpoints and CephObjectZone customEndpoints are automatically added to the list.
+	// The feature is supported only for Ceph v18 and later versions.
+	// +optional
+	DNSNames []string `json:"dnsNames,omitempty"`
+}
+
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -1625,6 +1865,7 @@ type ObjectEndpoints struct {
 // CephObjectStoreUser represents a Ceph Object Store Gateway User
 // +kubebuilder:resource:shortName=rcou;objectuser
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephObjectStoreUser struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1802,6 +2043,7 @@ type PullSpec struct {
 
 // CephObjectZoneGroup represents a Ceph Object Store Gateway Zone Group
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephObjectZoneGroup struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1832,6 +2074,7 @@ type ObjectZoneGroupSpec struct {
 
 // CephObjectZone represents a Ceph Object Store Gateway Zone
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephObjectZone struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1863,6 +2106,11 @@ type ObjectZoneSpec struct {
 	// +nullable
 	DataPool PoolSpec `json:"dataPool"`
 
+	// The pool information when configuring RADOS namespaces in existing pools.
+	// +optional
+	// +nullable
+	SharedPools ObjectSharedPoolsSpec `json:"sharedPools"`
+
 	// If this zone cannot be accessed from other peer Ceph clusters via the ClusterIP Service
 	// endpoint created by Rook, you must set this to the externally reachable endpoint(s). You may
 	// include the port in the definition. For example: "https://my-object-store.my-domain.net:443".
@@ -1889,6 +2137,7 @@ type ObjectZoneSpec struct {
 
 // CephBucketTopic represents a Ceph Object Topic for Bucket Notifications
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephBucketTopic struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2092,7 +2341,13 @@ type CephNFS struct {
 	Spec              NFSGaneshaSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	Status *Status `json:"status,omitempty"`
+	Status *NFSStatus `json:"status,omitempty"`
+}
+
+// NFSStatus represents the status of Ceph NFS
+type NFSStatus struct {
+	Status `json:",inline"`
+	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
 }
 
 // CephNFSList represents a list Ceph NFSes
@@ -2525,6 +2780,7 @@ type DisruptionManagementSpec struct {
 
 // CephClient represents a Ceph Client
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephClient struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2550,8 +2806,28 @@ type CephClientList struct {
 type ClientSpec struct {
 	// +optional
 	Name string `json:"name,omitempty"`
+	// SecretName is the name of the secret created for this ceph client.
+	// If not specified, the default name is "rook-ceph-client-" as a prefix to the CR name.
+	// +kubebuilder:validation:XValidation:message="SecretName is immutable and cannot be changed",rule="self == oldSelf"
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
+
+	// RemoveSecret indicates whether the current secret for this ceph client should be removed or not.
+	// If true, the K8s secret will be deleted, but the cephx keyring will remain until the CR is deleted.
+	// +optional
+	RemoveSecret bool `json:"removeSecret,omitempty"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Caps map[string]string `json:"caps"`
+	// Security represents security settings
+	// +optional
+	Security ClientSecuritySpec `json:"security,omitempty"`
+}
+
+// ClinetSecuritySpec represents security settings for a Ceph Client
+type ClientSecuritySpec struct {
+	// CephX configures CephX key settings. More: https://docs.ceph.com/en/latest/dev/cephx/
+	// +optional
+	CephX CephxConfig `json:"cephx,omitempty"`
 }
 
 // CephClientStatus represents the Status of Ceph Client
@@ -2564,6 +2840,8 @@ type CephClientStatus struct {
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// +optional
+	Cephx CephxStatus `json:"cephx,omitempty"`
 }
 
 // CleanupPolicySpec represents a Ceph Cluster cleanup policy
@@ -2612,6 +2890,7 @@ type SanitizeDisksSpec struct {
 
 // CephRBDMirror represents a Ceph RBD Mirror
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephRBDMirror struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2619,7 +2898,13 @@ type CephRBDMirror struct {
 	Spec              RBDMirroringSpec `json:"spec"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	Status *Status `json:"status,omitempty"`
+	Status *RBDMirrorStatus `json:"status,omitempty"`
+}
+
+// RBDMirrorStatus represents the status of the RBD mirror resource
+type RBDMirrorStatus struct {
+	Status `json:",inline"`
+	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
 }
 
 // CephRBDMirrorList represents a list Ceph RBD Mirrors
@@ -2683,6 +2968,7 @@ type MirroringPeerSpec struct {
 
 // CephFilesystemMirror is the Ceph Filesystem Mirror object definition
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephFilesystemMirror struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2764,6 +3050,14 @@ type StorageScopeSpec struct {
 	// User needs to manually restart the OSD pod if they manage to fix the underlying OSD flapping issue before the restart interval.
 	// The sleep will be disabled if this interval is set to 0.
 	FlappingRestartIntervalHours int `json:"flappingRestartIntervalHours"`
+	// Whether to allow updating the device class after the OSD is initially provisioned
+	// +optional
+	AllowDeviceClassUpdate bool `json:"allowDeviceClassUpdate,omitempty"`
+	// Whether Rook will resize the OSD CRUSH weight when the OSD PVC size is increased.
+	// This allows cluster data to be rebalanced to make most effective use of new OSD space.
+	// The default is false since data rebalancing can cause temporary cluster slowdown.
+	// +optional
+	AllowOsdCrushWeightUpdate bool `json:"allowOsdCrushWeightUpdate,omitempty"`
 }
 
 // OSDStore is the backend storage type used for creating the OSDs
@@ -2917,6 +3211,7 @@ type StorageClassDeviceSet struct {
 
 // CephFilesystemSubVolumeGroup represents a Ceph Filesystem SubVolumeGroup
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephFilesystemSubVolumeGroup struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2955,6 +3250,12 @@ type CephFilesystemSubVolumeGroupSpec struct {
 	// only one out of (export, distributed, random) can be set at a time
 	// +optional
 	Pinning CephFilesystemSubVolumeGroupSpecPinning `json:"pinning,omitempty"`
+	// Quota size of the Ceph Filesystem subvolume group.
+	// +optional
+	Quota *resource.Quantity `json:"quota,omitempty"`
+	// The data pool name for the Ceph Filesystem subvolume group layout, if the default CephFS pool is not desired.
+	// +optional
+	DataPoolName string `json:"dataPoolName"`
 }
 
 // CephFilesystemSubVolumeGroupSpecPinning represents the pinning configuration of SubVolumeGroup

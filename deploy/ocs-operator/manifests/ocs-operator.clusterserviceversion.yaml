@@ -180,6 +180,32 @@ spec:
       clusterPermissions:
       - rules:
         - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - endpoints
+          - events
+          - nodes
+          - persistentvolumeclaims
+          - pods
+          - secrets
+          - serviceaccounts
+          - services
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          verbs:
+          - get
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumes
+          verbs:
+          - '*'
+        - apiGroups:
           - apiextensions.k8s.io
           resources:
           - customresourcedefinitions
@@ -215,16 +241,10 @@ spec:
           resources:
           - cephblockpoolradosnamespaces
           verbs:
-          - create
-          - delete
-          - get
-          - list
-          - update
-          - watch
+          - '*'
         - apiGroups:
           - ceph.rook.io
           resources:
-          - cephblockpoolradosnamespaces
           - cephblockpools
           - cephclusters
           - cephfilesystems
@@ -238,16 +258,6 @@ spec:
           - ceph.rook.io
           resources:
           - cephclients
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - update
-          - watch
-        - apiGroups:
-          - ceph.rook.io
-          resources:
           - cephfilesystemsubvolumegroups
           verbs:
           - create
@@ -271,14 +281,6 @@ spec:
           - config.openshift.io
           resources:
           - clusterversions
-          - networks
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - config.openshift.io
-          resources:
           - infrastructures
           - networks
           verbs:
@@ -301,35 +303,6 @@ spec:
           - list
           - update
         - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          - endpoints
-          - events
-          - nodes
-          - persistentvolumeclaims
-          - persistentvolumes
-          - pods
-          - secrets
-          - serviceaccounts
-          - services
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          verbs:
-          - get
-        - apiGroups:
-          - ""
-          resources:
-          - persistentvolumes
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
           - k8s.cni.cncf.io
           resources:
           - network-attachment-definitions
@@ -342,6 +315,7 @@ spec:
           resources:
           - alertmanagers
           - prometheuses
+          - servicemonitors
           verbs:
           - create
           - delete
@@ -354,24 +328,11 @@ spec:
           - monitoring.coreos.com
           resources:
           - prometheusrules
-          - servicemonitors
           verbs:
           - create
           - delete
           - get
           - list
-          - update
-          - watch
-        - apiGroups:
-          - monitoring.coreos.com
-          resources:
-          - servicemonitors
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
           - update
           - watch
         - apiGroups:
@@ -393,6 +354,8 @@ spec:
           - ocs.openshift.io
           resources:
           - '*'
+          - storageconsumers
+          - storagerequests
           verbs:
           - create
           - delete
@@ -412,38 +375,7 @@ spec:
         - apiGroups:
           - ocs.openshift.io
           resources:
-          - storageconsumers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ocs.openshift.io
-          resources:
           - storageconsumers/status
-          verbs:
-          - get
-          - patch
-          - update
-        - apiGroups:
-          - ocs.openshift.io
-          resources:
-          - storagerequests
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ocs.openshift.io
-          resources:
           - storagerequests/status
           verbs:
           - get
@@ -522,15 +454,10 @@ spec:
           resources:
           - volumesnapshotclasses
           verbs:
-          - create
-          - delete
-          - get
-          - list
-          - watch
+          - '*'
         - apiGroups:
           - snapshot.storage.k8s.io
           resources:
-          - volumesnapshotclasses
           - volumesnapshots
           verbs:
           - '*'
@@ -540,13 +467,6 @@ spec:
           - storageclasses
           verbs:
           - '*'
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
         - apiGroups:
           - template.openshift.io
           resources:
@@ -609,6 +529,8 @@ spec:
                   value: quay.io/ocs-dev/ocs-operator:latest
                 - name: ONBOARDING_VALIDATION_KEYS_GENERATOR_IMAGE
                   value: quay.io/ocs-dev/ocs-operator:latest
+                - name: DESIRED_CEPHX_KEY_GEN
+                  value: "2"
                 - name: OPERATOR_NAMESPACE
                   valueFrom:
                     fieldRef:
