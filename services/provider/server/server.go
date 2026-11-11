@@ -213,6 +213,9 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 	}
 
 	klog.Infof("Found storageConsumer for GetStorageConfig")
+	if !checkClientPreConditions(consumerObj, ocsVersion.Version) {
+		return nil, status.Error(codes.FailedPrecondition, "client operator does not meet version requirements")
+	}
 
 	// Verify Status
 	switch consumerObj.Status.State {
@@ -259,6 +262,7 @@ func (s *OCSProviderServer) GetStorageConfig(ctx context.Context, req *pb.Storag
 			isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 			inMaintenanceMode,
 			isConsumerMirrorEnabled,
+			ocsVersion.Version,
 		)
 
 		klog.Infof("successfully returned the config details to the consumer.")
@@ -1091,6 +1095,7 @@ func (s *OCSProviderServer) ReportStatus(ctx context.Context, req *pb.ReportStat
 		isEncryptionInTransitEnabled(storageCluster.Spec.Network),
 		inMaintenanceMode,
 		isConsumerMirrorEnabled,
+		ocsVersion.Version,
 	)
 
 	return &pb.ReportStatusResponse{
@@ -1507,4 +1512,28 @@ func getPeerCephFSID(ctx context.Context, cl client.Client, secretName, namespac
 		return "", err
 	}
 	return token.FSID, nil
+}
+
+func checkClientPreConditions(consumer *ocsv1alpha1.StorageConsumer, ocsOpVersion string) bool {
+	if consumer == nil {
+		klog.Errorf("failed precondition: client status is not available")
+		return false
+	}
+
+	clientOpVersion := consumer.Status.Client.OperatorVersion
+	if clientOpVersion == "" {
+		return true
+	}
+	if clientOpVersion == notAvailable {
+		klog.Errorf("failed precondition: client version in client status is not available")
+		return false
+	}
+
+	ocsOpSemver := semver.MustParse(ocsOpVersion)
+	clientOpSemver := semver.MustParse(clientOpVersion)
+	if ocsOpSemver.Major < clientOpSemver.Major || ocsOpSemver.Minor < clientOpSemver.Minor {
+		klog.Errorf("failed precondition: client version is ahead of server version")
+		return false
+	}
+	return true
 }
