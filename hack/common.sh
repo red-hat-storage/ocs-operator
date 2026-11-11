@@ -8,8 +8,8 @@ TARGET_ARCH="${TARGET_ARCH:-amd64}"
 HOST_OS="$(go env GOHOSTOS)"
 HOST_ARCH="$(go env GOHOSTARCH)"
 
-# Current DEV version of the CSV
-DEFAULT_CSV_VERSION="5.0.0"
+# Current DEV version of the CSV — sourced from version/version.go
+DEFAULT_CSV_VERSION="$(sed -n 's/^[[:space:]]*Version = "\([^"]*\)".*/\1/p' version/version.go)"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
 VERSION="${VERSION:-${CSV_VERSION}}"
 
