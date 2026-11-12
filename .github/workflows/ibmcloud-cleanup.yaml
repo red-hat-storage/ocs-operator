@@ -3,6 +3,10 @@ name: ibmcloud-cleanup
 
 on:
   workflow_dispatch:
+  # Temporary: workflow_dispatch only works once this file exists on main.
+  # Push to the pilot branch triggers a test run until then.
+  push:
+    branches: [ibmcloud-ci-cleanup]
   schedule:
   - cron: '0 * * * *'
 
