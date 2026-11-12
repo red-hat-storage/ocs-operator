@@ -105,13 +105,22 @@ def delete(args: list[str], label: str, dry_run: bool, attempts: int = 6, sleep_
     return False
 
 
-def login(api_key: str, resource_group: str) -> None:
-    # Avoid interactive version checks stalling CI.
+def login(api_key: str, resource_group: str, region: str) -> None:
+    # Avoid interactive version checks / region prompts stalling CI.
     ibmcloud("config", "--check-version=false")
-    p = ibmcloud("login", "--apikey", api_key, "-g", resource_group, "-q")
+    p = ibmcloud(
+        "login",
+        "--apikey",
+        api_key,
+        "-r",
+        region,
+        "-g",
+        resource_group,
+        "-q",
+    )
     if p.returncode != 0:
         raise RuntimeError(f"ibmcloud login failed: {(p.stderr or p.stdout or '')[:300]}")
-    log(f"logged in; resource group={resource_group}")
+    log(f"logged in; region={region} resource group={resource_group}")
 
 
 def target(region: str, resource_group: str) -> None:
@@ -360,7 +369,7 @@ def main() -> int:
         f"cutoff={cutoff.isoformat()} rg={args.resource_group} regions={regions}"
     )
 
-    login(api_key, args.resource_group)
+    login(api_key, args.resource_group, regions[0])
 
     ok = True
     for region in regions:
