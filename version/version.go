@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	// Version of the operator
+	// Version of the operator (single source of truth)
 	Version = "5.0.0"
 )
 
