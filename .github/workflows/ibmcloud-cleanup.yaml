@@ -1,0 +1,30 @@
+---
+name: ibmcloud-cleanup
+
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: '0 * * * *'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    # TODO: restrict back to main only after pilot testing
+    if: >
+      github.repository == 'red-hat-storage/ocs-operator' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ibmcloud-ci-cleanup')
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Install IBM Cloud CLI
+      run: |
+        curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+        ibmcloud plugin install vpc-infrastructure -f
+        ibmcloud --version
+
+    - name: Run cleanup script
+      env:
+        IBMCLOUD_API_KEY: ${{ secrets.IBMCLOUD_API_KEY }}
+      run: python3 hack/ibmcloud-cleanup.py
