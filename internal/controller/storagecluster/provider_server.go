@@ -37,8 +37,7 @@ const (
 	onboardingValidationKeysGeneratorJobName = "onboarding-validation-keys-generator"
 	onboardingValidationPublicKeySecretName  = "onboarding-ticket-key"
 
-	ocsProviderServicePort     = int32(50051)
-	ocsProviderServiceNodePort = int32(31659)
+	ocsProviderServicePort = int32(50051)
 
 	ocsProviderCertSecretName = ocsProviderServerName + "-cert"
 
@@ -117,8 +116,6 @@ func (o *ocsProviderServer) createRoute(r *StorageClusterReconciler, instance *o
 
 // TODO: in next version, have the networkpolicy only to allow via svc (own namespace) or via route
 func (o *ocsProviderServer) createNetworkPolicy(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
-	desiredService := GetProviderAPIServerService(instance)
-
 	networkPolicy := &networkingv1.NetworkPolicy{}
 	networkPolicy.Name = ocsProviderServerName
 	networkPolicy.Namespace = instance.Namespace
@@ -136,7 +133,7 @@ func (o *ocsProviderServer) createNetworkPolicy(r *StorageClusterReconciler, ins
 		return reconcile.Result{}, err
 	}
 
-	if desiredService.Spec.Type != corev1.ServiceTypeClusterIP || hasPeers {
+	if hasPeers {
 		if networkPolicy.UID != "" {
 			if err := r.Delete(r.ctx, networkPolicy); err != nil {
 				r.Log.Error(err, "Failed to delete networkpolicy", "Name", networkPolicy.Name)
@@ -280,34 +277,7 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 
 	r.Log.Info("Service create/update succeeded")
 
-	switch desiredService.Spec.Type {
-	case corev1.ServiceTypeLoadBalancer:
-		endpoint := o.getLoadBalancerServiceEndpoint(actualService)
-
-		if endpoint == "" {
-			r.recorder.ReportIfNotPresent(instance, corev1.EventTypeNormal, "Waiting", "Waiting for Ingress on service "+actualService.Name)
-			r.Log.Info("Waiting for Ingress on service", "Service", actualService.Name, "Status", actualService.Status)
-			return reconcile.Result{RequeueAfter: time.Second * 5}, nil
-		}
-
-		instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:%d", endpoint, ocsProviderServicePort)
-	}
-
 	return reconcile.Result{}, nil
-}
-
-func (o *ocsProviderServer) getLoadBalancerServiceEndpoint(service *corev1.Service) string {
-	endpoint := ""
-
-	if len(service.Status.LoadBalancer.Ingress) != 0 {
-		if service.Status.LoadBalancer.Ingress[0].IP != "" {
-			endpoint = service.Status.LoadBalancer.Ingress[0].IP
-		} else if service.Status.LoadBalancer.Ingress[0].Hostname != "" {
-			endpoint = service.Status.LoadBalancer.Ingress[0].Hostname
-		}
-	}
-
-	return endpoint
 }
 
 func (o *ocsProviderServer) ensureDeploymentReplica(actual, desired *appsv1.Deployment) error {
@@ -405,12 +375,8 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 }
 
 func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service {
-	serviceType := corev1.ServiceTypeClusterIP
-	if instance.Spec.ProviderAPIServerServiceType != "" {
-		serviceType = instance.Spec.ProviderAPIServerServiceType
-	} else if instance.Spec.HostNetwork {
-		serviceType = corev1.ServiceTypeNodePort
-	}
+	// The service is always ClusterIP; external consumers reach the provider
+	// through the passthrough route, internal clients via the service DNS name.
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ocsProviderServerName,
@@ -425,19 +391,12 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Name: "ocs-provider",
-					NodePort: func() int32 {
-						// ClusterIP service doesn't need nodePort
-						if serviceType == corev1.ServiceTypeClusterIP {
-							return 0
-						}
-						return ocsProviderServiceNodePort
-					}(),
+					Name:       "ocs-provider",
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
 				},
 			},
-			Type: serviceType,
+			Type: corev1.ServiceTypeClusterIP,
 		},
 	}
 }
