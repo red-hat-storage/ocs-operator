@@ -86,16 +86,19 @@ const (
 	systemNodeCritical    = "system-node-critical"
 	systemClusterCritical = "system-cluster-critical"
 
-	prometheusLocalRuleName    = "prometheus-ceph-rules"
-	prometheusExternalRuleName = "prometheus-ceph-rules-external"
+	prometheusLocalRuleName     = "prometheus-ceph-rules"
+	prometheusExternalRuleName  = "prometheus-ceph-rules-external"
+	prometheusCephMixinRuleName = "prometheus-ceph-mixin-rules"
 )
 
 var (
 	//go:embed prometheus/externalcephrules.yaml
 	externalPrometheusRules string
 	//go:embed prometheus/localcephrules.yaml
-	localPrometheusRules    string
-	testSkipPrometheusRules = false
+	localPrometheusRules string
+	//go:embed prometheus/cephmixinrules.yaml
+	cephMixinPrometheusRules string
+	testSkipPrometheusRules  = false
 )
 
 const deviceClassPlacementKey = "device-class"
@@ -421,6 +424,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	// Create the prometheus rules if required by the cephcluster CR
 	if err := createPrometheusRules(r, sc, cephCluster); err != nil {
 		r.Log.Error(err, "Unable to create or update prometheus rules.", "CephCluster", klog.KRef(found.Namespace, found.Name))
+		return reconcile.Result{}, err
+	}
+
+	if err := createCephMixinPrometheusRules(r, sc, cephCluster); err != nil {
+		r.Log.Error(err, "Unable to create or update ceph-mixin prometheus rules.", "CephCluster", klog.KRef(found.Namespace, found.Name))
 		return reconcile.Result{}, err
 	}
 
@@ -1256,6 +1264,47 @@ func createPrometheusRules(r *StorageClusterReconciler, sc *ocsv1.StorageCluster
 	}
 
 	r.Log.Info("prometheus rules deployed", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
+
+	return nil
+}
+
+// createCephMixinPrometheusRules deploys the subset of upstream ceph-mixin alerts
+// (see internal/controller/storagecluster/prometheus/cephmixinrules.yaml for the exact
+// set and why) as their own PrometheusRule, separate from the ocs-operator-authored
+// alerts in localPrometheusRules/externalPrometheusRules. Only deployed for internal
+// (non-external) clusters.
+func createCephMixinPrometheusRules(r *StorageClusterReconciler, sc *ocsv1.StorageCluster, cluster *rookCephv1.CephCluster) error {
+	if !cluster.Spec.Monitoring.Enabled {
+		r.Log.Info("ceph-mixin prometheus rules skipped", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
+		return nil
+	}
+	if testSkipPrometheusRules {
+		r.Log.Info("skipping ceph-mixin prometheus rules in test")
+		return nil
+	}
+	if cluster.Spec.External.Enable {
+		return nil
+	}
+
+	prometheusRule, err := parsePrometheusRule(cephMixinPrometheusRules)
+	if err != nil {
+		r.Log.Error(err, "Unable to retrieve ceph-mixin prometheus rules.", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
+		return err
+	}
+	prometheusRule.SetName(prometheusCephMixinRuleName)
+	prometheusRule.SetNamespace(sc.Namespace)
+	if err := controllerutil.SetControllerReference(sc, prometheusRule, r.Scheme); err != nil {
+		r.Log.Error(err, "Unable to set controller reference for ceph-mixin prometheus rules.", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
+		return err
+	}
+	applyLabels(getCephClusterMonitoringLabels(*sc), &prometheusRule.ObjectMeta)
+
+	if err := createOrUpdatePrometheusRule(r, prometheusRule); err != nil {
+		r.Log.Error(err, "Ceph-mixin prometheus rules could not be created.", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
+		return err
+	}
+
+	r.Log.Info("ceph-mixin prometheus rules deployed", "CephCluster", klog.KRef(cluster.Namespace, cluster.Name))
 
 	return nil
 }

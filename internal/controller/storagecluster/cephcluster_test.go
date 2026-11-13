@@ -1424,6 +1424,15 @@ func TestParsePrometheusRules(t *testing.T) {
 	prometheusRules, err = parsePrometheusRule(externalPrometheusRules)
 	assert.NilError(t, err)
 	assert.Equal(t, 1, len(prometheusRules.Spec.Groups))
+
+	prometheusRules, err = parsePrometheusRule(cephMixinPrometheusRules)
+	assert.NilError(t, err)
+	assert.Equal(t, 9, len(prometheusRules.Spec.Groups))
+	totalAlerts := 0
+	for _, group := range prometheusRules.Spec.Groups {
+		totalAlerts += len(group.Rules)
+	}
+	assert.Equal(t, 39, totalAlerts)
 }
 
 func TestChangePromRuleFunc(t *testing.T) {
