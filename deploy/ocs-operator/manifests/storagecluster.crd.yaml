@@ -3760,6 +3760,11 @@ spec:
                         maxLength: 253
                         pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string
+                      zoneName:
+                        description: |-
+                          ZoneName, if set, is the name of the CephObjectStoreZone the default CephObjectStore will be
+                          created as part of. This enables multisite configurations.
+                        type: string
                     type: object
                   cephRBDMirror:
                     description: ManageCephRBDMirror defines how to reconcile Ceph
