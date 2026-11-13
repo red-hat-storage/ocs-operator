@@ -76,7 +76,8 @@ var (
 			StorageClassName: "mock-sc",
 			Connection:       conn,
 			ClaimRef: &corev1.ObjectReference{
-				Name: "mockOB",
+				Name:      "mockOB",
+				Namespace: "mock-obc-namespace",
 			},
 		},
 	}
@@ -181,6 +182,11 @@ func TestCollectObjectBucketMetrics(t *testing.T) {
 	adminClient, err := admin.New(endpoint, "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient)
 	assert.NoError(t, err)
 
+	// listed before mockObjectBucket (fake clients sort by name), its user lookup fails
+	brokenObjectBucket := mockObjectBucket.DeepCopy()
+	brokenObjectBucket.Name = "obc-broken"
+	brokenObjectBucket.Spec.AdditionalState["cephUser"] = "missing-ceph-user"
+
 	tests := Tests{
 		{
 			name: "Collect objectbucket usage metrics",
@@ -190,10 +196,20 @@ func TestCollectObjectBucketMetrics(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Skip objectbucket whose user lookup fails",
+			args: args{
+				objects: []runtime.Object{
+					brokenObjectBucket,
+					&mockObjectBucket,
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		ch := make(chan prometheus.Metric)
 		metric := dto.Metric{}
+		claimInfoCount := 0
 		go func() {
 			createOBs(t, tt.args.objects, obCollector.bktclient)
 			obCollector.collectObjectBucketMetrics(mockCephObjectStore, adminClient, ch)
@@ -209,6 +225,8 @@ func TestCollectObjectBucketMetrics(t *testing.T) {
 					assert.Equal(t, *label.Value, mockObjectBucket.Name)
 				} else if *label.Name == "objectbucketclaim" {
 					assert.Equal(t, *label.Value, mockObjectBucket.Spec.ClaimRef.Name)
+				} else if *label.Name == "objectbucketclaim_namespace" {
+					assert.Equal(t, *label.Value, mockObjectBucket.Spec.ClaimRef.Namespace)
 				} else if *label.Name == "storageclass" {
 					assert.Equal(t, *label.Value, mockObjectBucket.Spec.StorageClassName)
 				} else if *label.Name == "object_store" {
@@ -226,8 +244,10 @@ func TestCollectObjectBucketMetrics(t *testing.T) {
 				assert.Equal(t, *metric.Gauge.Value, float64(1000))
 			} else if strings.Contains(m.Desc().String(), "ocs_objectbucketclaim_info") {
 				assert.Equal(t, *metric.Gauge.Value, float64(1))
+				claimInfoCount++
 			}
 		}
+		assert.Equal(t, 1, claimInfoCount, tt.name)
 		deleteOBs(t, tt.args.objects, obCollector.bktclient)
 	}
 }
