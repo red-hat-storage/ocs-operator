@@ -238,11 +238,14 @@ def cleanup_vpc(vpc: dict[str, Any], dry_run: bool) -> bool:
                 sleep_s=8,
             )
 
-    # 8) Security groups: clear rules, then delete non-default
+    # 8) Security groups: only installer-named ones (ci-op-*/infra*).
+    # IBM auto-named default SGs (random words) return not_authorized and
+    # are removed automatically with the VPC.
     sgs = [
         sg
         for sg in ibmcloud_json("is", "security-groups")
         if not sg.get("is_default")
+        and is_ci(sg.get("name"))
         and belongs(sg.get("name"), infra, vpc_id, (sg.get("vpc") or {}).get("id"))
     ]
     for sg in sgs:
@@ -256,9 +259,9 @@ def cleanup_vpc(vpc: dict[str, Any], dry_run: bool) -> bool:
             sleep_s=4,
         )
 
-    # 9) Non-default network ACLs
+    # 9) Network ACLs: same naming filter as SGs (skip IBM defaults).
     for nacl in ibmcloud_json("is", "network-acls"):
-        if nacl.get("is_default"):
+        if nacl.get("is_default") or not is_ci(nacl.get("name")):
             continue
         if belongs(nacl.get("name"), infra, vpc_id, (nacl.get("vpc") or {}).get("id")):
             ok &= delete(
