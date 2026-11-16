@@ -1277,6 +1277,12 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 		fsid = cephCluster.Status.CephStatus.FSID
 	}
 
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		logger.Error(err, "failed to get local storageCluster")
+		return nil, status.Error(codes.Internal, "failed loading client information")
+	}
+
 	for i := range req.ClientIDs {
 		consumer, err := s.consumerManager.GetByClientID(ctx, req.ClientIDs[i])
 		if err != nil {
@@ -1307,8 +1313,8 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			continue
 		}
 		owner := &consumer.OwnerReferences[idx]
-		if owner.UID != types.UID(req.StorageClusterUID) {
-			logger.Info("storageCluster specified on the req does not own the client", "client id", req.ClientIDs[i])
+		if owner.UID != storageCluster.UID {
+			logger.Info("consumer is not owned by the local storageCluster", "client id", req.ClientIDs[i])
 			continue
 		}
 
