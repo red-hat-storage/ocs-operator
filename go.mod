@@ -28,8 +28,8 @@ require (
 	github.com/operator-framework/api v0.45.0
 	github.com/operator-framework/operator-lib v0.19.0
 	github.com/operator-framework/operator-lifecycle-manager v0.46.0
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.94.2
-	github.com/prometheus-operator/prometheus-operator/pkg/client v0.94.2
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.95.1
+	github.com/prometheus-operator/prometheus-operator/pkg/client v0.95.1
 	github.com/prometheus/common v0.73.1
 	github.com/red-hat-storage/external-snapshotter/client/v8 v8.2.1-0.20260821074411-26525d9a5c22
 	github.com/red-hat-storage/ocs-client-operator/api v0.0.0-20261015023225-98d0fe2f1e07
@@ -48,7 +48,7 @@ require (
 	k8s.io/apimachinery v0.37.2
 	k8s.io/client-go v0.37.2
 	k8s.io/klog/v2 v2.140.0
-	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
+	k8s.io/utils v0.0.0-20261023123148-ca04ba58ecab
 	open-cluster-management.io/api v1.4.0
 	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/yaml v1.6.0
