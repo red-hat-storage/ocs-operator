@@ -111,6 +111,7 @@ func TestEnsureCephCluster(t *testing.T) {
 
 		err := setCephXFeaturesSpec(expected, sc)
 		assert.NilError(t, err)
+		setCephXHealthWarningMutes(expected, sc)
 
 		if !c.shouldCreate {
 			createErr := reconciler.Create(context.TODO(), expected)
@@ -270,6 +271,99 @@ func TestSetCephXFeaturesSpec(t *testing.T) {
 			assert.NilError(t, err)
 
 			assert.DeepEqual(t, c.expectedCephX, cephCluster.Spec.Security.CephX)
+		})
+	}
+}
+
+func TestSetCephXHealthWarningMutes(t *testing.T) {
+	allMuted := map[string]rookCephv1.MuteHealthWarningSpec{
+		"AUTH_INSECURE_ROTATING_SERVICE_KEY_TYPE": {Policy: "mute"},
+		"AUTH_INSECURE_CLIENT_KEY_TYPE":           {Policy: "mute"},
+		"AUTH_INSECURE_KEYS_ALLOWED":              {Policy: "mute"},
+		"AUTH_INSECURE_KEYS_CREATABLE":            {Policy: "mute"},
+	}
+
+	cases := []struct {
+		label    string
+		external bool
+		// healthCheck is set on the StorageCluster and copied to the CephCluster
+		healthCheck *rookCephv1.CephClusterHealthCheckSpec
+		expected    map[string]rookCephv1.MuteHealthWarningSpec
+	}{
+		{
+			label:    "no healthCheck in StorageCluster",
+			expected: allMuted,
+		},
+		{
+			label: "other healthCheck fields are preserved",
+			healthCheck: &rookCephv1.CephClusterHealthCheckSpec{
+				DaemonHealth: rookCephv1.DaemonHealthSpec{
+					Monitor: rookCephv1.HealthCheckSpec{Timeout: "10m"},
+				},
+			},
+			expected: allMuted,
+		},
+		{
+			label: "user policy for a CephX warning is kept",
+			healthCheck: &rookCephv1.CephClusterHealthCheckSpec{
+				MuteHealthWarning: map[string]rookCephv1.MuteHealthWarningSpec{
+					"AUTH_INSECURE_CLIENT_KEY_TYPE": {Policy: "unmute"},
+				},
+			},
+			expected: map[string]rookCephv1.MuteHealthWarningSpec{
+				"AUTH_INSECURE_ROTATING_SERVICE_KEY_TYPE": {Policy: "mute"},
+				"AUTH_INSECURE_CLIENT_KEY_TYPE":           {Policy: "unmute"},
+				"AUTH_INSECURE_KEYS_ALLOWED":              {Policy: "mute"},
+				"AUTH_INSECURE_KEYS_CREATABLE":            {Policy: "mute"},
+			},
+		},
+		{
+			label: "user policy for an unrelated warning is kept",
+			healthCheck: &rookCephv1.CephClusterHealthCheckSpec{
+				MuteHealthWarning: map[string]rookCephv1.MuteHealthWarningSpec{
+					"MON_NETSPLIT": {Policy: "mute"},
+				},
+			},
+			expected: map[string]rookCephv1.MuteHealthWarningSpec{
+				"MON_NETSPLIT": {Policy: "mute"},
+				"AUTH_INSECURE_ROTATING_SERVICE_KEY_TYPE": {Policy: "mute"},
+				"AUTH_INSECURE_CLIENT_KEY_TYPE":           {Policy: "mute"},
+				"AUTH_INSECURE_KEYS_ALLOWED":              {Policy: "mute"},
+				"AUTH_INSECURE_KEYS_CREATABLE":            {Policy: "mute"},
+			},
+		},
+		{
+			label:    "external mode does not set mutes",
+			external: true,
+			expected: nil,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.label, func(t *testing.T) {
+			sc := &ocsv1.StorageCluster{}
+			mockStorageCluster.DeepCopyInto(sc)
+			sc.Spec.ExternalStorage.Enable = c.external
+			sc.Spec.ManagedResources.CephCluster.HealthCheck = c.healthCheck.DeepCopy()
+
+			// same assignment as newCephCluster
+			cephCluster := &rookCephv1.CephCluster{}
+			if sc.Spec.ManagedResources.CephCluster.HealthCheck != nil {
+				cephCluster.Spec.HealthCheck = *sc.Spec.ManagedResources.CephCluster.HealthCheck.DeepCopy()
+			}
+			scBefore := sc.DeepCopy()
+
+			setCephXHealthWarningMutes(cephCluster, sc)
+
+			assert.DeepEqual(t, c.expected, cephCluster.Spec.HealthCheck.MuteHealthWarning)
+			assert.DeepEqual(t, scBefore.Spec.ManagedResources.CephCluster.HealthCheck, sc.Spec.ManagedResources.CephCluster.HealthCheck)
+			if c.healthCheck != nil {
+				assert.Equal(t, c.healthCheck.DaemonHealth.Monitor.Timeout, cephCluster.Spec.HealthCheck.DaemonHealth.Monitor.Timeout)
+			}
+
+			// applying it again must not change the result
+			setCephXHealthWarningMutes(cephCluster, sc)
+			assert.DeepEqual(t, c.expected, cephCluster.Spec.HealthCheck.MuteHealthWarning)
 		})
 	}
 }
