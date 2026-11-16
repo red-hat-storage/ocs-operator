@@ -515,7 +515,7 @@ func (r *StorageClusterReconciler) reconcilePhases(
 			// preserve list order
 			objs = []resourceManager{
 				&rookCephCsvHostNetwork{},
-				&ocsProviderServer{},
+				&ocsProviderServer{tlsProfile},
 				&backingStorageClasses{},
 				&ocsTopologyMap{},
 				&ocsStorageQuota{},

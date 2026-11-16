@@ -25,6 +25,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/provider/server"
+	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 
 	routev1 "github.com/openshift/api/route/v1"
 	secv1 "github.com/openshift/api/security/v1"
@@ -48,7 +49,9 @@ const (
 	clientCertRenewalWindow = 7 * 24 * time.Hour
 )
 
-type ocsProviderServer struct{}
+type ocsProviderServer struct {
+	tlsProfile *ocstlsv1.TLSProfile
+}
 
 func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
@@ -160,7 +163,7 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 		apiServerService,
 		apiServerNodePortService,
 		apiServerNetworkPolicy,
-		GetProviderAPIServerDeployment(instance),
+		GetProviderAPIServerDeployment(instance, 0),
 	} {
 		err := r.Delete(r.ctx, resource)
 
@@ -192,7 +195,7 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 		return reconcile.Result{}, finalErr
 	}
 
-	desiredDeployment := GetProviderAPIServerDeployment(instance)
+	desiredDeployment := GetProviderAPIServerDeployment(instance, o.tlsProfile.Generation)
 	actualDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      desiredDeployment.Name,
@@ -278,7 +281,7 @@ func (o *ocsProviderServer) ensureDeploymentReplica(actual, desired *appsv1.Depl
 	return nil
 }
 
-func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Deployment {
+func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster, tlsProfileGeneration int64) *appsv1.Deployment {
 
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -319,6 +322,10 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 								{
 									Name:  util.OperatorNamespaceEnvVar,
 									Value: instance.Namespace,
+								},
+								{
+									Name:  tlsProfileGenerationEnvName,
+									Value: strconv.FormatInt(tlsProfileGeneration, 10),
 								},
 							},
 							Ports: []corev1.ContainerPort{

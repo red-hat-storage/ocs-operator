@@ -48,6 +48,7 @@ import (
 	templatev1 "github.com/openshift/api/template/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
+	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -66,6 +67,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -608,10 +610,9 @@ func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
 		os.Exit(1)
 	}
 
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{serverCert},
-		ClientAuth:   tls.RequestClientCert,
-	}
+	tlsConfig := s.getTLSConfig(context.Background())
+	tlsConfig.Certificates = []tls.Certificate{serverCert}
+	tlsConfig.ClientAuth = tls.RequestClientCert
 
 	creds := credentials.NewTLS(tlsConfig)
 
@@ -629,6 +630,33 @@ func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
 		log.Log.Error(err, "failed to start gRPC server")
 		os.Exit(1)
 	}
+}
+
+// getTLSConfig returns the centralized TLS profile configuration for the provider gRPC server.
+func (s *OCSProviderServer) getTLSConfig(ctx context.Context) *tls.Config {
+	defaultConfig := &tls.Config{MinVersion: tls.VersionTLS12}
+
+	profile := &ocstlsv1.TLSProfile{}
+	err := retry.OnError(retry.DefaultBackoff, util.IsRetriableAPIError, func() error {
+		return s.client.Get(ctx, types.NamespacedName{Name: defaults.TLSProfileName, Namespace: s.namespace}, profile)
+	})
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			log.Log.Error(err, "failed to get TLS profile, using default TLS config")
+		}
+		return defaultConfig
+	}
+
+	config, found := ocstlsv1.GetConfigForServer(profile, "ocs.openshift.io", "provider-server")
+	if !found {
+		log.Log.Info("no matching TLS profile rule for provider-server, using default TLS config")
+		return defaultConfig
+	}
+	if err := ocstlsv1.ValidateTLSConfig(config); err != nil {
+		log.Log.Error(err, "invalid TLS profile config for provider-server, using default TLS config")
+		return defaultConfig
+	}
+	return ocstlsv1.GetGoTLSConfig(config)
 }
 
 func newScheme() (*runtime.Scheme, error) {
@@ -681,6 +709,9 @@ func newScheme() (*runtime.Scheme, error) {
 	}
 	if err = csiaddonsv1alpha1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add nbapis to scheme. %v", err)
+	}
+	if err = ocstlsv1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add ocstlsv1 to scheme. %v", err)
 	}
 
 	return scheme, nil
