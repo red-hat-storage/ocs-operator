@@ -20,6 +20,10 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	in, ok := sc.Spec.Placement[rookCephv1.KeyType(component)]
 	if ok {
 		(&in).DeepCopyInto(&placement)
+		// Additively merge the operator's default tolerations for this component with the
+		// user-specified tolerations which ensures required tolerations are preserved while
+		// still honouring custom ones.
+		placement.Tolerations = appendUniqueTolerations(defaults.DaemonPlacements[component].Tolerations, placement.Tolerations)
 	} else {
 		in := defaults.DaemonPlacements[component]
 		(&in).DeepCopyInto(&placement)
@@ -59,15 +63,10 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 		return placement
 	}
 
-	// if provider-server placements are found in the storagecluster spec append the default ocs tolerations to it
-	if ok && component == defaults.APIServerKey {
-		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
-		return placement
-	}
-
-	// if metrics-exporter placements are found in the storagecluster spec append the default ocs tolerations to it
-	if ok && component == defaults.MetricsExporterKey {
-		placement.Tolerations = append(placement.Tolerations, defaults.DaemonPlacements[component].Tolerations...)
+	// provider-server and metrics-exporter manage their own node affinity, so when a placement is
+	// specified for them return early (skipping the default node affinity logic below). The default
+	// ocs tolerations have already been merged into the specified placement above.
+	if ok && (component == defaults.APIServerKey || component == defaults.MetricsExporterKey) {
 		return placement
 	}
 
@@ -118,6 +117,37 @@ func getPlacement(sc *ocsv1.StorageCluster, component string) rookCephv1.Placeme
 	}
 
 	return placement
+}
+
+// appendUniqueTolerations appends tolerations from 'additional' to 'base', avoiding duplicates.
+// A toleration is considered duplicate if it has the same Key, Operator, Value, and Effect.
+func appendUniqueTolerations(base, additional []corev1.Toleration) []corev1.Toleration {
+	if len(additional) == 0 {
+		return base
+	}
+	if len(base) == 0 {
+		return additional
+	}
+
+	result := make([]corev1.Toleration, len(base))
+	copy(result, base)
+
+	for _, tol := range additional {
+		if !containsToleration(result, tol) {
+			result = append(result, tol)
+		}
+	}
+	return result
+}
+
+// containsToleration checks if a toleration slice contains a specific toleration
+func containsToleration(tolerations []corev1.Toleration, tol corev1.Toleration) bool {
+	for _, t := range tolerations {
+		if t.Key == tol.Key && t.Operator == tol.Operator && t.Value == tol.Value && t.Effect == tol.Effect {
+			return true
+		}
+	}
+	return false
 }
 
 // convertLabelToNodeSelectorRequirements returns a NodeSelectorRequirement list from a given LabelSelector

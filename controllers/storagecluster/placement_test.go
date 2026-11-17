@@ -158,6 +158,16 @@ func getOcsToleration() corev1.Toleration {
 	return toleration
 }
 
+// getCustomInfraToleration mirrors a user-supplied toleration (e.g. for infra node taints) that is
+// distinct from the operator's default OCS toleration. Used to exercise the additive merge.
+func getCustomInfraToleration() corev1.Toleration {
+	return corev1.Toleration{
+		Key:      "node-role.kubernetes.io/infra",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
+}
+
 func TestGetPlacement(t *testing.T) {
 	cases := []struct {
 		label              string
@@ -193,12 +203,15 @@ func TestGetPlacement(t *testing.T) {
 			placements:     emptyPlacements,
 			labelSelector:  nil,
 			expectedPlacements: rookCephv1.PlacementSpec{
+				// default tolerations are additively merged into the specified placement
 				"all": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
+					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
 				},
 				"mon": {},
 				"mds": {
 					NodeAffinity: defaults.DefaultNodeAffinity,
+					Tolerations:  defaults.DaemonPlacements["mds"].Tolerations,
 				},
 			},
 		},
@@ -229,14 +242,17 @@ func TestGetPlacement(t *testing.T) {
 			placements:     emptyPlacements,
 			labelSelector:  &workerLabelSelector,
 			expectedPlacements: rookCephv1.PlacementSpec{
+				// default tolerations are additively merged into the specified placement
 				"all": {
 					NodeAffinity: &workerNodeAffinity,
+					Tolerations:  defaults.DaemonPlacements["all"].Tolerations,
 				},
 				"mon": {
 					NodeAffinity: &workerNodeAffinity,
 				},
 				"mds": {
 					NodeAffinity: &workerNodeAffinity,
+					Tolerations:  defaults.DaemonPlacements["mds"].Tolerations,
 				},
 			},
 		},
@@ -246,6 +262,7 @@ func TestGetPlacement(t *testing.T) {
 			placements:     workerPlacements,
 			labelSelector:  &masterLabelSelector,
 			expectedPlacements: rookCephv1.PlacementSpec{
+				// default tolerations are additively merged into the specified placement
 				"all": {
 					NodeAffinity: &corev1.NodeAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -259,6 +276,7 @@ func TestGetPlacement(t *testing.T) {
 							},
 						},
 					},
+					Tolerations: defaults.DaemonPlacements["all"].Tolerations,
 				},
 				"mon": {
 					NodeAffinity: &corev1.NodeAffinity{
@@ -287,6 +305,7 @@ func TestGetPlacement(t *testing.T) {
 							},
 						},
 					},
+					Tolerations: defaults.DaemonPlacements["mds"].Tolerations,
 				},
 			},
 		},
@@ -323,9 +342,11 @@ func TestGetPlacement(t *testing.T) {
 				"mon": {
 					PodAntiAffinity: customMONPlacement.PodAntiAffinity,
 				},
+				// default mds tolerations are additively merged into the custom mds placement
 				"mds": {
 					NodeAffinity:    defaults.DefaultNodeAffinity,
 					PodAntiAffinity: customMDSPlacement.PodAntiAffinity,
+					Tolerations:     defaults.DaemonPlacements["mds"].Tolerations,
 				},
 			},
 		},
@@ -346,9 +367,11 @@ func TestGetPlacement(t *testing.T) {
 					NodeAffinity:    &workerNodeAffinity,
 					PodAntiAffinity: customMONPlacement.PodAntiAffinity,
 				},
+				// default mds tolerations are additively merged into the custom mds placement
 				"mds": {
 					NodeAffinity:    &workerNodeAffinity,
 					PodAntiAffinity: customMDSPlacement.PodAntiAffinity,
+					Tolerations:     defaults.DaemonPlacements["mds"].Tolerations,
 				},
 			},
 		},
@@ -479,6 +502,41 @@ func TestGetPlacement(t *testing.T) {
 				},
 			},
 		},
+		{
+			// DFBUGS-5253: a user-supplied custom toleration must be merged with (not replace)
+			// the operator's default tolerations. This is the core additive-merge behavior.
+			label:          "Case 12: Custom toleration is additively merged with the default toleration",
+			storageCluster: mockStorageCluster.DeepCopy(),
+			placements: rookCephv1.PlacementSpec{
+				"all": {
+					Tolerations: []corev1.Toleration{getCustomInfraToleration()},
+				},
+				"mon": {
+					Tolerations: []corev1.Toleration{getCustomInfraToleration()},
+				},
+				"mds": {
+					Tolerations: []corev1.Toleration{getCustomInfraToleration()},
+				},
+			},
+			labelSelector: nil,
+			expectedPlacements: rookCephv1.PlacementSpec{
+				// "all" has a default OCS toleration, so the result is default + custom
+				"all": {
+					NodeAffinity: defaults.DefaultNodeAffinity,
+					Tolerations:  []corev1.Toleration{getOcsToleration(), getCustomInfraToleration()},
+				},
+				// "mon" has no default toleration of its own (it inherits the OCS toleration via the
+				// "all" key at the Rook level), so only the custom toleration is present here
+				"mon": {
+					Tolerations: []corev1.Toleration{getCustomInfraToleration()},
+				},
+				// "mds" has a default OCS toleration, so the result is default + custom
+				"mds": {
+					NodeAffinity: defaults.DefaultNodeAffinity,
+					Tolerations:  []corev1.Toleration{getOcsToleration(), getCustomInfraToleration()},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -517,5 +575,64 @@ func TestGetPlacement(t *testing.T) {
 		}
 		actualPlacement = getPlacement(sc, "mds")
 		assert.Equal(t, expectedPlacement, actualPlacement, c.label)
+	}
+}
+
+func TestAppendUniqueTolerations(t *testing.T) {
+	tol1 := corev1.Toleration{
+		Key:      "key1",
+		Operator: corev1.TolerationOpEqual,
+		Value:    "value1",
+		Effect:   corev1.TaintEffectNoSchedule,
+	}
+	tol2 := corev1.Toleration{
+		Key:      "key2",
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoExecute,
+	}
+
+	testCases := []struct {
+		name       string
+		base       []corev1.Toleration
+		additional []corev1.Toleration
+		expected   []corev1.Toleration
+	}{
+		{
+			name:       "empty base",
+			base:       nil,
+			additional: []corev1.Toleration{tol1},
+			expected:   []corev1.Toleration{tol1},
+		},
+		{
+			name:       "empty additional",
+			base:       []corev1.Toleration{tol1},
+			additional: nil,
+			expected:   []corev1.Toleration{tol1},
+		},
+		{
+			name:       "no duplicates",
+			base:       []corev1.Toleration{tol1},
+			additional: []corev1.Toleration{tol2},
+			expected:   []corev1.Toleration{tol1, tol2},
+		},
+		{
+			name:       "with duplicates",
+			base:       []corev1.Toleration{tol1, tol2},
+			additional: []corev1.Toleration{tol1}, // duplicate
+			expected:   []corev1.Toleration{tol1, tol2},
+		},
+		{
+			name:       "all duplicates",
+			base:       []corev1.Toleration{tol1},
+			additional: []corev1.Toleration{tol1},
+			expected:   []corev1.Toleration{tol1},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			result := appendUniqueTolerations(tt.base, tt.additional)
+			assert.Equal(t, tt.expected, result)
+		})
 	}
 }
