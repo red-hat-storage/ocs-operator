@@ -1,6 +1,6 @@
 module github.com/red-hat-storage/ocs-operator/metrics/v4
 
-go 1.22.5
+go 1.22.12
 
 replace github.com/rook/rook/pkg/apis => github.com/red-hat-storage/rook/pkg/apis v0.0.0-20261104055432-f6dd6a3ab7ba
 
