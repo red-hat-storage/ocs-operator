@@ -218,7 +218,10 @@ func getLocalStorageClassNames(ctx context.Context, kubeClient client.Client, st
 
 	storageClassNames := map[string]bool{}
 	storageClassNames[util.GenerateNameForCephBlockPoolStorageClass(storageCluster)] = true
-	storageClassNames[util.GenerateNameForCephFilesystemStorageClass(storageCluster)] = true
+
+	if ReconcileStrategy(storageCluster.Spec.ManagedResources.CephFilesystems.ReconcileStrategy) != ReconcileStrategyIgnore {
+		storageClassNames[util.GenerateNameForCephFilesystemStorageClass(storageCluster)] = true
+	}
 
 	crd := &metav1.PartialObjectMetadata{}
 	crd.SetGroupVersionKind(extv1.SchemeGroupVersion.WithKind("CustomResourceDefinition"))
@@ -276,7 +279,10 @@ func getLocalVolumeSnapshotClassNames(ctx context.Context, kubeClient client.Cli
 
 	volumeSnapshotClassNames := map[string]bool{}
 	volumeSnapshotClassNames[util.GenerateNameForSnapshotClass(storageCluster.Name, util.RbdSnapshotter)] = true
-	volumeSnapshotClassNames[util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)] = true
+
+	if ReconcileStrategy(storageCluster.Spec.ManagedResources.CephFilesystems.ReconcileStrategy) != ReconcileStrategyIgnore {
+		volumeSnapshotClassNames[util.GenerateNameForSnapshotClass(storageCluster.Name, util.CephfsSnapshotter)] = true
+	}
 
 	if storageCluster.Spec.NFS != nil && storageCluster.Spec.NFS.Enable {
 		volumeSnapshotClassNames[util.GenerateNameForSnapshotClass(storageCluster.Name, util.NfsSnapshotter)] = true
@@ -315,7 +321,10 @@ func getLocalVolumeGroupSnapshotClassNames(ctx context.Context, kubeClient clien
 
 	volumeGroupSnapshotClassNames := map[string]bool{}
 	volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.RbdGroupSnapshotter)] = true
-	volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = true
+
+	if ReconcileStrategy(storageCluster.Spec.ManagedResources.CephFilesystems.ReconcileStrategy) != ReconcileStrategyIgnore {
+		volumeGroupSnapshotClassNames[util.GenerateNameForGroupSnapshotClass(storageCluster, util.CephfsGroupSnapshotter)] = true
+	}
 
 	// TODO: enable vgsc after GA of API
 	// crd := &metav1.PartialObjectMetadata{}
@@ -359,7 +368,10 @@ func getLocalNetworkFenceClassNames(storageCluster *ocsv1.StorageCluster) []ocsv
 
 	networkFenceClassNames := map[string]bool{}
 	networkFenceClassNames[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.RbdNetworkFenceClass)] = true
-	networkFenceClassNames[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.CephfsNetworkFenceClass)] = true
+
+	if ReconcileStrategy(storageCluster.Spec.ManagedResources.CephFilesystems.ReconcileStrategy) != ReconcileStrategyIgnore {
+		networkFenceClassNames[util.GenerateNameForNetworkFenceClass(storageCluster.Name, util.CephfsNetworkFenceClass)] = true
+	}
 
 	nfcSpec := make([]ocsv1a1.NetworkFenceClassesSpec, 0, len(networkFenceClassNames))
 	for nfcName := range maps.Keys(networkFenceClassNames) {
