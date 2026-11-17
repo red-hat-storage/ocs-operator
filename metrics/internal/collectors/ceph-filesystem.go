@@ -46,13 +46,13 @@ func NewCephFilesystemCollector(opts *options.Options) *CephFilesystemCollector 
 	return &CephFilesystemCollector{
 		Phase: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, cephFilesystemSubsystem, "status_phase"),
-			`CephFilesystem Status Phase. 0=Connecting, 1=Connected, 2=Progressing, 3=Ready, 4=Failure, 5=Deleting, 6=DeletionIsBlocked`,
+			`CephFilesystem Status Phase. 0=Connecting, 1=Connected, 2=Failure, 3=Ready, 4=Progressing, 5=Deleting, 6=DeletionIsBlocked`,
 			[]string{"name", "namespace"},
 			nil,
 		),
 		SubVolumeGroupPhase: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, cephFilesystemSubVolumeGroupSubsystem, "status_phase"),
-			`CephFilesystemSubVolumeGroup Status Phase. 0=Connecting, 1=Connected, 2=Progressing, 3=Ready, 4=Failure, 5=Deleting, 6=DeletionIsBlocked`,
+			`CephFilesystemSubVolumeGroup Status Phase. 0=Connecting, 1=Connected, 2=Failure, 3=Ready, 4=Progressing, 5=Deleting, 6=DeletionIsBlocked`,
 			[]string{"name", "namespace", "subvolume_group", "consumer_name"},
 			nil,
 		),
