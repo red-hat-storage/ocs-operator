@@ -30,6 +30,8 @@ KEEP_SERVICE_INSTANCES = frozenset({"odf-openshift-ci-cis"})
 GONE = ("not found", "does not exist", "could not find", "no floating ip")
 # Default VPC SGs/NACLs return this; they are removed with the VPC.
 SKIPPABLE = ("not_authorized",)
+# FIPs attached to a public gateway cannot be released until the PGW is gone.
+FIP_IN_USE = ("in use", "conflict_field")
 
 
 def log(msg: str) -> None:
@@ -95,16 +97,25 @@ def belongs(name: str | None, infra: str, vpc_id: str | None, obj_vpc_id: str | 
     return False
 
 
-def delete(args: list[str], label: str, dry_run: bool, attempts: int = 6, sleep_s: int = 8) -> bool:
+def delete(
+    args: list[str],
+    label: str,
+    dry_run: bool,
+    attempts: int = 6,
+    sleep_s: int = 8,
+    soft_fail: tuple[str, ...] = (),
+) -> bool:
     if dry_run:
         log(f"  DRY-RUN delete {label}")
         return True
+    last_err = ""
     for i in range(1, attempts + 1):
         p = run(args)
         if p.returncode == 0:
             log(f"  deleted {label}")
             return True
         err = (p.stderr or p.stdout or "").strip().replace("\n", " ")
+        last_err = err
         low = err.lower()
         if any(x in low for x in GONE):
             log(f"  gone {label}")
@@ -114,6 +125,9 @@ def delete(args: list[str], label: str, dry_run: bool, attempts: int = 6, sleep_
             return True
         log(f"  retry {i}/{attempts} {label}: {err[:160]}")
         time.sleep(sleep_s)
+    if soft_fail and any(x in last_err.lower() for x in soft_fail):
+        log(f"  skip {label}: still in use after retries (will retry next run)")
+        return True
     log(f"  FAILED {label}")
     return False
 
@@ -257,25 +271,40 @@ def cleanup_vpc(vpc: dict[str, Any], dry_run: bool) -> bool:
             sleep_s=10,
         )
 
-    # 5) Public gateways
+    # 5) Public gateways — must be gone before their FIPs can be released.
+    pgw_ids: set[str] = set()
     for pgw in is_list(ibmcloud_json("is", "public-gateways")):
-        if belongs(pgw.get("name"), infra, vpc_id, (pgw.get("vpc") or {}).get("id")):
-            ok &= delete(
-                ["ibmcloud", "is", "public-gateway-delete", pgw["id"], "-f"],
-                f"pgw/{pgw.get('name')}",
-                dry_run,
-                attempts=8,
-                sleep_s=6,
-            )
+        if not belongs(pgw.get("name"), infra, vpc_id, (pgw.get("vpc") or {}).get("id")):
+            continue
+        pgw_ids.add(pgw["id"])
+        ok &= delete(
+            ["ibmcloud", "is", "public-gateway-delete", pgw["id"], "-f"],
+            f"pgw/{pgw.get('name')}",
+            dry_run,
+            attempts=8,
+            sleep_s=6,
+        )
+    wait_gone(["is", "public-gateways"], pgw_ids, "public-gateways", dry_run)
 
-    # 6) Floating IPs (name match only; FIPs are not VPC-scoped in list output)
+    # 6) Floating IPs (name match only; FIPs are not VPC-scoped in list output).
+    # PGW FIPs stay "in use" until the gateway is deleted; skip still-bound ones
+    # and only release unbound FIPs (with retries for the unbind race).
     for fip in is_list(ibmcloud_json("is", "floating-ips")):
-        if belongs(fip.get("name"), infra, None, None):
-            ok &= delete(
-                ["ibmcloud", "is", "floating-ip-release", fip["id"], "-f"],
-                f"fip/{fip.get('name')}",
-                dry_run,
-            )
+        if not belongs(fip.get("name"), infra, None, None):
+            continue
+        target = fip.get("target") or {}
+        if target:
+            kind = target.get("resource_type") or target.get("name") or "resource"
+            log(f"  skip fip/{fip.get('name')}: still bound to {kind}")
+            continue
+        ok &= delete(
+            ["ibmcloud", "is", "floating-ip-release", fip["id"], "-f"],
+            f"fip/{fip.get('name')}",
+            dry_run,
+            attempts=10,
+            sleep_s=8,
+            soft_fail=FIP_IN_USE,
+        )
 
     # 7) Volumes
     for vol in is_list(ibmcloud_json("is", "volumes")):
