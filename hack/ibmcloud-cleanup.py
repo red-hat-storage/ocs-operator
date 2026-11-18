@@ -28,6 +28,10 @@ DEFAULT_RESOURCE_GROUP = "odf-openshift-ci"
 DEFAULT_REGIONS = ("us-east", "us-south")
 KEEP_SERVICE_INSTANCES = frozenset({"odf-openshift-ci-cis"})
 GONE = ("not found", "does not exist", "could not find", "no floating ip")
+# Default VPC SGs/NACLs return this; they are removed with the VPC.
+SKIPPABLE = ("not_authorized",)
+# FIPs attached to a public gateway cannot be released until the PGW is gone.
+FIP_IN_USE = ("in use", "conflict_field")
 
 
 def log(msg: str) -> None:
@@ -47,9 +51,17 @@ def ibmcloud_json(*args: str) -> Any:
     if p.returncode != 0:
         err = (p.stderr or p.stdout or "").strip()
         raise RuntimeError(f"ibmcloud {' '.join(args)} failed: {err[:300]}")
-    if not p.stdout.strip():
+    text = p.stdout.strip()
+    if not text:
         return []
-    return json.loads(p.stdout)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"ibmcloud {' '.join(args)}: invalid JSON: {e}") from e
+
+
+def is_list(data: Any) -> list[Any]:
+    return data if isinstance(data, list) else []
 
 
 def is_ci(name: str | None) -> bool:
@@ -85,24 +97,68 @@ def belongs(name: str | None, infra: str, vpc_id: str | None, obj_vpc_id: str | 
     return False
 
 
-def delete(args: list[str], label: str, dry_run: bool, attempts: int = 6, sleep_s: int = 8) -> bool:
+def delete(
+    args: list[str],
+    label: str,
+    dry_run: bool,
+    attempts: int = 6,
+    sleep_s: int = 8,
+    soft_fail: tuple[str, ...] = (),
+) -> bool:
     if dry_run:
         log(f"  DRY-RUN delete {label}")
         return True
+    last_err = ""
     for i in range(1, attempts + 1):
         p = run(args)
         if p.returncode == 0:
             log(f"  deleted {label}")
             return True
         err = (p.stderr or p.stdout or "").strip().replace("\n", " ")
+        last_err = err
         low = err.lower()
         if any(x in low for x in GONE):
             log(f"  gone {label}")
             return True
+        if any(x in low for x in SKIPPABLE):
+            log(f"  skip {label}: {err[:120]}")
+            return True
         log(f"  retry {i}/{attempts} {label}: {err[:160]}")
         time.sleep(sleep_s)
+    if soft_fail and any(x in last_err.lower() for x in soft_fail):
+        log(f"  skip {label}: still in use after retries (will retry next run)")
+        return True
     log(f"  FAILED {label}")
     return False
+
+
+def wait_gone(
+    list_args: list[str],
+    ids: set[str],
+    label: str,
+    dry_run: bool,
+    timeout_s: int = 180,
+    poll_s: int = 10,
+) -> None:
+    """Block until the given resource IDs no longer appear in a list call."""
+    if dry_run or not ids:
+        return
+    deadline = time.time() + timeout_s
+    pending = set(ids)
+    while pending and time.time() < deadline:
+        try:
+            items = is_list(ibmcloud_json(*list_args))
+        except RuntimeError as e:
+            log(f"  WARN wait {label}: {e}")
+            return
+        present = {i.get("id") for i in items if i.get("id")}
+        pending &= present
+        if not pending:
+            log(f"  waited: {label} gone")
+            return
+        time.sleep(poll_s)
+    if pending:
+        log(f"  WARN wait {label}: still present after {timeout_s}s ({len(pending)} left)")
 
 
 def login(api_key: str, resource_group: str, region: str) -> None:
@@ -131,12 +187,10 @@ def target(region: str, resource_group: str) -> None:
 
 def clear_sg_rules(sg_id: str, sg_name: str, dry_run: bool) -> None:
     try:
-        rules = ibmcloud_json("is", "security-group-rules", sg_id)
+        rules = is_list(ibmcloud_json("is", "security-group-rules", sg_id))
     except RuntimeError as e:
         log(f"  WARN list rules {sg_name}: {e}")
         return
-    if not isinstance(rules, list):
-        rules = []
     for rule in rules:
         rid = rule.get("id")
         if not rid:
@@ -158,28 +212,38 @@ def cleanup_vpc(vpc: dict[str, Any], dry_run: bool) -> bool:
 
     ok = True
 
-    # 1) Load balancers
-    for lb in ibmcloud_json("is", "load-balancers"):
-        if belongs(lb.get("name"), infra, vpc_id, (lb.get("vpc") or {}).get("id")):
-            ok &= delete(
-                ["ibmcloud", "is", "load-balancer-delete", lb["id"], "-f"],
-                f"lb/{lb.get('name')}",
-                dry_run,
-            )
+    # 1) Load balancers — must finish before subnets can go.
+    lb_ids: set[str] = set()
+    for lb in is_list(ibmcloud_json("is", "load-balancers")):
+        if not belongs(lb.get("name"), infra, vpc_id, (lb.get("vpc") or {}).get("id")):
+            continue
+        lb_ids.add(lb["id"])
+        ok &= delete(
+            ["ibmcloud", "is", "load-balancer-delete", lb["id"], "-f"],
+            f"lb/{lb.get('name')}",
+            dry_run,
+            attempts=8,
+            sleep_s=10,
+        )
+    wait_gone(["is", "load-balancers"], lb_ids, "load-balancers", dry_run)
 
     # 2) Instances
-    for inst in ibmcloud_json("is", "instances"):
-        if belongs(inst.get("name"), infra, vpc_id, (inst.get("vpc") or {}).get("id")):
-            ok &= delete(
-                ["ibmcloud", "is", "instance-delete", inst["id"], "-f"],
-                f"instance/{inst.get('name')}",
-                dry_run,
-                attempts=8,
-                sleep_s=10,
-            )
+    inst_ids: set[str] = set()
+    for inst in is_list(ibmcloud_json("is", "instances")):
+        if not belongs(inst.get("name"), infra, vpc_id, (inst.get("vpc") or {}).get("id")):
+            continue
+        inst_ids.add(inst["id"])
+        ok &= delete(
+            ["ibmcloud", "is", "instance-delete", inst["id"], "-f"],
+            f"instance/{inst.get('name')}",
+            dry_run,
+            attempts=8,
+            sleep_s=10,
+        )
+    wait_gone(["is", "instances"], inst_ids, "instances", dry_run)
 
     # 3) Endpoint gateways
-    for egw in ibmcloud_json("is", "endpoint-gateways"):
+    for egw in is_list(ibmcloud_json("is", "endpoint-gateways")):
         if belongs(egw.get("name"), infra, vpc_id, (egw.get("vpc") or {}).get("id")):
             ok &= delete(
                 ["ibmcloud", "is", "endpoint-gateway-delete", egw["id"], "-f"],
@@ -188,7 +252,7 @@ def cleanup_vpc(vpc: dict[str, Any], dry_run: bool) -> bool:
             )
 
     # 4) Detach public gateways from subnets, then delete subnets
-    for sn in ibmcloud_json("is", "subnets"):
+    for sn in is_list(ibmcloud_json("is", "subnets")):
         if not belongs(sn.get("name"), infra, vpc_id, (sn.get("vpc") or {}).get("id")):
             continue
         if sn.get("public_gateway"):
@@ -203,33 +267,48 @@ def cleanup_vpc(vpc: dict[str, Any], dry_run: bool) -> bool:
             ["ibmcloud", "is", "subnet-delete", sn["id"], "-f"],
             f"subnet/{sn.get('name')}",
             dry_run,
-            attempts=10,
-            sleep_s=8,
+            attempts=12,
+            sleep_s=10,
         )
 
-    # 5) Public gateways
-    for pgw in ibmcloud_json("is", "public-gateways"):
-        if belongs(pgw.get("name"), infra, vpc_id, (pgw.get("vpc") or {}).get("id")):
-            ok &= delete(
-                ["ibmcloud", "is", "public-gateway-delete", pgw["id"], "-f"],
-                f"pgw/{pgw.get('name')}",
-                dry_run,
-                attempts=8,
-                sleep_s=6,
-            )
+    # 5) Public gateways — must be gone before their FIPs can be released.
+    pgw_ids: set[str] = set()
+    for pgw in is_list(ibmcloud_json("is", "public-gateways")):
+        if not belongs(pgw.get("name"), infra, vpc_id, (pgw.get("vpc") or {}).get("id")):
+            continue
+        pgw_ids.add(pgw["id"])
+        ok &= delete(
+            ["ibmcloud", "is", "public-gateway-delete", pgw["id"], "-f"],
+            f"pgw/{pgw.get('name')}",
+            dry_run,
+            attempts=8,
+            sleep_s=6,
+        )
+    wait_gone(["is", "public-gateways"], pgw_ids, "public-gateways", dry_run)
 
-    # 6) Floating IPs
-    for fip in ibmcloud_json("is", "floating-ips"):
-        if belongs(fip.get("name"), infra, vpc_id, None):
-            ok &= delete(
-                ["ibmcloud", "is", "floating-ip-release", fip["id"], "-f"],
-                f"fip/{fip.get('name')}",
-                dry_run,
-            )
+    # 6) Floating IPs (name match only; FIPs are not VPC-scoped in list output).
+    # PGW FIPs stay "in use" until the gateway is deleted; skip still-bound ones
+    # and only release unbound FIPs (with retries for the unbind race).
+    for fip in is_list(ibmcloud_json("is", "floating-ips")):
+        if not belongs(fip.get("name"), infra, None, None):
+            continue
+        target = fip.get("target") or {}
+        if target:
+            kind = target.get("resource_type") or target.get("name") or "resource"
+            log(f"  skip fip/{fip.get('name')}: still bound to {kind}")
+            continue
+        ok &= delete(
+            ["ibmcloud", "is", "floating-ip-release", fip["id"], "-f"],
+            f"fip/{fip.get('name')}",
+            dry_run,
+            attempts=10,
+            sleep_s=8,
+            soft_fail=FIP_IN_USE,
+        )
 
     # 7) Volumes
-    for vol in ibmcloud_json("is", "volumes"):
-        if belongs(vol.get("name"), infra, vpc_id, None):
+    for vol in is_list(ibmcloud_json("is", "volumes")):
+        if belongs(vol.get("name"), infra, None, None):
             ok &= delete(
                 ["ibmcloud", "is", "volume-delete", vol["id"], "-f"],
                 f"volume/{vol.get('name')}",
@@ -238,12 +317,12 @@ def cleanup_vpc(vpc: dict[str, Any], dry_run: bool) -> bool:
                 sleep_s=8,
             )
 
-    # 8) Security groups: only installer-named ones (ci-op-*/infra*).
+    # 8) Security groups: only installer-named ones (ci-op-*).
     # IBM auto-named default SGs (random words) return not_authorized and
     # are removed automatically with the VPC.
     sgs = [
         sg
-        for sg in ibmcloud_json("is", "security-groups")
+        for sg in is_list(ibmcloud_json("is", "security-groups"))
         if not sg.get("is_default")
         and is_ci(sg.get("name"))
         and belongs(sg.get("name"), infra, vpc_id, (sg.get("vpc") or {}).get("id"))
@@ -260,7 +339,7 @@ def cleanup_vpc(vpc: dict[str, Any], dry_run: bool) -> bool:
         )
 
     # 9) Network ACLs: same naming filter as SGs (skip IBM defaults).
-    for nacl in ibmcloud_json("is", "network-acls"):
+    for nacl in is_list(ibmcloud_json("is", "network-acls")):
         if nacl.get("is_default") or not is_ci(nacl.get("name")):
             continue
         if belongs(nacl.get("name"), infra, vpc_id, (nacl.get("vpc") or {}).get("id")):
@@ -286,7 +365,7 @@ def cleanup_region(region: str, resource_group: str, cutoff: datetime, dry_run: 
     target(region, resource_group)
     vpcs = [
         v
-        for v in ibmcloud_json("is", "vpcs")
+        for v in is_list(ibmcloud_json("is", "vpcs"))
         if is_ci(v.get("name")) and is_aged(v, cutoff)
     ]
     log(f"aged ci-op VPCs: {len(vpcs)}")
@@ -301,9 +380,7 @@ def cleanup_region(region: str, resource_group: str, cutoff: datetime, dry_run: 
 
 def cleanup_service_instances(resource_group: str, cutoff: datetime, dry_run: bool) -> bool:
     log("\n===== service instances =====")
-    items = ibmcloud_json("resource", "service-instances", "-g", resource_group)
-    if not isinstance(items, list):
-        items = []
+    items = is_list(ibmcloud_json("resource", "service-instances", "-g", resource_group))
 
     ok = True
     for it in items:
@@ -314,7 +391,6 @@ def cleanup_service_instances(resource_group: str, cutoff: datetime, dry_run: bo
         if not is_ci(name):
             log(f"SKIP {name}")
             continue
-        # resource controller uses created_at
         if not is_aged(it, cutoff):
             log(f"YOUNG {name} created={it.get('created_at')}")
             continue
@@ -366,6 +442,10 @@ def main() -> int:
         return 1
 
     regions = [r.strip() for r in args.regions.split(",") if r.strip()]
+    if not regions:
+        log("ERROR: at least one region is required")
+        return 1
+
     cutoff = datetime.now(timezone.utc) - timedelta(hours=args.age_hours)
     log(
         f"ibmcloud-cleanup dry_run={args.dry_run} age_hours={args.age_hours} "
