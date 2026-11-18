@@ -415,6 +415,11 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 func setCephXFeaturesSpec(cephCluster *rookCephv1.CephCluster, sc *ocsv1.StorageCluster) error {
 	cephCluster.Spec.Security.CephX.AllowedCiphers = []rookCephv1.CephxKeyType{rookCephv1.CephxKeyTypeAes, rookCephv1.CephxKeyTypeAes256k}
 
+	// Rook creates the CSI ceph users for internal mode. Keep their keys on aes so
+	// that kernels without aes256k support can continue to mount volumes. Without
+	// this, Rook creates the keys using the mon default key type, which is aes256k.
+	cephCluster.Spec.Security.CephX.CSI.KeyType = rookCephv1.CephxKeyTypeAes
+
 	if _, ok := cephCluster.GetAnnotations()[util.CreatedWithCephXFeaturesAnnotationKey]; ok {
 		cephCluster.Spec.Security.CephX.RBDMirrorPeer.KeyType = rookCephv1.CephxKeyTypeAes
 	} else {
