@@ -74,6 +74,8 @@ func (obj *ocsCephNVMeOF) ensureNVMeOFGateway(r *StorageClusterReconciler, sc *o
 			Group:       cmp.Or(sc.Spec.NVMeOF.GatewayGroup, defaultNVMeOFGatewayGroup),
 			Instances:   sc.Spec.NVMeOF.GatewayInstances,
 			HostNetwork: ptr.To(false),
+			// Leave nil when unset so Rook applies its own default (interrupt mode).
+			InterruptMode: sc.Spec.NVMeOF.InterruptMode,
 		}
 		return controllerutil.SetControllerReference(sc, gateway, r.Scheme)
 	})
