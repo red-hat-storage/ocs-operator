@@ -1201,7 +1201,10 @@ func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.Peer
 	storageClusterPeer, err := s.storageClusterPeerManager.GetByPeerStorageClusterUID(ctx, types.UID(req.StorageClusterUID))
 	if err != nil {
 		logger.Error(err, "failed to get storage cluster peer that meets the criteria")
-		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer that meets all criteria")
+		if kerrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer that meets all criteria")
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get storage cluster peer")
 	}
 
 	logger.Info("Found StorageClusterPeer", "storageClusterPeer", storageClusterPeer.Name)
@@ -1257,7 +1260,10 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 	storageClusterPeer, err := s.storageClusterPeerManager.GetByPeerStorageClusterUID(ctx, types.UID(req.StorageClusterUID))
 	if err != nil {
 		logger.Error(err, "failed to get storage cluster peer")
-		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer")
+		if kerrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer")
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get storage cluster peer")
 	}
 
 	if err := s.authenticatePeerConnection(ctx, storageClusterPeer); err != nil {
@@ -1350,7 +1356,10 @@ func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.Block
 	storageClusterPeer, err := s.storageClusterPeerManager.GetByPeerStorageClusterUID(ctx, types.UID(req.StorageClusterUID))
 	if err != nil {
 		logger.Error(err, "failed to get storage cluster peer")
-		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer")
+		if kerrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer")
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get storage cluster peer")
 	}
 
 	if err := s.authenticatePeerConnection(ctx, storageClusterPeer); err != nil {

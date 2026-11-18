@@ -6,6 +6,7 @@ import (
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -34,5 +35,8 @@ func (s *storageClusterPeerManager) GetByPeerStorageClusterUID(ctx context.Conte
 			return scp, nil
 		}
 	}
-	return nil, fmt.Errorf("StorageClusterPeer linked to StorageCluster with uid %q not found", storageClusterUID)
+	return nil, kerrors.NewNotFound(
+		ocsv1.GroupVersion.WithResource("storageclusterpeers").GroupResource(),
+		fmt.Sprintf("linked to StorageCluster with uid %q", storageClusterUID),
+	)
 }
