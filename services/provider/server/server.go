@@ -224,7 +224,7 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 // OnboardConsumer RPC call to onboard a new OCS consumer cluster.
 func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
 	logger := klog.FromContext(ctx).WithName("OnboardConsumer")
-	logger.Info("Starting OnboardConsumer RPC", "request", req)
+	logger.Info("Starting OnboardConsumer RPC", "clientName", req.ClientName)
 
 	version, err := semver.FinalizeVersion(req.ClientOperatorVersion)
 	if err != nil {
@@ -323,10 +323,10 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 
 // GetDesiredClientState RPC call to generate the desired state of the client
 func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.GetDesiredClientStateRequest) (*pb.GetDesiredClientStateResponse, error) {
-	logger := klog.FromContext(ctx).WithName("GetDesiredClientState").WithValues("consumer", req.StorageConsumerUUID)
+	logger := klog.FromContext(ctx).WithName("GetDesiredClientState")
 	consumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
 	if err != nil {
-		logger.Error(err, "failed to get consumer")
+		logger.Error(err, "failed to get consumer", "consumer", req.StorageConsumerUUID)
 		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer")
 	}
 
@@ -1173,7 +1173,7 @@ func replaceMsgr1PortWithMsgr2(ips []string) {
 
 func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.PeerStorageClusterRequest) (*pb.PeerStorageClusterResponse, error) {
 	logger := klog.FromContext(ctx).WithName("PeerStorageCluster").WithValues("storage cluster", req.StorageClusterUID)
-	logger.Info("Starting PeerStorageCluster RPC", "request", req)
+	logger.Info("Starting PeerStorageCluster RPC", "storageClusterUID", req.StorageClusterUID)
 
 	pubKey, err := s.getOnboardingValidationKey(ctx)
 	if err != nil {
