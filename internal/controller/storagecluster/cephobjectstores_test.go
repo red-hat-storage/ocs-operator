@@ -10,6 +10,7 @@ import (
 	api "github.com/red-hat-storage/ocs-operator/api/v4/v1"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/platform"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
@@ -653,6 +654,96 @@ func TestNewCephObjectStoreInstancesZoneName(t *testing.T) {
 		assert.NotEmpty(t, cephObjectStores)
 		assert.Equal(t, zoneName, cephObjectStores[0].Spec.Zone.Name)
 		assert.Equal(t, zoneName != "", cephObjectStores[0].Spec.IsMultisite())
+	}
+}
+
+func TestCreateCephObjectStoresZoneNameImmutable(t *testing.T) {
+	platform.SetFakePlatformInstanceForTesting(true, configv1.BareMetalPlatformType)
+	defer platform.UnsetFakePlatformInstanceForTesting()
+
+	const storeName = "test-storagecluster-cephobjectstore"
+	readyZone := func(name string) *cephv1.CephObjectZone {
+		return &cephv1.CephObjectZone{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "test-namespace"},
+			Status:     &cephv1.Status{Phase: string(cephv1.ConditionReady)},
+		}
+	}
+	notReadyZone := func(name string) *cephv1.CephObjectZone {
+		return &cephv1.CephObjectZone{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "test-namespace"},
+			Status:     &cephv1.Status{Phase: string(cephv1.ConditionProgressing)},
+		}
+	}
+
+	testCases := []struct {
+		name         string
+		existingZone string
+		desiredZone  string
+		zoneObjs     []runtime.Object
+		wantErr      string
+	}{
+		{name: "unchanged empty zone is allowed", existingZone: "", desiredZone: ""},
+		{name: "unchanged zone is allowed", existingZone: "zone-a", desiredZone: "zone-a"},
+		{name: "changing zone is refused", existingZone: "zone-a", desiredZone: "zone-b", wantErr: "cannot be changed"},
+		{name: "removing zone is refused", existingZone: "zone-a", desiredZone: "", wantErr: "cannot be changed"},
+		{name: "promoting to store-named ready zone is allowed", existingZone: "", desiredZone: storeName,
+			zoneObjs: []runtime.Object{readyZone(storeName)}},
+		{name: "promoting when zone CR is missing is refused", existingZone: "", desiredZone: storeName,
+			wantErr: "does not exist"},
+		{name: "promoting when zone CR is not Ready is refused", existingZone: "", desiredZone: storeName,
+			zoneObjs: []runtime.Object{notReadyZone(storeName)}, wantErr: "is not Ready yet"},
+		{name: "promoting to a zone with a different name is refused", existingZone: "", desiredZone: "zone-a",
+			zoneObjs: []runtime.Object{readyZone("zone-a")}, wantErr: "can only be added as zone"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sc := &api.StorageCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-storagecluster",
+					Namespace: "test-namespace",
+				},
+				Spec: api.StorageClusterSpec{
+					ManagedResources: api.ManagedResourcesSpec{
+						CephObjectStores: api.ManageCephObjectStores{
+							ZoneName: tc.desiredZone,
+						},
+					},
+				},
+			}
+			existing := &cephv1.CephObjectStore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      util.GenerateNameForCephObjectStore(sc),
+					Namespace: sc.Namespace,
+				},
+				Spec: cephv1.ObjectStoreSpec{
+					Zone: cephv1.ZoneSpec{Name: tc.existingZone},
+				},
+			}
+
+			objs := append([]runtime.Object{sc, existing, networkConfig}, tc.zoneObjs...)
+			reconciler := createFakeStorageClusterReconciler(t, objs...)
+			reconciler.ctx = context.Background()
+			cephObjectStores, err := reconciler.newCephObjectStoreInstances(sc, nil, nil, nil)
+			require.NoError(t, err)
+
+			err = reconciler.createCephObjectStores(cephObjectStores, sc)
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.wantErr)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			// A refused change must leave the live store untouched; an allowed one writes the desired zone.
+			wantZone := tc.existingZone
+			if tc.wantErr == "" {
+				wantZone = tc.desiredZone
+			}
+			stored := &cephv1.CephObjectStore{}
+			require.NoError(t, reconciler.Get(context.TODO(), types.NamespacedName{Name: existing.Name, Namespace: sc.Namespace}, stored))
+			assert.Equal(t, wantZone, stored.Spec.Zone.Name)
+		})
 	}
 }
 

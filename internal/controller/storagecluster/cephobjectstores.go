@@ -190,6 +190,17 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 				return err
 			}
 
+			// Changing the zone of a live object store would point RGW at a different zone and its pools,
+			// making existing buckets, users and OBCs in the old pools invisible to clients.
+			// The one exception is promoting a standalone store to the zone named after it, whose pools
+			// share the store's name prefix, so the existing data stays where it is.
+			if existing.Spec.Zone.Name != cephObjectStore.Spec.Zone.Name {
+				if err := r.checkZonePromotion(&existing, cephObjectStore.Spec.Zone.Name); err != nil {
+					r.Log.Error(err, "Refusing to update CephObjectStore zone.", "CephObjectStore", klog.KRef(existing.Namespace, existing.Name))
+					return err
+				}
+			}
+
 			r.Log.Info("Restoring original CephObjectStore.", "CephObjectStore", klog.KRef(cephObjectStore.Namespace, cephObjectStore.Name))
 			existing.OwnerReferences = cephObjectStore.OwnerReferences
 			cephObjectStore.ObjectMeta = existing.ObjectMeta
@@ -229,6 +240,37 @@ func (r *StorageClusterReconciler) createCephObjectStores(cephObjectStores []*ce
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// checkZonePromotion decides whether a live CephObjectStore may move from its current zone to
+// newZone. Only a standalone store (no zone) promoted to the zone named after it is allowed, and
+// only once that CephObjectZone exists and is Ready. The zone must share the store's name because
+// Rook prefixes a zone's pools with the zone name, so the store's existing pools are reused.
+// Any other change is refused, since it would point RGW at pools that do not hold the data.
+func (r *StorageClusterReconciler) checkZonePromotion(existing *cephv1.CephObjectStore, newZone string) error {
+	if existing.Spec.Zone.Name != "" {
+		return fmt.Errorf("zoneName of CephObjectStore %s cannot be changed from %q to %q after creation",
+			existing.Name, existing.Spec.Zone.Name, newZone)
+	}
+	if newZone != existing.Name {
+		return fmt.Errorf("zoneName %q cannot be set on CephObjectStore %s: it can only be added as zone %q, which shares the store's pools",
+			newZone, existing.Name, existing.Name)
+	}
+
+	zone := &cephv1.CephObjectZone{}
+	err := r.Get(context.TODO(), types.NamespacedName{Name: newZone, Namespace: existing.Namespace}, zone)
+	if errors.IsNotFound(err) {
+		return fmt.Errorf("zoneName %q cannot be set on CephObjectStore %s: CephObjectZone %q does not exist, create it first",
+			newZone, existing.Name, newZone)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to get CephObjectZone %q: %w", newZone, err)
+	}
+	if zone.Status == nil || zone.Status.Phase != string(cephv1.ConditionReady) {
+		return fmt.Errorf("zoneName %q cannot be set on CephObjectStore %s: CephObjectZone %q is not Ready yet",
+			newZone, existing.Name, newZone)
 	}
 	return nil
 }
