@@ -3,16 +3,68 @@ package util
 import (
 	"cmp"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
+	"time"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
+	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const defaultProviderServerSAN = "ocs-provider-server.openshift-storage.svc"
+// SelfSignedCertValidity is the lifetime of certificates produced by GetSelfSignedCert.
+const SelfSignedCertValidity = 47 * 24 * time.Hour
+
+// CertNeedsRenewal reports whether the cert secret must be regenerated, based on the expiry annotation.
+func CertNeedsRenewal(secret *corev1.Secret, renewalWindow time.Duration) bool {
+	expiry, err := time.Parse(time.RFC3339, secret.Annotations[defaults.CertExpiryAnnotation])
+	if err != nil {
+		return true
+	}
+	return time.Now().After(expiry.Add(-renewalWindow))
+}
+
+// GetSelfSignedCert generates a self-signed CA certificate and private key.
+func GetSelfSignedCert(cn string, keyUsage x509.KeyUsage, extKeyUsage []x509.ExtKeyUsage) (keyPEM, certPEM []byte, err error) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate private key: %v", err)
+	}
+
+	template := &x509.Certificate{
+		Subject: pkix.Name{
+			CommonName: cn,
+		},
+		DNSNames:              []string{cn},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(SelfSignedCertValidity),
+		KeyUsage:              keyUsage,
+		ExtKeyUsage:           extKeyUsage,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &priv.PublicKey, priv)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create certificate: %v", err)
+	}
+	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	privBytes, err := x509.MarshalECPrivateKey(priv)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal private key: %v", err)
+	}
+	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes})
+
+	return keyPEM, certPEM, nil
+}
 
 // LoadPeerTLSConfig loads the mTLS certificates configured on a StorageClusterPeer and returns a *tls.Config ready for the provider client.
 func LoadPeerTLSConfig(
@@ -39,9 +91,31 @@ func LoadPeerTLSConfig(
 		if !certPool.AppendCertsFromPEM(serverCA) {
 			return nil, fmt.Errorf("failed to parse server CA certificate")
 		}
+		serverSAN := cmp.Or(
+			peer.Spec.ServerSAN,
+			DefaultProviderServerSAN(defaults.OcsProviderServerName, peer.Namespace),
+		)
 		tlsConfig = &tls.Config{
-			RootCAs:    certPool,
-			ServerName: cmp.Or(peer.Spec.ServerSAN, defaultProviderServerSAN),
+			// grpc-go sets ServerName from the endpoint authority, which supplies
+			// the Route hostname for SNI. Verify the backend service SAN separately.
+			InsecureSkipVerify: true, // #nosec G402 -- VerifyConnection validates the chain and service SAN.
+			VerifyConnection: func(cs tls.ConnectionState) error {
+				if len(cs.PeerCertificates) == 0 {
+					return fmt.Errorf("server presented no certificate")
+				}
+				intermediatePool := x509.NewCertPool()
+				for _, cert := range cs.PeerCertificates[1:] {
+					intermediatePool.AddCert(cert)
+				}
+
+				return VerifyCertificate(
+					cs.PeerCertificates[0],
+					certPool,
+					intermediatePool,
+					serverSAN,
+					x509.ExtKeyUsageServerAuth,
+				)
+			},
 		}
 	}
 
@@ -55,6 +129,17 @@ func LoadPeerTLSConfig(
 	}
 
 	return tlsConfig, nil
+}
+
+// VerifyCertificate validates a certificate chain and its expected DNS SAN.
+func VerifyCertificate(cert *x509.Certificate, roots, intermediates *x509.CertPool, expectedSAN string, keyUsage x509.ExtKeyUsage) error {
+	_, err := cert.Verify(x509.VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+		DNSName:       expectedSAN,
+		KeyUsages:     []x509.ExtKeyUsage{keyUsage},
+	})
+	return err
 }
 
 // loadPeerCertificates loads mTLS certificates for a StorageClusterPeer.
@@ -96,4 +181,9 @@ func loadPeerCertificates(
 	// When the spec configures neither CA nor client cert, all returns are nil;
 	// the caller decides how to proceed (e.g. fall back to an insecure connection).
 	return serverCA, clientCert, clientKey, nil
+}
+
+// DefaultProviderServerSAN is the SAN of the provider server's service-CA-signed serving certificate.
+func DefaultProviderServerSAN(server, namespace string) string {
+	return fmt.Sprintf("%s.%s.svc", server, namespace)
 }

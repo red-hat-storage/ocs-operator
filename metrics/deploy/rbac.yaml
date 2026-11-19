@@ -41,6 +41,17 @@ rules:
   - cephfilesystemsubvolumegroups
   - cephfilesystems
   - cephrbdmirrors
+  - cephnfses
+  - cephnvmeofgateways
+  - cephobjectstoreusers
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
+  - noobaa.io
+  resources:
+  - noobaas
   verbs:
     - get
     - list

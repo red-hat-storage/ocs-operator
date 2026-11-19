@@ -3467,6 +3467,31 @@ spec:
                         type: integer
                       hostNetwork:
                         type: boolean
+                      hosting:
+                        description: Hosting modifies advanced RGW object store hosting
+                          options.
+                        properties:
+                          routeWildcardHost:
+                            description: |-
+                              RouteWildcardHost specifies the Route.spec.host that should be added to Routes to support
+                              Route wildcarding. Without this option specified, Route wildcarding will be disabled.
+                            minLength: 1
+                            type: string
+                          virtualHostingMode:
+                            description: |-
+                              VirtualHostingMode allows virtual-host-style access to be provided for the object store S3
+                              service.
+                              Options:
+                               - Disabled : Do not enable virtual-host-style access.
+                               - HeadlessService : Configure a headless service to support virtual hosting. Additional DNS
+                                 setup (required) must be configured separately.
+                            enum:
+                            - Disabled
+                            - HeadlessService
+                            type: string
+                        required:
+                        - virtualHostingMode
+                        type: object
                       metadataPoolSpec:
                         description: MetadataPoolSpec specifies the pool specification
                           for the default cephObjectStore metadata pool
@@ -4717,6 +4742,14 @@ spec:
                     description: GatewayInstances is the number of active NVMe-oF
                       gateway instances.
                     type: integer
+                  interruptMode:
+                    description: |-
+                      InterruptMode runs the gateway's SPDK reactors in interrupt mode (true) or poll mode (false).
+                      Poll mode minimizes latency and maximizes IOPS, but each reactor core runs at 100% CPU
+                      even when idle. Interrupt mode greatly reduces idle CPU at the cost of some latency and
+                      peak throughput.
+                      If not set, defaults to true (interrupt mode).
+                    type: boolean
                   poolSpec:
                     description: |-
                       PoolSpec defines the pool settings for the NVMe-oF block pool.

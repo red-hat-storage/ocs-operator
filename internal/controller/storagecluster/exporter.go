@@ -959,7 +959,12 @@ func createMetricsExporterRoles(ctx context.Context, r *StorageClusterReconciler
 			},
 			{
 				APIGroups: []string{"ceph.rook.io"},
-				Resources: []string{"cephobjectstores", "cephclusters", "cephblockpools", "cephrbdmirrors", "cephblockpoolradosnamespaces", "cephfilesystemsubvolumegroups", "cephfilesystems"},
+				Resources: []string{"cephobjectstores", "cephobjectstoreusers", "cephclusters", "cephblockpools", "cephrbdmirrors", "cephblockpoolradosnamespaces", "cephfilesystemsubvolumegroups", "cephfilesystems", "cephnfses", "cephnvmeofgateways"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{"noobaa.io"},
+				Resources: []string{"noobaas"},
 				Verbs:     []string{"get", "list", "watch"},
 			},
 			{

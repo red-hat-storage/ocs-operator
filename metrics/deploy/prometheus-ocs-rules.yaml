@@ -639,6 +639,17 @@ spec:
       for: 60s
       labels:
         severity: warning
+    - alert: ODFOperatorDependenciesUpgradePending
+      annotations:
+        description: ODF Operator has paused upgrading dependent operator subscriptions because the target build is more than 7 days older than the last accepted build ({{ $labels.last_accepted_csv }}, built {{ $labels.last_accepted_csv_build_date }}). Upgrade to a release built after this date, or set the "odf.openshift.io/skip-build-date-check" annotation to "true" on the odf-operator-internal-config ConfigMap in the operator namespace to override this check. See the Runbook for more details.
+        message: ODF Operator dependencies upgrade is pending a newer build.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/ODFOperatorDependenciesUpgradePending.md
+        severity_level: warning
+      expr: |
+        odf_operator_dependencies_upgrade_blocked{job="ocs-metrics-exporter"} == 1
+      for: 60s
+      labels:
+        severity: warning
   - name: ceph-fs-stale-subvolume.rules
     rules:
     - alert: CephFSStaleSubvolume
@@ -649,6 +660,7 @@ spec:
         severity_level: warning
       expr: |
         ocs_cephfs_subvolume_count > on(consumer_name) ocs_storage_client_cephfs_pv_count
+      for: 15m
       labels:
         severity: warning
   - name: ceph-fs-orphaned-snapshots.rules
@@ -661,8 +673,9 @@ spec:
         severity_level: warning
       expr: |
         ocs_cephfs_snapshot_content_count > on(consumer_name) ocs_storage_client_cephfs_volume_snapshot_content_count
+      for: 15m
       labels:
-        severity: warning       
+        severity: warning
   - name: odf_healthchecks.rules
     rules:
     - alert: ODFNodeLatencyHighOnOSDNodes
@@ -802,3 +815,30 @@ spec:
       for: 5m
       labels:
         severity: warning
+  - name: osd-key-rotation-alert.rules
+    rules:
+    - alert: OSDKeyRotationJobFailed
+      annotations:
+        description: The OSD encryption key rotation job {{ $labels.job_name }} in namespace {{ $labels.namespace }} has failed. The OSD's disk-encryption (LUKS) key was not rotated. If left unresolved, the stored key can drift out of sync with the on-disk LUKS keyslot and prevent the OSD from starting after a pod or node restart. Inspect the failed job's pod logs and re-run the rotation.
+        message: OSD encryption key rotation job {{ $labels.job_name }} failed in namespace {{ $labels.namespace }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/OSDKeyRotationJobFailed.md
+        severity_level: error
+        storage_type: ceph
+      expr: |
+        kube_job_status_failed{job_name=~"rook-ceph-osd-key-rotation.*"} > 0
+      for: 5m
+      labels:
+        severity: critical
+  - name: mtls-cert-alert.rules
+    rules:
+    - alert: StorageConsumerClientCertNotConfigured
+      annotations:
+        description: mTLS certificate material ({{ $labels.cert_type }}) is not configured in the spec of StorageConsumer {{ $labels.storage_consumer_name }}. Client-certificate authentication is not in place for this consumer.
+        message: StorageConsumer {{ $labels.storage_consumer_name }} has no mTLS {{ $labels.cert_type }} certificate reference configured.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/StorageConsumerClientCertNotConfigured.md
+        severity_level: critical
+      expr: |
+        ocs_storage_consumer_cert_status{job="ocs-metrics-exporter"} == 1
+      for: 5m
+      labels:
+        severity: critical

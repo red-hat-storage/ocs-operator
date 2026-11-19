@@ -8,11 +8,10 @@ TARGET_ARCH="${TARGET_ARCH:-amd64}"
 HOST_OS="$(go env GOHOSTOS)"
 HOST_ARCH="$(go env GOHOSTARCH)"
 
-# Current DEV version of the CSV
-DEFAULT_CSV_VERSION="5.0.0"
+# Current DEV version of the CSV — sourced from version/version.go
+DEFAULT_CSV_VERSION="$(sed -n 's/^[[:space:]]*Version = "\([^"]*\)".*/\1/p' version/version.go)"
 CSV_VERSION="${CSV_VERSION:-${DEFAULT_CSV_VERSION}}"
 VERSION="${VERSION:-${CSV_VERSION}}"
-LDFLAGS="-X github.com/red-hat-storage/ocs-operator/v4/version.Version=${CSV_VERSION}"
 
 # Vars for CSV generation
 OUTDIR_TEMPLATES="deploy/csv-templates"
@@ -46,7 +45,7 @@ BUNDLE_FULL_IMAGE_NAME="${BUNDLE_FULL_IMAGE_NAME:=${IMAGE_REGISTRY}/${REGISTRY_N
 # Bundle images of Dependencies of OCS Operator
 NOOBAA_BUNDLE_FULL_IMAGE_NAME="quay.io/noobaa/noobaa-operator-bundle:master-20260820"
 ROOK_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/rook-ceph-operator-bundle:master-855ce45bb"
-OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-9834eff"
+OCS_CLIENT_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-client-operator-bundle:main-fea033b"
 OCS_TLS_PROFILE_BUNDLE_FULL_IMAGE_NAME="quay.io/ocs-dev/ocs-tls-profiles-bundle:main-0c5f6d8"
 # Below bundles are dependencies of ocs-client-operator, Ref- https://github.com/red-hat-storage/ocs-client-operator/blob/main/bundle/metadata/dependencies.yaml
 CSI_ADDONS_BUNDLE_FULL_IMAGE_NAME="quay.io/csiaddons/k8s-bundle:v0.14.0"

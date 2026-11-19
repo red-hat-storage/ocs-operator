@@ -1,9 +1,10 @@
 package storagecluster
 
 import (
+	"crypto/x509"
 	"fmt"
 	"os"
-	"sort"
+	"strconv"
 	"time"
 
 	"go.uber.org/multierr"
@@ -25,11 +26,12 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/provider/server"
 
+	routev1 "github.com/openshift/api/route/v1"
 	secv1 "github.com/openshift/api/security/v1"
 )
 
 const (
-	ocsProviderServerName                    = "ocs-provider-server"
+	ocsProviderServerName                    = defaults.OcsProviderServerName
 	providerAPIServerImage                   = "PROVIDER_API_SERVER_IMAGE"
 	onboardingValidationKeysGeneratorImage   = "ONBOARDING_VALIDATION_KEYS_GENERATOR_IMAGE"
 	onboardingValidationKeysGeneratorJobName = "onboarding-validation-keys-generator"
@@ -39,6 +41,9 @@ const (
 	ocsProviderServiceNodePort = int32(31659)
 
 	ocsProviderCertSecretName = ocsProviderServerName + "-cert"
+
+	clientCertValidity      = util.SelfSignedCertValidity
+	clientCertRenewalWindow = 7 * 24 * time.Hour
 )
 
 type ocsProviderServer struct{}
@@ -49,7 +54,15 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 		return res, err
 	}
 
+	if res, err := o.createRoute(r, instance); err != nil || !res.IsZero() {
+		return res, err
+	}
+
 	if res, err := o.createNetworkPolicy(r, instance); err != nil || !res.IsZero() {
+		return res, err
+	}
+
+	if res, err := o.createClientCertAndCA(r, instance); err != nil || !res.IsZero() {
 		return res, err
 	}
 
@@ -64,6 +77,45 @@ func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance 
 	return reconcile.Result{}, nil
 }
 
+func (o *ocsProviderServer) createRoute(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	serverRoute := &routev1.Route{}
+	serverRoute.Name = ocsProviderServerName
+	serverRoute.Namespace = instance.Namespace
+	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, serverRoute, func() error {
+		serverRoute.Spec = routev1.RouteSpec{
+			Subdomain: fmt.Sprintf("ocs-provider-%s", serverRoute.Namespace),
+			To: routev1.RouteTargetReference{
+				Kind: "Service",
+				Name: ocsProviderServerName,
+			},
+			Port: &routev1.RoutePort{
+				TargetPort: intstr.FromString("ocs-provider"),
+			},
+			TLS: &routev1.TLSConfig{
+				Termination: routev1.TLSTerminationPassthrough,
+			},
+		}
+		return controllerutil.SetControllerReference(instance, serverRoute, r.Client.Scheme())
+	})
+	if err != nil {
+		r.Log.Error(err, "Failed to create/update route", "Name", serverRoute.Name)
+		return reconcile.Result{}, err
+	}
+
+	host, admitted := util.GetAdmittedRouteHost(serverRoute)
+	if admitted {
+		instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:443", host)
+	} else {
+		if time.Now().After(serverRoute.CreationTimestamp.Add(5 * time.Minute)) {
+			return reconcile.Result{}, fmt.Errorf("no admitted route found for %s", serverRoute.Name)
+		}
+		return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
+	}
+
+	return reconcile.Result{}, nil
+}
+
+// TODO: in next version, have the networkpolicy only to allow via svc (own namespace) or via route
 func (o *ocsProviderServer) createNetworkPolicy(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	desiredService := GetProviderAPIServerService(instance)
 
@@ -129,7 +181,11 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 	apiServerNetworkPolicy := &networkingv1.NetworkPolicy{}
 	apiServerNetworkPolicy.Name = ocsProviderServerName
 	apiServerNetworkPolicy.Namespace = instance.Namespace
+	apiServerRoute := &routev1.Route{}
+	apiServerRoute.Name = ocsProviderServerName
+	apiServerRoute.Namespace = instance.Namespace
 	for _, resource := range []client.Object{
+		apiServerRoute,
 		apiServerService,
 		apiServerNetworkPolicy,
 		GetProviderAPIServerDeployment(instance),
@@ -235,27 +291,7 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 		}
 
 		instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:%d", endpoint, ocsProviderServicePort)
-
-	case corev1.ServiceTypeClusterIP:
-		instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:%d", actualService.Spec.ClusterIP, ocsProviderServicePort)
-
-	case corev1.ServiceTypeNodePort:
-		nodeAddresses, err := o.getWorkerNodesInternalIPAddresses(r)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-
-		if len(nodeAddresses) == 0 {
-			err = fmt.Errorf("could not find any worker nodes")
-			r.Log.Error(err, "Worker nodes count is zero")
-			return reconcile.Result{}, err
-		}
-
-		instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:%d", nodeAddresses[0], ocsProviderServiceNodePort)
-
 	}
-
-	r.Log.Info("status.storageProviderEndpoint is updated", "Endpoint", instance.Status.StorageProviderEndpoint)
 
 	return reconcile.Result{}, nil
 }
@@ -272,36 +308,6 @@ func (o *ocsProviderServer) getLoadBalancerServiceEndpoint(service *corev1.Servi
 	}
 
 	return endpoint
-}
-
-// getWorkerNodesInternalIPAddresses return slice of Internal IPAddress of worker nodes
-func (o *ocsProviderServer) getWorkerNodesInternalIPAddresses(r *StorageClusterReconciler) ([]string, error) {
-
-	nodes := &corev1.NodeList{}
-
-	err := r.List(r.ctx, nodes)
-	if err != nil {
-		r.Log.Error(err, "Failed to list nodes")
-		return nil, err
-	}
-
-	nodeAddresses := []string{}
-
-	for i := range nodes.Items {
-		node := &nodes.Items[i]
-		if _, ok := node.Labels["node-role.kubernetes.io/worker"]; ok {
-			for _, address := range node.Status.Addresses {
-				if address.Type == corev1.NodeInternalIP {
-					nodeAddresses = append(nodeAddresses, address.Address)
-					break
-				}
-			}
-		}
-	}
-
-	sort.Strings(nodeAddresses)
-
-	return nodeAddresses, nil
 }
 
 func (o *ocsProviderServer) ensureDeploymentReplica(actual, desired *appsv1.Deployment) error {
@@ -419,6 +425,7 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 			},
 			Ports: []corev1.ServicePort{
 				{
+					Name: "ocs-provider",
 					NodePort: func() int32 {
 						// ClusterIP service doesn't need nodePort
 						if serviceType == corev1.ServiceTypeClusterIP {
@@ -456,6 +463,22 @@ func getProviderAPIServerNetworkPolicy(instance *ocsv1.StorageCluster) *networki
 							NamespaceSelector: &metav1.LabelSelector{
 								MatchLabels: map[string]string{
 									"kubernetes.io/metadata.name": instance.Namespace,
+								},
+							},
+						},
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									// documented as preferred for ovn-k
+									"policy-group.network.openshift.io/ingress": "",
+								},
+							},
+						},
+						{
+							NamespaceSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									// still appears in docs
+									"network.openshift.io/policy-group": "ingress",
 								},
 							},
 						},
@@ -546,4 +569,87 @@ func (o *ocsProviderServer) createJob(r *StorageClusterReconciler, instance *ocs
 
 	r.Log.Info("Job is running as desired")
 	return reconcile.Result{}, nil
+}
+
+func (o *ocsProviderServer) createClientCertAndCA(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
+	secret := &corev1.Secret{}
+	secret.Name = defaults.LocalStorageClientCertSecret
+	secret.Namespace = instance.Namespace
+
+	if err := r.Get(r.ctx, client.ObjectKeyFromObject(secret), secret); client.IgnoreNotFound(err) != nil {
+		r.Log.Error(err, "Failed to get client cert secret", "Name", secret.Name)
+		return reconcile.Result{}, err
+	}
+
+	if secret.UID == "" {
+		if err := o.populateClientCertSecret(r, instance, secret); err != nil {
+			return reconcile.Result{}, err
+		}
+		if err := r.Create(r.ctx, secret); err != nil {
+			if errors.IsAlreadyExists(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+			r.Log.Error(err, "Failed to create client cert secret", "Name", secret.Name)
+			return reconcile.Result{}, err
+		}
+	} else if util.CertNeedsRenewal(secret, clientCertRenewalWindow) {
+		if err := o.populateClientCertSecret(r, instance, secret); err != nil {
+			return reconcile.Result{}, err
+		}
+		if err := r.Update(r.ctx, secret); err != nil {
+			r.Log.Error(err, "Failed to update client cert secret", "Name", secret.Name)
+			return reconcile.Result{}, err
+		}
+	}
+
+	caCert := secret.Data["tls.crt"]
+	if len(caCert) == 0 {
+		return reconcile.Result{}, fmt.Errorf("client cert secret %s has no tls.crt", defaults.LocalStorageClientCertSecret)
+	}
+	cm := &corev1.ConfigMap{}
+	cm.Name = defaults.LocalStorageClientCAConfigMap
+	cm.Namespace = instance.Namespace
+	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, cm, func() error {
+		if cm.Data == nil {
+			cm.Data = make(map[string]string)
+		}
+		cm.Data["ca.crt"] = string(caCert)
+		return controllerutil.SetControllerReference(instance, cm, r.Client.Scheme())
+	}); err != nil {
+		r.Log.Error(err, "Failed to ensure client CA configmap", "Name", cm.Name)
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
+}
+
+// populateClientCertSecret generates a fresh self-signed client cert with a unique identity.
+func (o *ocsProviderServer) populateClientCertSecret(r *StorageClusterReconciler, instance *ocsv1.StorageCluster, secret *corev1.Secret) error {
+	clientCN := fmt.Sprintf("%s-%x", defaults.LocalStorageClientCNPrefix, util.FnvHash(strconv.FormatInt(time.Now().UnixNano(), 10)))
+
+	keyUsage := x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
+	extKeyUsage := []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+	keyPEM, certPEM, err := util.GetSelfSignedCert(clientCN, keyUsage, extKeyUsage)
+	if err != nil {
+		return fmt.Errorf("failed to generate client certificate: %v", err)
+	}
+
+	if secret.Data == nil {
+		secret.Data = make(map[string][]byte)
+	}
+	secret.Data["tls.key"] = keyPEM
+	secret.Data["tls.crt"] = certPEM
+
+	if secret.Annotations == nil {
+		secret.Annotations = make(map[string]string)
+	}
+	secret.Annotations[defaults.CertExpiryAnnotation] = time.Now().Add(clientCertValidity).Format(time.RFC3339)
+	secret.Annotations[defaults.CertIdentityAnnotation] = clientCN
+
+	secret.Type = corev1.SecretTypeTLS
+
+	if err := controllerutil.SetControllerReference(instance, secret, r.Client.Scheme()); err != nil {
+		return err
+	}
+	r.Log.Info("Generated client certificate", "Name", secret.Name, "Identity", clientCN)
+	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +18,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	ocsv1 "github.com/red-hat-storage/ocs-operator/api/v4/v1"
@@ -340,6 +342,18 @@ func createSetupForOcsProviderTest(t *testing.T, providerAPIServerServiceType co
 	clientConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: ocsClientConfigMapName},
 	}
+	ocsProviderRoute := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{{
+				Host: "ocs-provider.apps.example.com",
+				Conditions: []routev1.RouteIngressCondition{{
+					Type:   routev1.RouteAdmitted,
+					Status: corev1.ConditionTrue,
+				}},
+			}},
+		},
+	}
 
 	scheme := createFakeScheme(t)
 
@@ -348,10 +362,20 @@ func createSetupForOcsProviderTest(t *testing.T, providerAPIServerServiceType co
 
 	r := &StorageClusterReconciler{
 		recorder: reporter,
-		Client:   fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node, clientConfigMap).Build(),
-		Scheme:   scheme,
-		Log:      logf.Log.WithName("controller_storagecluster_test"),
-		ctx:      context.TODO(),
+		Client: fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node, clientConfigMap, ocsProviderRoute).
+			// The fake client does not assign a UID on Create (the real apiserver does). Set one so
+			// code that detects object existence via UID behaves as it would against a real cluster.
+			WithInterceptorFuncs(interceptor.Funcs{
+				Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+					if obj.GetUID() == "" {
+						obj.SetUID("fake-uid")
+					}
+					return c.Create(ctx, obj, opts...)
+				},
+			}).Build(),
+		Scheme: scheme,
+		Log:    logf.Log.WithName("controller_storagecluster_test"),
+		ctx:    context.TODO(),
 	}
 
 	instance := &ocsv1.StorageCluster{
@@ -476,6 +500,7 @@ func GetProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster) *corev1.
 			},
 			Ports: []corev1.ServicePort{
 				{
+					Name:       "ocs-provider",
 					NodePort:   ocsProviderServiceNodePort,
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
@@ -502,6 +527,7 @@ func GetLoadBalancerProviderAPIServerServiceForTest(instance *ocsv1.StorageClust
 			},
 			Ports: []corev1.ServicePort{
 				{
+					Name:       "ocs-provider",
 					NodePort:   ocsProviderServiceNodePort,
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
@@ -528,6 +554,7 @@ func GetClusterIPProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster)
 			},
 			Ports: []corev1.ServicePort{
 				{
+					Name:       "ocs-provider",
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
 				},
@@ -536,4 +563,3 @@ func GetClusterIPProviderAPIServerServiceForTest(instance *ocsv1.StorageCluster)
 		},
 	}
 }
-

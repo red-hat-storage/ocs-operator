@@ -322,6 +322,40 @@ type ManageCephObjectStores struct {
 	MetadataPoolSpec *rookCephv1.PoolSpec `json:"metadataPoolSpec,omitempty"`
 	// DataPoolSpec specifies the pool specification for the default cephObjectStore data pool
 	DataPoolSpec *rookCephv1.PoolSpec `json:"dataPoolSpec,omitempty"`
+
+	// Hosting modifies advanced RGW object store hosting options.
+	// +optional
+	Hosting *CephObjectStoreHostingSpec `json:"hosting,omitempty"`
+}
+
+// ObjectVirtualHostingMode represents a mode for object store virtual hosting.
+type ObjectVirtualHostingMode string
+
+const (
+	// DisabledObjectVirtualHostingMode disables object virtual hosting.
+	DisabledObjectVirtualHostingMode ObjectVirtualHostingMode = "Disabled"
+	// HeadlessServiceObjectVirtualHostingMode uses a headless service architecture to allow for
+	// virtual-host-style S3 access. Additional DNS setup (required) must be configured separately.
+	// This is not guaranteed to support host network environments.
+	HeadlessServiceObjectVirtualHostingMode ObjectVirtualHostingMode = "HeadlessService"
+)
+
+type CephObjectStoreHostingSpec struct {
+	// VirtualHostingMode allows virtual-host-style access to be provided for the object store S3
+	// service.
+	// Options:
+	//  - Disabled : Do not enable virtual-host-style access.
+	//  - HeadlessService : Configure a headless service to support virtual hosting. Additional DNS
+	//    setup (required) must be configured separately.
+	// +kubebuilder:validation:Enum=Disabled;HeadlessService
+	// +required
+	VirtualHostingMode ObjectVirtualHostingMode `json:"virtualHostingMode,omitempty"`
+
+	// RouteWildcardHost specifies the Route.spec.host that should be added to Routes to support
+	// Route wildcarding. Without this option specified, Route wildcarding will be disabled.
+	// +kubebuilder:validation:MinLength=1
+	// +optional
+	RouteWildcardHost string `json:"routeWildcardHost,omitempty"`
 }
 
 // ManageCephObjectStoreUsers defines how to reconcile CephObjectStoreUsers
@@ -554,6 +588,13 @@ type NVMeOFSpec struct {
 	// +kubebuilder:default=2
 	// +optional
 	GatewayInstances int `json:"gatewayInstances,omitempty"`
+	// InterruptMode runs the gateway's SPDK reactors in interrupt mode (true) or poll mode (false).
+	// Poll mode minimizes latency and maximizes IOPS, but each reactor core runs at 100% CPU
+	// even when idle. Interrupt mode greatly reduces idle CPU at the cost of some latency and
+	// peak throughput.
+	// If not set, defaults to true (interrupt mode).
+	// +optional
+	InterruptMode *bool `json:"interruptMode,omitempty"`
 }
 
 // MonitoringSpec controls the configuration of resources for exposing OCS metrics

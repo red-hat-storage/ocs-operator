@@ -111,7 +111,7 @@ func TestReconcileRbdMirror(t *testing.T) {
 		cm := newConfigMap("test-cm")
 
 		r := newReconciler(buildFakeClient(scheme, cm, sc), scheme)
-		err := r.reconcileRbdMirror(cm, true)
+		err := r.reconcileRbdMirror(cm, sc, true)
 		assert.NoError(t, err)
 
 		rbdMirror := &rookCephv1.CephRBDMirror{}
@@ -131,7 +131,7 @@ func TestReconcileRbdMirror(t *testing.T) {
 		}
 
 		r := newReconciler(buildFakeClient(scheme, cm, sc, existingMirror), scheme)
-		err := r.reconcileRbdMirror(cm, false)
+		err := r.reconcileRbdMirror(cm, sc, false)
 		assert.NoError(t, err)
 
 		rbdMirror := &rookCephv1.CephRBDMirror{}
@@ -158,7 +158,7 @@ func TestReconcileRbdMirror(t *testing.T) {
 		}
 
 		r := newReconciler(buildFakeClient(scheme, cm, sc, existingMirror, consumer), scheme)
-		err := r.reconcileRbdMirror(cm, true)
+		err := r.reconcileRbdMirror(cm, sc, true)
 		assert.NoError(t, err)
 
 		rbdMirror := &rookCephv1.CephRBDMirror{}
@@ -178,7 +178,7 @@ func TestReconcileRbdMirror(t *testing.T) {
 		}
 
 		r := newReconciler(buildFakeClient(scheme, cm, sc, mirror1, mirror2), scheme)
-		err := r.reconcileRbdMirror(cm, true)
+		err := r.reconcileRbdMirror(cm, sc, true)
 		assert.Error(t, err)
 	})
 
@@ -191,7 +191,7 @@ func TestReconcileRbdMirror(t *testing.T) {
 		}
 
 		r := newReconciler(buildFakeClient(scheme, cm, sc, wrongNameMirror), scheme)
-		err := r.reconcileRbdMirror(cm, true)
+		err := r.reconcileRbdMirror(cm, sc, true)
 		assert.Error(t, err)
 	})
 
@@ -214,7 +214,7 @@ func TestReconcileRbdMirror(t *testing.T) {
 		}
 
 		r := newReconciler(buildFakeClient(scheme, cm, sc, existingMirror, consumer), scheme)
-		err := r.reconcileRbdMirror(cm, true)
+		err := r.reconcileRbdMirror(cm, sc, true)
 		assert.NoError(t, err)
 
 		updatedSC := &ocsv1.StorageCluster{}
@@ -230,7 +230,7 @@ func TestReconcileRbdMirror(t *testing.T) {
 		cm := newConfigMap("test-cm")
 
 		r := newReconciler(buildFakeClient(scheme, cm, sc), scheme)
-		err := r.reconcileRbdMirror(cm, true)
+		err := r.reconcileRbdMirror(cm, sc, true)
 		assert.NoError(t, err)
 
 		updatedSC := &ocsv1.StorageCluster{}
@@ -772,14 +772,6 @@ func TestGetBlockPoolsInfo(t *testing.T) {
 		fc := buildFakeClient(scheme)
 		r := newReconciler(fc, scheme)
 
-		storageClusterPeer := &ocsv1.StorageClusterPeer{
-			Status: ocsv1.StorageClusterPeerStatus{
-				PeerInfo: &ocsv1.PeerInfo{
-					StorageClusterUid: "test-uid",
-				},
-			},
-		}
-
 		cephBlockPoolsList := &rookCephv1.CephBlockPoolList{
 			Items: []rookCephv1.CephBlockPool{
 				{ObjectMeta: metav1.ObjectMeta{Name: "pool1"}},
@@ -789,7 +781,7 @@ func TestGetBlockPoolsInfo(t *testing.T) {
 
 		remoteBlockPoolInfoByName := map[string]*pb.BlockPoolInfo{}
 
-		err = r.getBlockPoolsInfo(client, storageClusterPeer, cephBlockPoolsList, remoteBlockPoolInfoByName)
+		err = r.getBlockPoolsInfo(client, "test-uid", cephBlockPoolsList, remoteBlockPoolInfoByName)
 		assert.NoError(t, err)
 		assert.Len(t, remoteBlockPoolInfoByName, 2)
 		assert.Equal(t, "pool1", remoteBlockPoolInfoByName["pool1"].BlockPoolName)
@@ -815,14 +807,6 @@ func TestGetBlockPoolsInfo(t *testing.T) {
 		fc := buildFakeClient(scheme)
 		r := newReconciler(fc, scheme)
 
-		storageClusterPeer := &ocsv1.StorageClusterPeer{
-			Status: ocsv1.StorageClusterPeerStatus{
-				PeerInfo: &ocsv1.PeerInfo{
-					StorageClusterUid: "test-uid",
-				},
-			},
-		}
-
 		cephBlockPoolsList := &rookCephv1.CephBlockPoolList{
 			Items: []rookCephv1.CephBlockPool{
 				{ObjectMeta: metav1.ObjectMeta{Name: "pool1"}},
@@ -831,7 +815,7 @@ func TestGetBlockPoolsInfo(t *testing.T) {
 
 		remoteBlockPoolInfoByName := map[string]*pb.BlockPoolInfo{}
 
-		err = r.getBlockPoolsInfo(client, storageClusterPeer, cephBlockPoolsList, remoteBlockPoolInfoByName)
+		err = r.getBlockPoolsInfo(client, "test-uid", cephBlockPoolsList, remoteBlockPoolInfoByName)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrNetwork, "expected error to be ErrNetwork")
 	})
@@ -868,14 +852,6 @@ func TestGetBlockPoolsInfo(t *testing.T) {
 		fc := buildFakeClient(scheme)
 		r := newReconciler(fc, scheme)
 
-		storageClusterPeer := &ocsv1.StorageClusterPeer{
-			Status: ocsv1.StorageClusterPeerStatus{
-				PeerInfo: &ocsv1.PeerInfo{
-					StorageClusterUid: "test-uid",
-				},
-			},
-		}
-
 		cephBlockPoolsList := &rookCephv1.CephBlockPoolList{
 			Items: []rookCephv1.CephBlockPool{
 				{ObjectMeta: metav1.ObjectMeta{Name: "pool1"}},
@@ -885,7 +861,7 @@ func TestGetBlockPoolsInfo(t *testing.T) {
 
 		remoteBlockPoolInfoByName := map[string]*pb.BlockPoolInfo{}
 
-		err = r.getBlockPoolsInfo(client, storageClusterPeer, cephBlockPoolsList, remoteBlockPoolInfoByName)
+		err = r.getBlockPoolsInfo(client, "test-uid", cephBlockPoolsList, remoteBlockPoolInfoByName)
 		assert.Error(t, err)
 		assert.NotErrorIs(t, err, ErrNetwork, "expected error to NOT be ErrNetwork (partial failure)")
 		assert.Len(t, remoteBlockPoolInfoByName, 1)
@@ -925,18 +901,10 @@ func TestGetStorageClientsInfo(t *testing.T) {
 		fc := buildFakeClient(scheme)
 		r := newReconciler(fc, scheme)
 
-		storageClusterPeer := &ocsv1.StorageClusterPeer{
-			Status: ocsv1.StorageClusterPeerStatus{
-				PeerInfo: &ocsv1.PeerInfo{
-					StorageClusterUid: "test-uid",
-				},
-			},
-		}
-
 		remoteClientIds := []string{"client1", "client2"}
 		remoteClientInfoById := map[string]*pb.ClientInfo{}
 
-		err = r.getStorageClientsInfo(client, storageClusterPeer, remoteClientIds, remoteClientInfoById)
+		err = r.getStorageClientsInfo(client, "test-uid", remoteClientIds, remoteClientInfoById)
 		assert.NoError(t, err)
 		assert.Len(t, remoteClientInfoById, 2)
 		assert.Equal(t, "client1", remoteClientInfoById["client1"].ClientID)
@@ -962,18 +930,10 @@ func TestGetStorageClientsInfo(t *testing.T) {
 		fc := buildFakeClient(scheme)
 		r := newReconciler(fc, scheme)
 
-		storageClusterPeer := &ocsv1.StorageClusterPeer{
-			Status: ocsv1.StorageClusterPeerStatus{
-				PeerInfo: &ocsv1.PeerInfo{
-					StorageClusterUid: "test-uid",
-				},
-			},
-		}
-
 		remoteClientIds := []string{"client1"}
 		remoteClientInfoById := map[string]*pb.ClientInfo{}
 
-		err = r.getStorageClientsInfo(client, storageClusterPeer, remoteClientIds, remoteClientInfoById)
+		err = r.getStorageClientsInfo(client, "test-uid", remoteClientIds, remoteClientInfoById)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrNetwork, "expected error to be ErrNetwork")
 	})
@@ -1009,18 +969,10 @@ func TestGetStorageClientsInfo(t *testing.T) {
 		fc := buildFakeClient(scheme)
 		r := newReconciler(fc, scheme)
 
-		storageClusterPeer := &ocsv1.StorageClusterPeer{
-			Status: ocsv1.StorageClusterPeerStatus{
-				PeerInfo: &ocsv1.PeerInfo{
-					StorageClusterUid: "test-uid",
-				},
-			},
-		}
-
 		remoteClientIds := []string{"client1", "client2"}
 		remoteClientInfoById := map[string]*pb.ClientInfo{}
 
-		err = r.getStorageClientsInfo(client, storageClusterPeer, remoteClientIds, remoteClientInfoById)
+		err = r.getStorageClientsInfo(client, "test-uid", remoteClientIds, remoteClientInfoById)
 		assert.Error(t, err)
 		assert.NotErrorIs(t, err, ErrNetwork, "expected error to NOT be ErrNetwork (partial failure)")
 		assert.Len(t, remoteClientInfoById, 1)

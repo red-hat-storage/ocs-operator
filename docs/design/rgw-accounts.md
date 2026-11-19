@@ -131,30 +131,31 @@ RGW account quota is a separate mechanism. It is stored on the Account in Ceph a
 
 ### API 
 
-A new optional field on `StorageConsumer.spec` holds the desired RGW account quota. Only account level quota fields will be exposed.
+A new optional field on `StorageConsumer.spec` holds the desired RGW account quota. It reuses Rook's `AccountQuotaSpec` directly. The StorageConsumer controller copies the field as-is into `CephObjectStoreAccount.spec.quotas`.
 
 ```go
 type StorageConsumerSpec struct {
 	// ...existing fields...
 
-	// RGWAccountQuota caps the object storage this consumer's RGW Account can use.
+	// RGWAccountQuota sets the storage quota and resource limits on this consumer's RGW Account.
 	// +optional
-	RGWAccountQuota *RGWAccountQuota `json:"rgwAccountQuota,omitempty"`
-}
-
-// RGWAccountQuota exposes only the account-level subset of Rook's AccountQuotaSpec.
-type RGWAccountQuota struct {
-	// Account-wide storage quotas
-	MaxSize    *resource.Quantity `json:"maxSize,omitempty"`
-	MaxObjects *int64             `json:"maxObjects,omitempty"`
-	// Account-level resource limits
-	MaxBuckets    *int64 `json:"maxBuckets,omitempty"`
-	MaxUsers      *int64 `json:"maxUsers,omitempty"`
-	MaxRoles      *int64 `json:"maxRoles,omitempty"`
-	MaxGroups     *int64 `json:"maxGroups,omitempty"`
-	MaxAccessKeys *int64 `json:"maxAccessKeys,omitempty"`
+	RGWAccountQuota *rookCephv1.AccountQuotaSpec `json:"rgwAccountQuota,omitempty"`
 }
 ```
+
+Rook's `AccountQuotaSpec` fields:
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `maxSize` | Total size of all objects across all buckets in the account (resource quantity, e.g. `100Gi`) | `-1` |
+| `maxObjects` | Total number of objects across all buckets in the account | `-1` |
+| `maxBuckets` | Maximum number of buckets the account can own | `1000` |
+| `maxUsers` | Maximum number of users the account can have | `1000` |
+| `maxRoles` | Maximum number of IAM roles the account can have | `1000` |
+| `maxGroups` | Maximum number of IAM groups the account can have | `1000` |
+| `maxAccessKeys` | Maximum number of access keys each user in the account can have | `4` |
+
+For every field, `-1` means unlimited and `0` means none allowed. If `rgwAccountQuota` is set, at least one field must be specified.
 
 The account quota API consists of: 
 
@@ -174,9 +175,10 @@ The account quota API consists of:
 
 ### Removing Quota API
 
-- Quota removed from the consumer hands management back to the admin. 
-- Rook stops reconciling it and the last value stays in effect. 
-- It is not auto-disabled. To turn a quota off, the admin disables it with `radosgw-admin` from the toolbox.
+- Rook manages the account quota on every reconcile, whether or not a quota is set. Removing a field from `rgwAccountQuota` resets it to the Ceph default: `maxSize` and `maxObjects` become unlimited and resource limits go back to `1000` (`4` for `maxAccessKeys`).
+- Removing the whole `rgwAccountQuota` does this for every field, which also disables the account storage quota.
+- To lift a resource limit, set it to `-1`.
+- Changing quotas outside ODF, for example with `radosgw-admin` from the toolbox, is not supported. Rook overwrites such changes on the next reconcile.
 
 
 ## Spoke Offboarding
