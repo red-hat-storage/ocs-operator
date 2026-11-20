@@ -649,6 +649,7 @@ spec:
         severity_level: warning
       expr: |
         ocs_cephfs_subvolume_count > on(consumer_name) ocs_storage_client_cephfs_pv_count
+      for: 15m
       labels:
         severity: warning
   - name: ceph-fs-orphaned-snapshots.rules
@@ -661,8 +662,9 @@ spec:
         severity_level: warning
       expr: |
         ocs_cephfs_snapshot_content_count > on(consumer_name) ocs_storage_client_cephfs_volume_snapshot_content_count
+      for: 15m
       labels:
-        severity: warning       
+        severity: warning
   - name: odf_healthchecks.rules
     rules:
     - alert: ODFNodeLatencyHighOnOSDNodes
