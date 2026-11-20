@@ -81,11 +81,14 @@ func TestGetKubeResourcesForClass(t *testing.T) {
 		return srcSc, nil
 	}
 
-	objs := getKubeResourcesForClass(
+	objs, err := getKubeResourcesForClass(
 		consumer.Spec.StorageClasses,
 		"StorageClass",
 		genClassFn,
 	)
+	if err != nil {
+		t.Fatalf("getKubeResourcesForClass failed: %v", err)
+	}
 
 	// class-a, class-1 and class-2
 	wantObjs := 3

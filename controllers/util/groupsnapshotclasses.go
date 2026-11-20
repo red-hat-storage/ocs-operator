@@ -116,7 +116,7 @@ func VolumeGroupSnapshotClassFromExisting(
 		provisionerSecretName = consumerConfig.GetCsiNfsProvisionerCephUserName()
 		storageId = nfsStorageId
 	default:
-		return nil, UnsupportedDriver
+		return nil, ErrUnsupportedDriver
 	}
 
 	params := gsc.Parameters
