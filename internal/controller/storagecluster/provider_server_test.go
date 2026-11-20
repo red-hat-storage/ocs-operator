@@ -25,6 +25,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/provider/server"
+	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 
 	secv1 "github.com/openshift/api/security/v1"
 )
@@ -41,7 +42,7 @@ func TestOcsProviderServerEnsureCreated(t *testing.T) {
 		} {
 			r, instance := createSetupForOcsProviderTest(t, svcType)
 
-			obj := &ocsProviderServer{}
+			obj := &ocsProviderServer{&ocstlsv1.TLSProfile{}}
 			res, err := obj.ensureCreated(r, instance)
 			assert.NoError(t, err)
 			assert.False(t, res.IsZero())
@@ -97,7 +98,7 @@ func TestOcsProviderServerEnsureDeleted(t *testing.T) {
 	t.Run("Ensure that Deployment,Service is deleted while uninstalling", func(t *testing.T) {
 
 		r, instance := createSetupForOcsProviderTest(t, "")
-		obj := &ocsProviderServer{}
+		obj := &ocsProviderServer{&ocstlsv1.TLSProfile{}}
 		// create resources and ignore error as it should be tested via TestOcsProviderServerEnsureCreated
 		_, _ = obj.ensureCreated(r, instance)
 
@@ -243,6 +244,10 @@ func GetProviderAPIServerDeploymentForTest(instance *ocsv1.StorageCluster) *apps
 								{
 									Name:  util.OperatorNamespaceEnvVar,
 									Value: instance.Namespace,
+								},
+								{
+									Name:  tlsProfileGenerationEnvName,
+									Value: "0",
 								},
 							},
 							Ports: []corev1.ContainerPort{

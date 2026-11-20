@@ -386,3 +386,8 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) 
 	}
 	return nil
 }
+
+func IsRetriableAPIError(err error) bool {
+	return errors.IsServiceUnavailable(err) || errors.IsServerTimeout(err) ||
+		errors.IsTimeout(err) || errors.IsTooManyRequests(err) || errors.IsInternalError(err)
+}
