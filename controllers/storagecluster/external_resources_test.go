@@ -568,3 +568,97 @@ func TestErasureCodedExternalResources(t *testing.T) {
 		})
 	}
 }
+
+// TestCreateExternalModeStorageClassesLabelOnlyUpdate verifies DFBUGS-11725:
+// when only the external-mode label differs, the StorageClass is updated in place
+// (preserving annotations such as is-default-class) instead of being deleted/recreated.
+func TestCreateExternalModeStorageClassesLabelOnlyUpdate(t *testing.T) {
+	const scName = "ocs-external-storagecluster-ceph-rbd"
+	const defaultAnnotation = "storageclass.kubernetes.io/is-default-class"
+
+	// Labels: nil matches the real 4.18->4.19 upgrade case, where the
+	// is-external label did not exist yet on the StorageClass.
+	existing := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: scName,
+			Annotations: map[string]string{
+				defaultAnnotation: "true",
+			},
+		},
+		Provisioner: util.RbdDriverName,
+		Parameters: map[string]string{
+			"clusterID": "openshift-storage",
+			"pool":      "ocs-storagecluster-cephblockpool",
+		},
+	}
+
+	desired := existing.DeepCopy()
+	util.AddLabel(desired, util.ExternalClassLabelKey, strconv.FormatBool(true))
+	util.AddAnnotation(desired, "description", "Provides RWO Filesystem volumes, and RWO and RWX Block volumes")
+	util.AddAnnotation(desired, "reclaimspace.csiaddons.openshift.io/schedule", "@weekly")
+
+	reconciler := createFakeInitializationStorageClusterReconciler(t)
+	assert.NoError(t, reconciler.Client.Create(context.TODO(), existing))
+
+	err := reconciler.createExternalModeStorageClasses([]StorageClassConfiguration{{
+		storageClass:      desired,
+		reconcileStrategy: ReconcileStrategyUnknown,
+	}}, "")
+	assert.NoError(t, err)
+
+	updated := &storagev1.StorageClass{}
+	assert.NoError(t, reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: scName}, updated))
+	assert.Equal(t, "true", updated.Labels[util.ExternalClassLabelKey])
+	assert.Equal(t, "true", updated.Annotations[defaultAnnotation],
+		"default StorageClass annotation must be preserved on label-only update")
+	assert.Equal(t, "Provides RWO Filesystem volumes, and RWO and RWX Block volumes",
+		updated.Annotations["description"])
+	assert.Equal(t, "@weekly", updated.Annotations["reclaimspace.csiaddons.openshift.io/schedule"])
+	assert.Equal(t, existing.Parameters, updated.Parameters)
+}
+
+// TestCreateExternalModeStorageClassesParametersChangeRecreates verifies that
+// immutable parameter changes still trigger delete+recreate.
+func TestCreateExternalModeStorageClassesParametersChangeRecreates(t *testing.T) {
+	const scName = "ocs-external-storagecluster-ceph-rbd"
+	const defaultAnnotation = "storageclass.kubernetes.io/is-default-class"
+
+	existing := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: scName,
+			Annotations: map[string]string{
+				defaultAnnotation: "true",
+			},
+			Labels: map[string]string{
+				util.ExternalClassLabelKey: "true",
+			},
+		},
+		Provisioner: util.RbdDriverName,
+		Parameters: map[string]string{
+			"clusterID": "openshift-storage",
+			"pool":      "old-pool",
+		},
+	}
+
+	desired := existing.DeepCopy()
+	desired.Parameters = map[string]string{
+		"clusterID": "openshift-storage",
+		"pool":      "new-pool",
+	}
+	// Desired object from the operator does not carry the user-set default annotation
+	desired.Annotations = map[string]string{}
+
+	reconciler := createFakeInitializationStorageClusterReconciler(t)
+	assert.NoError(t, reconciler.Client.Create(context.TODO(), existing))
+
+	err := reconciler.createExternalModeStorageClasses([]StorageClassConfiguration{{
+		storageClass:      desired,
+		reconcileStrategy: ReconcileStrategyUnknown,
+	}}, "")
+	assert.NoError(t, err)
+
+	recreated := &storagev1.StorageClass{}
+	assert.NoError(t, reconciler.Client.Get(context.TODO(), types.NamespacedName{Name: scName}, recreated))
+	assert.Equal(t, "new-pool", recreated.Parameters["pool"])
+	assert.Equal(t, "true", recreated.Labels[util.ExternalClassLabelKey])
+}
