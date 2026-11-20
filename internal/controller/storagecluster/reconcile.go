@@ -98,6 +98,7 @@ var storageClusterFinalizer = "storagecluster.ocs.openshift.io"
 
 // +kubebuilder:rbac:groups=ocs.openshift.io,resources=*,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ceph.rook.io,resources=cephclusters;cephblockpools;cephfilesystems;cephnfses;cephobjectstores;cephobjectstoreusers;cephrbdmirrors;cephblockpoolradosnamespaces;cephnvmeofgateways,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=ceph.rook.io,resources=cephobjectzones,verbs=get;list;watch
 // +kubebuilder:rbac:groups=noobaa.io,resources=noobaas,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=watch;create;update;delete;get;list
 // +kubebuilder:rbac:groups=core,resources=pods;services;serviceaccounts;endpoints;persistentvolumes;persistentvolumeclaims;events;configmaps;secrets;nodes,verbs=get;list;watch;create;update;patch;delete

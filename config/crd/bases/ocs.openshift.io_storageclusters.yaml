@@ -3758,6 +3758,14 @@ spec:
                         maxLength: 253
                         pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string
+                      zoneName:
+                        description: |-
+                          ZoneName, if set, is the name of the CephObjectStoreZone the default CephObjectStore will be
+                          created as part of. This enables multisite configurations. Once the CephObjectStore exists it
+                          cannot be changed or removed, because that would point RGW at a different zone's pools. The
+                          only permitted change is adding a zone to a single-site store, and only when the zone's name
+                          equals the store's name and its CephObjectZone is Ready, since that zone shares the store's pools.
+                        type: string
                     type: object
                   cephRBDMirror:
                     description: ManageCephRBDMirror defines how to reconcile Ceph

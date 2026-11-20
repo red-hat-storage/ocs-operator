@@ -312,6 +312,12 @@ type ManageCephObjectStores struct {
 	HostNetwork       *bool `json:"hostNetwork,omitempty"`
 	GatewayPort       int   `json:"gatewayPort,omitempty"`
 	GatewaySecurePort int   `json:"gatewaySecurePort,omitempty"`
+	// ZoneName, if set, is the name of the CephObjectStoreZone the default CephObjectStore will be
+	// created as part of. This enables multisite configurations. Once the CephObjectStore exists it
+	// cannot be changed or removed, because that would point RGW at a different zone's pools. The
+	// only permitted change is adding a zone to a single-site store, and only when the zone's name
+	// equals the store's name and its CephObjectZone is Ready, since that zone shares the store's pools.
+	ZoneName string `json:"zoneName,omitempty"`
 	// Enables STS authentication for RGW
 	// +kubebuilder:default=true
 	EnableSTS bool `json:"enableSTS,omitempty"`
