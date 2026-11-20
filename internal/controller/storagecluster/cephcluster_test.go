@@ -1419,7 +1419,19 @@ func TestNewCephDaemonResourcesTNF(t *testing.T) {
 func TestParsePrometheusRules(t *testing.T) {
 	prometheusRules, err := parsePrometheusRule(localPrometheusRules)
 	assert.NilError(t, err)
-	assert.Equal(t, 11, len(prometheusRules.Spec.Groups))
+	assert.Equal(t, 20, len(prometheusRules.Spec.Groups))
+	alertCount, recordCount := 0, 0
+	for _, group := range prometheusRules.Spec.Groups {
+		for _, rule := range group.Rules {
+			if rule.Alert != "" {
+				alertCount++
+			} else {
+				recordCount++
+			}
+		}
+	}
+	assert.Equal(t, 65, alertCount)
+	assert.Equal(t, 7, recordCount)
 
 	prometheusRules, err = parsePrometheusRule(externalPrometheusRules)
 	assert.NilError(t, err)
