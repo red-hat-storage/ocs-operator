@@ -274,6 +274,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 			if err != nil {
 				return reconcile.Result{}, err
 			}
+			setCephXHealthWarningMutes(cephCluster, sc)
 
 			if sc.Spec.ExternalStorage.Enable {
 				r.Log.Info("Creating external CephCluster.", "CephCluster", klog.KRef(cephCluster.Namespace, cephCluster.Name))
@@ -310,6 +311,7 @@ func (obj *ocsCephCluster) ensureCreated(r *StorageClusterReconciler, sc *ocsv1.
 	if err != nil {
 		return reconcile.Result{}, err
 	}
+	setCephXHealthWarningMutes(cephCluster, sc)
 
 	// Record actual Ceph container image version before attempting update
 	sc.Status.Images.Ceph.ActualImage = found.Spec.CephVersion.Image
@@ -457,6 +459,33 @@ func setCephXFeaturesSpec(cephCluster *rookCephv1.CephCluster, sc *ocsv1.Storage
 	}
 
 	return nil
+}
+
+// cephXHealthWarnings are the Ceph health checks raised while any CephX key still
+// uses the older aes key type.
+var cephXHealthWarnings = []string{
+	"AUTH_INSECURE_ROTATING_SERVICE_KEY_TYPE",
+	"AUTH_INSECURE_CLIENT_KEY_TYPE",
+	"AUTH_INSECURE_KEYS_ALLOWED",
+	"AUTH_INSECURE_KEYS_CREATABLE",
+}
+
+// setCephXHealthWarningMutes mutes the CephX related Ceph health warnings through the
+// CephCluster spec.healthCheck.muteHealthWarning.
+func setCephXHealthWarningMutes(cephCluster *rookCephv1.CephCluster, sc *ocsv1.StorageCluster) {
+	// the external Ceph cluster is not managed by ODF
+	if sc.Spec.ExternalStorage.Enable {
+		return
+	}
+
+	if cephCluster.Spec.HealthCheck.MuteHealthWarning == nil {
+		cephCluster.Spec.HealthCheck.MuteHealthWarning = make(map[string]rookCephv1.MuteHealthWarningSpec, len(cephXHealthWarnings))
+	}
+	for _, warning := range cephXHealthWarnings {
+		if _, ok := cephCluster.Spec.HealthCheck.MuteHealthWarning[warning]; !ok {
+			cephCluster.Spec.HealthCheck.MuteHealthWarning[warning] = rookCephv1.MuteHealthWarningSpec{Policy: "mute"}
+		}
+	}
 }
 
 // ensureDeleted deletes the CephCluster owned by the StorageCluster
