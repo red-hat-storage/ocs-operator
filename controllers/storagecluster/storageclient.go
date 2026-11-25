@@ -20,8 +20,9 @@ const (
 	tokenLifetimeInHours         = 48
 	onboardingPrivateKeyFilePath = "/etc/private-key/key"
 
-	ocsClientConfigMapName = "ocs-client-operator-config"
-	manageNoobaaSubKey     = "manageNoobaaSubscription"
+	ocsClientConfigMapName  = "ocs-client-operator-config"
+	manageNoobaaSubKey      = "manageNoobaaSubscription"
+	disableVersionChecksKey = "disableVersionChecks"
 )
 
 type storageClient struct{}
@@ -95,6 +96,7 @@ func (s *storageClient) updateClientConfigMap(r *StorageClusterReconciler, names
 		clientConfig.Data = map[string]string{}
 	}
 	clientConfig.Data[manageNoobaaSubKey] = strconv.FormatBool(false)
+	clientConfig.Data[disableVersionChecksKey] = strconv.FormatBool(true)
 
 	if !maps.Equal(clientConfig.Data, existingData) {
 		if err := r.Client.Update(r.ctx, clientConfig); err != nil {
