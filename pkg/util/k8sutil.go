@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"strings"
@@ -279,6 +280,13 @@ func GetKMSConfigMap(configMapName string, instance *ocsv1.StorageCluster, clien
 	return &kmsConfigMap, err
 }
 
+var (
+	// ErrNoStorageCluster is returned when no StorageCluster exists in the namespace.
+	ErrNoStorageCluster = stderrors.New("no storageCluster found")
+	// ErrIgnoredStorageCluster is returned when the StorageCluster is in Ignored phase.
+	ErrIgnoredStorageCluster = stderrors.New("storageCluster with Phase 'Ignored' found. Please delete the storageCluster to proceed")
+)
+
 func GetStorageClusterInNamespace(ctx context.Context, cl client.Client, namespace string) (*ocsv1.StorageCluster, error) {
 	storageClusterList := &ocsv1.StorageClusterList{}
 	err := cl.List(ctx, storageClusterList, client.InNamespace(namespace), client.Limit(1))
@@ -287,10 +295,10 @@ func GetStorageClusterInNamespace(ctx context.Context, cl client.Client, namespa
 	}
 
 	if len(storageClusterList.Items) == 0 {
-		return nil, fmt.Errorf("no storageCluster found in namespace %s", namespace)
+		return nil, fmt.Errorf("%w in namespace %s", ErrNoStorageCluster, namespace)
 	}
 	if storageClusterList.Items[0].Status.Phase == ocsv1.PhaseIgnored {
-		return nil, fmt.Errorf("storageCluster with Phase 'Ignored' found. Please delete the storageCluster to proceed")
+		return nil, ErrIgnoredStorageCluster
 	}
 
 	return &storageClusterList.Items[0], nil

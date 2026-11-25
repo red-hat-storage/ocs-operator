@@ -1194,6 +1194,17 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 	clientConfigMap := &corev1.ConfigMap{}
 	clientConfigMap.Name = ocsClientConfigMapName
 	clientConfigMap.Namespace = namespace
+	operatorNamespace, err := statusutil.GetOperatorNamespace()
+	if err != nil {
+		operatorNamespace = "openshift-storage"
+	}
+	providerServerCAConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      defaults.ProviderServerCAConfigMap,
+			Namespace: os.Getenv(statusutil.OperatorNamespaceEnvVar),
+		},
+		Data: map[string]string{"service-ca.crt": "server-ca-bundle"},
+	}
 
 	_ = os.Setenv(providerAPIServerImage, "fake-image")
 	_ = os.Setenv(onboardingValidationKeysGeneratorImage, "fake-image")
@@ -1214,6 +1225,18 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 
 	ocsProviderServiceSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName},
+	}
+	ocsProviderRoute := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{Name: ocsProviderServerName, Namespace: namespace},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{{
+				Host: "ocs-provider.apps.example.com",
+				Conditions: []routev1.RouteIngressCondition{{
+					Type:   routev1.RouteAdmitted,
+					Status: corev1.ConditionTrue,
+				}},
+			}},
+		},
 	}
 
 	// create a fake infrastructure CR for platform detection
@@ -1236,9 +1259,11 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 		rookCephMonSecret,
 		csv,
 		clientConfigMap,
+		providerServerCAConfigMap,
 		ocsProviderService,
 		ocsProviderServiceDeployment,
 		ocsProviderServiceSecret,
+		ocsProviderRoute,
 		createRookCephOperatorCSV(namespace),
 		fakeInfra,
 	)
@@ -1249,10 +1274,6 @@ func createFakeStorageClusterReconciler(t *testing.T, obj ...runtime.Object) *St
 		panic(fmt.Sprintf("Failed to get clusters %s", err.Error()))
 	}
 
-	operatorNamespace, err := statusutil.GetOperatorNamespace()
-	if err != nil {
-		operatorNamespace = "openshift-storage"
-	}
 	//Update the deployment replicas to 1
 	ocsProviderServiceDeployment.Status.AvailableReplicas = 1
 	err = client.Status().Update(context.TODO(), ocsProviderServiceDeployment)

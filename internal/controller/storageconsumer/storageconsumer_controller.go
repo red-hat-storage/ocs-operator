@@ -19,6 +19,7 @@ package controllers
 import (
 	"cmp"
 	"context"
+	stderrors "errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -117,6 +118,11 @@ func (r *StorageConsumerReconciler) Reconcile(ctx context.Context, request recon
 	// Reconcile changes to the cluster
 	result, reconcileError := r.reconcilePhases()
 
+	// Actable errors set status.message during reconcile. On success, clear a leftover error.
+	if reconcileError == nil {
+		r.storageConsumer.Status.Message = ""
+	}
+
 	// Apply status changes to the StorageConsumer
 	statusError := r.Status().Update(r.ctx, r.storageConsumer)
 	if statusError != nil {
@@ -194,6 +200,9 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 
 		storageCluster, err := util.GetStorageClusterInNamespace(r.ctx, r.Client, r.namespace)
 		if err != nil {
+			if stderrors.Is(err, util.ErrNoStorageCluster) || stderrors.Is(err, util.ErrIgnoredStorageCluster) {
+				r.storageConsumer.Status.Message = err.Error()
+			}
 			return reconcile.Result{}, err
 		}
 
@@ -314,6 +323,7 @@ func (r *StorageConsumerReconciler) reconcileEnabledPhases() (reconcile.Result, 
 				if err := r.reconcileRGWAccount(
 					util.GenerateNameForCephObjectStore(storageCluster),
 					consumerResources.GetRGWAccountName(),
+					r.storageConsumer.Spec.RGWAccountQuota,
 					consumerConfigMap,
 				); err != nil {
 					return reconcile.Result{}, err
@@ -626,6 +636,7 @@ func (r *StorageConsumerReconciler) reconcileCephFilesystemSubVolumeGroup(
 func (r *StorageConsumerReconciler) reconcileRGWAccount(
 	objectStoreName string,
 	accountName string,
+	quota *rookCephv1.AccountQuotaSpec,
 	additionalOwner client.Object,
 ) error {
 	account := &rookCephv1.CephObjectStoreAccount{}
@@ -641,6 +652,13 @@ func (r *StorageConsumerReconciler) reconcileRGWAccount(
 		}
 		account.Spec.Store = objectStoreName
 		account.Spec.Name = accountName
+		// Always set the quota so that removing it from the StorageConsumer clears it on the Account.
+		// Rook then resets every field to the Ceph default.
+		if quota != nil {
+			quota.DeepCopyInto(&account.Spec.Quotas)
+		} else {
+			account.Spec.Quotas = rookCephv1.AccountQuotaSpec{}
+		}
 		return nil
 	}); err != nil {
 		return err

@@ -15,8 +15,10 @@ import (
 )
 
 const (
-	poolMirroringSubsystem = "pool_mirroring"
-	defaultRadosNamespace  = "internal"
+	poolMirroringSubsystem           = "pool_mirroring"
+	blockPoolSubsystem               = "cephblockpool"
+	blockPoolRadosNamespaceSubsystem = "cephblockpoolradosnamespace"
+	defaultRadosNamespace            = "internal"
 )
 
 // imageHealthValue maps a Ceph image health string to its numeric gauge value.
@@ -49,6 +51,8 @@ var _ prometheus.Collector = &CephBlockPoolCollector{}
 type CephBlockPoolCollector struct {
 	MirroringImageHealth *prometheus.Desc
 	MirroringStatus      *prometheus.Desc
+	Phase                *prometheus.Desc
+	RadosNamespacePhase  *prometheus.Desc
 	Informer             cache.SharedIndexInformer
 	InformerRs           cache.SharedIndexInformer
 	AllowedNamespaces    []string
@@ -81,6 +85,18 @@ func NewCephBlockPoolCollector(opts *options.Options) *CephBlockPoolCollector {
 			[]string{"name", "namespace", "rados_namespace", "consumer_name"},
 			nil,
 		),
+		Phase: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, blockPoolSubsystem, "status_phase"),
+			`CephBlockPool Status Phase. 0=Connecting, 1=Connected, 2=Progressing, 3=Ready, 4=Failure, 5=Deleting, 6=DeletionIsBlocked`,
+			[]string{"name", "namespace"},
+			nil,
+		),
+		RadosNamespacePhase: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, blockPoolRadosNamespaceSubsystem, "status_phase"),
+			`CephBlockPoolRadosNamespace Status Phase. 0=Connecting, 1=Connected, 2=Progressing, 3=Ready, 4=Failure, 5=Deleting, 6=DeletionIsBlocked`,
+			[]string{"name", "namespace", "rados_namespace", "consumer_name"},
+			nil,
+		),
 		Informer:          sharedIndexInformer,
 		InformerRs:        sharedIndexInformerRs,
 		AllowedNamespaces: opts.AllowedNamespaces,
@@ -98,6 +114,8 @@ func (c *CephBlockPoolCollector) Describe(ch chan<- *prometheus.Desc) {
 	ds := []*prometheus.Desc{
 		c.MirroringImageHealth,
 		c.MirroringStatus,
+		c.Phase,
+		c.RadosNamespacePhase,
 	}
 
 	for _, d := range ds {
@@ -113,6 +131,7 @@ func (c *CephBlockPoolCollector) Collect(ch chan<- prometheus.Metric) {
 	if len(cephBlockPools) > 0 {
 		c.collectMirroringImageHealth(cephBlockPools, ch)
 		c.collectMirroringStatus(cephBlockPools, ch)
+		c.collectCephBlockPoolPhase(cephBlockPools, ch)
 	}
 
 	radosNamespaceLister := cephv1listers.NewCephBlockPoolRadosNamespaceLister(c.InformerRs.GetIndexer())
@@ -120,6 +139,7 @@ func (c *CephBlockPoolCollector) Collect(ch chan<- prometheus.Metric) {
 	if len(radosNamespaces) > 0 {
 		c.collectMirroringImageHealthRadosNamespace(radosNamespaces, ch)
 		c.collectMirroringStatusRadosNamespace(radosNamespaces, ch)
+		c.collectCephBlockPoolRadosNamespacePhase(radosNamespaces, ch)
 	}
 }
 
@@ -197,6 +217,23 @@ func (c *CephBlockPoolCollector) collectMirroringStatus(cephBlockPools []*cephv1
 	}
 }
 
+func (c *CephBlockPoolCollector) collectCephBlockPoolPhase(cephBlockPools []*cephv1.CephBlockPool, ch chan<- prometheus.Metric) {
+	for _, cephBlockPool := range cephBlockPools {
+		var current cephv1.ConditionType
+		if cephBlockPool.Status != nil {
+			current = cephBlockPool.Status.Phase
+		}
+		code, ok := cephConditionStatusCode(current)
+		if !ok {
+			klog.Errorf("CephBlockPool %q in unexpected phase %q. Must be one of %v", cephBlockPool.Name, current, cephConditionPhases)
+			continue
+		}
+		ch <- prometheus.MustNewConstMetric(c.Phase,
+			prometheus.GaugeValue, code,
+			cephBlockPool.Name, cephBlockPool.Namespace)
+	}
+}
+
 func (c *CephBlockPoolCollector) collectMirroringImageHealthRadosNamespace(radosNamespaces []*cephv1.CephBlockPoolRadosNamespace, ch chan<- prometheus.Metric) {
 	for _, rns := range radosNamespaces {
 		if rns.Spec.Mirroring == nil {
@@ -226,6 +263,24 @@ func (c *CephBlockPoolCollector) collectMirroringStatusRadosNamespace(radosNames
 		consumer := consumerOwnerName(rns.OwnerReferences)
 		ch <- prometheus.MustNewConstMetric(c.MirroringStatus,
 			prometheus.GaugeValue, boolToFloat64(rns.Spec.Mirroring != nil),
+			rns.Spec.BlockPoolName, rns.Namespace, rns.Name, consumer)
+	}
+}
+
+func (c *CephBlockPoolCollector) collectCephBlockPoolRadosNamespacePhase(radosNamespaces []*cephv1.CephBlockPoolRadosNamespace, ch chan<- prometheus.Metric) {
+	for _, rns := range radosNamespaces {
+		var current cephv1.ConditionType
+		if rns.Status != nil {
+			current = rns.Status.Phase
+		}
+		code, ok := cephConditionStatusCode(current)
+		if !ok {
+			klog.Errorf("CephBlockPoolRadosNamespace %q in unexpected phase %q. Must be one of %v", rns.Name, current, cephConditionPhases)
+			continue
+		}
+		consumer := consumerOwnerName(rns.OwnerReferences)
+		ch <- prometheus.MustNewConstMetric(c.RadosNamespacePhase,
+			prometheus.GaugeValue, code,
 			rns.Spec.BlockPoolName, rns.Namespace, rns.Name, consumer)
 	}
 }

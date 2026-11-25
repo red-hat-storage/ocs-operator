@@ -51,6 +51,46 @@ func TestCephNVMeOFCustomGroupAndInstances(t *testing.T) {
 	assert.Equal(t, 4, actualGW.Spec.Instances)
 }
 
+func TestCephNVMeOFInterruptMode(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		spec     *bool
+		expected *bool
+	}{
+		{
+			name: "unset leaves the field nil so Rook applies its default (interrupt mode)",
+		},
+		{
+			name:     "explicit interrupt mode",
+			spec:     ptr.To(true),
+			expected: ptr.To(true),
+		},
+		{
+			name:     "explicit poll mode",
+			spec:     ptr.To(false),
+			expected: ptr.To(false),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var objects []client.Object
+			nvmeofSpec := &api.StorageClusterSpec{
+				NVMeOF: &api.NVMeOFSpec{
+					Enable:           true,
+					GatewayInstances: 2,
+					InterruptMode:    tc.spec,
+				},
+			}
+			t, reconciler, cr, request := initStorageClusterResourceCreateUpdateTest(t, objects, nvmeofSpec)
+
+			actualGW := &cephv1.CephNVMeOFGateway{}
+			request.Name = util.GenerateNameForCephNVMeOFGateway(cr)
+			err := reconciler.Get(context.TODO(), request.NamespacedName, actualGW)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expected, actualGW.Spec.InterruptMode)
+		})
+	}
+}
+
 func TestCephNVMeOFDisabled(t *testing.T) {
 	var objects []client.Object
 	t, reconciler, _, _ := initStorageClusterResourceCreateUpdateTest(t, objects, nil)

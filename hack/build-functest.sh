@@ -13,6 +13,6 @@ else
 	echo "GINKO binary found at $GINKGO"
 fi
 
-"${GINKGO}" build --ldflags "${LDFLAGS}" "functests/${GINKGO_TEST_SUITE}/"
+"${GINKGO}" build "functests/${GINKGO_TEST_SUITE}/"
 
 mv "functests/${GINKGO_TEST_SUITE}/${GINKGO_TEST_SUITE}.test" "${LOCALBIN}/${GINKGO_TEST_SUITE}_tests"

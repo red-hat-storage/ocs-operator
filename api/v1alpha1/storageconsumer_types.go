@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -45,6 +46,10 @@ type StorageConsumerSpec struct {
 	// StorageQuotaInGiB describes quota for the consumer
 	// +optional
 	StorageQuotaInGiB int `json:"storageQuotaInGiB,omitempty"`
+	// RGWAccountQuota sets the storage quota and resource limits on this consumer's RGW Account.
+	// Removing a field resets it to the Ceph default.
+	// +optional
+	RGWAccountQuota *rookCephv1.AccountQuotaSpec `json:"rgwAccountQuota,omitempty"`
 	// +optional
 	ResourceNameMappingConfigMap corev1.LocalObjectReference `json:"resourceNameMappingConfigMap,omitempty"`
 	// +optional
@@ -135,6 +140,8 @@ type CephResourcesSpec struct {
 type StorageConsumerStatus struct {
 	// State describes the state of StorageConsumer
 	State StorageConsumerState `json:"state,omitempty"`
+	// +optional
+	Message string `json:"message,omitempty"`
 	// CephResources provide details of created ceph resources required for external storage
 	// +kubebuilder:deprecatedversion:warning="This field has been deprecated and will be removed in future."
 	CephResources []*CephResourcesSpec `json:"cephResources,omitempty"`

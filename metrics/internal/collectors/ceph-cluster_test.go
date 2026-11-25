@@ -219,6 +219,88 @@ func TestCollectMirrorinDaemonCount(t *testing.T) {
 	}
 }
 
+func TestCollectCephClusterPhase(t *testing.T) {
+	mockOpts.StopCh = make(chan struct{})
+	defer close(mockOpts.StopCh)
+
+	cephClusterCollector := getMockCephClusterCollector(t, mockOpts)
+
+	objReady := mockCephCluster1.DeepCopy()
+	objReady.Name = objReady.Name + "ready"
+	objReady.Status = cephv1.ClusterStatus{Phase: cephv1.ConditionReady}
+
+	objFailure := mockCephCluster1.DeepCopy()
+	objFailure.Name = objFailure.Name + "failure"
+	objFailure.Status = cephv1.ClusterStatus{Phase: cephv1.ConditionFailure}
+
+	objUnsetStatus := mockCephCluster1.DeepCopy()
+	objUnsetStatus.Name = objUnsetStatus.Name + "unsetstatus"
+	objUnsetStatus.Status = cephv1.ClusterStatus{}
+
+	tests := Tests{
+		{
+			name: "Collect CephCluster phase metrics",
+			args: args{
+				objects: []runtime.Object{
+					objReady,
+					objFailure,
+					objUnsetStatus,
+				},
+			},
+		},
+		{
+			name: "Empty CephCluster",
+			args: args{
+				objects: []runtime.Object{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		ch := make(chan prometheus.Metric)
+		metric := dto.Metric{}
+		go func() {
+			var cephClusters []*cephv1.CephCluster
+			for _, obj := range tt.args.objects {
+				cephClusters = append(cephClusters, obj.(*cephv1.CephCluster))
+			}
+			cephClusterCollector.collectCephClusterPhase(cephClusters, ch)
+			close(ch)
+		}()
+
+		gotCodes := map[string]float64{}
+		for m := range ch {
+			assert.Contains(t, m.Desc().String(), "status_phase")
+			metric.Reset()
+			err := m.Write(&metric)
+			assert.Nil(t, err)
+
+			var name string
+			for _, label := range metric.GetLabel() {
+				switch *label.Name {
+				case "name":
+					name = *label.Value
+				case "namespace":
+					assert.Contains(t, cephClusterCollector.AllowedNamespaces, *label.Value)
+				}
+			}
+			gotCodes[name] = *metric.Gauge.Value
+		}
+
+		if len(tt.args.objects) > 0 {
+			// one series per instance, not one per phase: unsetstatus has an
+			// unrecognized ("") phase and is skipped entirely.
+			wantReady, _ := cephConditionStatusCode(cephv1.ConditionReady)
+			wantFailure, _ := cephConditionStatusCode(cephv1.ConditionFailure)
+			assert.Len(t, gotCodes, 2)
+			assert.Equal(t, wantReady, gotCodes[objReady.Name])
+			assert.Equal(t, wantFailure, gotCodes[objFailure.Name])
+			_, found := gotCodes[objUnsetStatus.Name]
+			assert.False(t, found)
+		}
+	}
+}
+
 func TestCollectLegacyOSDCount(t *testing.T) {
 	mockOpts.StopCh = make(chan struct{})
 	defer close(mockOpts.StopCh)
