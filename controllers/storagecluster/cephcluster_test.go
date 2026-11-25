@@ -208,6 +208,9 @@ func TestSetCephXFeaturesSpec(t *testing.T) {
 			label: "without CephX feature annotation",
 			expectedCephX: rookCephv1.ClusterCephxConfig{
 				AllowedCiphers: []rookCephv1.CephxKeyType{rookCephv1.CephxKeyTypeAes, rookCephv1.CephxKeyTypeAes256k},
+				CSI: rookCephv1.CephXConfigWithPriorCount{
+					CephxConfig: rookCephv1.CephxConfig{KeyType: rookCephv1.CephxKeyTypeAes},
+				},
 				Daemon: rookCephv1.CephxConfig{
 					KeyRotationPolicy: rookCephv1.KeyGenerationCephxKeyRotationPolicy,
 					KeyGeneration:     2,
@@ -219,6 +222,9 @@ func TestSetCephXFeaturesSpec(t *testing.T) {
 			storageClusterCephXGen: 3,
 			expectedCephX: rookCephv1.ClusterCephxConfig{
 				AllowedCiphers: []rookCephv1.CephxKeyType{rookCephv1.CephxKeyTypeAes, rookCephv1.CephxKeyTypeAes256k},
+				CSI: rookCephv1.CephXConfigWithPriorCount{
+					CephxConfig: rookCephv1.CephxConfig{KeyType: rookCephv1.CephxKeyTypeAes},
+				},
 				Daemon: rookCephv1.CephxConfig{
 					KeyRotationPolicy: rookCephv1.KeyGenerationCephxKeyRotationPolicy,
 					KeyGeneration:     3,
@@ -230,6 +236,9 @@ func TestSetCephXFeaturesSpec(t *testing.T) {
 			cephXAnnotation: true,
 			expectedCephX: rookCephv1.ClusterCephxConfig{
 				AllowedCiphers: []rookCephv1.CephxKeyType{rookCephv1.CephxKeyTypeAes, rookCephv1.CephxKeyTypeAes256k},
+				CSI: rookCephv1.CephXConfigWithPriorCount{
+					CephxConfig: rookCephv1.CephxConfig{KeyType: rookCephv1.CephxKeyTypeAes},
+				},
 				RBDMirrorPeer: rookCephv1.CephxConfig{
 					KeyType: rookCephv1.CephxKeyTypeAes,
 				},
