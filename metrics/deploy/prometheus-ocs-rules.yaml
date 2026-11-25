@@ -2,7 +2,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   labels:
-    prometheus: k8s
+    prometheus: ocs-prometheus
     role: alert-rules
   name: prometheus-ocs-rules
   namespace: openshift-storage
