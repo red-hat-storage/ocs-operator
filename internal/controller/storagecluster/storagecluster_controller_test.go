@@ -978,6 +978,7 @@ func TestStorageClusterInitConditions(t *testing.T) {
 // Phase must move from Error to Progressing.
 func TestStorageClusterClearsStaleCephConditions(t *testing.T) {
 	testSkipPrometheusRules = true
+	t.Setenv("OPERATOR_NAMESPACE", mockStorageClusterRequest.Namespace)
 
 	cephErrorMessage := "CephCluster error"
 
@@ -987,8 +988,10 @@ func TestStorageClusterClearsStaleCephConditions(t *testing.T) {
 	mockNodeList.DeepCopyInto(nodeList)
 	cc.Status.State = rookCephv1.ClusterStateCreated
 	cc.Status.CephStatus = &rookCephv1.CephStatus{
-		Health: "HealthOK",
+		Health: "HEALTH_OK",
 	}
+
+	staleUpgradeableMessage := "CephCluster health is HEALTH_WARN"
 
 	sc := mockStorageCluster.DeepCopy()
 	sc.Status.DefaultCephDeviceClass = "ssd"
@@ -1006,9 +1009,17 @@ func TestStorageClusterClearsStaleCephConditions(t *testing.T) {
 			Reason:  "ClusterStateError",
 			Message: cephErrorMessage,
 		},
+		{
+			Type:    conditionsv1.ConditionUpgradeable,
+			Status:  corev1.ConditionFalse,
+			Reason:  "CephClusterHealthNotOK",
+			Message: staleUpgradeableMessage,
+		},
 	}
 
+	operatorCondition := &stubCondition{}
 	reconciler := createFakeStorageClusterReconciler(t, sc, cc, nodeList, networkConfig)
+	reconciler.OperatorCondition = operatorCondition
 	result, err := reconciler.Reconcile(context.TODO(), mockStorageClusterRequest)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
@@ -1020,19 +1031,33 @@ func TestStorageClusterClearsStaleCephConditions(t *testing.T) {
 	assert.Len(t, actual.Status.Conditions, 6)
 	assert.Equal(t, api.PhaseProgressing, actual.Status.Phase)
 
-	assertExpectedCondition(t, actual.Status.Conditions)
-
 	available := conditionsv1.FindStatusCondition(actual.Status.Conditions, conditionsv1.ConditionAvailable)
 	assert.NotNil(t, available)
+	assert.Equal(t, corev1.ConditionTrue, available.Status)
 	assert.NotEqual(t, "ClusterStateError", available.Reason)
 
 	degraded := conditionsv1.FindStatusCondition(actual.Status.Conditions, conditionsv1.ConditionDegraded)
 	assert.NotNil(t, degraded)
+	assert.Equal(t, corev1.ConditionFalse, degraded.Status)
 	assert.NotEqual(t, "ClusterStateError", degraded.Reason)
 
 	progressing := conditionsv1.FindStatusCondition(actual.Status.Conditions, conditionsv1.ConditionProgressing)
 	assert.NotNil(t, progressing)
+	assert.Equal(t, corev1.ConditionTrue, progressing.Status)
 	assert.Equal(t, "NoobaaInitializing", progressing.Reason)
+
+	// Ceph is HEALTH_OK so Upgradeable is no longer reported; reset sets it healthy
+	// even while Noobaa is still Progressing.
+	upgradeable := conditionsv1.FindStatusCondition(actual.Status.Conditions, conditionsv1.ConditionUpgradeable)
+	assert.NotNil(t, upgradeable)
+	assert.Equal(t, corev1.ConditionTrue, upgradeable.Status)
+	assert.NotEqual(t, "CephClusterHealthNotOK", upgradeable.Reason)
+
+	// OperatorCondition must not keep the stale Ceph Upgradeable values after reset+merge.
+	assert.Equal(t, metav1.ConditionFalse, operatorCondition.status)
+	assert.Equal(t, "StorageClusterNotReady", operatorCondition.reason)
+	assert.NotEqual(t, "CephClusterHealthNotOK", operatorCondition.reason)
+	assert.NotEqual(t, staleUpgradeableMessage, operatorCondition.message)
 }
 
 func TestStorageClusterFinalizer(t *testing.T) {
