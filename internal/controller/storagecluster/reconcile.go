@@ -660,12 +660,20 @@ func (r *StorageClusterReconciler) reconcilePhases(
 				notUpgradeableMessages = append(notUpgradeableMessages, "StorageCluster is not ready")
 			}
 
-			if count, err := getUnsupportedClientsCount(r, instance.Namespace); err != nil {
+			consumers, err := listStorageConsumers(r, instance.Namespace)
+			if err != nil {
 				notUpgradeableReasons = append(notUpgradeableReasons, "ODFClients")
 				notUpgradeableMessages = append(notUpgradeableMessages, "Unable to determine status of connected ODF Clients")
-			} else if count != 0 {
-				notUpgradeableReasons = append(notUpgradeableReasons, "ODFClients")
-				notUpgradeableMessages = append(notUpgradeableMessages, fmt.Sprintf("%d connected ODF Client Operators are not up to date", count))
+			} else {
+				if count := getUnsupportedClientsCount(r, consumers); count != 0 {
+					notUpgradeableReasons = append(notUpgradeableReasons, "ODFClients")
+					notUpgradeableMessages = append(notUpgradeableMessages, fmt.Sprintf("%d connected ODF Client Operators are not up to date", count))
+				}
+
+				if count := getConsumersWithoutClientCerts(consumers); count != 0 {
+					notUpgradeableReasons = append(notUpgradeableReasons, "ClientCertsMissing")
+					notUpgradeableMessages = append(notUpgradeableMessages, fmt.Sprintf("%d StorageConsumer(s) have client certificate authentication not configured", count))
+				}
 			}
 
 			if len(notUpgradeableMessages) > 0 {
@@ -1062,29 +1070,49 @@ func validateCustomStorageClassNames(sc *ocsv1.StorageCluster) error {
 	return nil
 }
 
-func getUnsupportedClientsCount(r *StorageClusterReconciler, namespace string) (int, error) {
-	scList := &ocsv1alpha1.StorageConsumerList{}
-	err := r.List(r.ctx, scList, client.InNamespace(namespace))
+// listStorageConsumers returns all StorageConsumers in the namespace.
+func listStorageConsumers(r *StorageClusterReconciler, namespace string) ([]ocsv1alpha1.StorageConsumer, error) {
+	consumerList := &ocsv1alpha1.StorageConsumerList{}
+	err := r.List(r.ctx, consumerList, client.InNamespace(namespace))
 	if err != nil {
 		r.Log.Error(err, "Failed to list StorageConsumers")
-		return -1, err
+		return nil, err
 	}
+	return consumerList.Items, nil
+}
+
+func getUnsupportedClientsCount(r *StorageClusterReconciler, scList []ocsv1alpha1.StorageConsumer) int {
 	var count int
 	providerVersion, _ := semver.Make(version.Version)
-	for idx := range scList.Items {
+	for idx := range scList {
 		// Local client operator subscription is managed by ODF operator; exclude it from this check.
-		if scList.Items[idx].GetName() != defaults.LocalStorageConsumerName && scList.Items[idx].Status.Client != nil {
-			clientVersion, err := semver.Make(scList.Items[idx].Status.Client.OperatorVersion)
+		if scList[idx].GetName() != defaults.LocalStorageConsumerName && scList[idx].Status.Client != nil {
+			clientVersion, err := semver.Make(scList[idx].Status.Client.OperatorVersion)
 			if err == nil {
 				if providerVersion.Major != clientVersion.Major || providerVersion.Minor > clientVersion.Minor {
 					count++
 				}
 			} else {
-				r.Log.Error(err, "Failed to parse client operator version", "StorageConsumer", scList.Items[idx].GetName())
+				r.Log.Error(err, "Failed to parse client operator version", "StorageConsumer", scList[idx].GetName())
 				count++
 			}
 		}
 	}
 
-	return count, nil
+	return count
+}
+
+// getConsumersWithoutClientCerts returns the number of StorageConsumers that do
+// not have client certificate authentication configured. A consumer is considered
+// configured iff both Spec.ClientCAConfigMap.Name and Spec.ClientSAN are set,
+// matching the provider server's own requirement.
+func getConsumersWithoutClientCerts(consumers []ocsv1alpha1.StorageConsumer) int {
+	var count int
+	for idx := range consumers {
+		spec := &consumers[idx].Spec
+		if spec.ClientCAConfigMap.Name == "" || spec.ClientSAN == "" {
+			count++
+		}
+	}
+	return count
 }
