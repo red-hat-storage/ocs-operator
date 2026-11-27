@@ -25,6 +25,7 @@ import (
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/defaults"
 	"github.com/red-hat-storage/ocs-operator/v4/pkg/util"
 	"github.com/red-hat-storage/ocs-operator/v4/services/provider/server"
+	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 
 	routev1 "github.com/openshift/api/route/v1"
 	secv1 "github.com/openshift/api/security/v1"
@@ -40,13 +41,17 @@ const (
 	ocsProviderServicePort     = int32(50051)
 	ocsProviderServiceNodePort = int32(31659)
 
+	ocsProviderNodePortServiceName = ocsProviderServerName + "-nodeport"
+
 	ocsProviderCertSecretName = ocsProviderServerName + "-cert"
 
 	clientCertValidity      = util.SelfSignedCertValidity
 	clientCertRenewalWindow = 7 * 24 * time.Hour
 )
 
-type ocsProviderServer struct{}
+type ocsProviderServer struct {
+	tlsProfile *ocstlsv1.TLSProfile
+}
 
 func (o *ocsProviderServer) ensureCreated(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
@@ -117,34 +122,9 @@ func (o *ocsProviderServer) createRoute(r *StorageClusterReconciler, instance *o
 
 // TODO: in next version, have the networkpolicy only to allow via svc (own namespace) or via route
 func (o *ocsProviderServer) createNetworkPolicy(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
-	desiredService := GetProviderAPIServerService(instance)
-
 	networkPolicy := &networkingv1.NetworkPolicy{}
 	networkPolicy.Name = ocsProviderServerName
 	networkPolicy.Namespace = instance.Namespace
-
-	if err := r.Get(r.ctx, client.ObjectKeyFromObject(networkPolicy), networkPolicy); client.IgnoreNotFound(err) != nil {
-		r.Log.Error(err, "Failed to get networkpolicy", "Name", networkPolicy.Name)
-		return reconcile.Result{}, err
-	}
-
-	// Cross-cluster DR traffic via Submariner/Globalnet cannot match any
-	// namespaceSelector, so the NetworkPolicy must not exist when a peer is present.
-	hasPeers, err := hasStorageClusterPeers(r, instance.Namespace)
-	if err != nil {
-		r.Log.Error(err, "Failed to list StorageClusterPeer resources")
-		return reconcile.Result{}, err
-	}
-
-	if desiredService.Spec.Type != corev1.ServiceTypeClusterIP || hasPeers {
-		if networkPolicy.UID != "" {
-			if err := r.Delete(r.ctx, networkPolicy); err != nil {
-				r.Log.Error(err, "Failed to delete networkpolicy", "Name", networkPolicy.Name)
-				return reconcile.Result{}, err
-			}
-		}
-		return reconcile.Result{}, nil
-	}
 
 	desiredNetworkPolicy := getProviderAPIServerNetworkPolicy(instance)
 
@@ -159,15 +139,6 @@ func (o *ocsProviderServer) createNetworkPolicy(r *StorageClusterReconciler, ins
 	return reconcile.Result{}, nil
 }
 
-func hasStorageClusterPeers(r *StorageClusterReconciler, namespace string) (bool, error) {
-	peerList := &metav1.PartialObjectMetadataList{}
-	peerList.SetGroupVersionKind(ocsv1.GroupVersion.WithKind("StorageClusterPeerList"))
-	if err := r.List(r.ctx, peerList, client.InNamespace(namespace), client.Limit(1)); err != nil {
-		return false, err
-	}
-	return len(peerList.Items) > 0, nil
-}
-
 func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 	if err := r.verifyNoStorageConsumerExist(instance); err != nil {
 		return reconcile.Result{}, err
@@ -178,6 +149,9 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 	apiServerService := &corev1.Service{}
 	apiServerService.Name = ocsProviderServerName
 	apiServerService.Namespace = instance.Namespace
+	apiServerNodePortService := &corev1.Service{}
+	apiServerNodePortService.Name = ocsProviderNodePortServiceName
+	apiServerNodePortService.Namespace = instance.Namespace
 	apiServerNetworkPolicy := &networkingv1.NetworkPolicy{}
 	apiServerNetworkPolicy.Name = ocsProviderServerName
 	apiServerNetworkPolicy.Namespace = instance.Namespace
@@ -187,8 +161,9 @@ func (o *ocsProviderServer) ensureDeleted(r *StorageClusterReconciler, instance 
 	for _, resource := range []client.Object{
 		apiServerRoute,
 		apiServerService,
+		apiServerNodePortService,
 		apiServerNetworkPolicy,
-		GetProviderAPIServerDeployment(instance),
+		GetProviderAPIServerDeployment(instance, 0),
 	} {
 		err := r.Delete(r.ctx, resource)
 
@@ -220,7 +195,7 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 		return reconcile.Result{}, finalErr
 	}
 
-	desiredDeployment := GetProviderAPIServerDeployment(instance)
+	desiredDeployment := GetProviderAPIServerDeployment(instance, o.tlsProfile.Generation)
 	actualDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      desiredDeployment.Name,
@@ -250,7 +225,21 @@ func (o *ocsProviderServer) createDeployment(r *StorageClusterReconciler, instan
 
 func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance *ocsv1.StorageCluster) (reconcile.Result, error) {
 
-	desiredService := GetProviderAPIServerService(instance)
+	// TODO: move away from NodePort service in the next version
+	for _, desiredService := range []*corev1.Service{
+		GetProviderAPIServerService(instance),
+		GetProviderAPIServerNodePortService(instance),
+	} {
+		if err := o.applyService(r, instance, desiredService); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func (o *ocsProviderServer) applyService(r *StorageClusterReconciler, instance *ocsv1.StorageCluster, desiredService *corev1.Service) error {
+
 	actualService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      desiredService.Name,
@@ -275,39 +264,12 @@ func (o *ocsProviderServer) createService(r *StorageClusterReconciler, instance 
 	})
 	if err != nil {
 		r.Log.Error(err, "Failed to create/update service", "Name", desiredService.Name)
-		return reconcile.Result{}, err
+		return err
 	}
 
-	r.Log.Info("Service create/update succeeded")
+	r.Log.Info("Service create/update succeeded", "Name", desiredService.Name)
 
-	switch desiredService.Spec.Type {
-	case corev1.ServiceTypeLoadBalancer:
-		endpoint := o.getLoadBalancerServiceEndpoint(actualService)
-
-		if endpoint == "" {
-			r.recorder.ReportIfNotPresent(instance, corev1.EventTypeNormal, "Waiting", "Waiting for Ingress on service "+actualService.Name)
-			r.Log.Info("Waiting for Ingress on service", "Service", actualService.Name, "Status", actualService.Status)
-			return reconcile.Result{RequeueAfter: time.Second * 5}, nil
-		}
-
-		instance.Status.StorageProviderEndpoint = fmt.Sprintf("%s:%d", endpoint, ocsProviderServicePort)
-	}
-
-	return reconcile.Result{}, nil
-}
-
-func (o *ocsProviderServer) getLoadBalancerServiceEndpoint(service *corev1.Service) string {
-	endpoint := ""
-
-	if len(service.Status.LoadBalancer.Ingress) != 0 {
-		if service.Status.LoadBalancer.Ingress[0].IP != "" {
-			endpoint = service.Status.LoadBalancer.Ingress[0].IP
-		} else if service.Status.LoadBalancer.Ingress[0].Hostname != "" {
-			endpoint = service.Status.LoadBalancer.Ingress[0].Hostname
-		}
-	}
-
-	return endpoint
+	return nil
 }
 
 func (o *ocsProviderServer) ensureDeploymentReplica(actual, desired *appsv1.Deployment) error {
@@ -319,7 +281,7 @@ func (o *ocsProviderServer) ensureDeploymentReplica(actual, desired *appsv1.Depl
 	return nil
 }
 
-func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Deployment {
+func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster, tlsProfileGeneration int64) *appsv1.Deployment {
 
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -360,6 +322,10 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 								{
 									Name:  util.OperatorNamespaceEnvVar,
 									Value: instance.Namespace,
+								},
+								{
+									Name:  tlsProfileGenerationEnvName,
+									Value: strconv.FormatInt(tlsProfileGeneration, 10),
 								},
 							},
 							Ports: []corev1.ContainerPort{
@@ -405,12 +371,8 @@ func GetProviderAPIServerDeployment(instance *ocsv1.StorageCluster) *appsv1.Depl
 }
 
 func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service {
-	serviceType := corev1.ServiceTypeClusterIP
-	if instance.Spec.ProviderAPIServerServiceType != "" {
-		serviceType = instance.Spec.ProviderAPIServerServiceType
-	} else if instance.Spec.HostNetwork {
-		serviceType = corev1.ServiceTypeNodePort
-	}
+	// The service is always ClusterIP; external consumers reach the provider
+	// through the passthrough route, internal clients via the service DNS name.
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ocsProviderServerName,
@@ -425,19 +387,35 @@ func GetProviderAPIServerService(instance *ocsv1.StorageCluster) *corev1.Service
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Name: "ocs-provider",
-					NodePort: func() int32 {
-						// ClusterIP service doesn't need nodePort
-						if serviceType == corev1.ServiceTypeClusterIP {
-							return 0
-						}
-						return ocsProviderServiceNodePort
-					}(),
+					Name:       "ocs-provider",
 					Port:       ocsProviderServicePort,
 					TargetPort: intstr.FromString("ocs-provider"),
 				},
 			},
-			Type: serviceType,
+			Type: corev1.ServiceTypeClusterIP,
+		},
+	}
+}
+
+func GetProviderAPIServerNodePortService(instance *ocsv1.StorageCluster) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ocsProviderNodePortServiceName,
+			Namespace: instance.Namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{
+				"app": "ocsProviderApiServer",
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "ocs-provider",
+					Port:       ocsProviderServicePort,
+					TargetPort: intstr.FromString("ocs-provider"),
+					NodePort:   ocsProviderServiceNodePort,
+				},
+			},
+			Type: corev1.ServiceTypeNodePort,
 		},
 	}
 }

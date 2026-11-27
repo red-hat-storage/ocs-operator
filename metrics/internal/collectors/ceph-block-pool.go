@@ -87,13 +87,13 @@ func NewCephBlockPoolCollector(opts *options.Options) *CephBlockPoolCollector {
 		),
 		Phase: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, blockPoolSubsystem, "status_phase"),
-			`CephBlockPool Status Phase. 0=Connecting, 1=Connected, 2=Progressing, 3=Ready, 4=Failure, 5=Deleting, 6=DeletionIsBlocked`,
+			`CephBlockPool Status Phase. 0=Connecting, 1=Connected, 2=Failure, 3=Ready, 4=Progressing, 5=Deleting, 6=DeletionIsBlocked`,
 			[]string{"name", "namespace"},
 			nil,
 		),
 		RadosNamespacePhase: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, blockPoolRadosNamespaceSubsystem, "status_phase"),
-			`CephBlockPoolRadosNamespace Status Phase. 0=Connecting, 1=Connected, 2=Progressing, 3=Ready, 4=Failure, 5=Deleting, 6=DeletionIsBlocked`,
+			`CephBlockPoolRadosNamespace Status Phase. 0=Connecting, 1=Connected, 2=Failure, 3=Ready, 4=Progressing, 5=Deleting, 6=DeletionIsBlocked`,
 			[]string{"name", "namespace", "rados_namespace", "consumer_name"},
 			nil,
 		),

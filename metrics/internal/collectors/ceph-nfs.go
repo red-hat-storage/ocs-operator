@@ -37,7 +37,7 @@ func NewCephNFSCollector(opts *options.Options) *CephNFSCollector {
 	return &CephNFSCollector{
 		Phase: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, cephNFSSubsystem, "status_phase"),
-			`CephNFS Status Phase. 0=Empty, 1=Ready, 2=Failed, 3=Reconciling, 4=ReconcileFailed`,
+			`CephNFS Status Phase. 0=Empty, 1=Ready, 2=Failed/ReconcileFailed, 3=Reconciling`,
 			[]string{"name", "namespace"},
 			nil,
 		),

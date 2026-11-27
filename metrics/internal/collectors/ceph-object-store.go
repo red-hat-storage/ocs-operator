@@ -55,7 +55,7 @@ func NewCephObjectStoreCollector(opts *options.Options) *CephObjectStoreCollecto
 		),
 		UserPhase: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, cephObjectStoreUserSubsystem, "status_phase"),
-			`CephObjectStoreUser Status Phase. 0=Empty, 1=Ready, 2=Failed, 3=Reconciling, 4=ReconcileFailed`,
+			`CephObjectStoreUser Status Phase. 0=Empty, 1=Ready, 2=Failed/ReconcileFailed, 3=Reconciling`,
 			[]string{"name", "namespace"},
 			nil,
 		),

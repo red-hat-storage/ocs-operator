@@ -48,6 +48,7 @@ import (
 	templatev1 "github.com/openshift/api/template/v1"
 	opv1a1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	odfgsapiv1b1 "github.com/red-hat-storage/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
+	ocstlsv1 "github.com/red-hat-storage/ocs-tls-profiles/api/v1"
 	rookCephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -66,6 +67,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -224,7 +226,7 @@ func NewOCSProviderServer(ctx context.Context, namespace string) (*OCSProviderSe
 // OnboardConsumer RPC call to onboard a new OCS consumer cluster.
 func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.OnboardConsumerRequest) (*pb.OnboardConsumerResponse, error) {
 	logger := klog.FromContext(ctx).WithName("OnboardConsumer")
-	logger.Info("Starting OnboardConsumer RPC", "request", req)
+	logger.Info("Starting OnboardConsumer RPC", "clientName", req.ClientName)
 
 	version, err := semver.FinalizeVersion(req.ClientOperatorVersion)
 	if err != nil {
@@ -323,10 +325,10 @@ func (s *OCSProviderServer) OnboardConsumer(ctx context.Context, req *pb.Onboard
 
 // GetDesiredClientState RPC call to generate the desired state of the client
 func (s *OCSProviderServer) GetDesiredClientState(ctx context.Context, req *pb.GetDesiredClientStateRequest) (*pb.GetDesiredClientStateResponse, error) {
-	logger := klog.FromContext(ctx).WithName("GetDesiredClientState").WithValues("consumer", req.StorageConsumerUUID)
+	logger := klog.FromContext(ctx).WithName("GetDesiredClientState")
 	consumer, err := s.consumerManager.Get(ctx, req.StorageConsumerUUID)
 	if err != nil {
-		logger.Error(err, "failed to get consumer")
+		logger.Error(err, "failed to get consumer", "consumer", req.StorageConsumerUUID)
 		return nil, status.Errorf(codes.Internal, "failed to get StorageConsumer")
 	}
 
@@ -608,10 +610,9 @@ func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
 		os.Exit(1)
 	}
 
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{serverCert},
-		ClientAuth:   tls.RequestClientCert,
-	}
+	tlsConfig := s.getTLSConfig(context.Background())
+	tlsConfig.Certificates = []tls.Certificate{serverCert}
+	tlsConfig.ClientAuth = tls.RequestClientCert
 
 	creds := credentials.NewTLS(tlsConfig)
 
@@ -629,6 +630,33 @@ func (s *OCSProviderServer) Start(port int, opts []grpc.ServerOption) {
 		log.Log.Error(err, "failed to start gRPC server")
 		os.Exit(1)
 	}
+}
+
+// getTLSConfig returns the centralized TLS profile configuration for the provider gRPC server.
+func (s *OCSProviderServer) getTLSConfig(ctx context.Context) *tls.Config {
+	defaultConfig := &tls.Config{MinVersion: tls.VersionTLS12}
+
+	profile := &ocstlsv1.TLSProfile{}
+	err := retry.OnError(retry.DefaultBackoff, util.IsRetriableAPIError, func() error {
+		return s.client.Get(ctx, types.NamespacedName{Name: defaults.TLSProfileName, Namespace: s.namespace}, profile)
+	})
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			log.Log.Error(err, "failed to get TLS profile, using default TLS config")
+		}
+		return defaultConfig
+	}
+
+	config, found := ocstlsv1.GetConfigForServer(profile, "ocs.openshift.io", "provider-server")
+	if !found {
+		log.Log.Info("no matching TLS profile rule for provider-server, using default TLS config")
+		return defaultConfig
+	}
+	if err := ocstlsv1.ValidateTLSConfig(config); err != nil {
+		log.Log.Error(err, "invalid TLS profile config for provider-server, using default TLS config")
+		return defaultConfig
+	}
+	return ocstlsv1.GetGoTLSConfig(config)
 }
 
 func newScheme() (*runtime.Scheme, error) {
@@ -681,6 +709,9 @@ func newScheme() (*runtime.Scheme, error) {
 	}
 	if err = csiaddonsv1alpha1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add nbapis to scheme. %v", err)
+	}
+	if err = ocstlsv1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("failed to add ocstlsv1 to scheme. %v", err)
 	}
 
 	return scheme, nil
@@ -1173,7 +1204,7 @@ func replaceMsgr1PortWithMsgr2(ips []string) {
 
 func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.PeerStorageClusterRequest) (*pb.PeerStorageClusterResponse, error) {
 	logger := klog.FromContext(ctx).WithName("PeerStorageCluster").WithValues("storage cluster", req.StorageClusterUID)
-	logger.Info("Starting PeerStorageCluster RPC", "request", req)
+	logger.Info("Starting PeerStorageCluster RPC", "storageClusterUID", req.StorageClusterUID)
 
 	pubKey, err := s.getOnboardingValidationKey(ctx)
 	if err != nil {
@@ -1201,7 +1232,10 @@ func (s *OCSProviderServer) PeerStorageCluster(ctx context.Context, req *pb.Peer
 	storageClusterPeer, err := s.storageClusterPeerManager.GetByPeerStorageClusterUID(ctx, types.UID(req.StorageClusterUID))
 	if err != nil {
 		logger.Error(err, "failed to get storage cluster peer that meets the criteria")
-		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer that meets all criteria")
+		if kerrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer that meets all criteria")
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get storage cluster peer")
 	}
 
 	logger.Info("Found StorageClusterPeer", "storageClusterPeer", storageClusterPeer.Name)
@@ -1257,7 +1291,10 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 	storageClusterPeer, err := s.storageClusterPeerManager.GetByPeerStorageClusterUID(ctx, types.UID(req.StorageClusterUID))
 	if err != nil {
 		logger.Error(err, "failed to get storage cluster peer")
-		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer")
+		if kerrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer")
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get storage cluster peer")
 	}
 
 	if err := s.authenticatePeerConnection(ctx, storageClusterPeer); err != nil {
@@ -1275,6 +1312,12 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 		return nil, status.Error(codes.Internal, "failed loading client information")
 	} else {
 		fsid = cephCluster.Status.CephStatus.FSID
+	}
+
+	storageCluster, err := util.GetStorageClusterInNamespace(ctx, s.client, s.namespace)
+	if err != nil {
+		logger.Error(err, "failed to get local storageCluster")
+		return nil, status.Error(codes.Internal, "failed loading client information")
 	}
 
 	for i := range req.ClientIDs {
@@ -1307,8 +1350,8 @@ func (s *OCSProviderServer) GetStorageClientsInfo(ctx context.Context, req *pb.S
 			continue
 		}
 		owner := &consumer.OwnerReferences[idx]
-		if owner.UID != types.UID(req.StorageClusterUID) {
-			logger.Info("storageCluster specified on the req does not own the client", "client id", req.ClientIDs[i])
+		if owner.UID != storageCluster.UID {
+			logger.Info("consumer is not owned by the local storageCluster", "client id", req.ClientIDs[i])
 			continue
 		}
 
@@ -1350,7 +1393,10 @@ func (s *OCSProviderServer) GetBlockPoolsInfo(ctx context.Context, req *pb.Block
 	storageClusterPeer, err := s.storageClusterPeerManager.GetByPeerStorageClusterUID(ctx, types.UID(req.StorageClusterUID))
 	if err != nil {
 		logger.Error(err, "failed to get storage cluster peer")
-		return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer")
+		if kerrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "Cannot find a storage cluster peer")
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get storage cluster peer")
 	}
 
 	if err := s.authenticatePeerConnection(ctx, storageClusterPeer); err != nil {

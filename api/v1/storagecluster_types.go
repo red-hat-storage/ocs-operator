@@ -92,6 +92,7 @@ type StorageClusterSpec struct {
 
 	// ProviderAPIServerServiceType Indicates the ServiceType for OCS Provider API Server Service.
 	// The default ServiceType is derived from hostNetwork field.
+	// Deprecated: This field is deprecated and will be removed in a future release.
 	// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer
 	ProviderAPIServerServiceType corev1.ServiceType `json:"providerAPIServerServiceType,omitempty"`
 

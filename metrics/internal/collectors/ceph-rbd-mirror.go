@@ -37,7 +37,7 @@ func NewCephRBDMirrorCollector(opts *options.Options) *CephRBDMirrorCollector {
 	return &CephRBDMirrorCollector{
 		Phase: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, cephRBDMirrorSubsystem, "status_phase"),
-			`CephRBDMirror Status Phase. 0=Empty, 1=Ready, 2=Failed, 3=Reconciling, 4=ReconcileFailed`,
+			`CephRBDMirror Status Phase. 0=Empty, 1=Ready, 2=Failed/ReconcileFailed, 3=Reconciling`,
 			[]string{"name", "namespace"},
 			nil,
 		),
