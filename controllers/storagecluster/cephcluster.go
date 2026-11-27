@@ -1081,13 +1081,13 @@ func generateStretchClusterSpec(sc *ocsv1.StorageCluster) *rookCephv1.StretchClu
 		if zone == sc.Spec.NodeTopologies.ArbiterLocation {
 			continue
 		}
-		stretchClusterSpec.Zones = append(stretchClusterSpec.Zones, rookCephv1.MonZoneSpec{
+		stretchClusterSpec.Zones = append(stretchClusterSpec.Zones, rookCephv1.StretchClusterZoneSpec{
 			Name:    zone,
 			Arbiter: false,
 		})
 	}
 
-	arbiterZoneSpec := rookCephv1.MonZoneSpec{
+	arbiterZoneSpec := rookCephv1.StretchClusterZoneSpec{
 		Name:    sc.Spec.NodeTopologies.ArbiterLocation,
 		Arbiter: true,
 	}
