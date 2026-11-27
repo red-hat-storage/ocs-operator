@@ -1,0 +1,54 @@
+---
+name: ibmcloud-cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Print actions without deleting
+        type: boolean
+        default: false
+      age_hours:
+        description: Only delete resources older than this many hours
+        type: string
+        default: "6"
+  schedule:
+  # Hourly; script only deletes stacks older than AGE_HOURS (default 6).
+  - cron: "0 * * * *"
+
+concurrency:
+  group: ibmcloud-cleanup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.repository == 'red-hat-storage/ocs-operator' && github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 1
+
+    - name: Install IBM Cloud CLI
+      run: |
+        curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+        ibmcloud plugin install vpc-infrastructure -f
+        ibmcloud --version
+
+    - name: Run cleanup script
+      env:
+        IBMCLOUD_API_KEY: ${{ secrets.IBMCLOUD_API_KEY }}
+        # inputs.* are empty on schedule; defaults apply.
+        DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+        AGE_HOURS: ${{ github.event_name == 'workflow_dispatch' && inputs.age_hours || '6' }}
+      run: |
+        set -euo pipefail
+        args=(--age-hours "${AGE_HOURS}")
+        if [[ "${DRY_RUN}" == "true" ]]; then
+          args+=(--dry-run)
+        fi
+        python3 hack/ibmcloud-cleanup.py "${args[@]}"
