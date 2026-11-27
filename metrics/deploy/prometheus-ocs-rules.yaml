@@ -265,3 +265,17 @@ spec:
         floor((ocs_storage_provider_operator_version>0)/1000) - ignoring(storage_consumer_name) group_right() floor((ocs_storage_client_operator_version>0)/1000) > 1 or floor((ocs_storage_client_operator_version>0)/1000) - ignoring(storage_consumer_name) group_left() floor((ocs_storage_provider_operator_version>0)/1000) >= 1
       labels:
         severity: critical
+- name: cephx-key-rotation-alert.rules
+    rules:
+    - alert: CephxKeyGenerationFailed
+      annotations:
+        description: CephX key rotation has not completed for {{ $labels.daemon }} daemon in namespace:cluster {{ $labels.namespace }}:{{ $labels.ceph_cluster }}. Please investigate the key rotation status.
+        message: CephX key rotation failed for {{ $labels.daemon }} daemon in namespace:cluster {{ $labels.namespace }}:{{ $labels.ceph_cluster }}.
+        runbook_url: https://github.com/openshift/runbooks/blob/master/alerts/openshift-container-storage-operator/CephxKeyGenerationFailed.md
+        severity_level: warning
+        storage_type: ceph
+      expr: |
+        ocs_cephx_daemon_key_rotation_mismatch{job="ocs-metrics-exporter"} == 1
+      for: 5m
+      labels:
+        severity: warning
